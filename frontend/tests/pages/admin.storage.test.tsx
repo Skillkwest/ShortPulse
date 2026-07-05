@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminStoragePage from "../../pages/admin/storage";
@@ -293,8 +293,40 @@ describe("Admin storage page", () => {
     render(<AdminStoragePage />);
 
     expect(screen.getByText("No Supabase usage snapshot is available.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Capture snapshot" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reload ShortPulse storage data" })).toHaveAttribute(
+      "title",
+      "Reload ShortPulse storage data. Use Capture snapshot to add Supabase provider usage."
+    );
     expect(screen.getByText("No snapshot")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.queryByText("0.0 GB")).not.toBeInTheDocument();
+  });
+
+  it("opens the provider snapshot capture modal from the storage warning state", () => {
+    const baseState = buildStorageEconomicsState();
+    useAdminStorageEconomicsControllerMock.mockReturnValue({
+      ...baseState,
+      storageEconomics: {
+        ...baseState.storageEconomics,
+        providerUsage: {
+          ...baseState.storageEconomics.providerUsage,
+          status: "unavailable",
+          source: "unavailable",
+          snapshotMonth: null,
+          capturedAt: null,
+          supabasePlan: null,
+        },
+      },
+    });
+
+    render(<AdminStoragePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Capture snapshot" }));
+
+    expect(screen.getByRole("heading", { name: "Capture Supabase usage" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Snapshot month")).toBeInTheDocument();
+    expect(screen.getByLabelText("Storage used GB")).toBeInTheDocument();
+    expect(screen.getByLabelText("Uncached egress GB")).toBeInTheDocument();
   });
 });

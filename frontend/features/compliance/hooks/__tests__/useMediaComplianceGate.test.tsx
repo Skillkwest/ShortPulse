@@ -53,6 +53,35 @@ describe("useMediaComplianceGate", () => {
     });
   });
 
+  it("uses the authenticated-fetch one-shot network retry for status reads", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        accepted: true,
+        acceptedAt: "2026-04-25T18:00:00.000Z",
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useMediaComplianceGate({
+        enabled: true,
+        userId: "user-123",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("accepted");
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/account/media-compliance",
+      expect.objectContaining({
+        shortpulseLogScope: "app",
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+  });
+
   it("revalidates media compliance when the browser restores the page", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({

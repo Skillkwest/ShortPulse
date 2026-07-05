@@ -155,6 +155,7 @@ export const useMediaComplianceGate = ({
     try {
       const response = await fetchWithAuth("/api/account/media-compliance", {
         shortpulseLogScope: "app",
+        shortpulseRetryNetworkOnce: true,
       });
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => null);

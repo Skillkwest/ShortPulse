@@ -183,8 +183,11 @@ type KieUploadRoutePayload = {
 type KieUploadRouteResponseBodyFormat = "json" | "html" | "text" | "empty" | "unavailable";
 type KieUploadAdmissionProfile =
   | "kie_motion_control_character_image"
+  | "kie_gpt_image_2_reference_image"
   | "kie_kling_reference_image"
   | "kie_seedance_reference_image";
+export const KIE_GPT_IMAGE_2_REFERENCE_IMAGE_ADMISSION_PROFILE: KieUploadAdmissionProfile =
+  "kie_gpt_image_2_reference_image";
 export const KIE_KLING_REFERENCE_IMAGE_ADMISSION_PROFILE: KieUploadAdmissionProfile =
   "kie_kling_reference_image";
 export const KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE: KieUploadAdmissionProfile =

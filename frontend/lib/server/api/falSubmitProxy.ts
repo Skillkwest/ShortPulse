@@ -42,6 +42,7 @@ import { readProviderContentPolicyMessage } from "../providerIntegration/statusP
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import type { InternalMediaRef } from "../../media/internalMediaRefs";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../model-runtime/falModelIds";
+import { KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID } from "../../model-runtime/providerModelIds";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -61,6 +62,7 @@ import {
   readGenerationProjectIdFromContext,
   readGenerationWorkspaceRuntimeKeyFromContext,
 } from "./generationWorkspaceRuntimeKey";
+import { resolvePublicAppOrigin } from "./appOrigin";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -90,6 +92,7 @@ type FalSubmitConfig = {
 };
 
 type JsonValue = Record<string, unknown>;
+type HeaderValue = string | string[] | undefined;
 
 const selectEffectiveAdmissionDecision = ({
   providerDecision,
@@ -214,6 +217,16 @@ const asJsonObject = (value: unknown): Record<string, unknown> =>
     : {};
 
 const FAL_CDN_MEDIA_HOST_SUFFIXES = ["fal.media"] as const;
+const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
+const KIE_IMAGE_UPLOAD_PATH = "shortpulse/kie-video/images";
+const KIE_GPT_IMAGE_2_REFERENCE_IMAGE_ADMISSION_PROFILE = "kie_gpt_image_2_reference_image";
+const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
+  "kieai.redpandaai.co",
+  "tempfile.redpandaai.co",
+  "tempfile.aiquickdraw.com",
+  "tempfileb.aiquickdraw.com",
+] as const;
+const KIE_GPT_IMAGE_2_REUSABLE_TEMP_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 
 const isFalCdnMediaUrl = (value: string | null): boolean => {
   if (!value) return false;
@@ -225,6 +238,151 @@ const isFalCdnMediaUrl = (value: string | null): boolean => {
   } catch {
     return false;
   }
+};
+
+class KieGptImage2ReferenceStagingError extends Error {
+  readonly statusCode: number;
+  readonly details: string;
+
+  constructor(details: string, statusCode = 503) {
+    super("Kie GPT Image 2 reference media could not be prepared.");
+    this.name = "KieGptImage2ReferenceStagingError";
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
+
+const readHeaderValue = (value: HeaderValue): string | null => {
+  if (Array.isArray(value)) return typeof value[0] === "string" ? value[0] : null;
+  return typeof value === "string" && value.trim().length ? value : null;
+};
+
+const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname.trim().toLowerCase();
+    return KIE_HOSTED_MEDIA_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const readUrlPathExtension = (value: string): string | null => {
+  try {
+    const lastSegment = new URL(value).pathname.split("/").filter(Boolean).pop() ?? "";
+    if (!lastSegment.includes(".")) return null;
+    const extension = lastSegment.split(".").pop()?.trim().toLowerCase() ?? "";
+    return extension.length ? extension : null;
+  } catch {
+    return null;
+  }
+};
+
+const canReuseKieGptImage2TemporaryUrl = (value: string): boolean => {
+  if (!isKieHostedTemporaryMediaUrl(value)) return false;
+  const extension = readUrlPathExtension(value);
+  return Boolean(extension && KIE_GPT_IMAGE_2_REUSABLE_TEMP_IMAGE_EXTENSIONS.has(extension));
+};
+
+const readKieUploadRoutePayload = async (
+  response: Response
+): Promise<{
+  uploadedUrl: string | null;
+  details: string | null;
+}> => {
+  const rawText = await response.text().catch(() => "");
+  if (!rawText.trim()) {
+    return {
+      uploadedUrl: null,
+      details: null,
+    };
+  }
+  try {
+    const payload = JSON.parse(rawText) as Record<string, unknown>;
+    return {
+      uploadedUrl: asProviderString(payload.url),
+      details: asProviderString(payload.details) ?? asProviderString(payload.error),
+    };
+  } catch {
+    return {
+      uploadedUrl: null,
+      details: rawText.trim().startsWith("<")
+        ? "Upload route returned an HTML error response."
+        : "Upload route returned a plain-text error response.",
+    };
+  }
+};
+
+const buildKieUploadRouteHeaders = (req: NextApiRequest): Record<string, string> => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const authorization = readHeaderValue(req.headers.authorization);
+  const cookie = readHeaderValue(req.headers.cookie);
+  if (authorization) headers.Authorization = authorization;
+  if (cookie) headers.Cookie = cookie;
+  return headers;
+};
+
+const uploadKieGptImage2ReferenceUrl = async ({
+  req,
+  sourceUrl,
+}: {
+  req: NextApiRequest;
+  sourceUrl: string;
+}): Promise<string> => {
+  if (canReuseKieGptImage2TemporaryUrl(sourceUrl)) return sourceUrl;
+  const origin = resolvePublicAppOrigin(req);
+  if (!origin) {
+    throw new KieGptImage2ReferenceStagingError("Unable to resolve app origin for Kie upload.");
+  }
+  const response = await fetch(new URL(KIE_UPLOAD_ROUTE, origin).toString(), {
+    method: "POST",
+    headers: buildKieUploadRouteHeaders(req),
+    body: JSON.stringify({
+      fileUrl: sourceUrl,
+      mediaKind: "image",
+      uploadPath: KIE_IMAGE_UPLOAD_PATH,
+      admissionProfile: KIE_GPT_IMAGE_2_REFERENCE_IMAGE_ADMISSION_PROFILE,
+    }),
+  });
+  const payload = await readKieUploadRoutePayload(response);
+  if (!response.ok) {
+    throw new KieGptImage2ReferenceStagingError(
+      payload.details ?? `Kie upload route failed with status ${response.status}.`,
+      response.status || 503
+    );
+  }
+  if (!payload.uploadedUrl) {
+    throw new KieGptImage2ReferenceStagingError("Kie upload route returned no uploaded URL.", 502);
+  }
+  return payload.uploadedUrl;
+};
+
+const stageKieGptImage2InputUrls = async ({
+  req,
+  payload,
+}: {
+  req: NextApiRequest;
+  payload: Record<string, unknown>;
+}): Promise<Record<string, unknown>> => {
+  const inputUrls = asTrimmedStringArray(payload.input_urls);
+  if (!inputUrls.length) return payload;
+  const cache = new Map<string, Promise<string>>();
+  const stagedInputUrls = await Promise.all(
+    inputUrls.map(async (inputUrl) => {
+      const cached = cache.get(inputUrl);
+      if (cached) return await cached;
+      const uploadPromise = uploadKieGptImage2ReferenceUrl({ req, sourceUrl: inputUrl });
+      cache.set(inputUrl, uploadPromise);
+      return await uploadPromise;
+    })
+  );
+  return {
+    ...payload,
+    input_urls: stagedInputUrls,
+  };
 };
 
 const validateOmniHumanProviderPayload = (
@@ -784,6 +942,40 @@ export const createFalSubmitHandler = ({
           generation_safety_level: safetyEnforcement.enforcedLevel,
         })
       );
+    }
+    if (modelId === KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID) {
+      try {
+        payload = await stageKieGptImage2InputUrls({
+          req,
+          payload,
+        });
+      } catch (error) {
+        const statusCode =
+          error instanceof KieGptImage2ReferenceStagingError ? error.statusCode : 503;
+        const detail =
+          error instanceof KieGptImage2ReferenceStagingError
+            ? error.details
+            : error instanceof Error
+              ? error.message
+              : String(error);
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.kie_gpt_image_2_reference_staging_failed",
+          message: "Kie GPT Image 2 reference media could not be prepared.",
+          statusCode,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            model_id: modelId,
+            detail,
+          },
+        });
+        return res.status(statusCode).json({
+          error: "The reference file could not be uploaded. Try a smaller or different file.",
+          detail,
+        });
+      }
     }
     const billingPayload =
       rawInputImageCount === undefined

@@ -18,6 +18,10 @@ import {
   KieKlingImageAdmissionError,
 } from "../../../lib/server/kieKlingImageAdmission";
 import {
+  admitKieGptImage2ReferenceImage,
+  KieGptImage2ImageAdmissionError,
+} from "../../../lib/server/kieGptImage2ImageAdmission";
+import {
   admitKieMotionControlCharacterImage,
   KieMotionControlMediaAdmissionError,
 } from "../../../lib/server/kieMotionControlMediaAdmission";
@@ -60,6 +64,7 @@ type UploadTransport = "url_upload" | "remote_stream_upload" | "binary_stream_up
 type KieUploadMediaKind = "image" | "video" | "audio";
 type KieUploadAdmissionProfile =
   | "kie_motion_control_character_image"
+  | "kie_gpt_image_2_reference_image"
   | "kie_kling_reference_image"
   | "kie_seedance_reference_image";
 
@@ -137,6 +142,7 @@ const resolveMediaKind = (value: unknown): KieUploadMediaKind | null => {
 const resolveAdmissionProfile = (value: unknown): KieUploadAdmissionProfile | null => {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (normalized === "kie_motion_control_character_image") return normalized;
+  if (normalized === "kie_gpt_image_2_reference_image") return normalized;
   if (normalized === "kie_kling_reference_image") return normalized;
   if (normalized === "kie_seedance_reference_image") return normalized;
   if (!normalized) return null;
@@ -155,6 +161,7 @@ const assertAdmissionProfileAllowed = ({
   if (!admissionProfile) return;
   if (
     (admissionProfile === "kie_motion_control_character_image" ||
+      admissionProfile === "kie_gpt_image_2_reference_image" ||
       admissionProfile === "kie_kling_reference_image" ||
       admissionProfile === "kie_seedance_reference_image") &&
     mediaKind === "image" &&
@@ -245,6 +252,28 @@ const admitUploadBufferForProvider = async ({
       fileName:
         admitted.filename ||
         replaceFileExtension(fileName, admitted.mimeType === "image/png" ? "png" : "jpg"),
+      mimeType: admitted.mimeType,
+    };
+  }
+
+  if (admissionProfile === "kie_gpt_image_2_reference_image") {
+    const admitted = await admitKieGptImage2ReferenceImage({
+      buffer: fileBuffer,
+      filename: fileName ?? "gpt-image-2-reference-image",
+      mimeType: mimeType ?? "application/octet-stream",
+    });
+    return {
+      fileBuffer: admitted.buffer,
+      fileName:
+        admitted.filename ||
+        replaceFileExtension(
+          fileName,
+          admitted.mimeType === "image/png"
+            ? "png"
+            : admitted.mimeType === "image/webp"
+              ? "webp"
+              : "jpg"
+        ),
       mimeType: admitted.mimeType,
     };
   }
@@ -783,7 +812,7 @@ const isJsonRequest = (req: NextApiRequest): boolean =>
 
 const KIE_UPLOAD_URL_RATE_LIMIT = {
   keyPrefix: "kie-upload-url",
-  maxRequests: 12,
+  maxRequests: 24,
   windowMs: 10 * 60 * 1000,
 } as const;
 
@@ -999,6 +1028,7 @@ export default async function handler(
   } catch (error) {
     if (
       error instanceof KieMotionControlMediaAdmissionError ||
+      error instanceof KieGptImage2ImageAdmissionError ||
       error instanceof KieKlingImageAdmissionError ||
       error instanceof KieSeedanceImageAdmissionError
     ) {

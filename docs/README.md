@@ -323,6 +323,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_issue_reports_operations.md`
 - `docs/sops/sop_admin_tester_reports_operations.md`
+- `docs/sops/sop_admin_storage_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
 - `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
 - `docs/sops/sop_admin_ophestivus_review_to_complete.md`

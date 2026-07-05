@@ -98,7 +98,8 @@ Growth telemetry remains telemetry-only rows in `app_error_events`; it does not 
 - `/admin/storage`
 - `/api/admin/stats/global`
 - `/api/admin/storage-economics`
+- `/api/admin/storage-usage-snapshots`
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
 
-The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports the latest service-role Supabase usage snapshot plus product-tracked storage and local capacity risk; it is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness unless the snapshot source and freshness say so.
+The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports the latest service-role Supabase usage snapshot plus product-tracked storage and local capacity risk; provider snapshots are captured through the admin-only snapshot route. Storage evidence is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness unless the snapshot source and freshness say so.

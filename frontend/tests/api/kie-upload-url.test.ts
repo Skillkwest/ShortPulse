@@ -487,6 +487,75 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("admits GPT Image 2 reference images from owned storage before Kie upload", async () => {
+    const avifImage = await sharp({
+      create: {
+        width: 512,
+        height: 512,
+        channels: 3,
+        background: { r: 80, g: 40, b: 160 },
+      },
+    })
+      .avif()
+      .toBuffer();
+    const downloadMock = vi.fn().mockResolvedValue({
+      data: {
+        size: avifImage.length,
+        type: "image/avif",
+        arrayBuffer: async () =>
+          avifImage.buffer.slice(avifImage.byteOffset, avifImage.byteOffset + avifImage.byteLength),
+      },
+      error: null,
+    });
+    const fromMock = vi.fn(() => ({ download: downloadMock }));
+    getSupabaseAdminMock.mockReturnValueOnce({
+      storage: {
+        from: fromMock,
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        msg: "File uploaded successfully",
+        data: {
+          downloadUrl: "https://tempfile.redpandaai.co/files/gpt-reference.jpg",
+          fileName: "gpt-reference.jpg",
+          mimeType: "image/jpeg",
+        },
+      }),
+    } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        storagePath: "user-1/references/gpt-reference.avif",
+        mediaKind: "image",
+        uploadPath: "shortpulse/kie-video/images",
+        admissionProfile: "kie_gpt_image_2_reference_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    const uploadInit = fetchMock.mock.calls[0]?.[1] as { body?: FormData };
+    const uploadedFile = (uploadInit.body as FormData).get("file") as File;
+    expect(uploadedFile.type).toMatch(/^image\/(jpeg|webp)$/);
+    expect(uploadedFile.name).toMatch(/^gpt-reference\.(?:jpg|webp)$/);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/gpt-reference.jpg",
+      fileName: "gpt-reference.jpg",
+      mimeType: "image/jpeg",
+    });
+  });
+
   it("rejects Motion Control image admission profiles outside the Kie image upload path", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -1023,7 +1092,7 @@ describe("POST /api/kie/upload-url", () => {
         body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
       });
 
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (let attempt = 0; attempt < 24; attempt += 1) {
       const res = createMockResponse();
       await handler(buildReq() as never, res as never);
       expect(res.status).toHaveBeenCalledWith(200);

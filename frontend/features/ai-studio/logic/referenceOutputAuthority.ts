@@ -1,4 +1,5 @@
 import type { StudioOutput } from "../types";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 
 export type ReferenceOutputAuthorityTier = "reusable" | "tracked" | "preview-only";
 
@@ -7,7 +8,11 @@ const hasText = (value: string | null | undefined): boolean =>
 
 export const hasOutputStoragePaths = (
   output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath">
-): boolean => hasText(output.previewStoragePath) || hasText(output.fullStoragePath);
+): boolean =>
+  Boolean(
+    asCanonicalStoragePath(output.previewStoragePath) ||
+    asCanonicalStoragePath(output.fullStoragePath)
+  );
 
 export const hasSavedMediaIds = (output: Pick<StudioOutput, "savedMediaIds">): boolean =>
   Array.isArray(output.savedMediaIds) && output.savedMediaIds.some((id) => hasText(id));

@@ -26,6 +26,13 @@ export const KIE_GPT_IMAGE_2_ALLOWED_ASPECTS = [
 ] as const;
 
 export const KIE_GPT_IMAGE_2_ALLOWED_RESOLUTIONS = ["1K", "2K", "4K"] as const;
+export const KIE_GPT_IMAGE_2_2K_4K_UNSUPPORTED_ASPECTS = [
+  "5:4",
+  "4:5",
+  "3:1",
+  "1:3",
+  "9:21",
+] as const;
 
 export const KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_ALLOWED_ASPECTS = KIE_GPT_IMAGE_2_ALLOWED_ASPECTS;
 export const KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_ALLOWED_ASPECTS = KIE_GPT_IMAGE_2_ALLOWED_ASPECTS;
@@ -88,7 +95,14 @@ export const normalizeKieGptImage2ResolutionForAspect = ({
   const normalizedAspect = normalizeKieGptImage2AspectRatio(aspect);
   const normalizedResolution = normalizeKieGptImage2Resolution(resolution);
   if (normalizedAspect === "auto") return "1K";
-  if (normalizedAspect === "1:1" && normalizedResolution === "4K") return "2K";
+  if (
+    (normalizedResolution === "2K" || normalizedResolution === "4K") &&
+    KIE_GPT_IMAGE_2_2K_4K_UNSUPPORTED_ASPECTS.includes(
+      normalizedAspect as (typeof KIE_GPT_IMAGE_2_2K_4K_UNSUPPORTED_ASPECTS)[number]
+    )
+  ) {
+    return "1K";
+  }
   return normalizedResolution;
 };
 

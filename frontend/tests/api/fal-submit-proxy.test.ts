@@ -541,7 +541,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("merges fresh internal image refs into Kie GPT Image 2 input_urls before direct submit", async () => {
+  it("stages fresh internal Kie GPT Image 2 input_urls through the Kie upload route before direct submit", async () => {
     readInternalMediaRefsFromPayloadMock.mockReturnValue([
       {
         version: 1,
@@ -553,6 +553,20 @@ describe("createFalSubmitHandler", () => {
     resolveSignedUrlsForInternalMediaRefsMock.mockResolvedValue([
       "https://fresh.internal/character.png",
     ]);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://tempfile.redpandaai.co/files/character.png",
+          fileName: "character.png",
+          mimeType: "image/png",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalSubmitHandler({
       modelId: "kie-ai/gpt-image-2-image-to-image",
@@ -580,13 +594,93 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          fileUrl: "https://fresh.internal/character.png",
+          mediaKind: "image",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_gpt_image_2_reference_image",
+        }),
+      })
+    );
     expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
       expect.objectContaining({
         modelId: "kie-ai/gpt-image-2-image-to-image",
         payload: expect.objectContaining({
-          input_urls: ["https://fresh.internal/character.png"],
+          input_urls: ["https://tempfile.redpandaai.co/files/character.png"],
           aspect_ratio: "16:9",
           resolution: "2K",
+        }),
+      })
+    );
+  });
+
+  it("reuses GPT Image 2-compatible Kie temp URLs but re-admits unsupported Kie temp image formats", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://tempfile.redpandaai.co/files/reference.webp",
+          fileName: "reference.webp",
+          mimeType: "image/webp",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/gpt-image-2-image-to-image",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie GPT Image 2 Image to Image",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "keep the same character",
+        input_urls: [
+          "https://tempfile.redpandaai.co/files/reference.png",
+          "https://tempfile.redpandaai.co/files/reference.gif",
+        ],
+        aspect_ratio: "16:9",
+        resolution: "2K",
+      },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/kie-gpt-image-2-edit-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/kie/upload-url",
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileUrl: "https://tempfile.redpandaai.co/files/reference.gif",
+          mediaKind: "image",
+          uploadPath: "shortpulse/kie-video/images",
+          admissionProfile: "kie_gpt_image_2_reference_image",
+        }),
+      })
+    );
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          input_urls: [
+            "https://tempfile.redpandaai.co/files/reference.png",
+            "https://tempfile.redpandaai.co/files/reference.webp",
+          ],
         }),
       })
     );

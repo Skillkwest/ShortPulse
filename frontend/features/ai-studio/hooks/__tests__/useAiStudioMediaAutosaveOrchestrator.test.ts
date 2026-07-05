@@ -167,6 +167,31 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).toHaveBeenCalledWith("local-upload-1", { intent: "auto" });
   });
 
+  it("does not treat render urls as durable authority for local upload autosave", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
+        outputs: [
+          createOutput({
+            id: "local-upload-render-url-1",
+            mediaSource: "upload",
+            generationId: undefined,
+            previewUrl: "blob:local-upload-render-url-1",
+            localObjectUrl: "blob:local-upload-render-url-1",
+            previewStoragePath: "https://signed.shortpulse.test/user-1/uploads/images/ref.png",
+            fullStoragePath: "blob:local-upload-render-url-1",
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
   it("autosaves restored generated outputs when they still need media-id backfill", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>

@@ -79,4 +79,16 @@ describe("referenceOutputAuthority", () => {
     expect(resolveReferenceOutputAuthorityTier(output)).toBe("reusable");
     expect(canExposeDirectReferenceUrls(output)).toBe(false);
   });
+
+  it("does not treat render urls as storage path authority", () => {
+    const output = {
+      mediaSource: "upload" as const,
+      previewStoragePath: "https://signed.shortpulse.test/user-1/uploads/images/ref.png",
+      fullStoragePath: "blob:local-ref",
+      savedMediaIds: [],
+    };
+
+    expect(hasStorageAuthority(output)).toBe(false);
+    expect(resolveReferenceOutputAuthorityTier(output)).toBe("preview-only");
+  });
 });

@@ -80,6 +80,14 @@
   margin-bottom: 14px;
 }
 
+.adminHeaderActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .adminNavShell {
   display: flex;
   flex-direction: column;
@@ -5041,6 +5049,64 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
+}
+
+.adminSnapshotFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.adminSnapshotField {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.adminSnapshotField input,
+.adminSnapshotField select,
+.adminSnapshotField textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--admin-text-strong);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.adminSnapshotField input,
+.adminSnapshotField select {
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.adminSnapshotField textarea {
+  padding: 10px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.adminSnapshotField input:focus,
+.adminSnapshotField select:focus,
+.adminSnapshotField textarea:focus {
+  outline: none;
+  border-color: var(--admin-focus);
+}
+
+.adminSnapshotActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .adminPreBlock {

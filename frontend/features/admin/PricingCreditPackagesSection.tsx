@@ -1,15 +1,26 @@
 import React from "react";
 import { AppMessage } from "../../components/AppMessage";
-import { getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
 import {
-  buildCreditPackageDraft,
   formatCredits,
   formatCurrencyFromCents,
-  formatUsd,
   type CreditPackageDraft,
 } from "./pricingPageUtils";
 import styles from "../../styles/admin.module.css";
+
+const formatPricePerCredit = ({
+  priceCents,
+  creditAmountCents,
+}: {
+  priceCents: number;
+  creditAmountCents: number;
+}): string => {
+  if (creditAmountCents <= 0) return "—";
+  return `$${(priceCents / 100 / creditAmountCents).toFixed(4)}`;
+};
+
+const formatCreditPackageLabel = (creditAmountCents: number): string =>
+  `${formatCredits(creditAmountCents)} credits`;
 
 type PricingCreditPackagesSectionProps = {
   pricingState: AdminPricingStateResponse | null;
@@ -30,8 +41,6 @@ export function PricingCreditPackagesSection({
   creditSaving,
   creditMessage,
   creditError,
-  setCreditMessage,
-  setCreditError,
   onConfirmCreditPackage,
 }: PricingCreditPackagesSectionProps) {
   return (
@@ -40,58 +49,38 @@ export function PricingCreditPackagesSection({
         <div>
           <p className="eyebrow">Credit top-ups</p>
           <h2 className={styles.adminSectionTitle}>Public credit packages</h2>
-          <p className="tiny subdued">
-            Active and inactive checkout packages so operators can disable and later reactivate rows
-            from one workspace.
-          </p>
+          <p className="tiny subdued">Current checkout packages from the active credit ladder.</p>
         </div>
       </div>
 
       {pricingState ? (
         <div className={styles.adminTable}>
-          <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
+          <div
+            className={`${styles.pricingCatalogHead} ${styles.pricingCreditCatalogGrid} ${styles.adminTableHead}`}
+          >
             <span>Package</span>
             <span>Price</span>
             <span>Credits</span>
-            <span>Unit economics</span>
-            <span>Stripe price</span>
-            <span>Status</span>
-            <span>Action</span>
+            <span>Price per credit</span>
           </div>
-          {pricingState.creditPackages.map((pkg) => {
-            const stripeStatus = getStripeStatus({
-              priceCents: pkg.priceCents,
-              stripePriceId: pkg.stripePriceId,
-              isActive: pkg.isActive,
-            });
-            return (
-              <div key={pkg.id} className={styles.pricingCatalogRow}>
-                <span className={styles.pricingPrimaryCell}>
-                  <strong>{pkg.displayName}</strong>
-                </span>
-                <span>{formatCurrencyFromCents(pkg.priceCents)}</span>
-                <span>{formatCredits(pkg.creditAmountCents)}</span>
-                <span>{formatUsd((pkg.priceCents / 100 / pkg.creditAmountCents) * 1000)}</span>
-                <span className={stripeStatus.className}>{stripeStatus.label}</span>
-                <span className={pkg.isActive ? styles.pillOk : styles.pillWarn}>
-                  {pkg.isActive ? "active" : "inactive"}
-                </span>
-                <span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setCreditDraft(buildCreditPackageDraft(pkg));
-                      setCreditError(null);
-                      setCreditMessage(null);
-                    }}
-                  >
-                    Edit
-                  </button>
-                </span>
-              </div>
-            );
-          })}
+          {pricingState.creditPackages.map((pkg) => (
+            <div
+              key={pkg.id}
+              className={`${styles.pricingCatalogRow} ${styles.pricingCreditCatalogGrid}`}
+            >
+              <span className={styles.pricingPrimaryCell}>
+                <strong>{formatCreditPackageLabel(pkg.creditAmountCents)}</strong>
+              </span>
+              <span>{formatCurrencyFromCents(pkg.priceCents)}</span>
+              <span>{formatCredits(pkg.creditAmountCents)}</span>
+              <span>
+                {formatPricePerCredit({
+                  priceCents: pkg.priceCents,
+                  creditAmountCents: pkg.creditAmountCents,
+                })}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
 

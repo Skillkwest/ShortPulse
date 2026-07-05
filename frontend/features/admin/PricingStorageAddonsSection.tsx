@@ -2,14 +2,8 @@ import React from "react";
 import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
 import { isManualReviewStorageAddon } from "../../lib/billing/storageAddonEligibility";
-import { getStripeStatus } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
-import {
-  buildStorageOfferDraft,
-  formatCurrencyFromCents,
-  formatDateTime,
-  type StorageOfferDraft,
-} from "./pricingPageUtils";
+import { formatCurrencyFromCents, type StorageOfferDraft } from "./pricingPageUtils";
 import styles from "../../styles/admin.module.css";
 
 type PricingStorageAddonsSectionProps = {
@@ -31,8 +25,6 @@ export function PricingStorageAddonsSection({
   storageSaving,
   storageMessage,
   storageError,
-  setStorageMessage,
-  setStorageError,
   onConfirmStorageOffer,
 }: PricingStorageAddonsSectionProps) {
   return (
@@ -49,30 +41,20 @@ export function PricingStorageAddonsSection({
 
       {pricingState ? (
         <div className={styles.adminTable}>
-          <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
+          <div
+            className={`${styles.pricingCatalogHead} ${styles.pricingStorageCatalogGrid} ${styles.adminTableHead}`}
+          >
             <span>Add-on</span>
             <span>Monthly price</span>
             <span>Storage</span>
-            <span>Offer id</span>
-            <span>Stripe price</span>
-            <span>Effective</span>
-            <span>Action</span>
           </div>
           {pricingState.storageAddons.map((addon) => {
             const isManualReview = isManualReviewStorageAddon(addon.storageAddonId);
-            const stripeStatus = addon.offerId
-              ? getStripeStatus({
-                  priceCents: addon.recurringPriceCents,
-                  stripePriceId: addon.stripePriceId,
-                  isActive: addon.isActive,
-                })
-              : {
-                  label: "Not configured",
-                  className: styles.pillWarn,
-                  isMono: false,
-                };
             return (
-              <div key={addon.storageAddonId} className={styles.pricingCatalogRow}>
+              <div
+                key={addon.storageAddonId}
+                className={`${styles.pricingCatalogRow} ${styles.pricingStorageCatalogGrid}`}
+              >
                 <span className={styles.pricingPrimaryCell}>
                   <strong>{addon.displayName}</strong>
                   <small>
@@ -87,28 +69,6 @@ export function PricingStorageAddonsSection({
                   {addon.offerId ? formatCurrencyFromCents(addon.recurringPriceCents) : "—"}
                 </span>
                 <span>{addon.offerId ? formatStorageBytes(addon.storageLimitBytes) : "—"}</span>
-                <span className={styles.pricingMonoCell}>{addon.offerId ?? "Not configured"}</span>
-                <span className={stripeStatus.className}>{stripeStatus.label}</span>
-                <span>{addon.offerId ? formatDateTime(addon.effectiveStartAt) : "—"}</span>
-                <span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      if (isManualReview) return;
-                      setStorageDraft(buildStorageOfferDraft(addon));
-                      setStorageError(null);
-                      setStorageMessage(null);
-                    }}
-                    disabled={isManualReview}
-                  >
-                    {isManualReview
-                      ? "Manual review only"
-                      : addon.offerId
-                        ? "Create next"
-                        : "Create first offer"}
-                  </button>
-                </span>
               </div>
             );
           })}

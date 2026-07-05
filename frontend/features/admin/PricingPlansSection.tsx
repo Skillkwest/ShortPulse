@@ -1,11 +1,10 @@
 import React from "react";
 import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
-import { getPlanStatusClassName, getStripeStatus } from "./PricingPageChrome";
+import { getPlanStatusClassName, getPlanStatusLabel } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
 import {
   buildEmptyPlanCreateDraft,
-  buildPlanOfferDraft,
   formatCredits,
   formatCurrencyFromCents,
   type PlanCreateDraft,
@@ -79,74 +78,31 @@ export function PricingPlansSection({
             <span>Credits</span>
             <span>Storage</span>
             <span>Max active</span>
-            <span>Monthly Stripe</span>
-            <span>Annual Stripe</span>
-            <span>Action</span>
           </div>
-          {pricingState.plans.map((plan) => {
-            const monthlyStripeStatus = getStripeStatus({
-              priceCents: plan.monthlyOffer?.recurringPriceCents ?? plan.recurringPriceCents,
-              stripePriceId: plan.monthlyOffer?.stripePriceId ?? null,
-              isActive: Boolean(plan.monthlyOffer?.isActive ?? plan.isActive),
-            });
-            const annualStripeStatus = plan.annualOffer
-              ? getStripeStatus({
-                  priceCents: plan.annualOffer.recurringPriceCents,
-                  stripePriceId: plan.annualOffer.stripePriceId,
-                  isActive: plan.annualOffer.isActive,
-                })
-              : { label: "Not configured", className: styles.pillInfo, isMono: false };
-            return (
-              <div key={plan.offerId} className={styles.pricingPlanCatalogRow}>
-                <span className={styles.pricingPrimaryCell}>
-                  <strong>{plan.displayName}</strong>
-                </span>
-                <span>{formatCredits(plan.accountCount)}</span>
-                <span className={getPlanStatusClassName(plan.status)}>{plan.status}</span>
-                <span>
-                  {formatCurrencyFromCents(
-                    plan.monthlyOffer?.recurringPriceCents ?? plan.recurringPriceCents
-                  )}
-                </span>
-                <span>
-                  {plan.annualOffer
-                    ? formatCurrencyFromCents(plan.annualOffer.recurringPriceCents)
-                    : "—"}
-                </span>
-                <span>{formatCredits(plan.monthlyCreditsCents)}</span>
-                <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
-                <span>{plan.maxConcurrentGenerations}</span>
-                <span className={monthlyStripeStatus.className}>{monthlyStripeStatus.label}</span>
-                <span className={annualStripeStatus.className}>{annualStripeStatus.label}</span>
-                <span className={styles.pricingEditorActions}>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setPlanOfferDraft(buildPlanOfferDraft(plan, "month"));
-                      setPlanDraft(null);
-                      setPlanError(null);
-                      setPlanMessage(null);
-                    }}
-                  >
-                    {plan.monthlyOffer ? "Edit monthly" : "Create monthly"}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setPlanOfferDraft(buildPlanOfferDraft(plan, "year"));
-                      setPlanDraft(null);
-                      setPlanError(null);
-                      setPlanMessage(null);
-                    }}
-                  >
-                    {plan.annualOffer ? "Edit annual" : "Create annual"}
-                  </button>
-                </span>
-              </div>
-            );
-          })}
+          {pricingState.plans.map((plan) => (
+            <div key={plan.offerId} className={styles.pricingPlanCatalogRow}>
+              <span className={styles.pricingPrimaryCell}>
+                <strong>{plan.displayName}</strong>
+              </span>
+              <span>{formatCredits(plan.accountCount)}</span>
+              <span className={getPlanStatusClassName(plan.status)}>
+                {getPlanStatusLabel(plan.status)}
+              </span>
+              <span>
+                {formatCurrencyFromCents(
+                  plan.monthlyOffer?.recurringPriceCents ?? plan.recurringPriceCents
+                )}
+              </span>
+              <span>
+                {plan.annualOffer
+                  ? formatCurrencyFromCents(plan.annualOffer.recurringPriceCents)
+                  : "—"}
+              </span>
+              <span>{formatCredits(plan.monthlyCreditsCents)}</span>
+              <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
+              <span>{plan.maxConcurrentGenerations}</span>
+            </div>
+          ))}
         </div>
       ) : null}
 

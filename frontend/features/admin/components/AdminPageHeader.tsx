@@ -11,11 +11,11 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/agent-instructions", label: "Agent Instructions" },
   { href: "/admin/pricing", label: "Model Pricing" },
   { href: "/admin/catalog", label: "Product Catalog" },
+  { href: "/admin/offers", label: "Offers" },
   { href: "/admin", label: "Customer Support" },
+  { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/tester-reports", label: "Tester Reports" },
   { href: "/admin/legal", label: "Legal" },
-  { href: "/admin/offers", label: "Offers" },
-  { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/storage", label: "Storage" },
   { href: "/admin/errors", label: "Errors" },
 ] as const;

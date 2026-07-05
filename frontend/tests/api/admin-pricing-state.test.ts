@@ -264,6 +264,18 @@ describe("GET /api/admin/pricing/state", () => {
             select: async () => ({
               data: [
                 {
+                  id: "free",
+                  display_name: "Baseline access",
+                  is_active: true,
+                  monthly_price_cents: 0,
+                  monthly_credits_cents: 0,
+                  storage_limit_bytes: 0,
+                  max_concurrent_generations: 0,
+                  stripe_price_id: null,
+                  sort_order: 0,
+                  stripe_product_id: null,
+                },
+                {
                   id: "studio",
                   display_name: "Studio",
                   is_active: true,
@@ -344,6 +356,15 @@ describe("GET /api/admin/pricing/state", () => {
                     price_cents: 500,
                     stripe_price_id: null,
                     sort_order: 30,
+                    is_active: false,
+                  },
+                  {
+                    id: "starter_500",
+                    display_name: "500 credits",
+                    credit_amount_cents: 500,
+                    price_cents: 700,
+                    stripe_price_id: null,
+                    sort_order: 1010,
                     is_active: false,
                   },
                 ],
@@ -435,6 +456,10 @@ describe("GET /api/admin/pricing/state", () => {
             select: async () => ({
               data: [
                 {
+                  user_id: "baseline-user",
+                  plan_id: "free",
+                },
+                {
                   user_id: "user-3",
                   plan_id: "studio",
                 },
@@ -462,6 +487,14 @@ describe("GET /api/admin/pricing/state", () => {
           policySource: "control_plane",
         }),
         plans: [
+          expect.objectContaining({
+            planId: "free",
+            displayName: "Baseline access",
+            accountCount: 1,
+            status: "baseline_access",
+            sortOrder: 0,
+            maxConcurrentGenerations: 0,
+          }),
           expect.objectContaining({
             planId: "studio",
             accountCount: 3,
@@ -506,6 +539,7 @@ describe("GET /api/admin/pricing/state", () => {
         id: string;
         pricingPreviewVariants?: Array<{ id: string; label: string }>;
       }>;
+      creditPackages: Array<{ id: string }>;
       customRows: {
         rowsByModel: Record<
           string,
@@ -516,6 +550,9 @@ describe("GET /api/admin/pricing/state", () => {
     };
     expect(payload.models).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "gpt-image-2" })])
+    );
+    expect(payload.creditPackages).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "starter_500" })])
     );
     expect(payload.models.map((model) => model.id)).toEqual([
       KIE_KLING_30_MODEL_ID,

@@ -97,6 +97,13 @@ type BillingCreditPackageRow = {
   is_active: boolean;
 };
 
+const RETIRED_LEGACY_CREDIT_PACKAGE_IDS = new Set([
+  "starter_500",
+  "growth_2000",
+  "scale_6000",
+  "studio_10000",
+]);
+
 type BillingStorageAddonMetadataRow = {
   id: string;
   display_name: string;
@@ -587,11 +594,14 @@ export default async function handler(
             activeMonthlyOffer?.acquisition_enabled ?? activeAnnualOffer?.acquisition_enabled
           ) &&
           Boolean(activeMonthlyOffer?.is_active ?? activeAnnualOffer?.is_active);
-        const status: AdminPricingPlanRow["status"] = isActive
-          ? "active"
-          : accountCount > 0
-            ? "legacy"
-            : "inactive";
+        const status: AdminPricingPlanRow["status"] =
+          metadata.id === "free"
+            ? "baseline_access"
+            : isActive
+              ? "active"
+              : accountCount > 0
+                ? "legacy"
+                : "inactive";
         return {
           planId: metadata.id,
           displayName: metadata.display_name,
@@ -661,15 +671,17 @@ export default async function handler(
 
     const creditPackages: AdminPricingCreditPackageRow[] = (
       (creditPackagesResult.data ?? []) as BillingCreditPackageRow[]
-    ).map((row) => ({
-      id: row.id,
-      displayName: row.display_name,
-      creditAmountCents: Number(row.credit_amount_cents ?? 0),
-      priceCents: Number(row.price_cents ?? 0),
-      stripePriceId: row.stripe_price_id,
-      sortOrder: Number(row.sort_order ?? 0),
-      isActive: Boolean(row.is_active),
-    }));
+    )
+      .filter((row) => !RETIRED_LEGACY_CREDIT_PACKAGE_IDS.has(row.id))
+      .map((row) => ({
+        id: row.id,
+        displayName: row.display_name,
+        creditAmountCents: Number(row.credit_amount_cents ?? 0),
+        priceCents: Number(row.price_cents ?? 0),
+        stripePriceId: row.stripe_price_id,
+        sortOrder: Number(row.sort_order ?? 0),
+        isActive: Boolean(row.is_active),
+      }));
 
     const storageMetadata = new Map<string, BillingStorageAddonMetadataRow>(
       ((storageMetadataResult.data ?? []) as BillingStorageAddonMetadataRow[]).map((row) => [

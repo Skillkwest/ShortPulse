@@ -975,7 +975,7 @@ export type AdminPricingPlanRow = {
   offerId: string;
   sortOrder: number;
   accountCount: number;
-  status: "active" | "legacy" | "inactive";
+  status: "active" | "baseline_access" | "legacy" | "inactive";
   recurringPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;

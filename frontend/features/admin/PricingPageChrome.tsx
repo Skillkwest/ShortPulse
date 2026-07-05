@@ -1,7 +1,7 @@
 import { ConfirmationModal } from "../../components/ConfirmationModal";
 import styles from "../../styles/admin.module.css";
 import type { CostDocsPopover, PricingView } from "./pricingPageUtils";
-import type { AdminPricingHealthSummary } from "./types";
+import type { AdminPricingHealthSummary, AdminPricingPlanRow } from "./types";
 
 export type PricingConfirmationDiffRow = {
   label: string;
@@ -34,10 +34,18 @@ export const getProviderLabelClassName = (provider: string): string => {
   return "";
 };
 
-export const getPlanStatusClassName = (status: "active" | "legacy" | "inactive"): string => {
+type PlanStatus = AdminPricingPlanRow["status"];
+
+export const getPlanStatusClassName = (status: PlanStatus): string => {
   if (status === "active") return styles.pillOk;
+  if (status === "baseline_access") return styles.pillInfo;
   if (status === "legacy") return styles.pillWarn;
   return styles.pillCritical;
+};
+
+export const getPlanStatusLabel = (status: PlanStatus): string => {
+  if (status === "baseline_access") return "baseline access";
+  return status;
 };
 
 export const getPricingAuthorityClassName = (

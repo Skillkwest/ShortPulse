@@ -31,85 +31,38 @@ from pg_stat_statements_info;
 with payload_samples as (
     select
         'ai_generations'::text as table_name,
-        '_full_row'::text as payload_name,
-        pg_column_size(t)::bigint as payload_bytes
+        payload.payload_name,
+        payload.payload_bytes
     from public.ai_generations t
+    cross join lateral (
+        values
+            ('_full_row'::text, pg_column_size(t)::bigint),
+            ('metadata'::text, pg_column_size(t.metadata)::bigint),
+            ('prompt_text'::text, pg_column_size(t.prompt_text)::bigint)
+    ) as payload(payload_name, payload_bytes)
     union all
     select
-        'ai_generations',
-        'metadata',
-        pg_column_size(metadata)::bigint
-    from public.ai_generations
-    union all
-    select
-        'ai_generations',
-        'prompt_text',
-        pg_column_size(prompt_text)::bigint
-    from public.ai_generations
-    union all
-    select
-        'generation_projection',
-        '_full_row',
-        pg_column_size(t)::bigint
+        'generation_projection'::text,
+        payload.payload_name,
+        payload.payload_bytes
     from public.generation_projection t
+    cross join lateral (
+        values
+            ('_full_row'::text, pg_column_size(t)::bigint),
+            ('generation_replay'::text, pg_column_size(t.generation_replay)::bigint),
+            ('workflow_reload'::text, pg_column_size(t.workflow_reload)::bigint),
+            ('style_context'::text, pg_column_size(t.style_context)::bigint),
+            ('character_context'::text, pg_column_size(t.character_context)::bigint),
+            ('display_prompt'::text, pg_column_size(t.display_prompt)::bigint),
+            ('result_urls'::text, pg_column_size(t.result_urls)::bigint),
+            ('preview_url'::text, pg_column_size(t.preview_url)::bigint),
+            ('preview_storage_path'::text, pg_column_size(t.preview_storage_path)::bigint),
+            ('full_storage_path'::text, pg_column_size(t.full_storage_path)::bigint)
+    ) as payload(payload_name, payload_bytes)
     union all
     select
-        'generation_projection',
-        'generation_replay',
-        pg_column_size(generation_replay)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'workflow_reload',
-        pg_column_size(workflow_reload)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'style_context',
-        pg_column_size(style_context)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'character_context',
-        pg_column_size(character_context)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'display_prompt',
-        pg_column_size(display_prompt)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'result_urls',
-        pg_column_size(result_urls)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'preview_url',
-        pg_column_size(preview_url)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'preview_storage_path',
-        pg_column_size(preview_storage_path)::bigint
-    from public.generation_projection
-    union all
-    select
-        'generation_projection',
-        'full_storage_path',
-        pg_column_size(full_storage_path)::bigint
-    from public.generation_projection
-    union all
-    select
-        'project_generation_items',
-        '_full_row',
+        'project_generation_items'::text,
+        '_full_row'::text,
         pg_column_size(t)::bigint
     from public.project_generation_items t
 )

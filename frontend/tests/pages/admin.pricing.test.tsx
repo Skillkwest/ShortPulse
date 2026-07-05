@@ -327,7 +327,7 @@ describe("Admin pricing page", () => {
     state.creditPackages = [
       {
         id: "100",
-        displayName: "100 credits",
+        displayName: "100",
         creditAmountCents: 100,
         priceCents: 500,
         stripePriceId: null,
@@ -379,7 +379,7 @@ describe("Admin pricing page", () => {
     expect(screen.queryByRole("button", { name: "Add simulator plan" })).not.toBeInTheDocument();
   });
 
-  it("renders the baseline-access sentinel with the documented product catalog name", () => {
+  it("renders the baseline-access sentinel with its real catalog status", () => {
     const state = buildPricingState();
     state.plans = [
       {
@@ -388,7 +388,7 @@ describe("Admin pricing page", () => {
         offerId: "free__none",
         sortOrder: 0,
         accountCount: 4,
-        status: "legacy",
+        status: "baseline_access",
         recurringPriceCents: 0,
         monthlyCreditsCents: 0,
         storageLimitBytes: 0,
@@ -413,7 +413,132 @@ describe("Admin pricing page", () => {
     render(<AdminCatalogPage />);
 
     expect(screen.getByText("Baseline access")).toBeInTheDocument();
+    expect(screen.getByText("baseline access")).toBeInTheDocument();
+    expect(screen.queryByText("legacy")).not.toBeInTheDocument();
     expect(screen.queryByText("Baseline fallback")).not.toBeInTheDocument();
+  });
+
+  it("omits Stripe and action columns from the public plans catalog", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingStateWithPlans(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminCatalogPage />);
+
+    const publicPlansSection = screen
+      .getByRole("heading", { name: "Public plans" })
+      .closest("section");
+    expect(publicPlansSection).not.toBeNull();
+    const publicPlans = within(publicPlansSection as HTMLElement);
+
+    expect(publicPlans.queryByText("Monthly Stripe")).not.toBeInTheDocument();
+    expect(publicPlans.queryByText("Annual Stripe")).not.toBeInTheDocument();
+    expect(publicPlans.queryByText("Action")).not.toBeInTheDocument();
+    expect(publicPlans.queryByRole("button", { name: "Edit monthly" })).not.toBeInTheDocument();
+    expect(publicPlans.queryByRole("button", { name: "Edit annual" })).not.toBeInTheDocument();
+    expect(publicPlans.queryByRole("button", { name: "Create annual" })).not.toBeInTheDocument();
+  });
+
+  it("omits Stripe, status, and action columns from public credit packages", () => {
+    const state = buildPricingState();
+    state.creditPackages = [
+      {
+        id: "100",
+        displayName: "100 credits",
+        creditAmountCents: 100,
+        priceCents: 500,
+        stripePriceId: "price_100",
+        sortOrder: 10,
+        isActive: true,
+      },
+      {
+        id: "1200",
+        displayName: "1200",
+        creditAmountCents: 1200,
+        priceCents: 4900,
+        stripePriceId: "price_1200",
+        sortOrder: 40,
+        isActive: true,
+      },
+    ];
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminCatalogPage />);
+
+    const creditPackagesSection = screen
+      .getByRole("heading", { name: "Public credit packages" })
+      .closest("section");
+    expect(creditPackagesSection).not.toBeNull();
+    const creditPackages = within(creditPackagesSection as HTMLElement);
+
+    expect(creditPackages.getByText("100 credits")).toBeInTheDocument();
+    expect(creditPackages.getByText("1,200 credits")).toBeInTheDocument();
+    expect(creditPackages.queryByText("1200")).not.toBeInTheDocument();
+    expect(creditPackages.getByText("Price per credit")).toBeInTheDocument();
+    expect(creditPackages.queryByText("Unit economics")).not.toBeInTheDocument();
+    expect(creditPackages.getByText("$0.0500")).toBeInTheDocument();
+    expect(creditPackages.getByText("$0.0408")).toBeInTheDocument();
+    expect(creditPackages.queryByText("Stripe price")).not.toBeInTheDocument();
+    expect(creditPackages.queryByText("Status")).not.toBeInTheDocument();
+    expect(creditPackages.queryByText("Action")).not.toBeInTheDocument();
+    expect(creditPackages.queryByText("price_100")).not.toBeInTheDocument();
+    expect(creditPackages.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  it("omits operational columns from storage add-ons", () => {
+    const state = buildPricingState();
+    state.storageAddons = [
+      {
+        storageAddonId: "storage_10gb",
+        displayName: "Extra 10 GB",
+        offerId: "storage_10gb__month__stripe_20260701",
+        storageLimitBytes: 10737418240,
+        recurringPriceCents: 700,
+        stripePriceId: "price_storage_10",
+        acquisitionEnabled: true,
+        isActive: true,
+        effectiveStartAt: "2026-07-01T15:53:26.000Z",
+        sortOrder: 10,
+      },
+    ];
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminCatalogPage />);
+
+    const storageSection = screen
+      .getByRole("heading", { name: "Storage add-ons" })
+      .closest("section");
+    expect(storageSection).not.toBeNull();
+    const storageAddons = within(storageSection as HTMLElement);
+
+    expect(storageAddons.getByText("Extra 10 GB")).toBeInTheDocument();
+    expect(storageAddons.getByText("$7.00")).toBeInTheDocument();
+    expect(storageAddons.getByText("10 GB")).toBeInTheDocument();
+    expect(storageAddons.queryByText("Offer id")).not.toBeInTheDocument();
+    expect(storageAddons.queryByText("Stripe price")).not.toBeInTheDocument();
+    expect(storageAddons.queryByText("Effective")).not.toBeInTheDocument();
+    expect(storageAddons.queryByText("Action")).not.toBeInTheDocument();
+    expect(
+      storageAddons.queryByText("storage_10gb__month__stripe_20260701")
+    ).not.toBeInTheDocument();
+    expect(storageAddons.queryByText("price_storage_10")).not.toBeInTheDocument();
+    expect(storageAddons.queryByRole("button", { name: "Create next" })).not.toBeInTheDocument();
   });
 
   it("renders workbook controls and lets the admin add simulator plans", () => {
@@ -566,50 +691,6 @@ describe("Admin pricing page", () => {
     );
   });
 
-  it("saves edited monthly plan pricing as a new current offer", async () => {
-    useAdminPricingControllerMock.mockReturnValue({
-      pricingState: buildPricingStateWithPlans(),
-      pricingLoading: false,
-      pricingRefreshing: false,
-      pricingError: null,
-      refreshPricingState: refreshPricingStateMock,
-    });
-
-    render(<AdminCatalogPage />);
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit monthly" })[0]!);
-    fireEvent.change(screen.getByLabelText("Recurring price (cents)"), {
-      target: { value: "4900" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Activate offer" })
-    );
-
-    await waitFor(() =>
-      expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/pricing/plan-offers/create",
-        expect.objectContaining({ method: "POST" })
-      )
-    );
-
-    const [, requestOptions] =
-      fetchWithAuthMock.mock.calls.find(
-        ([url]) => url === "/api/admin/pricing/plan-offers/create"
-      ) ?? [];
-    expect(JSON.parse(String(requestOptions?.body))).toEqual(
-      expect.objectContaining({
-        planId: "studio",
-        billingInterval: "month",
-        recurringPriceCents: "4900",
-        monthlyCreditsCents: "3000",
-        stripePriceId: "price_studio_current",
-        expectedCurrentOfferId: "studio__current",
-      })
-    );
-    await waitFor(() => expect(refreshPricingStateMock).toHaveBeenCalledTimes(1));
-  });
-
   it("creates new plans with an annual price draft", async () => {
     useAdminPricingControllerMock.mockReturnValue({
       pricingState: buildPricingState(),
@@ -662,36 +743,5 @@ describe("Admin pricing page", () => {
         maxConcurrentGenerations: "6",
       })
     );
-  });
-
-  it("disables paid plan offer confirmation when Stripe linkage is missing", () => {
-    const state = {
-      ...buildPricingStateWithPlans(),
-      plans: [
-        {
-          ...buildPricingStateWithPlans().plans[0],
-          annualOffer: null,
-        },
-      ],
-    };
-    useAdminPricingControllerMock.mockReturnValue({
-      pricingState: state,
-      pricingLoading: false,
-      pricingRefreshing: false,
-      pricingError: null,
-      refreshPricingState: refreshPricingStateMock,
-    });
-
-    render(<AdminCatalogPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Create annual" }));
-    fireEvent.change(screen.getByLabelText("Stripe price id"), {
-      target: { value: "" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save pricing" }));
-
-    expect(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Activate offer" })
-    ).toBeDisabled();
   });
 });

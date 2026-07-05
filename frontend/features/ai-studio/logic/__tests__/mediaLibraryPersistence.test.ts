@@ -47,10 +47,12 @@ const createGenerationOutputSelectBuilder = (maybeSingle: ReturnType<typeof vi.f
 const createMaybeSingleEqBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => {
   const builder = {
     eq: vi.fn(),
+    order: vi.fn(),
     limit: vi.fn(),
     maybeSingle,
   };
   builder.eq.mockReturnValue(builder);
+  builder.order.mockReturnValue(builder);
   builder.limit.mockReturnValue(builder);
   return builder;
 };

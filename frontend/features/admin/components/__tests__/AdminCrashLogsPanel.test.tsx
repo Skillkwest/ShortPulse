@@ -76,14 +76,15 @@ describe("AdminCrashLogsPanel", () => {
 
     expect(screen.getByText("Probable freeze")).toBeInTheDocument();
     expect(screen.getByText("medium confidence")).toBeInTheDocument();
+    expect(screen.getByText("Previous session ended without clean close")).toBeInTheDocument();
     expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
-    expect(screen.getByText("/ai-studio")).toBeInTheDocument();
-    expect(screen.getByText("pressure 5 · stall 2400ms · heap 87%")).toBeInTheDocument();
+    expect(screen.getByText("Chrome · production")).toBeInTheDocument();
+    expect(screen.getByText(/pressure 5 · stall 2400ms · heap 87%/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText("Session browser-session-1")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy packet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy triage" }));
 
     await waitFor(() => {
       expect(copyToClipboardMock).toHaveBeenCalledTimes(1);

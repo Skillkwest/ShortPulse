@@ -9,7 +9,10 @@ import type { StudioOutput } from "../../types";
 import type { AiStudioOutputStoreSnapshot } from "../aiStudioOutputStore";
 import type { AiStudioSessionCanvasState } from "../../logic/sessionSnapshotCanvas";
 import type { CanvasPropertiesPanelProps } from "../../components/canvas/canvasWorkspaceContracts";
-import { useAiStudioPageMediaReferenceRuntime } from "../useAiStudioPageMediaReferenceRuntime";
+import {
+  CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE,
+  useAiStudioPageMediaReferenceRuntime,
+} from "../useAiStudioPageMediaReferenceRuntime";
 
 const restoreSigningMocks = vi.hoisted(() => ({
   resolveSessionRestoreSignedMediaAuthorityByMediaId: vi.fn(),
@@ -1745,6 +1748,95 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
       bucket: "media_library",
       storagePath: "user-1/variants/videos/video-inferred-poster/poster.webp",
+    });
+  });
+
+  it("batches restored canvas video poster repair signing work", async () => {
+    const pendingSigners = new Map<string, (value: string | null) => void>();
+    mediaSigningMocks.getSignedMediaUrl.mockImplementation(
+      ({ storagePath }: { storagePath: string }) =>
+        new Promise<string | null>((resolve) => {
+          pendingSigners.set(storagePath, resolve);
+        })
+    );
+
+    const canvasItems = Array.from(
+      { length: CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE + 1 },
+      (_, index) => {
+        const itemNumber = index + 1;
+        return {
+          id: `canvas-video-batch-${itemNumber}`,
+          kind: "video" as const,
+          x: 10 * itemNumber,
+          y: 20,
+          z: itemNumber,
+          selected: false,
+          outputId: `output-video-batch-${itemNumber}`,
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          videoUrl: `https://expired.shortpulse.test/video-${itemNumber}.mp4`,
+          posterUrl: null,
+          title: `Old video ${itemNumber}`,
+          durationMs: null,
+          width: 320,
+          height: 180,
+        };
+      }
+    );
+    mockedCanvasSessionState = {
+      items: canvasItems,
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+    const outputs = canvasItems.map((item, index) => {
+      const itemNumber = index + 1;
+      return makeOutput({
+        id: item.outputId,
+        mode: "video",
+        prompt: `Fresh video ${itemNumber}`,
+        previewStoragePath: `user-1/variants/videos/video-batch-${itemNumber}/preview.mp4`,
+        previewPosterStoragePath: `user-1/variants/videos/video-batch-${itemNumber}/poster.webp`,
+        fullStoragePath: `user-1/generations/videos/video-batch-${itemNumber}/full.mp4`,
+        previewUrl: undefined,
+        previewPosterUrl: undefined,
+        resultUrls: [],
+        savedMediaIds: [],
+      });
+    });
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => outputs.find((output) => output.id === outputId) ?? null,
+        getOutputSnapshot: () => createOutputSnapshot(outputs),
+      })
+    );
+
+    await waitFor(() => {
+      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledTimes(
+        CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE * 3
+      );
+    });
+    expect(
+      mediaSigningMocks.getSignedMediaUrl.mock.calls.some(([request]) =>
+        String((request as { storagePath?: string }).storagePath).includes("video-batch-5")
+      )
+    ).toBe(false);
+
+    for (const [storagePath, resolve] of pendingSigners) {
+      resolve(`https://signed.shortpulse.test/${storagePath}`);
+    }
+
+    await waitFor(() => {
+      expect(
+        mediaSigningMocks.getSignedMediaUrl.mock.calls.some(([request]) =>
+          String((request as { storagePath?: string }).storagePath).includes("video-batch-5")
+        )
+      ).toBe(true);
     });
   });
 

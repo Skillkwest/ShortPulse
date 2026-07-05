@@ -30,6 +30,14 @@ describe("adminCrashSessionsApi", () => {
     expect(params.toString()).toBe("page=1&limit=50");
   });
 
+  it("passes the review queue status filter through to the admin API", () => {
+    const params = buildAdminCrashSessionsParams({
+      status: "needs_review",
+    });
+
+    expect(params.toString()).toBe("page=1&limit=50&status=needs_review");
+  });
+
   it("normalizes snake-case crash-session rows and derived stale status", () => {
     const result = normalizeAdminCrashSessionsResponse({
       sessions: [

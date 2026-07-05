@@ -46,7 +46,7 @@ export type BrowserSessionEventRequest = {
 export type BrowserCrashSessionListFilters = {
   page: number;
   limit: number;
-  status: BrowserCrashSessionStatus | "all";
+  status: BrowserCrashSessionStatus | "all" | "needs_review";
   search: string;
 };
 
@@ -56,7 +56,7 @@ const MAX_SESSION_ID_LENGTH = 160;
 const MAX_USER_AGENT_LENGTH = 500;
 const MAX_METADATA_KEYS = 48;
 const MAX_METADATA_KEY_LENGTH = 80;
-const ACTIVE_STALE_AFTER_MS = 2 * 60 * 1000;
+const ACTIVE_STALE_AFTER_MS = 10 * 60 * 1000;
 
 const BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
   "session_start",
@@ -187,17 +187,24 @@ const metadataNumber = (metadata: JsonObject, key: string): number | null => {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
+const resolveHeapLimitUsageRatio = (metadata: JsonObject): number | null => {
+  const usedJsHeapSize = metadataNumber(metadata, "used_js_heap_size");
+  const jsHeapSizeLimit = metadataNumber(metadata, "js_heap_size_limit");
+  if (usedJsHeapSize === null || jsHeapSizeLimit === null || jsHeapSizeLimit <= 0) return null;
+  return usedJsHeapSize / jsHeapSizeLimit;
+};
+
 const hasSevereFreezeEvidence = (metadata: JsonObject): boolean => {
   const pressureLevel = metadataNumber(metadata, "pressure_level");
   const stallDurationMs = metadataNumber(metadata, "stall_duration_ms");
   const maxInputStallMs = metadataNumber(metadata, "max_input_stall_ms");
-  const heapUsageRatio = metadataNumber(metadata, "heap_usage_ratio");
+  const heapLimitUsageRatio = resolveHeapLimitUsageRatio(metadata);
   const longTaskP95Ms = metadataNumber(metadata, "long_task_p95_ms");
   return (
     (pressureLevel !== null && pressureLevel >= 2) ||
     (stallDurationMs !== null && stallDurationMs >= 2000) ||
     (maxInputStallMs !== null && maxInputStallMs >= 1000) ||
-    (heapUsageRatio !== null && heapUsageRatio >= 0.86) ||
+    (heapLimitUsageRatio !== null && heapLimitUsageRatio >= 0.86) ||
     (longTaskP95Ms !== null && longTaskP95Ms >= 250)
   );
 };
@@ -242,7 +249,10 @@ const buildSessionUpsert = (params: {
   metadata: JsonObject;
   occurredAt: string;
 }) => {
-  const status = resolveSessionStatus(params.eventType, params.metadata);
+  const status =
+    params.eventType === "previous_session_abandoned"
+      ? { status: "active" as const, confidence: "none" as const }
+      : resolveSessionStatus(params.eventType, params.metadata);
   const release = resolveBuildMetadata(params.metadata);
   return {
     browser_session_id: params.sessionId,
@@ -331,6 +341,10 @@ export const recordBrowserSessionEvent = async (params: {
     metadata,
   });
 
+  if (eventType === "previous_session_abandoned") {
+    return { sessionId, previousSessionId: previousId, eventType };
+  }
+
   const upsertPayload = compactUpsert(
     buildSessionUpsert({
       user: params.user,
@@ -386,7 +400,11 @@ export const fetchBrowserCrashSessions = async (
     .select("*", { count: "exact" })
     .order("last_seen_at", { ascending: false });
 
-  if (filters.status !== "all") query = query.eq("status", filters.status);
+  if (filters.status === "needs_review") {
+    query = query.in("status", ["probable_freeze_or_crash", "confirmed_crash"]);
+  } else if (filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
   if (filters.search.trim()) {
     const pattern = `%${filters.search.trim().replace(/\s+/g, "%")}%`;
     query = query.or(

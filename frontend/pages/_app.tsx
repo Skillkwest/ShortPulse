@@ -10,6 +10,11 @@ import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
 import { installBrowserSessionHealthMonitor } from "../lib/browserSessionHealth";
+import {
+  extractFailedNextChunk,
+  hasNextChunkLoadFailureText,
+  toChunkLoadErrorMessage,
+} from "../lib/chunkLoadErrors";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import { isAiStudioRoutePath, isProtectedRoutePath } from "../lib/protectedRoutes";
@@ -35,28 +40,6 @@ const SharedProtectedRouteBootstrapGate = dynamic(
     ),
   }
 );
-
-const toRouteLoadMessage = (value: unknown): string => {
-  if (typeof value === "string") return value.trim();
-  if (value && typeof value === "object" && "message" in value) {
-    const candidate = (value as { message?: unknown }).message;
-    return typeof candidate === "string" ? candidate.trim() : "";
-  }
-  return "";
-};
-
-const hasFailedScriptLoadText = (value: string): boolean => {
-  const lower = value.toLowerCase();
-  return (
-    lower.includes("failed to load script") ||
-    (lower.includes("failed to load") && /_next\/static\/chunks\/[^\\s"']+\.js/.test(value))
-  );
-};
-
-const extractFailedChunk = (value: string): string | null => {
-  const match = value.match(/_next\/static\/chunks\/[^\\s"']+\.js/);
-  return match ? match[0] : null;
-};
 
 /**
  * Render the active page with its provided props.
@@ -102,9 +85,9 @@ export default function App({ Component, pageProps }: AppProps) {
     const onError = (routeError: Error & { cancelled?: boolean }, url: string) => {
       if (routeError?.cancelled) return;
 
-      const routeErrorMessage = toRouteLoadMessage(routeError);
+      const routeErrorMessage = toChunkLoadErrorMessage(routeError);
       const telemetryRouteChangeTarget = redactUrlForTelemetry(url);
-      const hasScriptLoadFailure = hasFailedScriptLoadText(routeErrorMessage);
+      const hasScriptLoadFailure = hasNextChunkLoadFailureText(routeErrorMessage);
 
       addBreadcrumb({
         type: "route",
@@ -128,7 +111,7 @@ export default function App({ Component, pageProps }: AppProps) {
           endpoint: telemetryRouteChangeTarget,
           metadata: {
             route_change_target: telemetryRouteChangeTarget,
-            route_change_script_chunk: extractFailedChunk(routeErrorMessage),
+            route_change_script_chunk: extractFailedNextChunk(routeErrorMessage),
           },
         });
         return;

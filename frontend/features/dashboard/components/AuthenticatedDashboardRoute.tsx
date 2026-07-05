@@ -22,8 +22,14 @@ import type { DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { reportAppError } from "../../../lib/appErrorReporter";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  extractFailedNextChunk,
+  hasNextChunkLoadFailureText,
+  toChunkLoadErrorMessage,
+} from "../../../lib/chunkLoadErrors";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
 
@@ -37,6 +43,10 @@ type ProjectsModalComponent =
   (typeof import("../../ai-studio/components/ProjectsModal"))["ProjectsModal"];
 type ProjectNameModalComponent =
   (typeof import("../../projects/components/ProjectNameModal"))["ProjectNameModal"];
+type DashboardLazyModalKey = "project_name" | "projects";
+type DashboardModalLoadFailure = {
+  title: string;
+};
 
 type AuthenticatedDashboardRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
@@ -115,6 +125,41 @@ const loadProjectNameModal = async (): Promise<ProjectNameModalComponent> => {
   return loadedModule.ProjectNameModal;
 };
 
+const DASHBOARD_MODAL_FAILURE_COPY: Record<DashboardLazyModalKey, DashboardModalLoadFailure> = {
+  project_name: {
+    title: "New Project could not open",
+  },
+  projects: {
+    title: "Projects could not open",
+  },
+};
+
+const reportDashboardModalLoadFailure = ({
+  error,
+  modal,
+}: {
+  error: unknown;
+  modal: DashboardLazyModalKey;
+}) => {
+  const message = toChunkLoadErrorMessage(error) || "Dashboard modal failed to load.";
+  const stack = error instanceof Error ? error.stack : null;
+  const haystack = `${message}\n${stack ?? ""}`;
+  void reportAppError({
+    source: `client.dashboard.${modal}_modal_load_failure`,
+    scope: "app",
+    severity: "high",
+    message,
+    stack,
+    route:
+      typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : null,
+    metadata: {
+      modal,
+      failed_chunk: extractFailedNextChunk(haystack),
+      is_next_chunk_load_failure: hasNextChunkLoadFailureText(haystack),
+    },
+  });
+};
+
 /**
  * Renders the signed-in dashboard surface and keeps its authenticated-only logic out of the public route entry bundle.
  */
@@ -138,6 +183,8 @@ export function AuthenticatedDashboardRoute({
     useState<ProjectsModalComponent | null>(null);
   const [ProjectNameModalComponent, setProjectNameModalComponent] =
     useState<ProjectNameModalComponent | null>(null);
+  const [dashboardModalLoadFailure, setDashboardModalLoadFailure] =
+    useState<DashboardModalLoadFailure | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
@@ -456,17 +503,29 @@ export function AuthenticatedDashboardRoute({
           toolCards={dashboardToolCards}
           onCreateProject={() => {
             if (!ProjectNameModalComponent) {
-              void loadProjectNameModal().then((component) => {
-                setProjectNameModalComponent(() => component);
-              });
+              void loadProjectNameModal()
+                .then((component) => {
+                  setProjectNameModalComponent(() => component);
+                })
+                .catch((error) => {
+                  closeProjectNameModal();
+                  setDashboardModalLoadFailure(DASHBOARD_MODAL_FAILURE_COPY.project_name);
+                  reportDashboardModalLoadFailure({ error, modal: "project_name" });
+                });
             }
             openProjectNameModal();
           }}
           onOpenProjects={() => {
             if (!ProjectsModalComponent) {
-              void loadProjectsModal().then((component) => {
-                setProjectsModalComponent(() => component);
-              });
+              void loadProjectsModal()
+                .then((component) => {
+                  setProjectsModalComponent(() => component);
+                })
+                .catch((error) => {
+                  setIsProjectsModalOpen(false);
+                  setDashboardModalLoadFailure(DASHBOARD_MODAL_FAILURE_COPY.projects);
+                  reportDashboardModalLoadFailure({ error, modal: "projects" });
+                });
             }
             setIsProjectsModalOpen(true);
           }}
@@ -504,6 +563,26 @@ export function AuthenticatedDashboardRoute({
           onClose={() => setIsProjectsModalOpen(false)}
           onSelectProject={openProject}
           onCreateProject={openProject}
+        />
+      ) : null}
+
+      {dashboardModalLoadFailure ? (
+        <ConfirmationModal
+          title={dashboardModalLoadFailure.title}
+          body={
+            <p>
+              ShortPulse could not load the latest dashboard code for this action. Reload the
+              dashboard and try again.
+            </p>
+          }
+          confirmLabel="Reload dashboard"
+          tone="primary"
+          onCancel={() => setDashboardModalLoadFailure(null)}
+          onConfirm={() => {
+            if (typeof window !== "undefined") {
+              window.location.reload();
+            }
+          }}
         />
       ) : null}
     </>

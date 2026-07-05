@@ -12,7 +12,7 @@ import type {
 
 export const CRASH_SESSIONS_PER_PAGE = 50;
 
-export type AdminCrashSessionStatusFilter = AdminCrashSessionStatus | "all";
+export type AdminCrashSessionStatusFilter = AdminCrashSessionStatus | "all" | "needs_review";
 
 export type NormalizedAdminCrashSessionsResponse = {
   rows: AdminCrashSessionRow[];

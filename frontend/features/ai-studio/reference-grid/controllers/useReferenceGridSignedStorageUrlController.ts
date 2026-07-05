@@ -12,6 +12,8 @@ import {
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 
 const REFERENCE_GRID_MEDIA_BUCKET = "media_library";
+const REFERENCE_GRID_SIGNED_STORAGE_URL_CACHE_MAX_ENTRIES = 1500;
+const REFERENCE_GRID_SIGNED_MEDIA_AUTHORITY_CACHE_MAX_ENTRIES = 500;
 
 export type ReferenceGridStorageSigningMode = "card-preview" | "full-authority";
 
@@ -67,6 +69,24 @@ const areStringSetsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string
     if (!right.has(value)) return false;
   }
   return true;
+};
+
+const pruneMapToMaxEntries = <TValue>({
+  map,
+  maxEntries,
+  protectedKeys,
+}: {
+  map: Map<string, TValue>;
+  maxEntries: number;
+  protectedKeys: readonly string[];
+}) => {
+  if (map.size <= maxEntries) return;
+  const protectedKeySet = new Set(protectedKeys);
+  for (const key of map.keys()) {
+    if (map.size <= maxEntries) return;
+    if (protectedKeySet.has(key)) continue;
+    map.delete(key);
+  }
 };
 
 const areSignedMediaAuthorityMapsEqual = (
@@ -253,10 +273,15 @@ export const useReferenceGridSignedStorageUrlController = ({
     Map<string, SessionSignedMediaRestoreAuthority>
   >(() => new Map());
   const signedStorageUrlByPathRef = useRef(signedStorageUrlByPath);
+  const signedMediaAuthorityByMediaIdRef = useRef(signedMediaAuthorityByMediaId);
 
   useEffect(() => {
     signedStorageUrlByPathRef.current = signedStorageUrlByPath;
   }, [signedStorageUrlByPath]);
+
+  useEffect(() => {
+    signedMediaAuthorityByMediaIdRef.current = signedMediaAuthorityByMediaId;
+  }, [signedMediaAuthorityByMediaId]);
 
   useEffect(() => {
     const pathsForRequest = storagePathKey ? storagePathKey.split("\n") : [];
@@ -274,34 +299,49 @@ export const useReferenceGridSignedStorageUrlController = ({
       return;
     }
 
+    const missingPathsForRequest = pathsForRequest.filter(
+      (path) => !signedStorageUrlByPathRef.current.has(path)
+    );
     queueMicrotask(() => {
       if (cancelled) return;
       setSigningPendingStoragePathSet((previous) => {
-        const next = new Set(
-          pathsForRequest.filter((path) => !signedStorageUrlByPathRef.current.has(path))
-        );
+        const next = new Set(missingPathsForRequest);
         return areStringSetsEqual(previous, next) ? previous : next;
       });
     });
+
+    if (!missingPathsForRequest.length) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     void getSignedMediaUrlsBatch({
       bucket: REFERENCE_GRID_MEDIA_BUCKET,
-      storagePaths: pathsForRequest,
+      storagePaths: missingPathsForRequest,
       surface: "reference-grid",
       queryMode: "default",
     })
       .then((resolvedUrls) => {
         if (cancelled) return;
         setSignedStorageUrlByPath((previous) => {
-          const next = new Map<string, string>();
-          pathsForRequest.forEach((path) => {
+          const next = new Map(previous);
+          missingPathsForRequest.forEach((path) => {
             const signedUrl = resolvedUrls.get(path) ?? previous.get(path) ?? null;
-            if (signedUrl) next.set(path, signedUrl);
+            if (!signedUrl) return;
+            next.delete(path);
+            next.set(path, signedUrl);
+          });
+          pruneMapToMaxEntries({
+            map: next,
+            maxEntries: REFERENCE_GRID_SIGNED_STORAGE_URL_CACHE_MAX_ENTRIES,
+            protectedKeys: pathsForRequest,
           });
           return areSignedUrlMapsEqual(previous, next) ? previous : next;
         });
         setSigningPendingStoragePathSet((previous) => {
           const next = new Set(previous);
-          pathsForRequest.forEach((path) => {
+          missingPathsForRequest.forEach((path) => {
             next.delete(path);
           });
           return areStringSetsEqual(previous, next) ? previous : next;
@@ -311,7 +351,7 @@ export const useReferenceGridSignedStorageUrlController = ({
         if (cancelled) return;
         setSigningPendingStoragePathSet((previous) => {
           const next = new Set(previous);
-          pathsForRequest.forEach((path) => {
+          missingPathsForRequest.forEach((path) => {
             next.delete(path);
           });
           return areStringSetsEqual(previous, next) ? previous : next;
@@ -327,16 +367,28 @@ export const useReferenceGridSignedStorageUrlController = ({
     const mediaIdsForRequest = savedMediaIdKey ? savedMediaIdKey.split("\n") : [];
 
     if (suspendSigningRequests || !mediaIdsForRequest.length) return;
+    const missingMediaIdsForRequest = mediaIdsForRequest.filter(
+      (mediaId) => !signedMediaAuthorityByMediaIdRef.current.has(mediaId)
+    );
+    if (!missingMediaIdsForRequest.length) return;
 
     let cancelled = false;
-    void resolveSessionRestoreSignedMediaAuthorityByMediaId(mediaIdsForRequest)
+    void resolveSessionRestoreSignedMediaAuthorityByMediaId(missingMediaIdsForRequest)
       .then((resolvedAuthority) => {
         if (cancelled) return;
-        setSignedMediaAuthorityByMediaId((previous) =>
-          areSignedMediaAuthorityMapsEqual(previous, resolvedAuthority)
-            ? previous
-            : new Map(resolvedAuthority)
-        );
+        setSignedMediaAuthorityByMediaId((previous) => {
+          const next = new Map(previous);
+          resolvedAuthority.forEach((authority, mediaId) => {
+            next.delete(mediaId);
+            next.set(mediaId, authority);
+          });
+          pruneMapToMaxEntries({
+            map: next,
+            maxEntries: REFERENCE_GRID_SIGNED_MEDIA_AUTHORITY_CACHE_MAX_ENTRIES,
+            protectedKeys: mediaIdsForRequest,
+          });
+          return areSignedMediaAuthorityMapsEqual(previous, next) ? previous : next;
+        });
       })
       .catch(() => {
         // Saved-media authority recovery is best-effort; keep any previously resolved authority.

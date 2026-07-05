@@ -13,8 +13,11 @@ import {
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-const STATUS_VALUES = new Set<BrowserCrashSessionStatus | "all">([
+type BrowserCrashSessionStatusFilter = BrowserCrashSessionStatus | "all" | "needs_review";
+
+const STATUS_VALUES = new Set<BrowserCrashSessionStatusFilter>([
   "all",
+  "needs_review",
   "active",
   "clean_closed",
   "possible_ungraceful_exit",
@@ -30,10 +33,10 @@ const asPositiveInt = (value: string | string[] | undefined, fallback: number): 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const asStatus = (value: string | string[] | undefined): BrowserCrashSessionStatus | "all" => {
+const asStatus = (value: string | string[] | undefined): BrowserCrashSessionStatusFilter => {
   const normalized = firstQueryValue(value).trim();
-  return STATUS_VALUES.has(normalized as BrowserCrashSessionStatus | "all")
-    ? (normalized as BrowserCrashSessionStatus | "all")
+  return STATUS_VALUES.has(normalized as BrowserCrashSessionStatusFilter)
+    ? (normalized as BrowserCrashSessionStatusFilter)
     : "all";
 };
 

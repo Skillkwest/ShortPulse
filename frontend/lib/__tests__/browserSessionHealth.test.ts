@@ -79,7 +79,7 @@ describe("browserSessionHealth", () => {
       "shortpulse.browser_session.last.v1",
       JSON.stringify({
         sessionId: "previous-session",
-        updatedAt: Date.now() - 30_000,
+        updatedAt: Date.now() - 120_000,
         cleanClosedAt: null,
         route: "/ai-studio",
       })
@@ -98,6 +98,63 @@ describe("browserSessionHealth", () => {
         previousSessionId: "previous-session",
       })
     );
+    cleanup();
+  });
+
+  it("does not promote a recently refreshed previous session as abandoned", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    window.localStorage.setItem(
+      "shortpulse.browser_session.last.v1",
+      JSON.stringify({
+        sessionId: "previous-session",
+        updatedAt: Date.now() - 30_000,
+        cleanClosedAt: null,
+        route: "/ai-studio",
+      })
+    );
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+
+    const bodies = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+    expect(bodies.some((body) => body.eventType === "session_start")).toBe(true);
+    expect(bodies.some((body) => body.eventType === "previous_session_abandoned")).toBe(false);
+    cleanup();
+  });
+
+  it("does not report previous sessions still active in another tab", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    const now = Date.now();
+    window.localStorage.setItem(
+      "shortpulse.browser_session.last.v1",
+      JSON.stringify({
+        sessionId: "previous-session",
+        updatedAt: now - 120_000,
+        cleanClosedAt: null,
+        route: "/dashboard",
+        tabId: "other-tab",
+      })
+    );
+    window.localStorage.setItem(
+      "shortpulse.browser_session.active_tabs.v1",
+      JSON.stringify({
+        "other-tab": {
+          sessionId: "previous-session",
+          updatedAt: now,
+        },
+      })
+    );
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+
+    const bodies = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+    expect(bodies.some((body) => body.eventType === "session_start")).toBe(true);
+    expect(bodies.some((body) => body.eventType === "previous_session_abandoned")).toBe(false);
     cleanup();
   });
 

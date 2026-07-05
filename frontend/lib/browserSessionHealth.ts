@@ -25,10 +25,17 @@ type BrowserSessionRecord = {
   updatedAt: number;
   cleanClosedAt: number | null;
   route: string | null;
+  tabId: string | null;
+};
+
+type ActiveTabSessionRecord = {
+  sessionId: string;
+  updatedAt: number;
 };
 
 type BrowserSessionMonitorState = {
   sessionId: string;
+  tabId: string;
   heartbeatId: number | null;
   stallProbeId: number | null;
   lastStallTickMs: number;
@@ -63,9 +70,13 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const STALL_PROBE_INTERVAL_MS = 1000;
 const MAIN_THREAD_STALL_THRESHOLD_MS = 2000;
 const STALL_REPORT_COOLDOWN_MS = 60_000;
+const ABANDONED_SESSION_MIN_AGE_MS = HEARTBEAT_INTERVAL_MS * 3;
 const ABANDONED_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_TAB_STALE_AFTER_MS = HEARTBEAT_INTERVAL_MS * 2 + 5000;
 const CURRENT_SESSION_STORAGE_KEY = "shortpulse.browser_session.current.v1";
 const LAST_SESSION_STORAGE_KEY = "shortpulse.browser_session.last.v1";
+const TAB_ID_STORAGE_KEY = "shortpulse.browser_session.tab_id.v1";
+const ACTIVE_TABS_STORAGE_KEY = "shortpulse.browser_session.active_tabs.v1";
 
 let activeMonitor: BrowserSessionMonitorState | null = null;
 
@@ -76,6 +87,19 @@ const createSessionId = (): string => {
     return crypto.randomUUID();
   }
   return `sp_browser_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const readOrCreateTabId = (): string => {
+  if (typeof window === "undefined") return createSessionId();
+  try {
+    const existing = window.sessionStorage.getItem(TAB_ID_STORAGE_KEY);
+    if (existing?.trim()) return existing;
+    const next = createSessionId();
+    window.sessionStorage.setItem(TAB_ID_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return createSessionId();
+  }
 };
 
 const currentRoute = (): string | null => {
@@ -106,6 +130,7 @@ const readStoredSessionRecord = (): BrowserSessionRecord | null => {
       updatedAt: parsed.updatedAt,
       cleanClosedAt: typeof parsed.cleanClosedAt === "number" ? parsed.cleanClosedAt : null,
       route: typeof parsed.route === "string" ? parsed.route : null,
+      tabId: typeof parsed.tabId === "string" ? parsed.tabId : null,
     };
   } catch {
     return null;
@@ -119,6 +144,68 @@ const writeStoredSessionRecord = (record: BrowserSessionRecord): void => {
   } catch {
     // Best-effort local recovery marker only.
   }
+};
+
+const readActiveTabRecords = (): Record<string, ActiveTabSessionRecord> => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_TABS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, Partial<ActiveTabSessionRecord>>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const output: Record<string, ActiveTabSessionRecord> = {};
+    for (const [tabId, record] of Object.entries(parsed)) {
+      if (
+        typeof tabId === "string" &&
+        typeof record?.sessionId === "string" &&
+        typeof record.updatedAt === "number"
+      ) {
+        output[tabId] = {
+          sessionId: record.sessionId,
+          updatedAt: record.updatedAt,
+        };
+      }
+    }
+    return output;
+  } catch {
+    return {};
+  }
+};
+
+const writeActiveTabRecords = (records: Record<string, ActiveTabSessionRecord>): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ACTIVE_TABS_STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    // Best-effort cross-tab coordination only.
+  }
+};
+
+const pruneActiveTabRecords = (
+  records: Record<string, ActiveTabSessionRecord>,
+  updatedAt: number
+): Record<string, ActiveTabSessionRecord> => {
+  const output: Record<string, ActiveTabSessionRecord> = {};
+  for (const [tabId, record] of Object.entries(records)) {
+    const ageMs = updatedAt - record.updatedAt;
+    if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= ACTIVE_TAB_STALE_AFTER_MS) {
+      output[tabId] = record;
+    }
+  }
+  return output;
+};
+
+const touchActiveTabRecord = (tabId: string, sessionId: string, updatedAt: number): void => {
+  writeActiveTabRecords({
+    ...pruneActiveTabRecords(readActiveTabRecords(), updatedAt),
+    [tabId]: { sessionId, updatedAt },
+  });
+};
+
+const clearActiveTabRecord = (tabId: string, updatedAt: number): void => {
+  const records = pruneActiveTabRecords(readActiveTabRecords(), updatedAt);
+  delete records[tabId];
+  writeActiveTabRecords(records);
 };
 
 const writeCurrentSessionId = (sessionId: string): void => {
@@ -149,7 +236,8 @@ const readBrowserMemoryMetadata = (): JsonObject => {
     used_js_heap_size: Math.round(used),
     total_js_heap_size: Math.round(total),
     js_heap_size_limit: typeof limit === "number" ? Math.round(limit) : null,
-    heap_usage_ratio: Math.round((used / total) * 1000) / 1000,
+    heap_usage_ratio:
+      typeof limit === "number" && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
   };
 };
 
@@ -246,7 +334,13 @@ const reportEvent = (
     updatedAt,
     cleanClosedAt,
     route: currentRoute(),
+    tabId: activeMonitor.tabId,
   });
+  if (eventType === "clean_close") {
+    clearActiveTabRecord(activeMonitor.tabId, updatedAt);
+  } else {
+    touchActiveTabRecord(activeMonitor.tabId, activeMonitor.sessionId, updatedAt);
+  }
   void sendBrowserSessionEvent({
     eventType,
     sessionId: activeMonitor.sessionId,
@@ -257,12 +351,23 @@ const reportEvent = (
 
 const maybeReportPreviousAbandonedSession = (
   currentSessionId: string,
+  currentTabId: string,
   previous: BrowserSessionRecord | null
 ): void => {
   if (!previous || previous.cleanClosedAt !== null) return;
   if (previous.sessionId === currentSessionId) return;
+  if (previous.tabId && previous.tabId !== currentTabId) {
+    const previousTab = readActiveTabRecords()[previous.tabId];
+    if (previousTab?.sessionId === previous.sessionId) return;
+  }
   const ageMs = nowMs() - previous.updatedAt;
-  if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > ABANDONED_SESSION_MAX_AGE_MS) return;
+  if (
+    !Number.isFinite(ageMs) ||
+    ageMs < ABANDONED_SESSION_MIN_AGE_MS ||
+    ageMs > ABANDONED_SESSION_MAX_AGE_MS
+  ) {
+    return;
+  }
   reportEvent(
     "previous_session_abandoned",
     {
@@ -372,11 +477,13 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
   if (activeMonitor) return activeMonitor.cleanup;
 
   const sessionId = createSessionId();
+  const tabId = readOrCreateTabId();
   const previousSession = readStoredSessionRecord();
   writeCurrentSessionId(sessionId);
 
   const state: BrowserSessionMonitorState = {
     sessionId,
+    tabId,
     heartbeatId: null,
     stallProbeId: null,
     lastStallTickMs: nowMs(),
@@ -386,7 +493,7 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
   activeMonitor = state;
 
   reportEvent("session_start");
-  maybeReportPreviousAbandonedSession(sessionId, previousSession);
+  maybeReportPreviousAbandonedSession(sessionId, tabId, previousSession);
 
   const cleanupLifecycle = installLifecycleListeners();
   const cleanupCrashReportObserver = installCrashReportObserver();

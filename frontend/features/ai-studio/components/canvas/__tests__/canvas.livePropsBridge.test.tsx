@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
 import type { CanvasPropertiesPanelProps } from "../canvasWorkspaceContracts";
+import { mockViewportRect } from "./canvasTestHarness";
 import type { StudioOutput } from "../../../types";
 
 const createPanelProps = (
@@ -275,7 +276,7 @@ describe("CanvasPropertiesPanel live props bridge", () => {
     expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
   });
 
-  it("raises wrapper interaction callbacks for item-origin gestures", () => {
+  it("raises wrapper interaction callbacks for item-origin gestures", async () => {
     const viewportRef = React.createRef<HTMLDivElement>();
     const interactionActiveChange = vi.fn();
     const initialSnapshot = createPanelProps({
@@ -303,8 +304,11 @@ describe("CanvasPropertiesPanel live props bridge", () => {
       />
     );
 
-    fireEvent.pointerDown(screen.getByTestId("canvas-item-text-1"));
-    fireEvent.pointerUp(screen.getByTestId("canvas-item-text-1"));
+    mockViewportRect(screen.getByTestId("canvas-viewport"));
+    const canvasItem = await screen.findByTestId("canvas-item-text-1");
+
+    fireEvent.pointerDown(canvasItem);
+    fireEvent.pointerUp(canvasItem);
 
     expect(interactionActiveChange).toHaveBeenNthCalledWith(1, true);
     expect(interactionActiveChange).toHaveBeenNthCalledWith(2, false);

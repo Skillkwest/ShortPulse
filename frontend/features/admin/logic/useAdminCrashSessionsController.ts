@@ -43,7 +43,8 @@ export const useAdminCrashSessionsController = ({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [page, setPage] = React.useState(1);
-  const [statusFilter, setStatusFilter] = React.useState<AdminCrashSessionStatusFilter>("all");
+  const [statusFilter, setStatusFilter] =
+    React.useState<AdminCrashSessionStatusFilter>("needs_review");
   const [search, setSearch] = React.useState("");
   const [pagination, setPagination] = React.useState<AdminPagination>({
     page: 1,

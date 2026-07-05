@@ -70,6 +70,25 @@ describe("GET /api/admin/crashes", () => {
     });
   });
 
+  it("accepts the conservative needs-review queue filter", async () => {
+    const req = {
+      method: "GET",
+      query: {
+        status: "needs_review",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchBrowserCrashSessionsMock).toHaveBeenCalledWith({
+      page: 1,
+      limit: 50,
+      status: "needs_review",
+      search: "",
+    });
+  });
+
   it("falls back to safe defaults for unsupported filters", async () => {
     const req = {
       method: "GET",

@@ -78,6 +78,7 @@ import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTea
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
 const CANVAS_MEDIA_LIBRARY_BUCKET = "media_library";
+export const CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
 
 const areNumberListsEqual = (
   left: readonly number[] | null | undefined,
@@ -1650,30 +1651,50 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     if (candidates.length === 0) return;
 
     let cancelled = false;
-    void Promise.all(
-      candidates.map(async ({ item, output, outputId }) => {
-        try {
-          const displayAuthority = await resolveCanvasStudioOutputMediaDisplayAuthority(output);
-          const resolved = resolveCanvasResolutionFromOutput({
-            output,
-            outputId,
-            mediaId: item.mediaId ?? resolveSavedMediaIdFromOutput(output, 0),
-            fallbackUrl: item.videoUrl,
-            width: item.width,
-            height: item.height,
-            displayAuthority,
-          });
-          return {
-            itemId: item.id,
-            outputId,
-            resolved,
-          };
-        } catch {
-          return null;
-        }
-      })
-    ).then((resolvedCandidates) => {
+    const resolveCandidates = async () => {
+      const resolvedCandidates: Array<{
+        itemId: string;
+        outputId: string;
+        resolved: CanvasDropResolution | null;
+      } | null> = [];
+      for (
+        let index = 0;
+        index < candidates.length;
+        index += CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE
+      ) {
+        if (cancelled) return null;
+        const batch = candidates.slice(index, index + CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE);
+        const resolvedBatch = await Promise.all(
+          batch.map(async ({ item, output, outputId }) => {
+            try {
+              const displayAuthority = await resolveCanvasStudioOutputMediaDisplayAuthority(output);
+              const resolved = resolveCanvasResolutionFromOutput({
+                output,
+                outputId,
+                mediaId: item.mediaId ?? resolveSavedMediaIdFromOutput(output, 0),
+                fallbackUrl: item.videoUrl,
+                width: item.width,
+                height: item.height,
+                displayAuthority,
+              });
+              return {
+                itemId: item.id,
+                outputId,
+                resolved,
+              };
+            } catch {
+              return null;
+            }
+          })
+        );
+        resolvedCandidates.push(...resolvedBatch);
+      }
+      return resolvedCandidates;
+    };
+
+    void resolveCandidates().then((resolvedCandidates) => {
       if (cancelled) return;
+      if (!resolvedCandidates) return;
       const resolvedByItemId = new Map(
         resolvedCandidates
           .filter(

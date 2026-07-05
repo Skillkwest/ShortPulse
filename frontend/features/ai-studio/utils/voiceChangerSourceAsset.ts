@@ -8,6 +8,7 @@ import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 
 const VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS = 8000;
+const VOICE_CHANGER_MEDIA_METADATA_TIMEOUT_MS = 8000;
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 
 const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
@@ -448,6 +449,20 @@ const toAspectToken = (width: number, height: number): string | null => {
   return `${Math.round(width) / divisor}:${Math.round(height) / divisor}`;
 };
 
+const cleanupVoiceChangerMetadataProbe = (media: HTMLMediaElement) => {
+  try {
+    media.pause();
+  } catch {
+    // Detached media cleanup can throw in browser/test environments.
+  }
+  media.removeAttribute("src");
+  try {
+    media.load();
+  } catch {
+    // Some browser/test environments throw when resetting detached media.
+  }
+};
+
 export const resolveVoiceChangerMediaDurationMs = async (
   sourceUrl: string | null | undefined,
   kind: "audio" | "video"
@@ -465,13 +480,17 @@ export const resolveVoiceChangerMediaDurationMs = async (
 
   return await new Promise<number | null>((resolve) => {
     let settled = false;
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
     const finalize = (value: number | null) => {
       if (settled) return;
       settled = true;
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
       media.removeEventListener("error", handleFailure);
-      media.removeAttribute("src");
-      media.load();
+      cleanupVoiceChangerMetadataProbe(media);
       resolve(value);
     };
 
@@ -487,7 +506,13 @@ export const resolveVoiceChangerMediaDurationMs = async (
 
     media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
     media.addEventListener("error", handleFailure, { once: true });
+    timeoutId = globalThis.setTimeout(handleFailure, VOICE_CHANGER_MEDIA_METADATA_TIMEOUT_MS);
     media.src = normalized;
+    try {
+      media.load();
+    } catch {
+      finalize(null);
+    }
   });
 };
 
@@ -505,13 +530,17 @@ export const resolveVoiceChangerVideoAspect = async (
 
   return await new Promise<string | null>((resolve) => {
     let settled = false;
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
     const finalize = (value: string | null) => {
       if (settled) return;
       settled = true;
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("error", handleFailure);
-      video.removeAttribute("src");
-      video.load();
+      cleanupVoiceChangerMetadataProbe(video);
       resolve(value);
     };
 
@@ -521,6 +550,12 @@ export const resolveVoiceChangerVideoAspect = async (
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
     video.addEventListener("error", handleFailure, { once: true });
+    timeoutId = globalThis.setTimeout(handleFailure, VOICE_CHANGER_MEDIA_METADATA_TIMEOUT_MS);
     video.src = normalized;
+    try {
+      video.load();
+    } catch {
+      finalize(null);
+    }
   });
 };

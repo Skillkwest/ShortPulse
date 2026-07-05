@@ -30,12 +30,13 @@ type AdminCrashLogsPanelProps = {
 };
 
 const STATUS_OPTIONS: Array<{ value: AdminCrashSessionStatusFilter; label: string }> = [
-  { value: "all", label: "All statuses" },
+  { value: "needs_review", label: "Needs review" },
   { value: "probable_freeze_or_crash", label: "Probable freeze/crash" },
-  { value: "possible_ungraceful_exit", label: "Possible ungraceful exit" },
   { value: "confirmed_crash", label: "Confirmed crash" },
+  { value: "possible_ungraceful_exit", label: "Possible ungraceful exit" },
   { value: "active", label: "Active" },
   { value: "clean_closed", label: "Clean closed" },
+  { value: "all", label: "All statuses" },
 ];
 
 const statusLabel = (status: AdminCrashSessionStatus): string => {
@@ -59,6 +60,12 @@ const statusClassName = (status: AdminCrashSessionStatus): string => {
   return styles.pillOk;
 };
 
+const confidenceClassName = (confidence: AdminCrashSessionConfidence): string => {
+  if (confidence === "high") return styles.pillCritical;
+  if (confidence === "medium" || confidence === "low") return styles.pillWarn;
+  return styles.pillOk;
+};
+
 const evidenceText = (row: AdminCrashSessionRow): string => {
   const pressure = row.metadata.pressure_level;
   const stall = row.metadata.stall_duration_ms ?? row.metadata.max_input_stall_ms;
@@ -70,6 +77,14 @@ const evidenceText = (row: AdminCrashSessionRow): string => {
   ].filter(Boolean);
   if (row.isStale) parts.unshift("heartbeat stale");
   return parts.length ? parts.join(" · ") : row.lastEvent.replaceAll("_", " ");
+};
+
+const signalText = (row: AdminCrashSessionRow): string => {
+  if (row.isStale) return "Heartbeat went stale";
+  if (row.lastEvent === "crash_report") return "Browser reported a crash";
+  if (row.lastEvent === "previous_session_abandoned")
+    return "Previous session ended without clean close";
+  return evidenceText(row);
 };
 
 const browserLabel = (userAgent: string | null): string => {
@@ -198,34 +213,31 @@ export function AdminCrashLogsPanel({
       </div>
 
       <div className={styles.adminTable}>
-        <div className={styles.adminCrashSessionsHead}>
+        <div className={styles.adminErrorsHead}>
           <span>Status</span>
-          <span>User</span>
-          <span>Last seen</span>
-          <span>Browser</span>
-          <span>Route</span>
+          <span>Confidence</span>
           <span>Evidence</span>
+          <span>User / browser</span>
+          <span>Last seen</span>
           <span>Action</span>
         </div>
 
         {error ? (
-          <div className={`${styles.adminCrashSessionsRow} ${styles.severityMedium}`}>
+          <div className={`${styles.adminErrorsRow} ${styles.severityMedium}`}>
             <span className="subdued">Unavailable</span>
+            <span className="subdued">-</span>
             <span>
               <AppMessage tone="error" mode="compact" message={error} />
             </span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>
-            <span className="subdued">-</span>
-            <span className="subdued">-</span>
           </div>
         ) : sessions.length === 0 ? (
-          <div className={`${styles.adminCrashSessionsRow} ${styles.severityLow}`}>
+          <div className={`${styles.adminErrorsRow} ${styles.severityLow}`}>
             <span className="subdued">Clear</span>
+            <span className="subdued">-</span>
             <span className="subdued">No crash sessions matched the current filters.</span>
-            <span className="subdued">-</span>
-            <span className="subdued">-</span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>
@@ -233,10 +245,12 @@ export function AdminCrashLogsPanel({
         ) : (
           sessions.map((row) => {
             const expanded = expandedSessionId === row.id;
+            const signal = signalText(row);
+            const evidence = evidenceText(row);
             return (
               <div key={row.id} className={styles.adminCrashSessionGroup}>
                 <div
-                  className={`${styles.adminCrashSessionsRow} ${
+                  className={`${styles.adminErrorsRow} ${
                     row.effectiveStatus === "confirmed_crash" ||
                     row.effectiveStatus === "probable_freeze_or_crash"
                       ? styles.severityHigh
@@ -249,38 +263,31 @@ export function AdminCrashLogsPanel({
                     <span className={`${styles.pill} ${statusClassName(row.effectiveStatus)}`}>
                       {statusLabel(row.effectiveStatus)}
                     </span>
-                    <span className="tiny subdued">{confidenceLabel(row.effectiveConfidence)}</span>
+                    <span className="tiny subdued">{row.lastEvent.replaceAll("_", " ")}</span>
+                  </div>
+                  <span
+                    className={`${styles.pill} ${confidenceClassName(row.effectiveConfidence)}`}
+                  >
+                    {confidenceLabel(row.effectiveConfidence)}
+                  </span>
+                  <div className={styles.errorCell}>
+                    <span>{signal}</span>
+                    <span className="tiny subdued">
+                      {row.route ?? "Unknown route"}
+                      {evidence !== signal ? ` · ${evidence}` : ""}
+                    </span>
                   </div>
                   <div className={styles.errorCell}>
                     <span>{row.userEmail ?? "Unknown email"}</span>
-                    <span className="tiny subdued">{row.userId ?? "No user id"}</span>
+                    <span className="tiny subdued">
+                      {browserLabel(row.userAgent)} · {row.clientEnvironment ?? "Unknown env"}
+                    </span>
                   </div>
                   <div className={styles.errorCell}>
                     <span>{formatDateTime(row.lastSeenAt)}</span>
                     <span className="tiny subdued">Started {formatDateTime(row.startedAt)}</span>
                   </div>
-                  <div className={styles.errorCell}>
-                    <span>{browserLabel(row.userAgent)}</span>
-                    <span className="tiny subdued">{row.clientEnvironment ?? "Unknown env"}</span>
-                  </div>
-                  <div className={styles.errorCell}>
-                    <span>{row.route ?? "Unknown route"}</span>
-                    <span className="tiny subdued">
-                      {row.buildId ?? row.clientRelease ?? "No build"}
-                    </span>
-                  </div>
-                  <div className={styles.errorCell}>
-                    <span>{evidenceText(row)}</span>
-                    <span className="tiny subdued">{row.lastEvent.replaceAll("_", " ")}</span>
-                  </div>
                   <div className={styles.errorActions}>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => setExpandedSessionId(expanded ? null : row.id)}
-                    >
-                      {expanded ? "Hide" : "Details"}
-                    </button>
                     <button
                       type="button"
                       className="ghost-btn mini"
@@ -288,7 +295,14 @@ export function AdminCrashLogsPanel({
                         void copyPacket(row);
                       }}
                     >
-                      {copiedSessionId === row.id ? "Copied" : "Copy packet"}
+                      {copiedSessionId === row.id ? "Copied" : "Copy triage"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => setExpandedSessionId(expanded ? null : row.id)}
+                    >
+                      {expanded ? "Hide" : "Details"}
                     </button>
                   </div>
                 </div>

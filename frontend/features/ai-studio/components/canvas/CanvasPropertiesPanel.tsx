@@ -14,6 +14,7 @@ import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
+export const CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS = 4;
 const CANVAS_MEDIA_ACTION_MIN_VISIBLE_ZOOM = 0.5;
 const CANVAS_TEXT_SCROLL_TARGET_SELECTOR =
   ".canvas-scene-item__text, .canvas-scene-item__text-editor, .canvas-scene-item__draft-input";
@@ -149,6 +150,7 @@ type CanvasSceneItemViewProps = Pick<
   isEditingTextItem: boolean;
   showTextResizeHandles: boolean;
   isGhostSource: boolean;
+  shouldAttachVideoSource: boolean;
   editingTextValue: string;
   isTextEditEditable: boolean;
   markCanvasMediaError: (errorKey: string | null) => void;
@@ -163,6 +165,7 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
   isEditingTextItem,
   showTextResizeHandles,
   isGhostSource,
+  shouldAttachVideoSource,
   editingTextValue,
   isTextEditEditable,
   isItemDraggable = false,
@@ -232,6 +235,9 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
       data-x={item.x}
       data-y={item.y}
       data-width={item.width}
+      data-video-source-attached={
+        item.kind === "video" ? (shouldAttachVideoSource ? "true" : "false") : undefined
+      }
       data-height={
         item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height
       }
@@ -309,22 +315,38 @@ const CanvasSceneItemView = React.memo(function CanvasSceneItemView({
         />
       ) : item.kind === "video" ? (
         <>
-          <video
-            className="canvas-scene-item__video"
-            src={item.videoUrl}
-            poster={item.posterUrl ?? undefined}
-            aria-label={item.title?.trim() || "Canvas video"}
-            draggable={false}
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={() => clearCanvasMediaError(mediaErrorKey)}
-            onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
-            onError={() => {
-              markCanvasMediaError(mediaErrorKey);
-              onCanvasMediaRenderError?.(item);
-            }}
-          />
+          {shouldAttachVideoSource ? (
+            <video
+              className="canvas-scene-item__video"
+              src={item.videoUrl}
+              poster={item.posterUrl ?? undefined}
+              aria-label={item.title?.trim() || "Canvas video"}
+              draggable={false}
+              muted
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={() => clearCanvasMediaError(mediaErrorKey)}
+              onLoadedData={() => clearCanvasMediaError(mediaErrorKey)}
+              onError={() => {
+                markCanvasMediaError(mediaErrorKey);
+                onCanvasMediaRenderError?.(item);
+              }}
+            />
+          ) : item.posterUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="canvas-scene-item__video"
+              src={item.posterUrl}
+              alt={item.title?.trim() || "Canvas video"}
+              draggable={false}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="canvas-scene-item__video-placeholder">
+              <span>Video</span>
+            </div>
+          )}
           <MediaDurationBadge
             className="canvas-scene-item__media-duration"
             durationMs={item.durationMs ?? null}
@@ -650,6 +672,27 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     tearOutDragPreviewActiveItemId,
     viewportSize,
   ]);
+  const attachedCanvasVideoItemIds = React.useMemo(() => {
+    const selectedVideoItems: CanvasSceneItem[] = [];
+    const ordinaryVideoItems: CanvasSceneItem[] = [];
+
+    renderedItems.forEach((item) => {
+      if (item.kind !== "video") return;
+      if (item.selected) {
+        selectedVideoItems.push(item);
+        return;
+      }
+      ordinaryVideoItems.push(item);
+    });
+
+    const nextAttachedIds = new Set<string>();
+    [...selectedVideoItems, ...ordinaryVideoItems].some((item) => {
+      if (nextAttachedIds.size >= CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS) return true;
+      nextAttachedIds.add(item.id);
+      return false;
+    });
+    return nextAttachedIds;
+  }, [renderedItems]);
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
     renderedItems.forEach((item) => {
@@ -906,6 +949,9 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
                 isEditingTextItem={isEditingTextItem}
                 showTextResizeHandles={showTextResizeHandles}
                 isGhostSource={itemDragPreviewIdSet.has(item.id)}
+                shouldAttachVideoSource={
+                  item.kind !== "video" || attachedCanvasVideoItemIds.has(item.id)
+                }
                 editingTextValue={isEditingTextItem ? editingTextValue : ""}
                 isTextEditEditable={isEditingTextItem && isTextEditEditable}
                 isItemDraggable={isItemDraggable && isNativeDragModifierArmed}

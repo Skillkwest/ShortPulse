@@ -322,10 +322,19 @@ describe("useReferenceGridSignedStorageUrlController", () => {
 
     await waitFor(() => {
       expect(getSignedMediaUrlsBatch).toHaveBeenCalledTimes(2);
+      expect(getSignedMediaUrlsBatch).toHaveBeenLastCalledWith({
+        bucket: "media_library",
+        storagePaths: ["user-1/variants/images/image-2/preview.webp"],
+        surface: "reference-grid",
+        queryMode: "default",
+      });
       expect(result.current.signedStorageUrlByPath.get(nextOutput.previewStoragePath ?? "")).toBe(
         "https://signed.shortpulse.test/image-2-preview.webp"
       );
     });
+    expect(result.current.signedStorageUrlByPath.get(initialOutput.previewStoragePath ?? "")).toBe(
+      "https://signed.shortpulse.test/preview.webp"
+    );
   });
 
   it("does not mark already signed storage paths pending during refreshes", async () => {
@@ -456,6 +465,92 @@ describe("useReferenceGridSignedStorageUrlController", () => {
     expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).toHaveBeenCalledWith([
       "saved-media-1",
     ]);
+  });
+
+  it("requests only missing saved media authority ids and preserves cached authority", async () => {
+    vi.mocked(resolveSessionRestoreSignedMediaAuthorityByMediaId)
+      .mockResolvedValueOnce(
+        new Map([
+          [
+            "saved-media-1",
+            {
+              mediaId: "saved-media-1",
+              fileType: "image/png",
+              previewStoragePath: "user-1/variants/images/saved-media-1/thumb.webp",
+              fullStoragePath: "user-1/generations/images/saved-media-1.png",
+              previewPosterStoragePath: null,
+              signedPreviewUrl: "https://signed.shortpulse.test/saved-preview-1.webp",
+              signedFullUrl: "https://signed.shortpulse.test/saved-full-1.png",
+              signedPreviewPosterUrl: null,
+            },
+          ],
+        ])
+      )
+      .mockResolvedValueOnce(
+        new Map([
+          [
+            "saved-media-2",
+            {
+              mediaId: "saved-media-2",
+              fileType: "image/png",
+              previewStoragePath: "user-1/variants/images/saved-media-2/thumb.webp",
+              fullStoragePath: "user-1/generations/images/saved-media-2.png",
+              previewPosterStoragePath: null,
+              signedPreviewUrl: "https://signed.shortpulse.test/saved-preview-2.webp",
+              signedFullUrl: "https://signed.shortpulse.test/saved-full-2.png",
+              signedPreviewPosterUrl: null,
+            },
+          ],
+        ])
+      );
+
+    const initialOutput = createStorageBackedImage({
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-1"],
+    });
+    const nextOutput = createStorageBackedImage({
+      id: "image-2",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      savedMediaIds: ["saved-media-2"],
+    });
+    const { rerender, result } = renderHook(
+      ({ outputs }: { outputs: ReferenceGridMediaOutput[] }) =>
+        useReferenceGridSignedStorageUrlController({
+          outputs,
+        }),
+      {
+        initialProps: {
+          outputs: [initialOutput],
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.signedMediaAuthorityByMediaId.get("saved-media-1")?.signedPreviewUrl
+      ).toBe("https://signed.shortpulse.test/saved-preview-1.webp");
+    });
+
+    rerender({
+      outputs: [initialOutput, nextOutput],
+    });
+
+    await waitFor(() => {
+      expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).toHaveBeenCalledTimes(2);
+      expect(resolveSessionRestoreSignedMediaAuthorityByMediaId).toHaveBeenLastCalledWith([
+        "saved-media-2",
+      ]);
+      expect(
+        result.current.signedMediaAuthorityByMediaId.get("saved-media-2")?.signedPreviewUrl
+      ).toBe("https://signed.shortpulse.test/saved-preview-2.webp");
+    });
+    expect(
+      result.current.signedMediaAuthorityByMediaId.get("saved-media-1")?.signedPreviewUrl
+    ).toBe("https://signed.shortpulse.test/saved-preview-1.webp");
   });
 
   it("defers saved media authority signing while background visual work is suspended", async () => {

@@ -38,6 +38,7 @@ import {
 import { useReferenceGridSingleAudioPlaybackController } from "../reference-grid/controllers/useReferenceGridSingleAudioPlaybackController";
 import { useReferenceGridPreviewRuntimeScheduling } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
+import type { ReferenceGridMediaOutput } from "../reference-grid/logic/referenceGridMediaOutput";
 import {
   REFERENCE_AUTOPLAY_DETACH_DELAY_MS,
   REFERENCE_AUTOPLAY_MAX_CONSTRAINED,
@@ -61,6 +62,7 @@ const REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT =
 const REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_TELEMETRY_BACKPRESSURE;
 const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
   PERF_FLAG_REFERENCE_GRID_RENDER_COMMIT_TELEMETRY;
+const EMPTY_REFERENCE_GRID_MEDIA_OUTPUTS: ReferenceGridMediaOutput[] = [];
 
 /**
  * Displays the reference grid and handles drag/drop + selection behavior.
@@ -344,20 +346,39 @@ function ReferenceGridComponent({
     Math.max(REFERENCE_GRID_MIN_COLUMNS, curatedVirtualMetrics.columnCount) *
     baseHydrationPriorityRows;
   const quickSlotAdaptiveSurfaceEnabled = isAdaptiveSurfaceEnabled("quick-slot");
+  const visibleMediaOutputsForVisualWork = showReferenceGridSection
+    ? visibleMediaOutputs
+    : EMPTY_REFERENCE_GRID_MEDIA_OUTPUTS;
+  const nearViewportMediaOutputsForVisualWork = showReferenceGridSection
+    ? nearViewportMediaOutputs
+    : EMPTY_REFERENCE_GRID_MEDIA_OUTPUTS;
+  const visibleCuratedMediaOutputsForVisualWork = showQuickSlotSection
+    ? visibleCuratedMediaOutputs
+    : EMPTY_REFERENCE_GRID_MEDIA_OUTPUTS;
+  const nearViewportCuratedMediaOutputsForVisualWork = showQuickSlotSection
+    ? nearViewportCuratedMediaOutputs
+    : EMPTY_REFERENCE_GRID_MEDIA_OUTPUTS;
+  const activeMediaOutputForVisualWork =
+    activeMediaOutput &&
+    activeOutputId &&
+    ((showReferenceGridSection && allOutputIds.includes(activeOutputId)) ||
+      (showQuickSlotSection && curatedOutputs.some((output) => output.id === activeOutputId)))
+      ? activeMediaOutput
+      : null;
   const storageSigningMediaOutputs = React.useMemo(
     () => [
-      ...visibleMediaOutputs,
-      ...visibleCuratedMediaOutputs,
-      ...nearViewportMediaOutputs,
-      ...nearViewportCuratedMediaOutputs,
-      activeMediaOutput,
+      ...visibleMediaOutputsForVisualWork,
+      ...visibleCuratedMediaOutputsForVisualWork,
+      ...nearViewportMediaOutputsForVisualWork,
+      ...nearViewportCuratedMediaOutputsForVisualWork,
+      activeMediaOutputForVisualWork,
     ],
     [
-      activeMediaOutput,
-      nearViewportCuratedMediaOutputs,
-      nearViewportMediaOutputs,
-      visibleCuratedMediaOutputs,
-      visibleMediaOutputs,
+      activeMediaOutputForVisualWork,
+      nearViewportCuratedMediaOutputsForVisualWork,
+      nearViewportMediaOutputsForVisualWork,
+      visibleCuratedMediaOutputsForVisualWork,
+      visibleMediaOutputsForVisualWork,
     ]
   );
   const { signedStorageUrlByPath, signedMediaAuthorityByMediaId, signingPendingStoragePathSet } =
@@ -389,8 +410,8 @@ function ReferenceGridComponent({
   } = useReferenceGridCardItemsController({
     activeOutputId,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-    visibleOutputs: visibleMediaOutputs,
-    visibleCuratedOutputs: visibleCuratedMediaOutputs,
+    visibleOutputs: visibleMediaOutputsForVisualWork,
+    visibleCuratedOutputs: visibleCuratedMediaOutputsForVisualWork,
     visibleQuickSlotIdSet,
     hydrationPriorityCount,
     curatedHydrationPriorityCount,
@@ -415,12 +436,12 @@ function ReferenceGridComponent({
   useReferenceGridPreviewRuntimeScheduling({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     suspendHydrationQueue: suspendBackgroundVisualWork,
-    activeOutput: activeMediaOutput,
+    activeOutput: activeMediaOutputForVisualWork,
     visibleCardItems,
     curatedVisibleCardItems,
     hydrationQuickSlotPreferredIdSet,
-    nearViewportOutputs: nearViewportMediaOutputs,
-    nearViewportCuratedOutputs: nearViewportCuratedMediaOutputs,
+    nearViewportOutputs: nearViewportMediaOutputsForVisualWork,
+    nearViewportCuratedOutputs: nearViewportCuratedMediaOutputsForVisualWork,
     virtualRowHeight: virtualMetrics.rowHeight,
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,

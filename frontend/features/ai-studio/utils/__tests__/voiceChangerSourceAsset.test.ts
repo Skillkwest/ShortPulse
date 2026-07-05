@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const uploadToSignedUrlMock = vi.hoisted(() => vi.fn());
@@ -20,9 +20,61 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 }));
 
 import {
+  resolveVoiceChangerMediaDurationMs,
+  resolveVoiceChangerVideoAspect,
   uploadVoiceChangerSourceFile,
   uploadVoiceCloneSourceFile,
 } from "../voiceChangerSourceAsset";
+
+type FakeMetadataProbeElement = HTMLMediaElement & {
+  load: ReturnType<typeof vi.fn>;
+  pause: ReturnType<typeof vi.fn>;
+  playsInline: boolean;
+  removeAttribute: ReturnType<typeof vi.fn>;
+};
+
+const createFakeMetadataProbeElement = (
+  kind: "audio" | "video",
+  overrides: Partial<HTMLMediaElement & HTMLVideoElement> = {}
+) => {
+  let source = "";
+  const listeners = new Map<string, EventListener>();
+  const element = {
+    preload: "",
+    crossOrigin: null,
+    muted: false,
+    playsInline: false,
+    duration: Number.NaN,
+    videoWidth: 0,
+    videoHeight: 0,
+    addEventListener: vi.fn((type: string, listener: EventListener) => {
+      listeners.set(type, listener);
+    }),
+    removeEventListener: vi.fn((type: string) => {
+      listeners.delete(type);
+    }),
+    removeAttribute: vi.fn((attribute: string) => {
+      if (attribute === "src") source = "";
+    }),
+    load: vi.fn(),
+    pause: vi.fn(),
+    dispatchProbeEvent: (type: string) => {
+      listeners.get(type)?.(new Event(type));
+    },
+    get src() {
+      return source;
+    },
+    set src(value: string) {
+      source = value;
+    },
+    ...overrides,
+  } as unknown as FakeMetadataProbeElement & { dispatchProbeEvent: (type: string) => void };
+
+  return {
+    kind,
+    element,
+  };
+};
 
 describe("voiceChangerSourceAsset upload helpers", () => {
   beforeEach(() => {
@@ -31,6 +83,11 @@ describe("voiceChangerSourceAsset upload helpers", () => {
     storageFromMock.mockClear();
     ensureSupabaseQueryClientMock.mockClear();
     uploadToSignedUrlMock.mockResolvedValue({ data: { path: "uploaded" }, error: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it.each([
@@ -282,5 +339,63 @@ describe("voiceChangerSourceAsset upload helpers", () => {
     );
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(uploadToSignedUrlMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("voiceChangerSourceAsset metadata probes", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("times out and cleans up audio duration probes that never settle", async () => {
+    vi.useFakeTimers();
+    const fakeAudio = createFakeMetadataProbeElement("audio");
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tagName) => {
+      if (tagName === "audio") {
+        return fakeAudio.element as unknown as HTMLElement;
+      }
+      return originalCreateElement(tagName);
+    });
+
+    const durationPromise = resolveVoiceChangerMediaDurationMs(
+      "https://signed.example/source.wav",
+      "audio"
+    );
+
+    await vi.runAllTimersAsync();
+
+    await expect(durationPromise).resolves.toBeNull();
+    expect(createElementSpy).toHaveBeenCalledWith("audio");
+    expect(fakeAudio.element.pause).toHaveBeenCalled();
+    expect(fakeAudio.element.removeAttribute).toHaveBeenCalledWith("src");
+    expect(fakeAudio.element.load).toHaveBeenCalled();
+    expect(fakeAudio.element.src).toBe("");
+  });
+
+  it("times out and cleans up video aspect probes that never settle", async () => {
+    vi.useFakeTimers();
+    const fakeVideo = createFakeMetadataProbeElement("video");
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tagName) => {
+      if (tagName === "video") {
+        return fakeVideo.element as unknown as HTMLElement;
+      }
+      return originalCreateElement(tagName);
+    });
+
+    const aspectPromise = resolveVoiceChangerVideoAspect("https://signed.example/source.mp4");
+
+    await vi.runAllTimersAsync();
+
+    await expect(aspectPromise).resolves.toBeNull();
+    expect(createElementSpy).toHaveBeenCalledWith("video");
+    expect(fakeVideo.element.muted).toBe(true);
+    expect(fakeVideo.element.playsInline).toBe(true);
+    expect(fakeVideo.element.pause).toHaveBeenCalled();
+    expect(fakeVideo.element.removeAttribute).toHaveBeenCalledWith("src");
+    expect(fakeVideo.element.load).toHaveBeenCalled();
+    expect(fakeVideo.element.src).toBe("");
   });
 });

@@ -281,6 +281,46 @@ describe("ReferenceGrid selector-store bridge", () => {
     expect(within(curatedSection).queryByText(/Drag & drop references here/i)).toBeNull();
   });
 
+  it("does not sign hidden right-rail media when Reference Grid and Quick Slot are closed", async () => {
+    render(
+      <ReferenceGrid
+        {...baseProps}
+        activeOutputId="hidden-media-1"
+        panelVisibility={{ referenceGrid: false, quickSlot: false, styles: false }}
+        curatedReferenceIds={["hidden-media-1"]}
+        onAddCuratedReference={() => undefined}
+        onRemoveCuratedReference={() => undefined}
+        onReorderCuratedReference={() => undefined}
+      />
+    );
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["hidden-media-1"],
+        outputById: {
+          "hidden-media-1": makeOutput("hidden-media-1", {
+            mode: "image",
+            previewText: undefined,
+            previewUrl: undefined,
+            resultUrls: [],
+            mediaSource: "generated",
+            previewStoragePath: "user-1/hidden-preview.webp",
+            fullStoragePath: "user-1/hidden-full.png",
+          }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+
+    expect(getSignedMediaUrlsBatch).not.toHaveBeenCalled();
+  });
+
   it("keeps hidden outputs out of all refs even when explicit suppression is active elsewhere", () => {
     const { container } = render(
       <ReferenceGrid

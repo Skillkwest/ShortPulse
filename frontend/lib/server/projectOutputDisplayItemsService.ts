@@ -263,6 +263,17 @@ const getSnapshotOutputRows = (snapshot: Record<string, unknown>): Record<string
   ...getSnapshotArchivedOutputs(snapshot),
 ];
 
+const collectSnapshotOutputIdsForMaterialization = (
+  snapshot: Record<string, unknown>
+): string[] => {
+  const outputIds = new Set<string>();
+  getSnapshotOutputRows(snapshot).forEach((output) => {
+    const outputId = normalizeString(output.id);
+    if (outputId) outputIds.add(outputId);
+  });
+  return [...outputIds];
+};
+
 const buildCheckpointOutputStub = (
   row: Record<string, unknown>
 ): Record<string, unknown> | null => {
@@ -505,21 +516,45 @@ export function computeProjectOutputDisplayChecksumForSnapshot(
 export const loadProjectOutputDisplayItemsForProject = async ({
   userId,
   projectId,
+  outputIds,
 }: {
   userId: string;
   projectId: string;
+  outputIds?: readonly string[];
 }): Promise<ProjectOutputDisplayItemRow[]> => {
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("project_output_display_items")
-    .select(PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS.join(", "))
-    .eq("project_id", projectId)
-    .eq("user_id", userId);
+  const normalizedOutputIds = outputIds
+    ? Array.from(
+        new Set(
+          outputIds.map((id) => normalizeString(id)).filter((id): id is string => Boolean(id))
+        )
+      )
+    : null;
+  if (normalizedOutputIds && normalizedOutputIds.length === 0) return [];
 
-  if (error) {
-    throw new Error(error.message || "Failed to load project output display items");
+  const loadRows = async (idChunk?: readonly string[]): Promise<ProjectOutputDisplayItemRow[]> => {
+    const query = supabaseAdmin
+      .from("project_output_display_items")
+      .select(PROJECT_OUTPUT_DISPLAY_SELECT_COLUMNS.join(", "))
+      .eq("project_id", projectId)
+      .eq("user_id", userId);
+    const { data, error } = idChunk ? await query.in("output_id", idChunk) : await query;
+
+    if (error) {
+      throw new Error(error.message || "Failed to load project output display items");
+    }
+    return (Array.isArray(data) ? data : []) as unknown as ProjectOutputDisplayItemRow[];
+  };
+
+  if (!normalizedOutputIds) {
+    return loadRows();
   }
-  return (Array.isArray(data) ? data : []) as unknown as ProjectOutputDisplayItemRow[];
+
+  const rows: ProjectOutputDisplayItemRow[] = [];
+  for (const outputIdChunk of chunkValues(normalizedOutputIds)) {
+    rows.push(...(await loadRows(outputIdChunk)));
+  }
+  return rows;
 };
 
 export const syncProjectOutputDisplayItemsForSnapshot = async ({
@@ -788,7 +823,11 @@ export const materializeProjectWorkspaceSnapshotForUser = async ({
   projectId: string;
   snapshot: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
-  const displayItems = await loadProjectOutputDisplayItemsForProject({ userId, projectId });
+  const displayItems = await loadProjectOutputDisplayItemsForProject({
+    userId,
+    projectId,
+    outputIds: collectSnapshotOutputIdsForMaterialization(snapshot),
+  });
   const promptTextAuthorities = await loadProjectPromptTextAuthorities({
     userId,
     promptIds: collectSnapshotPromptIdsForMaterialization({ snapshot, displayItems }),

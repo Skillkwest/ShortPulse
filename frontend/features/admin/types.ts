@@ -372,6 +372,42 @@ export type AdminPagination = {
   hasPrevPage: boolean;
 };
 
+export type AdminCrashSessionStatus =
+  | "active"
+  | "clean_closed"
+  | "possible_ungraceful_exit"
+  | "probable_freeze_or_crash"
+  | "confirmed_crash";
+
+export type AdminCrashSessionConfidence = "none" | "low" | "medium" | "high";
+
+export type AdminCrashSessionRow = {
+  id: string;
+  browserSessionId: string;
+  userId: string | null;
+  userEmail: string | null;
+  status: AdminCrashSessionStatus;
+  confidence: AdminCrashSessionConfidence;
+  effectiveStatus: AdminCrashSessionStatus;
+  effectiveConfidence: AdminCrashSessionConfidence;
+  isStale: boolean;
+  lastEvent: string;
+  route: string | null;
+  buildId: string | null;
+  clientRelease: string | null;
+  clientEnvironment: string | null;
+  userAgent: string | null;
+  host: string | null;
+  vercelId: string | null;
+  metadata: Record<string, unknown>;
+  startedAt: string | null;
+  lastSeenAt: string | null;
+  endedAt: string | null;
+  suspectedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type AdminCreditPricingBreakdown = {
   usdRaw: number | null;
   rawCredits: number | null;

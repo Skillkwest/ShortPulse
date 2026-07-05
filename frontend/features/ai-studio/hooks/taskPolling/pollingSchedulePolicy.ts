@@ -67,7 +67,7 @@ export const resolveNoMediaRetryPolicy = ({
 
 type ExhaustedStatusErrorInput = {
   message: string;
-  attempt: number;
+  statusErrorAttempt: number;
 };
 
 /**
@@ -75,10 +75,11 @@ type ExhaustedStatusErrorInput = {
  */
 export const isStatusErrorRetryBudgetExhausted = ({
   message,
-  attempt,
+  statusErrorAttempt,
 }: ExhaustedStatusErrorInput): boolean => {
   const isNotFound = /404|not found/i.test(message);
   return (
-    (isNotFound && attempt >= STATUS_NOT_FOUND_MAX_ATTEMPTS) || attempt >= STATUS_ERROR_MAX_ATTEMPTS
+    (isNotFound && statusErrorAttempt >= STATUS_NOT_FOUND_MAX_ATTEMPTS) ||
+    statusErrorAttempt >= STATUS_ERROR_MAX_ATTEMPTS
   );
 };

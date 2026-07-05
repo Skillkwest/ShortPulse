@@ -3,6 +3,7 @@
  * Keeps crash-adjacent diagnostics low-cardinality and avoids user-visible UI changes.
  */
 import { reportAppError } from "../../../lib/appErrorReporter";
+import { reportBrowserSessionHealthEvent } from "../../../lib/browserSessionHealth";
 
 export type AiStudioStabilityEvent =
   | "session_started"
@@ -244,6 +245,14 @@ export const reportAiStudioStabilityEvent = (
   metadata: StabilityMetadata = {},
   options: StabilityEventOptions = {}
 ): void => {
+  if (
+    event === "pressure_level_changed" ||
+    event === "pressure_quarantine_set" ||
+    event === "first_grid_commit"
+  ) {
+    reportBrowserSessionHealthEvent("pressure_snapshot", metadata);
+  }
+
   void reportAppError({
     source: `${STABILITY_SOURCE_PREFIX}.${event}`,
     scope: "app",

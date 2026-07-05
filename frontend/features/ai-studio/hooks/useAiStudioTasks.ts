@@ -270,6 +270,7 @@ export function useAiStudioTasks({
   const pollTimersRef = useRef<Record<string, number>>({});
   const pollSessionsRef = useRef<Record<string, number>>({});
   const statusRequestsInFlightRef = useRef(0);
+  const statusErrorAttemptsRef = useRef<Record<string, number>>({});
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
   const lastProgressSignatureRef = useRef<Record<string, string>>({});
   const recoveryStateRefsRef = useRef<{
@@ -374,6 +375,7 @@ export function useAiStudioTasks({
       }
       delete lastProgressUpdateAtRef.current[outputId];
       delete lastProgressSignatureRef.current[outputId];
+      delete statusErrorAttemptsRef.current[outputId];
       delete recoveryStateRefs.outputLookupMissesRef?.current[outputId];
       delete recoveryStateRefs.outputLookupMissingSinceRef?.current[outputId];
       delete recoveryStateRefs.outputLookupHardStopNotifiedRef?.current[outputId];
@@ -921,6 +923,7 @@ export function useAiStudioTasks({
               resolvedPollingTarget.modelId,
               taskId
             )) as PollStatus;
+            delete statusErrorAttemptsRef.current[outputId];
             const statusGenerationId = resolvePollStatusGenerationId(status);
             const lifecycleHint = readShortPulseLifecycleHint(status);
             if (statusGenerationId) {
@@ -1464,7 +1467,9 @@ export function useAiStudioTasks({
             );
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to check status";
-            if (isStatusErrorRetryBudgetExhausted({ message, attempt })) {
+            const statusErrorAttempt = (statusErrorAttemptsRef.current[outputId] ?? 0) + 1;
+            statusErrorAttemptsRef.current[outputId] = statusErrorAttempt;
+            if (isStatusErrorRetryBudgetExhausted({ message, statusErrorAttempt })) {
               settlePollingFailure({
                 outputId,
                 taskId,
@@ -1477,7 +1482,7 @@ export function useAiStudioTasks({
                 noMediaAttempt,
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,
-                errorPayload: { message },
+                errorPayload: { message, statusErrorAttempt },
               });
               return;
             }
@@ -1557,6 +1562,7 @@ export function useAiStudioTasks({
       pollTimersRef.current = {};
       pollSessionsRef.current = {};
       statusRequestsInFlightRef.current = 0;
+      statusErrorAttemptsRef.current = {};
       resetRecoveryState();
       lastProgressUpdateAtRef.current = {};
       lastProgressSignatureRef.current = {};

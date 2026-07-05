@@ -58,6 +58,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/192_reprice_credit_top_up_ladder.sql`: add the active numeric-id credit top-up ladder and deactivate legacy package rows without deleting historical references.
 - `sql/migrations/193_add_tester_report_runs.sql`: add service-role-only automated tester-run reports with persona and engineering handoff bodies for `/admin/tester-reports`.
 - `sql/migrations/194_add_ai_generations_request_id_lookup_index.sql`: add a narrow partial request-id lookup index for provider callback/recovery paths that receive `request_id` before user ownership is known.
+- `sql/migrations/195_rename_baseline_access_catalog_display.sql`: restore the non-public baseline-access sentinel display name to `Baseline access` without changing pricing, entitlements, Stripe linkage, or acquisition behavior.
+- `sql/migrations/196_add_browser_crash_sessions.sql`: add service-role-only authenticated browser freeze/crash session evidence for `/admin/crashes`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -284,6 +286,8 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `192_reprice_credit_top_up_ladder.sql`
 - `193_add_tester_report_runs.sql`
 - `194_add_ai_generations_request_id_lookup_index.sql`
+- `195_rename_baseline_access_catalog_display.sql`
+- `196_add_browser_crash_sessions.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

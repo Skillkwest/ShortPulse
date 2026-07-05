@@ -10,6 +10,7 @@ const MIN_FALLBACK_WAVEFORM_PEAK = 12;
 const MAX_AUDIO_WAVEFORM_PEAK = 100;
 const AUDIO_WAVEFORM_NOISE_FLOOR = 0.008;
 const AUDIO_WAVEFORM_CACHE_MAX_ENTRIES = 128;
+export const AUDIO_WAVEFORM_MAX_DECODE_BYTES = 8 * 1024 * 1024;
 
 const audioWaveformCache = new Map<string, number[]>();
 const audioWaveformInFlightByUrl = new Map<string, Promise<number[] | null>>();
@@ -195,15 +196,69 @@ const rememberAudioWaveformPeaks = (audioUrl: string, peaks: number[]) => {
   audioWaveformCache.set(audioUrl, peaks);
 };
 
+const resolveContentLengthBytes = (headers: Headers | undefined): number | null => {
+  const value = headers?.get("content-length");
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const readBlobArrayBufferWithinLimit = async (blob: Blob): Promise<ArrayBuffer | null> => {
+  if (blob.size > AUDIO_WAVEFORM_MAX_DECODE_BYTES) return null;
+  const audioBytes = await blob.arrayBuffer();
+  return audioBytes.byteLength <= AUDIO_WAVEFORM_MAX_DECODE_BYTES ? audioBytes : null;
+};
+
+const readResponseArrayBufferWithinLimit = async (
+  response: Response
+): Promise<ArrayBuffer | null> => {
+  const contentLengthBytes = resolveContentLengthBytes(response.headers);
+  if (contentLengthBytes != null && contentLengthBytes > AUDIO_WAVEFORM_MAX_DECODE_BYTES) {
+    return null;
+  }
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const audioBytes = await response.arrayBuffer();
+    return audioBytes.byteLength <= AUDIO_WAVEFORM_MAX_DECODE_BYTES ? audioBytes : null;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > AUDIO_WAVEFORM_MAX_DECODE_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const audioBytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    audioBytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  });
+  return audioBytes.buffer as ArrayBuffer;
+};
+
 const resolveAudioBytesFromUrl = async (audioUrl: string): Promise<ArrayBuffer | null> => {
   if (/^blob:/i.test(audioUrl)) {
     const rememberedBlob = readRememberedObjectUrlBlob(audioUrl);
-    return rememberedBlob ? await rememberedBlob.arrayBuffer() : null;
+    return rememberedBlob ? await readBlobArrayBufferWithinLimit(rememberedBlob) : null;
   }
 
   const response = await fetch(audioUrl);
   if (!response.ok) return null;
-  return await response.arrayBuffer();
+  return await readResponseArrayBufferWithinLimit(response);
 };
 
 const decodeAudioWaveformPeaksFromUrl = async (audioUrl: string): Promise<number[] | null> => {

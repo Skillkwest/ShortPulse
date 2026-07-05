@@ -2390,6 +2390,40 @@ describe("DetailModal", () => {
     });
   });
 
+  it("detaches detail video media when the modal unmounts", () => {
+    const { baseElement, unmount } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "video",
+          previewUrl: "https://cdn.test/detail-video.mp4",
+          resultUrls: ["https://cdn.test/detail-video.mp4"],
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+    const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
+    expect(video).not.toBeNull();
+    const pauseSpy = vi
+      .spyOn(video as HTMLVideoElement, "pause")
+      .mockImplementation(() => undefined);
+    const loadSpy = vi.spyOn(video as HTMLVideoElement, "load").mockImplementation(() => undefined);
+
+    try {
+      unmount();
+
+      expect(pauseSpy).toHaveBeenCalled();
+      expect((video as HTMLVideoElement).getAttribute("src")).toBeNull();
+      expect(loadSpy).toHaveBeenCalled();
+    } finally {
+      pauseSpy.mockRestore();
+      loadSpy.mockRestore();
+    }
+  });
+
   it("advances detail audio media to the next preview candidate after render failure", async () => {
     const { baseElement } = render(
       <DetailModal
@@ -2442,6 +2476,40 @@ describe("DetailModal", () => {
       expect(recoveredAudio?.getAttribute("src")).toBe("https://cdn.test/recovered-audio.mp3");
       expect(screen.queryByText("Media unavailable.")).not.toBeInTheDocument();
     });
+  });
+
+  it("detaches detail audio media when the modal unmounts", () => {
+    const { baseElement, unmount } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "audio",
+          previewUrl: "https://cdn.test/detail-audio.mp3",
+          resultUrls: ["https://cdn.test/detail-audio.mp3"],
+          mimeType: "audio/mpeg",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+    const audio = baseElement.querySelector("audio.art-hero-audio") as HTMLAudioElement | null;
+    expect(audio).not.toBeNull();
+    const pauseSpy = vi
+      .spyOn(audio as HTMLAudioElement, "pause")
+      .mockImplementation(() => undefined);
+    const loadSpy = vi.spyOn(audio as HTMLAudioElement, "load").mockImplementation(() => undefined);
+
+    try {
+      unmount();
+
+      expect(pauseSpy).toHaveBeenCalled();
+      expect((audio as HTMLAudioElement).getAttribute("src")).toBeNull();
+      expect(loadSpy).toHaveBeenCalled();
+    } finally {
+      pauseSpy.mockRestore();
+      loadSpy.mockRestore();
+    }
   });
 
   it("reserves generated detail audio playback before native playback resolves", () => {

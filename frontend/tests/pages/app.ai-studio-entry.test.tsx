@@ -54,6 +54,10 @@ vi.mock("../../lib/appErrorReporter", () => ({
   reportAppError: vi.fn(),
 }));
 
+vi.mock("../../lib/browserSessionHealth", () => ({
+  installBrowserSessionHealthMonitor: () => () => undefined,
+}));
+
 vi.mock("../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: vi.fn(),
   redactUrlForTelemetry: (value: string) => value,

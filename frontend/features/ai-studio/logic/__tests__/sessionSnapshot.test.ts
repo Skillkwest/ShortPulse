@@ -2120,6 +2120,85 @@ describe("sessionSnapshot", () => {
     expect(candidates.map((candidate) => candidate.kind)).toEqual(["full", "without_canvas"]);
   });
 
+  it("offers a combined v2 autosave reduction when canvas and archived outputs both remain", () => {
+    const snapshot = patchAiStudioSessionSnapshotCanvas(
+      buildAiStudioSessionSnapshot({
+        sessionId: "project-combined-candidate-session",
+        updatedAt: "2026-05-26T19:00:00.000Z",
+        mode: "image",
+        selectedTool: "create",
+        prompt: "A cinematic portrait",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        aspect: "9:16",
+        expertCreateMode: "standard",
+        activePulsePresetId: null,
+        pulseSessionInstanceId: null,
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [
+          createOutput({
+            id: "out-1",
+            resultUrls: ["https://cdn.example.com/out-1.png"],
+          }),
+        ],
+        archivedOutputs: [
+          createOutput({
+            id: "archived-1",
+            prompt: "old archived output",
+            resultUrls: ["https://cdn.example.com/archived-1.png"],
+          }),
+        ],
+        activeOutputId: "out-1",
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: ["archived-1"],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+      }),
+      createCanvasState()
+    );
+
+    const candidates = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot);
+    const combinedCandidate = candidates.find(
+      (candidate) => candidate.kind === "without_canvas_and_archived_outputs"
+    );
+
+    expect(candidates.map((candidate) => candidate.kind)).toEqual([
+      "full",
+      "without_canvas",
+      "without_archived_outputs",
+      "without_canvas_and_archived_outputs",
+    ]);
+    expect(combinedCandidate?.snapshot.schemaVersion).toBe(2);
+    expect(
+      (combinedCandidate?.snapshot as AiStudioSessionSnapshotV2 | undefined)?.canvas
+    ).toBeUndefined();
+    expect(combinedCandidate?.snapshot.outputs.archived).toEqual([]);
+    expect(combinedCandidate?.snapshot.outputs.removedFromAllRefsIds).toEqual([]);
+    expect(
+      (combinedCandidate?.snapshot as AiStudioSessionSnapshotV2 | undefined)?.meta.checksum
+    ).not.toBe(snapshot.meta.checksum);
+  });
+
   it("dedupes identical v2 autosave candidates when reductions are no-ops", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "project-candidate-dedupe-session",

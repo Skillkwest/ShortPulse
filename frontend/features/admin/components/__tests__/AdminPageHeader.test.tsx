@@ -58,6 +58,7 @@ describe("AdminPageHeader", () => {
     expect(within(nav).queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Fleet health" })).not.toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Ophestivus" })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole("link", { name: "Crash Logs" })).not.toBeInTheDocument();
   });
 
   it("marks the tester reports tab as active", () => {
@@ -152,8 +153,33 @@ describe("AdminPageHeader", () => {
 
     expect(subLinks[0]).toHaveTextContent("Errors");
     expect(subLinks[0]).toHaveAttribute("href", "/admin/errors");
-    expect(subLinks[1]).toHaveTextContent("Ophestivus");
-    expect(subLinks[1]).toHaveAttribute("href", "/admin/kanban");
-    expect(subLinks[1]).toHaveAttribute("aria-current", "page");
+    expect(subLinks[1]).toHaveTextContent("Crash Logs");
+    expect(subLinks[1]).toHaveAttribute("href", "/admin/crashes");
+    expect(subLinks[2]).toHaveTextContent("Ophestivus");
+    expect(subLinks[2]).toHaveAttribute("href", "/admin/kanban");
+    expect(subLinks[2]).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Crash Logs as the active error-management secondary tab", () => {
+    render(
+      <AdminPageHeader
+        title="Crash logs"
+        description="Inspect browser crash sessions."
+        userEmail="admin@example.com"
+        currentPath="/admin/crashes"
+      />
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Admin pages" });
+    expect(within(nav).getByRole("link", { name: "Errors" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+
+    const subNav = screen.getByRole("navigation", { name: "Error management pages" });
+    expect(within(subNav).getByRole("link", { name: "Crash Logs" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
   });
 });

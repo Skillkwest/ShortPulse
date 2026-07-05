@@ -210,6 +210,42 @@ describe("useExpertEditInlineGenerate", () => {
     expect(showStatusToast).toHaveBeenCalledWith("Unable to flatten layers.");
   });
 
+  it("reports unavailable layer images as validation guidance instead of an incident", async () => {
+    exportExpertEditStageArtifactsMock.mockRejectedValue(
+      new Error("Failed to load layer image: https://cdn.shortpulse.test/layer.png")
+    );
+    const notifyGenerationFailure = vi.fn();
+    const showStatusToast = vi.fn();
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          notifyGenerationFailure,
+          showStatusToast,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(notifyGenerationFailure).toHaveBeenCalledWith(
+        "out-optimistic",
+        "One or more layer images are unavailable. Re-add the image and try again.",
+        "One or more layer images are unavailable. Re-add the image and try again.",
+        {
+          telemetryMode: "validation",
+          reasonCode: "USER_INPUT_VALIDATION",
+        }
+      );
+    });
+    expect(showStatusToast).toHaveBeenCalledWith(
+      "One or more layer images are unavailable. Re-add the image and try again."
+    );
+  });
+
   it("marks the optimistic placeholder failed when submission dispatch rejects the request", async () => {
     resolveExpertEditSubmissionDispatchMock.mockReturnValue({
       status: "error",

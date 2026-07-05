@@ -56,8 +56,14 @@ describe("pollingSchedulePolicy", () => {
   });
 
   it("enforces status poll error retry budget", () => {
-    expect(isStatusErrorRetryBudgetExhausted({ message: "404 not found", attempt: 4 })).toBe(false);
-    expect(isStatusErrorRetryBudgetExhausted({ message: "404 not found", attempt: 5 })).toBe(true);
-    expect(isStatusErrorRetryBudgetExhausted({ message: "network reset", attempt: 30 })).toBe(true);
+    expect(
+      isStatusErrorRetryBudgetExhausted({ message: "404 not found", statusErrorAttempt: 4 })
+    ).toBe(false);
+    expect(
+      isStatusErrorRetryBudgetExhausted({ message: "404 not found", statusErrorAttempt: 5 })
+    ).toBe(true);
+    expect(
+      isStatusErrorRetryBudgetExhausted({ message: "network reset", statusErrorAttempt: 30 })
+    ).toBe(true);
   });
 });

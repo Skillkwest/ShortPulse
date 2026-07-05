@@ -9,6 +9,7 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
+import { installBrowserSessionHealthMonitor } from "../lib/browserSessionHealth";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import { isAiStudioRoutePath, isProtectedRoutePath } from "../lib/protectedRoutes";
@@ -68,6 +69,10 @@ export default function App({ Component, pageProps }: AppProps) {
 
   useEffect(() => {
     return installGlobalAppErrorHandlers();
+  }, []);
+
+  useEffect(() => {
+    return installBrowserSessionHealthMonitor();
   }, []);
 
   useEffect(() => {

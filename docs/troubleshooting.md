@@ -33,8 +33,9 @@ Checklist:
 Mitigation:
 
 - Ask the affected user to disable the conflicting extension on `shortpulse.ai` or retry from an extension-free browser context.
-- If the freeze also reproduces in a clean profile, return to the normal AI Studio performance triage path and capture `window.__shortpulseMediaPerf` / `window.__shortpulseAiStudioPerf` evidence where available.
-- On AI Studio builds with crash-evidence support, capture `window.__shortpulseAiStudioCrashEvidence?.snapshot()` from the affected profile before reloading; it is local browser evidence only and does not weaken CSP or identify extensions as product dependencies.
+- If the freeze also reproduces in a clean profile after the crash-session build is deployed, inspect `/admin/crashes` for the affected account, route, browser, stale-heartbeat, `previous_session_abandoned`, pressure, or stall evidence. Browser process death cannot reliably send a final event, so the useful signal is usually the last heartbeat plus the next authenticated page load.
+- For local pre-deploy or deeper AI Studio performance triage, capture `window.__shortpulseMediaPerf` / `window.__shortpulseAiStudioPerf` evidence where available.
+- On AI Studio builds with local crash-evidence support, capture `window.__shortpulseAiStudioCrashEvidence?.snapshot()` from the affected profile before reloading; it is local browser evidence only and does not weaken CSP or identify extensions as product dependencies.
 
 ## Stuck on `Confirm media rights`
 
@@ -247,7 +248,7 @@ Checklist:
 - Check `/api/fal/*-status` responses and recent `media_perf` telemetry.
 - Correlate with provider-facing errors (credits, prompts, source signing, preflight).
 - If failures are user-impacting for all runs, escalate with route labels + request IDs and include a short reproducible sample.
-- If this source appears in `app_error_logs`, treat that as telemetry-policy drift; expected actionable incidents should come from sources such as `generation.workflow_failure`, `fal_submit_not_started`, `fal_auth_session_timeout`, `generation_submit_lifecycle_contract`, or `client.ai_studio.media_library_save_failure`.
+- If this source appears in `app_error_logs`, treat that as telemetry-policy drift; expected actionable incidents should come from sources such as `generation.workflow_failure`, `generation.provider_policy_block`, `generation.admission_limited`, `fal_submit_not_started`, `fal_auth_session_timeout`, `generation_submit_lifecycle_contract`, or `client.ai_studio.media_library_save_failure`.
 
 ## `next build` / `next lint` prompts to “configure ESLint”
 

@@ -77,8 +77,17 @@ export type ReferenceComposerImageDragArtifact = {
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 const COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY = "composerImageDropToken";
 const PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY = "promptReferenceDragToken";
+const DRAG_STATE_CLEANUP_FALLBACK_MS = 60_000;
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
+const dragStateFallbackCleanupMap = new WeakMap<HTMLElement, () => void>();
+
+const unrefTimer = (timer: ReturnType<typeof globalThis.setTimeout>): void => {
+  const maybeNodeTimer = timer as ReturnType<typeof globalThis.setTimeout> & {
+    unref?: () => void;
+  };
+  maybeNodeTimer.unref?.();
+};
 
 const dedupeText = (value?: string): string => (value ? value.trim() : "");
 
@@ -97,6 +106,74 @@ const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string
   } catch {
     // Some browser engines reject custom MIME types; keep the drag active.
   }
+};
+
+const clearRegisteredDragStateFallback = (node: HTMLElement): void => {
+  const cleanup = dragStateFallbackCleanupMap.get(node);
+  if (!cleanup) return;
+  dragStateFallbackCleanupMap.delete(node);
+  cleanup();
+};
+
+const clearDragStateForNode = (node: HTMLElement): void => {
+  clearRegisteredDragStateFallback(node);
+  node.classList.remove("is-dragging");
+  const dragSessionToken = node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  if (dragSessionToken) {
+    scheduleClearInternalReferenceDragSession(dragSessionToken);
+    delete node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  }
+  const composerDropSessionToken = node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
+  if (composerDropSessionToken) {
+    scheduleClearComposerImageDropSession(composerDropSessionToken);
+    delete node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
+  }
+  const promptReferenceSessionToken = node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  if (promptReferenceSessionToken) {
+    scheduleClearPromptReferenceDragSession(promptReferenceSessionToken);
+    delete node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  }
+  const ghost = dragGhostMap.get(node);
+  if (ghost && ghost.parentNode) {
+    ghost.parentNode.removeChild(ghost);
+  }
+  dragGhostMap.delete(node);
+};
+
+const registerDragStateFallbackCleanup = (node: HTMLElement): void => {
+  if (typeof document === "undefined") return;
+  clearRegisteredDragStateFallback(node);
+  let cleanupTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  const cleanupDragState = () => {
+    clearDragStateForNode(node);
+  };
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") cleanupDragState();
+  };
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") cleanupDragState();
+  };
+  const unregister = () => {
+    document.removeEventListener("dragend", cleanupDragState);
+    document.removeEventListener("drop", cleanupDragState);
+    document.removeEventListener("pointerdown", cleanupDragState);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("blur", cleanupDragState);
+    if (cleanupTimer != null) {
+      globalThis.clearTimeout(cleanupTimer);
+      cleanupTimer = null;
+    }
+  };
+  dragStateFallbackCleanupMap.set(node, unregister);
+  document.addEventListener("dragend", cleanupDragState, { once: true });
+  document.addEventListener("drop", cleanupDragState, { once: true });
+  document.addEventListener("pointerdown", cleanupDragState, { once: true });
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("blur", cleanupDragState, { once: true });
+  cleanupTimer = globalThis.setTimeout(cleanupDragState, DRAG_STATE_CLEANUP_FALLBACK_MS);
+  unrefTimer(cleanupTimer);
 };
 
 const resolveVideoPrimaryStoragePath = ({
@@ -155,6 +232,7 @@ export const preparePromptReferenceDrag = (
   setTransferDataSafe(transfer, PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
   setTransferDataSafe(transfer, "text/prompt", promptText);
   setTransferDataSafe(transfer, "text/plain", promptText);
+  registerDragStateFallbackCleanup(dragNode);
 
   return dragSessionToken;
 };
@@ -376,6 +454,7 @@ export const prepareReferenceDrag = (
 
   if (dragNode) {
     dragNode.classList.add("is-dragging");
+    registerDragStateFallbackCleanup(dragNode);
     // Use a dedicated drag ghost so selected-card controls never leak into drag previews.
     try {
       const rect = dragNode.getBoundingClientRect();
@@ -406,25 +485,5 @@ export const prepareReferenceDrag = (
 
 export const clearDragState = (event: React.DragEvent<HTMLElement>): void => {
   const node = event.currentTarget as HTMLElement;
-  node.classList.remove("is-dragging");
-  const dragSessionToken = node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
-  if (dragSessionToken) {
-    scheduleClearInternalReferenceDragSession(dragSessionToken);
-    delete node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
-  }
-  const composerDropSessionToken = node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
-  if (composerDropSessionToken) {
-    scheduleClearComposerImageDropSession(composerDropSessionToken);
-    delete node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
-  }
-  const promptReferenceSessionToken = node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
-  if (promptReferenceSessionToken) {
-    scheduleClearPromptReferenceDragSession(promptReferenceSessionToken);
-    delete node.dataset[PROMPT_REFERENCE_DRAG_TOKEN_DATASET_KEY];
-  }
-  const ghost = dragGhostMap.get(node);
-  if (ghost && ghost.parentNode) {
-    ghost.parentNode.removeChild(ghost);
-  }
-  dragGhostMap.delete(node);
+  clearDragStateForNode(node);
 };

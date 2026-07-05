@@ -12,7 +12,7 @@ export const EXPLICIT_CONTENT_FAILURE_DETAIL =
 
 const EXPLICIT_CONTENT_PATTERNS = [
   /\bcontent not allowed\b/i,
-  /\bcontent policy\b/i,
+  /\bcontent polic(?:y|ies)\b/i,
   /\bsafety policy\b/i,
   /\bsafety blocked\b/i,
   /\bunsafe content\b/i,

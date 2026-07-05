@@ -174,6 +174,16 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 - Incident logging:
   - API catch blocks should call `logApiRouteException`.
   - Client/runtime and generation workflow incidents should be sent to `/api/log/client-error`; low-severity AI Studio UI mirrors should stay on suppressed `telemetry.ai_studio.*` sources instead of `client.ai_studio.*` incident sources.
+  - Browser session-health signals should be sent to `/api/log/browser-session` only from authenticated clients. This route records account-linked start/heartbeat/lifecycle/stall/pressure/previous-session-abandoned/crash-report events in `browser_crash_sessions` and intentionally infers hard browser exits from persisted state instead of relying on a guaranteed final browser callback.
+  - Admin crash-session review uses `/api/admin/crashes` (`GET`, admin bearer) to list `browser_crash_sessions` rows with status/search filters, pagination, derived stale-session status, and sanitized account/browser/build metadata.
+
+Crash-session route contracts:
+
+| Route                      | Methods | Auth         | Purpose                                                                                                                                                                                                                                                                                               | Source of truth                                                                                                                           |
+| -------------------------- | ------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/log/browser-session` | `POST`  | Bearer       | Authenticated browser session-health ingest for start, heartbeat, lifecycle, stall, pressure, previous-session-abandoned, and crash-report events. Writes sanitized evidence to `browser_crash_sessions`; hard exits are inferred from stale heartbeat state and next-load abandoned-session reports. | `frontend/pages/api/log/browser-session.ts`, `frontend/lib/server/api/browserCrashSessions.ts`, `docs/monitoring.md`                      |
+| `/api/admin/crashes`       | `GET`   | Admin bearer | Admin-only crash-session read API for `/admin/crashes`. Lists account-linked `browser_crash_sessions` rows with status/search filters, pagination, effective stale-session status, and trusted server request metadata such as user agent, host, and Vercel request id.                               | `frontend/pages/api/admin/crashes.ts`, `frontend/lib/server/api/browserCrashSessions.ts`, `docs/monitoring.md`, `docs/data-dictionary.md` |
+
 - Request correlation:
   - `x-shortpulse-request-id` is used where present for traceability and ledger/source references.
 

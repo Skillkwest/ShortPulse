@@ -1205,7 +1205,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `id` (uuid, pk): Incident record ID.
 - `fingerprint` (text): Hash of normalized source/message/stack/location for deduping repeats.
-- `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | client.route_change | generation.workflow_failure | generation.stale_timeout | client.ai_studio.media_library_save_failure | api.exception | db.trigger.handle_new_user_billing_setup. Low-severity browser `telemetry.ai_studio.*` UI mirrors are suppressed before ingest and should not appear here.
+- `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | client.route_change | generation.workflow_failure | generation.provider_policy_block | generation.admission_limited | generation.stale_timeout | client.ai_studio.media_library_save_failure | api.exception | db.trigger.handle_new_user_billing_setup. Low-severity browser `telemetry.ai_studio.*` UI mirrors are suppressed before ingest and should not appear here.
 - `scope` (text): app | generation.
 - `severity` (text): low | medium | high.
 - `status` (text): open | ignored | resolved.
@@ -1283,6 +1283,24 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` / `updated_at`
 - RLS: enabled with no client policies by default; service-role-only table grants.
 - Authority: aggregate telemetry history only. It is not an incident table, not user-facing analytics authority, and not a replacement for recent raw event triage in `/admin/error-events`.
+
+### browser_crash_sessions
+
+- `id` (uuid, pk): Browser crash-session row ID.
+- `browser_session_id` (text): Per-page-load client session identifier.
+- `user_id` (uuid, nullable): Auth user who experienced the session. Rows are written only through authenticated server routes.
+- `user_email` (text, nullable): Snapshot email for admin triage.
+- `status` (text): `active` | `clean_closed` | `possible_ungraceful_exit` | `probable_freeze_or_crash` | `confirmed_crash`.
+- `confidence` (text): `none` | `low` | `medium` | `high`.
+- `last_event` (text): Most recent session-health event, such as `session_start`, `heartbeat`, `pagehide`, `main_thread_stall`, `pressure_snapshot`, `previous_session_abandoned`, or `crash_report`.
+- `route` (text, nullable): Current route path with query values redacted to query-key presence.
+- `build_id` / `client_release` / `client_environment` (text, nullable): Build/runtime identifiers sent by the authenticated client when available.
+- `user_agent` / `host` / `vercel_id` (text, nullable): Trusted server request metadata captured at ingest.
+- `metadata` (jsonb): Allowlisted browser/session evidence only, including connection, memory pressure, lifecycle, stall, and Reporting API crash-report keys. Do not store prompts, DOM text, signed URLs, raw storage paths, provider payloads, or arbitrary browser data here.
+- `started_at` / `last_seen_at` / `ended_at` / `suspected_at` (timestamptz): Session timeline. Hard browser exits are inferred from stale `last_seen_at` and `previous_session_abandoned` reports on the next authenticated page load because the browser may not send a final event.
+- `created_at` / `updated_at`
+- RLS: enabled with no client policies by default; table access is service-role-only.
+- Authority: browser crash/freeze evidence for `/admin/crashes`. It is not a grouped incident table and does not replace `app_error_logs` or `app_error_events`.
 
 ### storage.objects (Supabase bucket)
 

@@ -4843,6 +4843,67 @@
   font-size: 13px;
 }
 
+.adminCrashSessionsHead,
+.adminCrashSessionsRow {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.9fr) minmax(180px, 1.3fr) minmax(150px, 1.05fr)
+    minmax(120px, 0.9fr) minmax(180px, 1.2fr) minmax(180px, 1.25fr)
+    minmax(150px, 0.9fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.adminCrashSessionsHead {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adminCrashSessionsRow {
+  padding: 10px 8px;
+  border-radius: 8px;
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
+}
+
+.adminCrashSessionsRow span {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.adminCrashSessionGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.adminCrashSessionDetail {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(8, 10, 14, 0.72);
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.adminCrashSessionDetail pre {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(5, 7, 10, 0.72);
+  color: var(--admin-text-strong);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .adminEventsHead,
 .adminEventsRow {
   display: grid;

@@ -3392,6 +3392,51 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
+  it("reports Kie element temporary upload rate limits as validation guidance", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "37",
+        },
+      })
+    );
+
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "the woman walks into the scene",
+      preparedImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Taylor",
+          alias: "taylor",
+          frontalImageUrl: "https://example.com/taylor-front.png",
+          referenceImageUrls: "https://example.com/taylor-side.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalled();
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Kling element reference preparation failed: Temporary upload rate limit reached. Wait 37 seconds and try again.",
+      undefined,
+      expect.objectContaining({
+        telemetryMode: "validation",
+        reasonCode: "USER_INPUT_VALIDATION",
+      })
+    );
+  });
+
   it("keeps Multi mode on the single-shot route while still sending optional last frame", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,

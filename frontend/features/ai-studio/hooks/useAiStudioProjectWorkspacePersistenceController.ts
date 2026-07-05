@@ -515,6 +515,9 @@ const areStringListsEqual = (left: readonly string[], right: readonly string[]):
 const resolveReducedWorkspaceNotice = (
   fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
 ): string => {
+  if (fallbackKind.includes("canvas") && fallbackKind.includes("archived_outputs")) {
+    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore, and canvas layout or edit overlays may need to be rebuilt.";
+  }
   if (fallbackKind.includes("archived_outputs")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore.";
   }

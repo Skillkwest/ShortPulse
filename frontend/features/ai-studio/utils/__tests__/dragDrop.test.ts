@@ -2173,6 +2173,57 @@ describe("dragDrop payload extraction", () => {
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
+  it("cleans reference drag state when the window blurs before dragend fires", () => {
+    const { event, dragNode, setDragImage } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-blur-cleanup",
+      prompt: "Prompt",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-blur-cleanup.png",
+    });
+
+    const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement | undefined;
+    expect(ghost?.parentNode).toBe(document.body);
+    expect(dragNode.classList.contains("is-dragging")).toBe(true);
+    expect(dragNode.dataset.internalReferenceDragToken).toBeTruthy();
+
+    window.dispatchEvent(new Event("blur"));
+
+    expect(dragNode.classList.contains("is-dragging")).toBe(false);
+    expect(dragNode.dataset.internalReferenceDragToken).toBeUndefined();
+    expect(ghost?.parentNode).toBeNull();
+  });
+
+  it("cleans prompt drag session state on pointer restart when dragend is missing", () => {
+    const dragNode = document.createElement("div");
+    const setData = vi.fn();
+    const event = {
+      dataTransfer: {
+        effectAllowed: "all",
+        setData,
+      },
+      currentTarget: dragNode,
+    } as unknown as Parameters<typeof preparePromptReferenceDrag>[0];
+
+    preparePromptReferenceDrag(event, {
+      promptText: "Prompt drag text",
+      referenceId: "prompt-ref-1",
+      outputId: "prompt-out-1",
+      sourceSurface: "curated",
+    });
+
+    expect(dragNode.dataset.promptReferenceDragToken).toBeTruthy();
+
+    document.dispatchEvent(new Event("pointerdown"));
+
+    expect(dragNode.dataset.promptReferenceDragToken).toBeUndefined();
+  });
+
   it("keeps drag payload stable when custom drag image API throws", () => {
     const dragNode = document.createElement("div");
     dragNode.className = "reference-card is-active";

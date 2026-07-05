@@ -37,6 +37,10 @@ vi.mock("../../lib/appErrorReporter", () => ({
   reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
 }));
 
+vi.mock("../../lib/browserSessionHealth", () => ({
+  installBrowserSessionHealthMonitor: () => () => undefined,
+}));
+
 vi.mock("../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
   redactUrlForTelemetry: (value: string) => value.replace(/=([^&]+)/g, ""),

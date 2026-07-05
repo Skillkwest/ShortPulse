@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  AUDIO_WAVEFORM_MAX_DECODE_BYTES,
   buildFallbackWaveformPeaks,
   extractAudioWaveformPeaksFromUrl,
   normalizeStoredWaveformPeaks,
@@ -142,6 +143,65 @@ describe("referenceGridAudioWaveform", () => {
 
     expect(peaks).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(decodeAudioData).not.toHaveBeenCalled();
+  });
+
+  it("skips remembered blob waveform decode when the audio bytes exceed the decode budget", async () => {
+    const decodeAudioData = vi.fn();
+
+    class MockAudioContext {
+      decodeAudioData = decodeAudioData;
+      close = vi.fn(async () => undefined);
+    }
+
+    const audioUrl = "blob:https://shortpulse.test/oversized-audio";
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(16));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    rememberObjectUrlBlob(audioUrl, {
+      size: AUDIO_WAVEFORM_MAX_DECODE_BYTES + 1,
+      arrayBuffer,
+    } as unknown as Blob);
+
+    const peaks = await extractAudioWaveformPeaksFromUrl(audioUrl, 20);
+
+    expect(peaks).toBeNull();
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(decodeAudioData).not.toHaveBeenCalled();
+    forgetObjectUrlBlob(audioUrl);
+  });
+
+  it("skips fetched waveform decode when content length exceeds the decode budget", async () => {
+    const decodeAudioData = vi.fn();
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(16));
+
+    class MockAudioContext {
+      decodeAudioData = decodeAudioData;
+      close = vi.fn(async () => undefined);
+    }
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      headers: {
+        get: vi.fn((name: string) =>
+          name.toLowerCase() === "content-length"
+            ? String(AUDIO_WAVEFORM_MAX_DECODE_BYTES + 1)
+            : null
+        ),
+      },
+      arrayBuffer,
+    }));
+
+    vi.stubGlobal("AudioContext", MockAudioContext);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const peaks = await extractAudioWaveformPeaksFromUrl(
+      "https://media.test/huge-waveform.mp3",
+      20
+    );
+
+    expect(peaks).toBeNull();
+    expect(arrayBuffer).not.toHaveBeenCalled();
     expect(decodeAudioData).not.toHaveBeenCalled();
   });
 });

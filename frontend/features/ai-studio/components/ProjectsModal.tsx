@@ -203,6 +203,7 @@ export function ProjectsModal({
     void fetchWithAuth(`${requestPath}&previewMode=none`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as ProjectsModalPayload;
@@ -226,6 +227,7 @@ export function ProjectsModal({
           void fetchWithAuth(requestPath, {
             method: "GET",
             shortpulseAuthTimeoutMs: 5000,
+            shortpulseRetryNetworkOnce: true,
           })
             .then(async (previewResponse) => {
               const previewPayload = (await previewResponse

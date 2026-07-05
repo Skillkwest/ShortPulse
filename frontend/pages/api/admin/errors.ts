@@ -34,7 +34,21 @@ type AdminErrorsHealth = {
   reason: string | null;
 };
 
-const PROVIDER_FLAGGED_SENSITIVE_MESSAGE_PATTERN = "%flagged%as%sensitive%";
+const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
+  "%flagged%as%sensitive%",
+  "%content%polic%",
+  "%content%not%allowed%",
+  "%unsafe%content%",
+  "%safety%policy%",
+  "%safety%system%",
+  "%safety%filter%",
+  "%Fetched%media%exceeds%size%limit%",
+  "%layer%images%are%unavailable%",
+  "%layer%images%expired%",
+  "%API%429%response%from%/api/kie/upload-url%",
+  "%reference%preparation%failed:%Too%many%requests%",
+  "%too%many%active%generations%",
+] as const;
 
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
@@ -132,7 +146,11 @@ const applyIncidentFilters = (
 };
 
 const applyAdminQueueVisibilityFilters = (query: IncidentQuery): IncidentQuery => {
-  return query.not("message", "ilike", PROVIDER_FLAGGED_SENSITIVE_MESSAGE_PATTERN);
+  let next = query;
+  for (const pattern of ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS) {
+    next = next.not("message", "ilike", pattern);
+  }
+  return next;
 };
 
 const applyVisibleIncidentFilters = (

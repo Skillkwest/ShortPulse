@@ -78,6 +78,31 @@ const createSupabaseAdminMock = (
   },
 });
 
+const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
+  "%flagged%as%sensitive%",
+  "%content%polic%",
+  "%content%not%allowed%",
+  "%unsafe%content%",
+  "%safety%policy%",
+  "%safety%system%",
+  "%safety%filter%",
+  "%Fetched%media%exceeds%size%limit%",
+  "%layer%images%are%unavailable%",
+  "%layer%images%expired%",
+  "%API%429%response%from%/api/kie/upload-url%",
+  "%reference%preparation%failed:%Too%many%requests%",
+  "%too%many%active%generations%",
+] as const;
+
+const expectedAdminQueueVisibilityFilters = (queryCount: number) =>
+  Array.from({ length: queryCount }).flatMap(() =>
+    ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS.map((value) => ({
+      column: "message",
+      operator: "ilike",
+      value,
+    }))
+  );
+
 describe("GET /api/admin/errors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -147,13 +172,7 @@ describe("GET /api/admin/errors", () => {
 
     await handler(req as never, res as never);
 
-    expect(notFilters).toEqual(
-      Array.from({ length: 7 }, () => ({
-        column: "message",
-        operator: "ilike",
-        value: "%flagged%as%sensitive%",
-      }))
-    );
+    expect(notFilters).toEqual(expectedAdminQueueVisibilityFilters(7));
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       errors: Array<{ id: string }>;
@@ -224,13 +243,7 @@ describe("GET /api/admin/errors", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(notFilters).toEqual(
-      Array.from({ length: 7 }, () => ({
-        column: "message",
-        operator: "ilike",
-        value: "%flagged%as%sensitive%",
-      }))
-    );
+    expect(notFilters).toEqual(expectedAdminQueueVisibilityFilters(7));
   });
 
   it("returns degraded health when non-core summary queries fail", async () => {

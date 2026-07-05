@@ -123,8 +123,10 @@ describe("useAiStudioOutputLifecycle", () => {
       expect.objectContaining({
         source: "generation.workflow_failure",
         scope: "generation",
+        severity: "high",
         message: "Provider failure",
         metadata: expect.objectContaining({
+          failure_class: "workflow_failure",
           failure_reason_code: "provider_error",
           provider_state: "error",
           poll_attempt: 3,
@@ -200,9 +202,40 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs[0]?.errorDetail).toBe(EXPLICIT_CONTENT_FAILURE_DETAIL);
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        source: "generation.provider_policy_block",
+        severity: "medium",
         message: EXPLICIT_CONTENT_FAILURE_MESSAGE,
         metadata: expect.objectContaining({
           detail: EXPLICIT_CONTENT_FAILURE_DETAIL,
+          failure_class: "provider_policy_block",
+        }),
+      })
+    );
+  });
+
+  it("reports expected active-generation limits as low-severity admission events", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "pending" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "You already have too many active generations. Please retry in 20 seconds.",
+        "You already have too many active generations. Please retry in 20 seconds."
+      );
+    });
+
+    expect(result.current.outputs[0]?.errorMessage).toBe(
+      "You already have too many active generations. Please retry in 20 seconds."
+    );
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "generation.admission_limited",
+        severity: "low",
+        message: "You already have too many active generations. Please retry in 20 seconds.",
+        metadata: expect.objectContaining({
+          failure_class: "admission_limited",
         }),
       })
     );
@@ -218,6 +251,26 @@ describe("useAiStudioOutputLifecycle", () => {
         "out-1",
         "Generation blocked by safety policy.",
         "Generation blocked by safety policy."
+      );
+    });
+
+    expect(result.current.outputs[0]?.errorMessage).toBe(EXPLICIT_CONTENT_FAILURE_MESSAGE);
+    expect(result.current.outputs[0]?.errorMessageShort).toBe(
+      EXPLICIT_CONTENT_FAILURE_SHORT_MESSAGE
+    );
+    expect(result.current.outputs[0]?.errorDetail).toBe(EXPLICIT_CONTENT_FAILURE_DETAIL);
+  });
+
+  it("treats provider content-policies copy as explicit-content failure", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "The image we created may violate the image service's content policies.",
+        "The image we created may violate the image service's content policies."
       );
     });
 

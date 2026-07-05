@@ -91,12 +91,13 @@ describe("ProjectsModal", () => {
       {
         method: "GET",
         shortpulseAuthTimeoutMs: 5000,
+        shortpulseRetryNetworkOnce: true,
       }
     );
-    expect(mockedFetchWithAuth).not.toHaveBeenCalledWith("/api/projects?limit=all", {
-      method: "GET",
-      shortpulseAuthTimeoutMs: 5000,
-    });
+    expect(mockedFetchWithAuth).not.toHaveBeenCalledWith(
+      "/api/projects?limit=all",
+      expect.anything()
+    );
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete selected project" })).toBeDisabled();

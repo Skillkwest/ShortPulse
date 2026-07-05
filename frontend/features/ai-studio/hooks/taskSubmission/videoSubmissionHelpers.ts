@@ -243,6 +243,12 @@ const resolveKieUploadFailureMessage = ({
   payload: KieUploadRoutePayload;
   bodyFormat: KieUploadRouteResponseBodyFormat;
 }): string => {
+  if (response.status === 429) {
+    const retryAfter = response.headers?.get("Retry-After")?.trim();
+    return retryAfter
+      ? `Temporary upload rate limit reached. Wait ${retryAfter} seconds and try again.`
+      : "Temporary upload rate limit reached. Wait a moment and try again.";
+  }
   const error =
     typeof payload.error === "string" && payload.error.trim().length
       ? payload.error.trim()
@@ -261,6 +267,9 @@ const resolveKieUploadFailureMessage = ({
               : null;
   return details ? `${error}: ${details}` : error;
 };
+
+export const isKieTemporaryUploadRateLimitError = (error: unknown): boolean =>
+  error instanceof Error && /temporary upload rate limit|too many requests/i.test(error.message);
 
 export const uploadUrlToKieTemporaryFile = async ({
   url,

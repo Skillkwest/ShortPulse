@@ -18,6 +18,7 @@ import {
   hasStaleOutputCleanupCandidate,
   type OutputLifecycleMap,
 } from "../logic/staleOutputCleanup";
+import type { ClientErrorSeverity } from "../../../lib/appErrorReporter";
 import type { StudioOutput } from "../types";
 import type { GenerationFailureContext } from "./generationFailureReporting";
 
@@ -32,6 +33,51 @@ const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 const currentRoute = (): string | null => {
   if (typeof window === "undefined") return null;
   return `${window.location.pathname}${window.location.search}`.slice(0, 300);
+};
+
+type GenerationFailureTelemetryClassification = {
+  source: string;
+  severity: ClientErrorSeverity;
+  failureClass: "provider_policy_block" | "admission_limited" | "workflow_failure";
+};
+
+const ADMISSION_LIMIT_FAILURE_PATTERN =
+  /\b(?:too many active generations|shared generation capacity|generation admission)\b/i;
+
+const classifyGenerationFailureTelemetry = ({
+  explicitContent,
+  message,
+  detail,
+  reasonCode,
+}: {
+  explicitContent: boolean;
+  message: string;
+  detail: string;
+  reasonCode?: string | null;
+}): GenerationFailureTelemetryClassification => {
+  if (explicitContent || reasonCode === "content_policy_block") {
+    return {
+      source: "generation.provider_policy_block",
+      severity: "medium",
+      failureClass: "provider_policy_block",
+    };
+  }
+  if (
+    reasonCode === "generation_admission_limit" ||
+    ADMISSION_LIMIT_FAILURE_PATTERN.test(message) ||
+    ADMISSION_LIMIT_FAILURE_PATTERN.test(detail)
+  ) {
+    return {
+      source: "generation.admission_limited",
+      severity: "low",
+      failureClass: "admission_limited",
+    };
+  }
+  return {
+    source: "generation.workflow_failure",
+    severity: "high",
+    failureClass: "workflow_failure",
+  };
 };
 
 type UseAiStudioOutputLifecycleParams = {
@@ -313,6 +359,12 @@ export const useAiStudioOutputLifecycle = ({
         (typeof rawErrorDetail === "string" && rawErrorDetail.trim()
           ? rawErrorDetail.trim()
           : safeDetail);
+      const telemetryClassification = classifyGenerationFailureTelemetry({
+        explicitContent: Boolean(explicitContentFailure),
+        message: resolvedMessage,
+        detail: resolvedDetail,
+        reasonCode: context?.reasonCode ?? null,
+      });
       updateOutputById(outputId, (item) => {
         if (
           item.taskState === "fail" &&
@@ -339,14 +391,15 @@ export const useAiStudioOutputLifecycle = ({
       const telemetryMode = context?.telemetryMode ?? "incident";
       if (telemetryMode === "incident") {
         void reportAppError({
-          source: "generation.workflow_failure",
+          source: telemetryClassification.source,
           scope: "generation",
-          severity: "high",
+          severity: telemetryClassification.severity,
           message: resolvedMessage,
           route: currentRoute(),
           metadata: {
             output_id: outputId,
             detail: resolvedDetail,
+            failure_class: telemetryClassification.failureClass,
             error_payload: rawErrorPayload,
             model: outputContext?.model ?? null,
             model_id: outputContext?.modelId ?? null,

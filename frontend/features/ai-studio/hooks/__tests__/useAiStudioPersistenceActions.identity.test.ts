@@ -893,9 +893,74 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
           output_id: "out-1",
           persist_intent: "manual",
           ui_error_message: "Unable to save media to the library right now. Please try again.",
+          media_persist_failure_count: 1,
+          first_media_failure_stage: "save_media_url_to_library",
+          first_media_failure_index: 0,
+          first_media_failure_url_kind: "https",
+          first_media_failure_url_host: "cdn.shortpulse.test",
+          first_media_failure_url_protocol: "https:",
+          first_media_failure_source: "upload",
+          first_media_failure_file_type_hint: "image",
         }),
       })
     );
+  });
+
+  it("keeps media size-limit save failures out of app-error incidents", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/large-generated-video.mp4",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(new Error("Fetched media exceeds size limit."));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let persistResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      persistResult = await result.current.persistOutputSave("out-1");
+    });
+
+    expect(persistResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Fetched media exceeds size limit.",
+      })
+    );
+    expect(setUiError).toHaveBeenCalledWith(
+      "This generated file is too large to save to the media library. Download it from the output card before leaving this page."
+    );
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Fetched media exceeds size limit.",
+      })
+    );
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
   it("clears the prior generic library banner after a later save succeeds", async () => {

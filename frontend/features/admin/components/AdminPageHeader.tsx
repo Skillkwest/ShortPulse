@@ -34,6 +34,7 @@ const GENERATION_HEALTH_NAV_ITEMS = [
 
 const ERRORS_NAV_ITEMS = [
   { href: "/admin/errors", label: "Errors" },
+  { href: "/admin/crashes", label: "Crash Logs" },
   { href: "/admin/kanban", label: "Ophestivus" },
 ] as const;
 

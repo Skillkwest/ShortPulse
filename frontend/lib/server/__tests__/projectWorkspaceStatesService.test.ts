@@ -477,12 +477,28 @@ const createSupabaseMock = ({
       select: workspaceUpsertSelect,
     };
   });
+  const resolveOutputDisplaySelect = async (ids?: readonly string[]) => {
+    if (outputDisplayReadError) {
+      return { data: null, error: { message: outputDisplayReadError } };
+    }
+    const requestedIds = ids ? new Set(ids.map((id) => String(id))) : null;
+    return {
+      data: requestedIds
+        ? mutableOutputDisplayRows.filter((row) => requestedIds.has(String(row.output_id)))
+        : mutableOutputDisplayRows,
+      error: null,
+    };
+  };
+  const outputDisplayIn = vi.fn(async (_column: string, ids: string[]) =>
+    resolveOutputDisplaySelect(ids)
+  );
   const outputDisplaySelect = vi.fn(() => ({
     eq: vi.fn(() => ({
-      eq: vi.fn(async () => ({
-        data: outputDisplayReadError ? null : mutableOutputDisplayRows,
-        error: outputDisplayReadError ? { message: outputDisplayReadError } : null,
-      })),
+      eq: vi.fn(() =>
+        Object.assign(resolveOutputDisplaySelect(), {
+          in: outputDisplayIn,
+        })
+      ),
     })),
   }));
   const outputDisplayUpsert = vi.fn(async (rows: Record<string, unknown>[]) => {
@@ -593,6 +609,7 @@ const createSupabaseMock = ({
     workspaceUpsertSelect,
     outputDisplayUpsert,
     outputDisplaySelect,
+    outputDisplayIn,
     outputDisplayDeleteIn,
     getOutputDisplayRows: () => mutableOutputDisplayRows.map((row) => ({ ...row })),
     getWorkspaceRow: () => ({ ...mutableWorkspaceRow }),
@@ -5061,7 +5078,7 @@ describe("projectWorkspaceStatesService", () => {
   });
 
   it("materializes lightweight checkpoint outputs from display records on workspace read", async () => {
-    createSupabaseMock({
+    const { outputDisplayIn } = createSupabaseMock({
       workspaceSnapshot: {
         schemaVersion: 2,
         sessionId: "session-lightweight-read",
@@ -5180,6 +5197,44 @@ describe("projectWorkspaceStatesService", () => {
           hidden_in_reference_grid: false,
           updated_at: "2026-06-03T12:00:01.000Z",
         },
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "unrelated-display-1",
+          version: 4,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: "2026-06-03T11:53:00.000Z",
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: "Unrelated display row",
+          display_title: "Unrelated Display",
+          display_prompt_summary: "Unrelated display prompt",
+          mime_type: "image/png",
+          width: 256,
+          height: 256,
+          duration_ms: null,
+          preview_storage_path: "user-1/generated/unrelated-preview.png",
+          full_storage_path: "user-1/generated/unrelated-full.png",
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/unrelated-preview.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/unrelated-preview.png"],
+          saved_media_ids: [],
+          task_state: "success",
+          queue_state: null,
+          save_state: "saved",
+          status: "ready",
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
       ],
       associatedSnapshotGenerationIds: [],
       recentGenerationIds: [],
@@ -5225,6 +5280,7 @@ describe("projectWorkspaceStatesService", () => {
         },
       },
     });
+    expect(outputDisplayIn).toHaveBeenCalledWith("output_id", ["display-1", "display-archived-1"]);
   });
 
   it("does not let display summaries overwrite full prompt-only reference text on workspace read", async () => {

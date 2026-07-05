@@ -1,5 +1,9 @@
 import React from "react";
 import type {
+  GenerationFailureContext,
+  NotifyGenerationFailure,
+} from "../../hooks/generationFailureReporting";
+import type {
   ExpertEditStageFlattenLayer,
   StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
@@ -57,12 +61,16 @@ type UseExpertEditInlineGenerateParams = {
   resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
-  notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
+  notifyGenerationFailure?: NotifyGenerationFailure;
 };
 
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
 const EXPIRED_REFERENCE_FRAGMENT = "Reference URL expired";
 const DUPLICATE_INLINE_GENERATE_TOAST = "Generation is already in progress.";
+const EXPERT_EDIT_INPUT_VALIDATION_FAILURE_CONTEXT: GenerationFailureContext = {
+  telemetryMode: "validation",
+  reasonCode: "USER_INPUT_VALIDATION",
+};
 
 const resolveFlattenFailureToastMessage = (error: unknown): string => {
   if (!(error instanceof Error)) return "Unable to flatten layers.";
@@ -74,6 +82,16 @@ const resolveFlattenFailureToastMessage = (error: unknown): string => {
     return "One or more layer images are unavailable. Re-add the image and try again.";
   }
   return "Unable to flatten layers.";
+};
+
+const isExpectedLayerInputFailure = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const errorMessage = error.message ?? "";
+  return (
+    errorMessage.includes(EXPIRED_REFERENCE_FRAGMENT) ||
+    errorMessage.includes(LAYER_IMAGE_LOAD_FAILURE_PREFIX) ||
+    errorMessage.includes("Timed out loading a layer image")
+  );
 };
 
 const resolveSubmissionFailureToastMessage = (error: unknown): string => {
@@ -163,10 +181,18 @@ export const useExpertEditInlineGenerate = ({
     inlineGenerateInFlightRef.current = true;
     setInlineGeneratePendingCount((currentCount) => currentCount + 1);
     let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
-    const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
+    const markOptimisticGenerationFailure = (
+      message: string,
+      detail: string = message,
+      context?: GenerationFailureContext
+    ) => {
       if (!optimisticOutputId) return;
       if (notifyGenerationFailure) {
-        notifyGenerationFailure(optimisticOutputId, message, detail);
+        if (context) {
+          notifyGenerationFailure(optimisticOutputId, message, detail, context);
+        } else {
+          notifyGenerationFailure(optimisticOutputId, message, detail);
+        }
       } else {
         removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
       }
@@ -242,7 +268,13 @@ export const useExpertEditInlineGenerate = ({
           });
         } catch (error) {
           const failureMessage = resolveFlattenFailureToastMessage(error);
-          markOptimisticGenerationFailure(failureMessage);
+          markOptimisticGenerationFailure(
+            failureMessage,
+            failureMessage,
+            isExpectedLayerInputFailure(error)
+              ? EXPERT_EDIT_INPUT_VALIDATION_FAILURE_CONTEXT
+              : undefined
+          );
           revokeExpertEditSubmissionObjectUrls({
             objectUrls,
             revokeObjectUrlSafe,

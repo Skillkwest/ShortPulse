@@ -18,6 +18,8 @@ import {
   resolveLipSyncAudioDurableSource,
 } from "../logic/lipSyncAudioState";
 
+const LIP_SYNC_AUDIO_DURATION_PROBE_TIMEOUT_MS = 5000;
+
 const resolveDurableLipSyncDropAudioUrl = (
   payload: Extract<AgentComposerDirectDropPayload, { kind: "audio" }>
 ): { url: string | null; storagePath: string | null } => {
@@ -101,22 +103,46 @@ export const useVideoLipSyncAudioController = ({
     if (typeof Audio === "undefined") return Promise.resolve(null);
     return new Promise((resolve) => {
       const audio = new Audio();
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const cleanup = () => {
+        if (timeoutId != null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         audio.onloadedmetadata = null;
         audio.onerror = null;
+        try {
+          audio.pause();
+        } catch {
+          // Best-effort cleanup for temporary metadata probes.
+        }
+        try {
+          audio.removeAttribute("src");
+          audio.load();
+        } catch {
+          // Best-effort cleanup for temporary metadata probes.
+        }
+      };
+      const settle = (durationMs: number | null) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(durationMs);
       };
       audio.onloadedmetadata = () => {
         const durationMs = Number.isFinite(audio.duration)
           ? Math.max(0, Math.round(audio.duration * 1000))
           : null;
-        cleanup();
-        resolve(durationMs);
+        settle(durationMs);
       };
       audio.onerror = () => {
-        cleanup();
-        resolve(null);
+        settle(null);
       };
+      timeoutId = setTimeout(() => settle(null), LIP_SYNC_AUDIO_DURATION_PROBE_TIMEOUT_MS);
+      audio.preload = "metadata";
       audio.src = audioUrl.replace(/#.*$/, "");
+      audio.load();
     });
   }, []);
 

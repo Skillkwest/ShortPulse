@@ -151,7 +151,7 @@ const PROVIDER_SAFETY_BLOCK_PATTERNS = [
   /\bmoderation\b/i,
   /\bcontent safety\b/i,
   /\bsafety system\b/i,
-  /\bcontent policy\b/i,
+  /\bcontent polic(?:y|ies)\b/i,
 ];
 
 /**
@@ -184,7 +184,7 @@ export const isProviderSafetyBlockedOutput = (
  */
 export const looksLikeFailureMessage = (value: unknown): boolean => {
   if (typeof value !== "string") return false;
-  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|policy|unsafe|nsfw/i.test(
+  return /error|fail|denied|invalid|timed out|timeout|insufficient|reject|polic|unsafe|nsfw/i.test(
     value
   );
 };

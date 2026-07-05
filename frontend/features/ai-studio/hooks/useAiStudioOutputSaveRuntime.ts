@@ -7,6 +7,7 @@ import { normalizeMediaStorageQuotaUiCopy } from "../../../lib/mediaStorageQuota
 import type { Provider } from "../logic/stateParsers";
 import type { StudioOutput, StudioOutputSaveState } from "../types";
 import type {
+  PersistMediaUrlFailureDetail,
   PersistOutputSaveOptions,
   PersistOutputSaveResult,
 } from "./persistenceActionContracts";
@@ -45,6 +46,7 @@ type UseAiStudioOutputSaveRuntimeArgs = {
   }) => Promise<{
     mediaFileIds: string[];
     errors: string[];
+    failureDetails?: PersistMediaUrlFailureDetail[];
     delivery: PersistOutputSaveResult["delivery"];
   }>;
   markOutputSaved: (
@@ -61,6 +63,9 @@ type UseAiStudioOutputSaveRuntimeArgs = {
 
 const GENERIC_LIBRARY_SAVE_UI_ERROR =
   "Unable to save media to the library right now. Please try again.";
+const GENERATED_MEDIA_SIZE_LIMIT_FAILURE_MESSAGE = "Fetched media exceeds size limit.";
+const GENERATED_MEDIA_SIZE_LIMIT_UI_ERROR =
+  "This generated file is too large to save to the media library. Download it from the output card before leaving this page.";
 
 const resolveLibrarySaveFailureMessage = (errors: string[]): string =>
   errors[0] ?? "Media library save did not return a media id.";
@@ -68,11 +73,18 @@ const resolveLibrarySaveFailureMessage = (errors: string[]): string =>
 const resolveStorageQuotaUiMessage = (message: string): string | null =>
   normalizeMediaStorageQuotaUiCopy(message)?.message ?? null;
 
+const isGeneratedMediaSizeLimitFailure = (message: string): boolean =>
+  message.trim().toLowerCase() === GENERATED_MEDIA_SIZE_LIMIT_FAILURE_MESSAGE.toLowerCase();
+
+const resolveExpectedLibrarySaveUiMessage = (message: string): string | null =>
+  resolveStorageQuotaUiMessage(message) ??
+  (isGeneratedMediaSizeLimitFailure(message) ? GENERATED_MEDIA_SIZE_LIMIT_UI_ERROR : null);
+
 const isSafeUserFacingLibrarySaveMessage = (message: string): boolean =>
-  Boolean(resolveStorageQuotaUiMessage(message));
+  Boolean(resolveExpectedLibrarySaveUiMessage(message));
 
 const resolveLibrarySaveUiErrorMessage = (message: string): string =>
-  resolveStorageQuotaUiMessage(message) ?? GENERIC_LIBRARY_SAVE_UI_ERROR;
+  resolveExpectedLibrarySaveUiMessage(message) ?? GENERIC_LIBRARY_SAVE_UI_ERROR;
 
 const resolveOutputSaveFailureState = (message: string): StudioOutputSaveState =>
   resolveStorageQuotaUiMessage(message) ? "blocked_storage" : "failed";
@@ -87,6 +99,11 @@ const shouldSurfaceLibrarySaveUiError = ({
   message: string;
   intent: "manual" | "auto";
 }): boolean => intent === "manual" || isSafeUserFacingLibrarySaveMessage(message);
+
+const firstFailureDetail = (
+  failureDetails: PersistMediaUrlFailureDetail[] | null | undefined
+): PersistMediaUrlFailureDetail | null =>
+  Array.isArray(failureDetails) && failureDetails.length > 0 ? failureDetails[0] : null;
 
 type InFlightSaveEntry = {
   intent: "manual" | "auto";
@@ -145,13 +162,16 @@ export const useAiStudioOutputSaveRuntime = ({
       const task = (async (): Promise<PersistOutputSaveResult> => {
         const reportLibrarySaveFailure = (
           failureMessage: string,
-          uiErrorMessage: string | null
+          uiErrorMessage: string | null,
+          failureDetails?: PersistMediaUrlFailureDetail[] | null
         ) => {
+          const firstFailure = firstFailureDetail(failureDetails);
           const signature = [saveKey, persistIntent, failureMessage, uiErrorMessage ?? ""].join(
             "|"
           );
           if (lastLibrarySaveTelemetrySignatureByKeyRef.current.get(saveKey) === signature) return;
           lastLibrarySaveTelemetrySignatureByKeyRef.current.set(saveKey, signature);
+          if (isGeneratedMediaSizeLimitFailure(failureMessage)) return;
           void reportAppError({
             source: "client.ai_studio.media_library_save_failure",
             scope: "generation",
@@ -173,6 +193,14 @@ export const useAiStudioOutputSaveRuntime = ({
               has_generation_id: Boolean(output.generationId),
               task_id: output.taskId ?? null,
               ui_error_message: uiErrorMessage,
+              media_persist_failure_count: failureDetails?.length ?? 0,
+              first_media_failure_stage: firstFailure?.stage ?? null,
+              first_media_failure_index: firstFailure?.index ?? null,
+              first_media_failure_url_kind: firstFailure?.urlKind ?? null,
+              first_media_failure_url_host: firstFailure?.urlHost ?? null,
+              first_media_failure_url_protocol: firstFailure?.urlProtocol ?? null,
+              first_media_failure_source: firstFailure?.source ?? null,
+              first_media_failure_file_type_hint: firstFailure?.fileTypeHint ?? null,
             },
           });
         };
@@ -260,7 +288,7 @@ export const useAiStudioOutputSaveRuntime = ({
               error: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
             };
           }
-          const { mediaFileIds, errors, delivery } = await persistMediaUrls({
+          const { mediaFileIds, errors, failureDetails, delivery } = await persistMediaUrls({
             outputId,
             urls,
             provider,
@@ -316,7 +344,7 @@ export const useAiStudioOutputSaveRuntime = ({
             lastLibrarySaveUiErrorRef.current = surfacedUiErrorMessage;
             setUiError(surfacedUiErrorMessage);
           }
-          reportLibrarySaveFailure(failureMessage, surfacedUiErrorMessage);
+          reportLibrarySaveFailure(failureMessage, surfacedUiErrorMessage, failureDetails);
           return {
             ok: false,
             mediaFileIds,

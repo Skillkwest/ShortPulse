@@ -167,4 +167,73 @@ describe("useVideoLipSyncAudioController", () => {
       })
     );
   });
+
+  it("times out stalled local audio duration probes and releases the probe element", async () => {
+    vi.useFakeTimers();
+    uploadAudioBlobToStorageMock.mockResolvedValue({
+      url: "https://signed.shortpulse.test/audio.mp3",
+      path: "user-1/audio/audio.mp3",
+      size: 12,
+      mimeType: "audio/mpeg",
+    });
+    const audioInstances: Array<{
+      load: ReturnType<typeof vi.fn>;
+      onerror: (() => void) | null;
+      onloadedmetadata: (() => void) | null;
+      pause: ReturnType<typeof vi.fn>;
+      preload: string;
+      removeAttribute: ReturnType<typeof vi.fn>;
+      src: string;
+    }> = [];
+
+    class MockAudio {
+      duration = Number.NaN;
+      load = vi.fn();
+      onerror: (() => void) | null = null;
+      onloadedmetadata: (() => void) | null = null;
+      pause = vi.fn();
+      preload = "";
+      removeAttribute = vi.fn((name: string) => {
+        if (name === "src") this.src = "";
+      });
+      src = "";
+
+      constructor() {
+        audioInstances.push(this);
+      }
+    }
+
+    vi.stubGlobal("Audio", MockAudio);
+    const onLipSyncAudioChange = vi.fn();
+    const file = new File(["local"], "local.mp3", { type: "audio/mpeg" });
+    const { result } = renderController(onLipSyncAudioChange);
+
+    try {
+      act(() => {
+        selectAudioFile(result.current.handleLipSyncAudioSelection, file);
+      });
+      expect(uploadAudioBlobToStorageMock).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(uploadAudioBlobToStorageMock).toHaveBeenCalledTimes(1);
+      expect(audioInstances).toHaveLength(1);
+      expect(audioInstances[0]?.pause).toHaveBeenCalled();
+      expect(audioInstances[0]?.removeAttribute).toHaveBeenCalledWith("src");
+      expect(audioInstances[0]?.load).toHaveBeenCalled();
+      expect(onLipSyncAudioChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "uploading",
+          durationMs: null,
+          previewUrl: "blob:lip-sync-audio-1#audio=1",
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

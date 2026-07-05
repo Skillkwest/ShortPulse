@@ -48,6 +48,7 @@ import {
 import {
   buildSeedancePromptPayload,
   hasKlingElementMedia,
+  isKieTemporaryUploadRateLimitError,
   isLocalAudioUploadSourceUrl,
   KIE_KLING_REFERENCE_IMAGE_ADMISSION_PROFILE,
   KIE_SEEDANCE_REFERENCE_IMAGE_ADMISSION_PROFILE,
@@ -592,7 +593,12 @@ export const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "Kling element reference preparation failed";
-          notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+          notifyGenerationFailure(
+            id,
+            `Kling element reference preparation failed: ${message}`,
+            undefined,
+            isKieTemporaryUploadRateLimitError(error) ? VALIDATION_FAILURE_CONTEXT : undefined
+          );
           return { handled: true };
         }
 
@@ -697,7 +703,12 @@ export const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Kling element reference preparation failed";
-        notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+        notifyGenerationFailure(
+          id,
+          `Kling element reference preparation failed: ${message}`,
+          undefined,
+          isKieTemporaryUploadRateLimitError(error) ? VALIDATION_FAILURE_CONTEXT : undefined
+        );
         return { handled: true };
       }
       const aspectRatio = resolveKieKlingAspect(aspect, modelConfig);

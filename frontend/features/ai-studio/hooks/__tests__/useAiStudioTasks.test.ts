@@ -2219,8 +2219,8 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Retrying status...");
   });
 
-  it("fails output when status transport errors exhaust the retry budget", async () => {
-    fetchFalNanoBananaStatusMock.mockRejectedValue(new Error("status transport unavailable"));
+  it("keeps polling when the first status transport error happens after many poll attempts", async () => {
+    fetchFalNanoBananaStatusMock.mockRejectedValueOnce(new Error("status transport blip"));
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -2229,43 +2229,24 @@ describe("useAiStudioTasks", () => {
       }
     });
     const notifyGenerationFailure = vi.fn();
-    const onGenerationFailure = vi.fn();
 
     const { result } = renderHook(() =>
       useAiStudioTasks({
         updateOutputById,
         notifyGenerationFailure,
-        onGenerationFailure,
       })
     );
 
     act(() => {
-      result.current.startPollingTask("task-status-error", "out-1", 30, "fal-nano-banana-2");
+      result.current.startPollingTask("task-late-status-error", "out-1", 74, "fal-nano-banana-2");
     });
 
-    await vi.advanceTimersByTimeAsync(4_600);
+    await vi.advanceTimersToNextTimerAsync();
     await flushQueuedOutputUpdates();
 
-    expect(notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Unable to check generation status. Please retry.",
-      "The generation status could not be checked after repeated attempts. Please retry.",
-      expect.objectContaining({
-        reasonCode: "status_poll_error",
-        pollAttempt: 30,
-      })
-    );
-    expect(onGenerationFailure).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "out-1",
-        taskId: "task-status-error",
-        provider: "fal-nano-banana-2",
-        reasonCode: "status_poll_error",
-      })
-    );
-    expect(output.taskState).toBe("fail");
-    expect(output.timestamp).toBe("Generation failed");
-    expect(output.errorMessage).toBe("Unable to check generation status. Please retry.");
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
   });
 
   it("skips polling when the output was removed before the poll starts", async () => {

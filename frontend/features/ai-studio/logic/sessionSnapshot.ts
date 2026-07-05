@@ -270,7 +270,8 @@ export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessio
 export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
   | "without_canvas"
-  | "without_archived_outputs";
+  | "without_archived_outputs"
+  | "without_canvas_and_archived_outputs";
 export type AiStudioProjectWorkspaceAutosaveCandidate = {
   kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
   snapshot: AiStudioSessionSnapshot;
@@ -1193,6 +1194,13 @@ export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
     };
     if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
       yield withoutArchivedOutputsCandidate;
+    }
+    const withoutCanvasAndArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+      kind: "without_canvas_and_archived_outputs",
+      snapshot: stripArchivedOutputsFromSnapshot(withoutCanvas),
+    };
+    if (shouldYieldCandidate(withoutCanvasAndArchivedOutputsCandidate)) {
+      yield withoutCanvasAndArchivedOutputsCandidate;
     }
     return;
   }

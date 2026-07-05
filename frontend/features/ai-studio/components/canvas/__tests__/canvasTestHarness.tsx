@@ -2,6 +2,7 @@
  * Canvas test harness utilities.
  * Provides shared render scaffolding and transfer helpers for canvas suites.
  */
+import { act } from "@testing-library/react";
 import React, { useEffect, useState } from "react";
 import { CanvasPropertiesPanel } from "../CanvasPropertiesPanel";
 import {
@@ -344,5 +345,7 @@ export const mockViewportRect = (element: HTMLElement) => {
       toJSON: () => ({}),
     }),
   });
-  window.dispatchEvent(new Event("resize"));
+  act(() => {
+    window.dispatchEvent(new Event("resize"));
+  });
 };

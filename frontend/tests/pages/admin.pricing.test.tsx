@@ -379,6 +379,43 @@ describe("Admin pricing page", () => {
     expect(screen.queryByRole("button", { name: "Add simulator plan" })).not.toBeInTheDocument();
   });
 
+  it("renders the baseline-access sentinel with the documented product catalog name", () => {
+    const state = buildPricingState();
+    state.plans = [
+      {
+        planId: "free",
+        displayName: "Baseline access",
+        offerId: "free__none",
+        sortOrder: 0,
+        accountCount: 4,
+        status: "legacy",
+        recurringPriceCents: 0,
+        monthlyCreditsCents: 0,
+        storageLimitBytes: 0,
+        maxConcurrentGenerations: 0,
+        stripeProductId: null,
+        stripePriceId: null,
+        acquisitionEnabled: false,
+        isActive: false,
+        effectiveStartAt: null,
+        monthlyOffer: null,
+        annualOffer: null,
+      },
+    ];
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminCatalogPage />);
+
+    expect(screen.getByText("Baseline access")).toBeInTheDocument();
+    expect(screen.queryByText("Baseline fallback")).not.toBeInTheDocument();
+  });
+
   it("renders workbook controls and lets the admin add simulator plans", () => {
     const state = buildPricingState();
     state.plans = buildPricingStateWithPlans().plans;

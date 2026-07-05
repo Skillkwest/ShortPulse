@@ -15,6 +15,7 @@ import {
   savePromptRecord,
 } from "../logic/mediaLibraryPersistence";
 import type {
+  PersistMediaUrlFailureDetail,
   PersistedMediaDelivery,
   PersistOutputSaveOptions,
 } from "./persistenceActionContracts";
@@ -76,6 +77,35 @@ const resolveFileTypeHintForPersistedUrl = (
 ): "image" | "video" | "audio" => {
   if (output.mode === "audio") return "audio";
   return isVideoUrl(url) ? "video" : "image";
+};
+
+const classifyMediaUrlForDiagnostics = (
+  value: string | null | undefined
+): Pick<PersistMediaUrlFailureDetail, "urlKind" | "urlHost" | "urlProtocol"> => {
+  const trimmed = normalizeOptionalString(value);
+  if (!trimmed) {
+    return { urlKind: "unknown", urlHost: null, urlProtocol: null };
+  }
+  if (trimmed.startsWith("blob:")) {
+    return { urlKind: "blob", urlHost: null, urlProtocol: "blob:" };
+  }
+  if (trimmed.startsWith("data:")) {
+    return { urlKind: "data", urlHost: null, urlProtocol: "data:" };
+  }
+  if (trimmed.startsWith("/")) {
+    return { urlKind: "relative", urlHost: null, urlProtocol: null };
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    return {
+      urlKind: protocol === "https:" ? "https" : protocol === "http:" ? "http" : "unknown",
+      urlHost: parsed.hostname || null,
+      urlProtocol: protocol || null,
+    };
+  } catch {
+    return { urlKind: "unknown", urlHost: null, urlProtocol: null };
+  }
 };
 
 /**
@@ -276,19 +306,29 @@ export const useAiStudioPersistenceActions = ({
     }): Promise<{
       mediaFileIds: string[];
       errors: string[];
+      failureDetails: PersistMediaUrlFailureDetail[];
       delivery: PersistedMediaDelivery | null;
     }> => {
       if (source === "ai_studio" && !generationId) {
         return {
           mediaFileIds: [],
           errors: [GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR],
+          failureDetails: [],
           delivery: null,
         };
       }
       const output = findOutputById(outputId);
-      if (!output) return { mediaFileIds: [], errors: ["Output not found"], delivery: null };
+      if (!output) {
+        return {
+          mediaFileIds: [],
+          errors: ["Output not found"],
+          failureDetails: [],
+          delivery: null,
+        };
+      }
       const mediaFileIds: string[] = [];
       const errors: string[] = [];
+      const failureDetails: PersistMediaUrlFailureDetail[] = [];
       let delivery: PersistedMediaDelivery | null = null;
 
       for (let index = 0; index < urls.length; index += 1) {
@@ -365,6 +405,18 @@ export const useAiStudioPersistenceActions = ({
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unable to save media.";
           errors.push(message);
+          const failedUrl = urls[index] ?? null;
+          const fileTypeHint = failedUrl
+            ? resolveFileTypeHintForPersistedUrl(output, failedUrl)
+            : null;
+          failureDetails.push({
+            message,
+            index,
+            stage: "save_media_url_to_library",
+            source,
+            ...classifyMediaUrlForDiagnostics(failedUrl),
+            fileTypeHint,
+          });
         }
       }
 
@@ -378,6 +430,7 @@ export const useAiStudioPersistenceActions = ({
             metadata: {
               stage: "storage_upload",
               errors,
+              failure_details: failureDetails,
             },
           });
         } catch {
@@ -385,7 +438,7 @@ export const useAiStudioPersistenceActions = ({
         }
       }
 
-      return { mediaFileIds, errors, delivery };
+      return { mediaFileIds, errors, failureDetails, delivery };
     },
     [currentUserId, findOutputById, projectId]
   );

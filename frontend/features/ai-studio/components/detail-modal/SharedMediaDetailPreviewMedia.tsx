@@ -42,6 +42,21 @@ const assignMediaRef = <ElementType extends HTMLElement>(
   (targetRef as React.MutableRefObject<ElementType | null>).current = node;
 };
 
+const detachMediaElementSource = (node: HTMLMediaElement | null) => {
+  if (!node) return;
+  try {
+    node.pause();
+  } catch {
+    // Best-effort cleanup for browser media pipelines.
+  }
+  try {
+    node.removeAttribute("src");
+    node.load();
+  } catch {
+    // Best-effort cleanup for browser media pipelines.
+  }
+};
+
 type SharedMediaDetailAudioPreviewProps = {
   mediaUrl: string;
   audioId?: string;
@@ -249,6 +264,10 @@ function SharedMediaDetailAudioPreview({
 
   const setAudioNode = React.useCallback(
     (node: HTMLAudioElement | null) => {
+      const previousNode = internalAudioRef.current;
+      if (previousNode && previousNode !== node) {
+        detachMediaElementSource(previousNode);
+      }
       internalAudioRef.current = node;
       assignMediaRef(audioRef, node);
     },
@@ -621,6 +640,7 @@ export function SharedMediaDetailPreviewMedia({
   onAudioError,
   onAudioVolumeChange,
 }: SharedMediaDetailPreviewMediaProps) {
+  const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
   const normalizedImageIdentityKey = imageIdentityKey?.trim() || altText;
   const [renderedImageState, setRenderedImageState] = React.useState<{
     identityKey: string;
@@ -699,6 +719,17 @@ export function SharedMediaDetailPreviewMedia({
     [audioBackgroundImageUrl]
   );
   const hasAudioBackground = Boolean(audioBackgroundStyle);
+  const setVideoNode = React.useCallback(
+    (node: HTMLVideoElement | null) => {
+      const previousNode = videoNodeRef.current;
+      if (previousNode && previousNode !== node) {
+        detachMediaElementSource(previousNode);
+      }
+      videoNodeRef.current = node;
+      assignMediaRef(videoRef, node);
+    },
+    [videoRef]
+  );
 
   React.useEffect(() => {
     if (mediaKind !== "image") return;
@@ -720,7 +751,7 @@ export function SharedMediaDetailPreviewMedia({
         crossOrigin="anonymous"
         src={displayedMediaUrl}
         poster={videoPosterUrl?.trim() || undefined}
-        ref={videoRef}
+        ref={setVideoNode}
         controls={videoControls}
         autoPlay={videoAutoPlay}
         loop={videoLoop}

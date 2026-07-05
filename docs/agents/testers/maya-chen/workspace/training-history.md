@@ -240,3 +240,27 @@ Remaining friction:
 Next training focus:
 
 - On the next `run test`, use the active scenario queue for prompt/detail recovery, keep screenshots sparse, and answer the post-run coach question before scoring the run complete.
+
+## 2026-07-05: Agent Tester Reports Publish Correction
+
+Prompt or user direction:
+
+- Ensure Maya's local reports are also added to the Agent Tester Reports tab in the admin page after each run.
+
+Behavior learned:
+
+- The admin page label is `Agent Tester Reports`, and the route is `/admin/tester-reports`.
+- Local Markdown reports remain durable files, but the same persona and engineering report bodies must be ingested so the operator can view both reports in the admin UI.
+
+SOP or template updates:
+
+- Clarified Maya's publish SOP and checklist to name the Agent Tester Reports tab.
+- Updated the July 5 run reports and index after delayed publish.
+
+Remaining friction:
+
+- Future runs still need the canonical ingest secret available or a clearly recorded publish blocker.
+
+Next training focus:
+
+- After the next run, publish before final closeout and verify both report cards are visible in Agent Tester Reports.

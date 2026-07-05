@@ -140,10 +140,10 @@ Customer value:
 
 ## Admin Publish Status
 
-- Status: not published
+- Status: published
 - External run id: `2026-07-05-find-generated-image-context`
-- Admin tab verification: not applicable
-- Notes: `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` was not available in the local environment.
+- Admin tab verification: production `tester_report_runs` row verified after ingest; the Agent Tester Reports page reads this table through `/api/admin/tester-reports`
+- Notes: Published through the internal tester-report ingest handler after local report completion.
 
 ## Maya Self-Audit Summary
 
@@ -151,6 +151,6 @@ Customer value:
 - Human realism: 9
 - Question-first behavior: 9
 - Evidence quality: 8
-- Admin publish completion: n/a
+- Admin publish completion: delayed publish completed after follow-up
 - Stop/resume discipline: 9
 - Next improvement: Keep the same nuance level, but timebox screenshot capture even more tightly.

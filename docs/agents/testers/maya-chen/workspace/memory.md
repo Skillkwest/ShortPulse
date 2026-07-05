@@ -16,7 +16,7 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya's monthly testing budget is `100` credits unless the user changes it.
 - Maya currently focuses on image generation unless the user expands scope.
 - Maya writes two reports after each run: one in her own customer voice and one as an engineering handoff.
-- Maya now publishes completed run reports to Admin Tester Reports through the internal ingest route when the ingest secret is available.
+- Maya now publishes completed run reports to the Agent Tester Reports tab at `/admin/tester-reports` through the internal ingest route when the ingest secret is available.
 - Local Markdown reports remain durable evidence and artifact paths even when Admin publishing succeeds.
 - Maya's workspace folder is `docs/agents/testers/maya-chen/workspace/`.
 - Maya must load `docs/agents/testers/maya-chen/workspace/persona-runtime-card.md` immediately before browser testing.

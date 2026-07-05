@@ -1,8 +1,8 @@
-# Maya Admin Tester Reports Publish Checklist
+# Maya Agent Tester Reports Publish Checklist
 
 Use this after both local reports are complete.
 
-Admin publishing is an operator/reporting step. It is not part of Maya's customer-facing browser workflow and must not bypass visible product behavior.
+Admin publishing is an operator/reporting step. It writes the two report bodies to the Agent Tester Reports tab at `/admin/tester-reports`. It is not part of Maya's customer-facing browser workflow and must not bypass visible product behavior.
 
 ## Preconditions
 
@@ -53,6 +53,7 @@ Verified fields:
 - Status:
 - Persona report present:
 - Engineering handoff present:
+- Both report cards visible in Agent Tester Reports:
   Failure reason if any:
 
 ## Failure Rule

@@ -456,14 +456,14 @@ Use consistent severity in the engineering handoff while preserving Maya's human
 
 Use `workspace/tools/severity-and-escalation-rubric.md` when scoring findings.
 
-## Admin Tester Reports Publishing
+## Agent Tester Reports Publishing
 
-After each completed Maya run, publish the same two report bodies into the Admin Tester Reports tab so the operator can review the run in the product admin surface.
+After each completed Maya run, publish the same two report bodies into the Agent Tester Reports tab so the operator can review the run in the product admin surface.
 
 Source of truth for the admin workflow:
 
 - Operations SOP: `docs/sops/sop_admin_tester_reports_operations.md`
-- Admin page: `/admin/tester-reports`
+- Admin page: `/admin/tester-reports`, labeled `Agent Tester Reports`
 - Ingest route: `POST /api/internal/tester-reports/ingest`
 - Read route: `/api/admin/tester-reports`
 - Table: `public.tester_report_runs`
@@ -472,7 +472,7 @@ Source of truth for the admin workflow:
 Publishing rule:
 
 - Keep writing the local Markdown reports and screenshot/artifact paths under `docs/agents/testers/maya-chen/reports/`; those files remain durable source-controlled evidence.
-- Then post the completed run to `POST /api/internal/tester-reports/ingest` using `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` from the canonical local environment when it is available.
+- Then post the completed run to `POST /api/internal/tester-reports/ingest` using `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` from the canonical local environment when it is available, so both report bodies appear in the Agent Tester Reports tab.
 - Use either `Authorization: Bearer $SHORTPULSE_TESTER_REPORT_INGEST_SECRET` or `x-shortpulse-tester-report-secret: $SHORTPULSE_TESTER_REPORT_INGEST_SECRET`.
 - Do not print, commit, screenshot, or include the ingest secret in any report.
 - Treat `externalRunId` as the idempotency key. Reuse the same value only when intentionally updating the same run.
@@ -482,7 +482,7 @@ Publishing rule:
 - Use `reportArtifactPaths` for the two Markdown report paths and important screenshot/download evidence paths.
 - Use `evidence` for concise structured facts such as browser surface, major steps completed, visible credit balance changes, generated media count, downloaded file path, and notable friction.
 - If the ingest secret is missing or the publish call fails, do not block the local reports. Record the admin publish failure in the engineering handoff and final user summary, then leave the local Markdown reports as the durable fallback.
-- After a successful ingest response, verify the run appears in `/admin/tester-reports` by tester slug, external run id, scenario, status, and report body presence. If browser verification is unavailable, record that API/local ingest succeeded but Admin tab verification remains unproven.
+- After a successful ingest response, verify the run appears in `/admin/tester-reports` by tester slug, external run id, scenario, status, and both report body cards. If browser verification is unavailable, record that API/local ingest succeeded but Admin tab verification remains unproven.
 
 Admin publishing is not part of Maya's customer-facing browser test. It happens after the run is complete and must not be used to bypass customer-visible signup, payment, generation, saving, or find-it-again workflows.
 

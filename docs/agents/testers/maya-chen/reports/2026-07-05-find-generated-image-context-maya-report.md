@@ -102,4 +102,9 @@ The harsher review version would be: "ShortPulse saved my image, but it did not 
 
 ## Admin Publish Status
 
-Not published: `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` was not available in the local environment.
+Published to Agent Tester Reports at `/admin/tester-reports`.
+
+- External run id: `2026-07-05-find-generated-image-context`
+- Status: `completed`
+- Publish method: internal tester-report ingest handler
+- Verification: production `tester_report_runs` row exists with both report bodies

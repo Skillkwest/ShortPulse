@@ -35,6 +35,16 @@ const REQUIRED_TABLES = [
     table: "project_generation_items",
     columns: ["project_id", "generation_id", "user_id"],
   },
+  {
+    table: "browser_crash_sessions",
+    columns: [
+      "review_status",
+      "reviewed_at",
+      "reviewed_by",
+      "reviewed_by_email",
+      "review_note",
+    ],
+  },
 ];
 
 const readArg = (name) => {

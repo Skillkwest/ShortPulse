@@ -576,56 +576,58 @@ export function ProjectsModal({
                       aria-pressed={isSelectedProject}
                       disabled={isInteractionDisabled}
                     >
+                      <div className="ai-projects-modal-card-topline">
+                        <span className="ai-projects-modal-card-title">{project.title}</span>
+                        {showStatusPill ? (
+                          <span
+                            className={`ai-projects-modal-status-pill${
+                              isCurrentProject ? " is-current" : ""
+                            }`}
+                          >
+                            {pendingProjectId === project.id
+                              ? "Opening..."
+                              : deletePendingProjectId === project.id
+                                ? "Deleting..."
+                                : "Current"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="ai-projects-modal-card-body">
+                        {project.previewImageUrls?.length ? (
+                          <div
+                            className="ai-projects-modal-card-preview-grid"
+                            data-testid={`project-preview-grid-${project.id}`}
+                            data-count={Math.min(project.previewImageUrls.length, 4)}
+                            aria-hidden="true"
+                          >
+                            {project.previewImageUrls.slice(0, 4).map((url, index) => (
+                              <span
+                                key={`${project.id}-preview-${index}`}
+                                className="ai-projects-modal-card-preview-tile"
+                              >
+                                {/* Signed thumbnail URLs are already surface-sized for this modal. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt="" loading="lazy" decoding="async" />
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                       {showOpenAction ? (
-                        <span className="ai-projects-modal-card-open-content">
-                          <span className="ai-projects-modal-card-open-icon" aria-hidden="true">
-                            <FolderSimple size={30} weight="duotone" />
+                        <span
+                          className={`ai-projects-modal-card-open-content${
+                            isOpeningProject ? " is-opening" : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <span className="ai-projects-modal-card-open-icon">
+                            <FolderSimple size={22} weight="duotone" />
                           </span>
                           <span className="ai-projects-modal-card-open-label">
-                            {isOpeningProject ? "Opening..." : "Open →"}
+                            {isOpeningProject ? "Opening" : "Open →"}
                           </span>
                         </span>
-                      ) : (
-                        <>
-                          <div className="ai-projects-modal-card-topline">
-                            <span className="ai-projects-modal-card-title">{project.title}</span>
-                            {showStatusPill ? (
-                              <span
-                                className={`ai-projects-modal-status-pill${
-                                  isCurrentProject ? " is-current" : ""
-                                }`}
-                              >
-                                {pendingProjectId === project.id
-                                  ? "Opening..."
-                                  : deletePendingProjectId === project.id
-                                    ? "Deleting..."
-                                    : "Current"}
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="ai-projects-modal-card-body">
-                            {project.previewImageUrls?.length ? (
-                              <div
-                                className="ai-projects-modal-card-preview-grid"
-                                data-testid={`project-preview-grid-${project.id}`}
-                                data-count={Math.min(project.previewImageUrls.length, 4)}
-                                aria-hidden="true"
-                              >
-                                {project.previewImageUrls.slice(0, 4).map((url, index) => (
-                                  <span
-                                    key={`${project.id}-preview-${index}`}
-                                    className="ai-projects-modal-card-preview-tile"
-                                  >
-                                    {/* Signed thumbnail URLs are already surface-sized for this modal. */}
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt="" loading="lazy" decoding="async" />
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-                        </>
-                      )}
+                      ) : null}
                     </button>
                   </div>
                 );

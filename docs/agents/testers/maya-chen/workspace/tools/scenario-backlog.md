@@ -4,12 +4,14 @@ Use this backlog when the user says `run test` without a specific scenario.
 
 ## Current Priority
 
-1. Continue `Tiny Apartment Reset Kit` by finding the first paid generated image again.
-2. Prompt/detail recovery run for the generated image metadata.
-3. Create or verify the project home for `Tiny Apartment Reset Kit`.
-4. Reference Grid understanding run.
-5. Quick Slot Inventory understanding run.
-6. Second image variant run with strict 4-8 credit limit.
+Use `../active-next-scenarios.md` as the current short queue. This backlog remains the broader source of reusable scenarios.
+
+1. Prompt/detail recovery run for the generated image metadata.
+2. Create or verify the project home for `Tiny Apartment Reset Kit`.
+3. Reference Grid understanding run.
+4. Quick Slot Inventory understanding run.
+5. Second image variant run with strict 4-8 credit limit.
+6. Credits and renewal confidence run.
 
 ## Durable UGC Goal
 

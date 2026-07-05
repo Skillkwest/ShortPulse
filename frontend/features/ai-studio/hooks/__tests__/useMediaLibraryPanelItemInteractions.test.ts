@@ -133,6 +133,7 @@ describe("useMediaLibraryPanelItemInteractions", () => {
         preview_storage_path: "user-1/media/second-poster.webp",
         poster_variant_path: "user-1/media/second-poster.webp",
         file_type: "video/mp4",
+        duration_seconds: 15,
         metadata: null,
         signedUrl: "https://signed.example.com/second.mp4",
       },
@@ -174,6 +175,7 @@ describe("useMediaLibraryPanelItemInteractions", () => {
           {
             id: "media-2",
             fileType: "video",
+            durationMs: 15_000,
             previewPosterUrl: "https://signed.example.com/second-poster.webp",
           },
         ],

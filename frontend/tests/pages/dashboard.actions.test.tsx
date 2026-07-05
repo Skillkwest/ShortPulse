@@ -653,6 +653,7 @@ describe("Dashboard actions", () => {
     render(
       <AuthenticatedDashboardView
         dashboardAnnouncement={null}
+        dashboardAnnouncementLoading={false}
         dashboardFallbackHelperCopy="Start a project from your dashboard."
         dashboardTutorials={[]}
         firstName="Kirk"

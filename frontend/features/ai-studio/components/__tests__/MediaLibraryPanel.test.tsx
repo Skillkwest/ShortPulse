@@ -1667,6 +1667,7 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByLabelText("2 saved media items")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
@@ -1696,6 +1697,7 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByLabelText("2 saved media items")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
@@ -1812,10 +1814,17 @@ describe("MediaLibraryPanel", () => {
   );
 
   it("bulk deletes selected media from All Media after confirmation", async () => {
+    const deferredDelete = createDeferred<void>();
+    deleteMediaFileWithStorageMock.mockImplementationOnce(async () => {
+      await deferredDelete.promise;
+      return true;
+    });
+
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByLabelText("2 saved media items")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
@@ -1835,9 +1844,24 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Delete selected items?" })).toBeInTheDocument();
+      expect(screen.getByText("Deleting selected items...")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+      expect(screen.getByText(/item deleting\.\.\./)).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      deferredDelete.resolve();
+      await deferredDelete.promise;
+    });
+
+    await waitFor(() => {
       expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
         expect.objectContaining({ id: "media-1" })
       );
+      expect(screen.queryByRole("dialog", { name: "Delete selected items?" })).toBeNull();
+      expect(screen.getByLabelText("1 saved media items")).toBeInTheDocument();
     });
   });
 

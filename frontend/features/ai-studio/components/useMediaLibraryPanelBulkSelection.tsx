@@ -61,6 +61,7 @@ export const useMediaLibraryPanelBulkSelection = ({
 }: UseMediaLibraryPanelBulkSelectionArgs) => {
   const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = useState<string[] | null>(null);
   const [bulkMoveDialogSelectionKey, setBulkMoveDialogSelectionKey] = useState<string | null>(null);
+  const bulkDeleteInFlightRef = React.useRef(false);
 
   const bulkVisibleMediaRows = useMemo(() => {
     if (!shouldShowMedia) return [] as MediaFileRow[];
@@ -108,32 +109,45 @@ export const useMediaLibraryPanelBulkSelection = ({
     selectedVisibleMediaKey.length > 0 && bulkMoveDialogSelectionKey === selectedVisibleMediaKey;
 
   const handleCloseBulkDeleteConfirm = useCallback(() => {
+    if (bulkDeleteInFlightRef.current || deleteConfirmSubmitting) return;
     setPendingBulkDeleteIds(null);
-  }, []);
+  }, [deleteConfirmSubmitting]);
 
   const handleConfirmBulkDelete = useCallback(async () => {
+    if (bulkDeleteInFlightRef.current || deleteConfirmSubmitting) return;
     const nextPendingBulkDeleteIds = activePendingBulkDeleteIds
       ? [...activePendingBulkDeleteIds]
       : null;
     if (!nextPendingBulkDeleteIds?.length) return;
-    setPendingBulkDeleteIds(null);
+    bulkDeleteInFlightRef.current = true;
     const selectedIdSet = new Set(nextPendingBulkDeleteIds);
     const selectedRows = mediaRows.filter((row) => selectedIdSet.has(row.id));
-    const deleted = await deleteMediaRowsFromLibrary(selectedRows);
-    if (deleted) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const id of nextPendingBulkDeleteIds) {
-        if (!mediaRows.some((row) => row.id === id)) {
-          next.delete(id);
-        }
+    try {
+      const deleted = await deleteMediaRowsFromLibrary(selectedRows);
+      if (deleted) {
+        setSelectedIds(new Set());
+        return;
       }
-      return next;
-    });
-  }, [activePendingBulkDeleteIds, deleteMediaRowsFromLibrary, mediaRows, setSelectedIds]);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of nextPendingBulkDeleteIds) {
+          if (!mediaRows.some((row) => row.id === id)) {
+            next.delete(id);
+          }
+        }
+        return next;
+      });
+    } finally {
+      bulkDeleteInFlightRef.current = false;
+      setPendingBulkDeleteIds(null);
+    }
+  }, [
+    activePendingBulkDeleteIds,
+    deleteConfirmSubmitting,
+    deleteMediaRowsFromLibrary,
+    mediaRows,
+    setSelectedIds,
+  ]);
 
   const handleOpenBulkDeleteConfirm = useCallback(() => {
     if (!selectedVisibleMediaRows.length || !isRootFolderSelected) return;

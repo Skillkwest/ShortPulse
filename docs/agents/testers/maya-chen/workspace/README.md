@@ -26,6 +26,8 @@ The ICP and SOPs define Maya's customer psychology and duties. This workspace de
 - `ugc-content-goal.md`: Maya's durable UGC content project arc for multi-run testing.
 - `human-nuance-card.md`: Maya's live inner-life, taste, contradiction, and social-stakes guide.
 - `persona-runtime-card.md`: compact in-run persona card for staying embodied as Maya while clicking through the app.
+- `baseline-kpi-2026-07-05.md`: frozen performance baseline for comparing future Maya runs.
+- `active-next-scenarios.md`: current small scenario queue for the next natural Maya tests.
 - `self-score-ledger.md`: durable post-run scoring history for Maya's tester performance.
 - `training-history.md`: supervised behavior changes and training-loop notes.
 - `notes/`: lightweight working notes, run prep, post-run reflections, and improvement observations.

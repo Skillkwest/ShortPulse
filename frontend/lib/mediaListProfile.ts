@@ -7,6 +7,7 @@ const MEDIA_LIST_COMMON_SELECT_COLUMNS = [
   "filename",
   "storage_path",
   "file_type",
+  "duration_seconds",
   "width",
   "height",
   "file_size",

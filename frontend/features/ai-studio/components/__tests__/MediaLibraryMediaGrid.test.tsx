@@ -139,6 +139,27 @@ describe("MediaLibraryMediaGrid", () => {
     expect(screen.getByText("0:15")).toBeInTheDocument();
   });
 
+  it("shows an audio duration badge when list-row duration seconds were mirrored into metadata", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        id: "audio-1",
+        filename: "voice-note.mp3",
+        storage_path: "user-1/uploads/voice-note.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.mp3",
+        duration_seconds: 12,
+        metadata: { source_mode: "sound-effects" },
+      },
+    ];
+
+    const { container } = render(<MediaLibraryMediaGrid {...props} />);
+
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+    expect(container.querySelector('[data-media-duration-kind="sound-effects"]')).not.toBeNull();
+  });
+
   it("keeps mixed-feed video duration badges in the media frame and out of the action row", () => {
     const file = {
       ...baseProps().activeMedia[0],

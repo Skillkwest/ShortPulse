@@ -24,6 +24,7 @@ import {
   resolvePublishedGenerationMediaByIndex,
 } from "./generatedMediaAuthority";
 import { hasDurationMetadata, resolveDurationMetadataPatch } from "./mediaLibraryDurationMetadata";
+import { uploadMediaFile, type MediaUploadDestinationTab } from "./mediaLibraryPanelApi";
 import type { StudioMode } from "../types";
 
 type MediaLibraryFileType = "image" | "video" | "audio";
@@ -296,6 +297,10 @@ const shouldPreferServerCopyForAiStudioVideo = (input: SaveMediaUrlInput): boole
   Boolean(input.generationId) &&
   URL_PROTOCOL_PATTERN.test(input.url) &&
   !input.previewStoragePathHint;
+
+const resolveUploadDestinationTabForFileType = (
+  fileType: MediaLibraryFileType
+): MediaUploadDestinationTab => (fileType === "video" ? "uploaded_videos" : "uploaded_images");
 
 const signMediaDeliveryPaths = async (
   storagePaths: Array<string | null | undefined>
@@ -663,6 +668,67 @@ const saveMediaUrlToLibraryViaServerCopy = async (
     }
   }
   return parsed;
+};
+
+const saveFetchedUploadMediaViaCanonicalUpload = async ({
+  input,
+  blob,
+  contentType,
+}: {
+  input: SaveMediaUrlInput;
+  blob: Blob;
+  contentType: string | null;
+}): Promise<SaveMediaUrlResult> => {
+  const fileType = resolveFileType(contentType, input.mode, input.fileTypeHint);
+  const extension = resolveExtension(contentType, input.url);
+  const uploadFile = new File([blob], buildFilename(input.promptText, extension, input.index), {
+    type: contentType ?? blob.type,
+  });
+  const uploaded = await uploadMediaFile({
+    file: uploadFile,
+    destinationTab: resolveUploadDestinationTabForFileType(fileType),
+  });
+
+  const projectId = normalizeProjectId(input.projectId);
+  if (projectId) {
+    try {
+      await associateMediaFilesWithProject({
+        projectId,
+        mediaFileIds: [uploaded.id],
+        userId: input.userId ?? null,
+      });
+    } catch (error) {
+      logProjectAssociationWarning({
+        projectId,
+        entityType: "media",
+        entityIds: [uploaded.id],
+        error,
+      });
+    }
+  }
+
+  const persistedFileType = resolvePersistedMediaLibraryFileType({
+    storage_path: uploaded.storage_path,
+    file_type: uploaded.file_type,
+    metadata: null,
+    poster_variant_path: null,
+    preview_variant_path: null,
+  });
+  const delivery = await resolveSavedMediaDelivery({
+    previewStoragePath: uploaded.preview_storage_path || uploaded.storage_path,
+    previewPosterStoragePath: null,
+    fullStoragePath: uploaded.storage_path,
+    previewUrlHint: uploaded.signedUrl,
+    fullUrlHint: uploaded.signedUrl,
+  });
+
+  return {
+    mediaFileId: uploaded.id,
+    storagePath: uploaded.storage_path,
+    fileType: persistedFileType,
+    fileSize: uploaded.file_size ?? 0,
+    delivery,
+  };
 };
 
 const isDuplicateInsertError = (error: unknown): boolean => {
@@ -1453,6 +1519,13 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       return await saveMediaUrlToLibraryViaServerCopy(input);
     }
     throw error;
+  }
+  if (input.source === "upload") {
+    return await saveFetchedUploadMediaViaCanonicalUpload({
+      input,
+      blob,
+      contentType,
+    });
   }
   const fileType = resolveFileType(contentType, input.mode, input.fileTypeHint);
   const metadataDimensions = resolveImageDimensionsFromMetadata(input.metadata ?? null);

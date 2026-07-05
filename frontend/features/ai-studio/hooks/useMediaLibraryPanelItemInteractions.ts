@@ -8,8 +8,8 @@ import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   BUCKET,
   resolveMediaAudioPresentation,
+  resolveMediaFileRowDurationMs,
   resolveMediaMetadataAudioSourceMode,
-  resolveMediaMetadataDurationMs,
   resolveMediaMetadataModelId,
   resolveMediaMetadataPromptText,
   resolveMediaMetadataTranscriptText,
@@ -125,7 +125,7 @@ const buildLibraryMediaReferencePayload = ({
     companionArtUrl: audioPresentation.backgroundImageUrl,
     companionArtStoragePath: isAudio ? audioPresentation.backgroundImageStoragePath : null,
     audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
-    durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+    durationMs: resolveMediaFileRowDurationMs(file),
     waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
     width: dragDimensions.width,
     height: dragDimensions.height,

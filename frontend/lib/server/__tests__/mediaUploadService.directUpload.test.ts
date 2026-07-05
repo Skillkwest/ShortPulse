@@ -5,6 +5,7 @@ import {
   finalizePreparedMediaUploadForUser,
   prepareMediaUploadForUser,
 } from "../mediaUploadService";
+import { MAX_UPLOAD_BYTES } from "../mediaUploadPolicy";
 
 vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: vi.fn(),
@@ -351,6 +352,39 @@ describe("prepareMediaUploadForUser", () => {
       signedUrl:
         "https://signed.example/user-1%2Fvariants%2Fvideos%2Fmedia-1%2Fpreview_loop_360p.mp4",
     });
+  });
+
+  it("rejects oversized staged video uploads before moving or persisting media", async () => {
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MAX_UPLOAD_BYTES + 1,
+        type: "video/mp4",
+        arrayBuffer: vi.fn(),
+      },
+      error: null,
+    });
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        destinationTab: "uploaded_videos",
+        storagePath: "user-1/upload-staging/uploaded_videos/too-large.mp4",
+        filename: "too-large.mp4",
+        declaredMimeType: "video/mp4",
+      })
+    ).rejects.toMatchObject({
+      status: 413,
+      message: "Upload failed: file too large",
+    });
+
+    expect(moveMock).not.toHaveBeenCalled();
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(videoVariantMocks.upsertVideoPreviewVariantFromBuffer).not.toHaveBeenCalled();
+    expect(videoVariantMocks.upsertVideoPosterVariantFromBuffer).not.toHaveBeenCalled();
+    expect(removeMock).toHaveBeenCalledWith([
+      "user-1/upload-staging/uploaded_videos/too-large.mp4",
+    ]);
   });
 
   it("finalizes a staged audio upload by moving it into durable storage", async () => {

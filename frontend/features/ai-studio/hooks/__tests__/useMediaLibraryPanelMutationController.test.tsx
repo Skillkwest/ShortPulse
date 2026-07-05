@@ -181,6 +181,7 @@ describe("useMediaLibraryPanelMutationController", () => {
 
   it("notifies the workspace when deleted library media must be removed from right-rail state", async () => {
     const onDeleteMediaRowsFromWorkspace = vi.fn();
+    const applyLibraryTotalCountDelta = vi.fn();
 
     const { result } = renderHook(() =>
       useMediaLibraryPanelMutationController({
@@ -194,6 +195,7 @@ describe("useMediaLibraryPanelMutationController", () => {
         setMediaRows: vi.fn(),
         setPromptRows: vi.fn(),
         onDeleteMediaRowsFromWorkspace,
+        applyLibraryTotalCountDelta,
       })
     );
 
@@ -214,5 +216,6 @@ describe("useMediaLibraryPanelMutationController", () => {
     });
 
     expect(onDeleteMediaRowsFromWorkspace).toHaveBeenCalledWith([deletedRow]);
+    expect(applyLibraryTotalCountDelta).toHaveBeenCalledWith(-1);
   });
 });

@@ -33,7 +33,15 @@ export function MediaLibraryPanelBulkActions({
     >
       <div className="media-library-panel-bulk-actions-copy">
         <strong>{selectedCount}</strong>
-        <span>{selectedCount === 1 ? " item selected" : " items selected"}</span>
+        <span>
+          {disabled
+            ? selectedCount === 1
+              ? " item deleting..."
+              : " items deleting..."
+            : selectedCount === 1
+              ? " item selected"
+              : " items selected"}
+        </span>
       </div>
       <div className="media-library-panel-bulk-actions-buttons">
         <button

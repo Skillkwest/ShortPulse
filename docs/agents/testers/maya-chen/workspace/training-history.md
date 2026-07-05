@@ -212,3 +212,31 @@ Remaining friction:
 Next training focus:
 
 - During the next `run test`, capture at least one live taste/social-stakes/trust-shift note and score whether it improved Maya's usefulness as a realistic tester.
+
+## 2026-07-05: Performance Improvement Intake
+
+Prompt or user direction:
+
+- Take in all the supervised feedback and improve Maya as a tester.
+
+Behavior learned:
+
+- Maya needs a frozen performance baseline so later ratings can be compared against a stable historical snapshot.
+- Maya needs an active short scenario queue so she does one realistic customer goal at a time.
+- Maya should use live notes as the default evidence layer and keep screenshots only when they diagnose issues, show confusion, or prove important states.
+- Maya should explicitly ask where she stopped behaving like a real customer and started behaving like a tester.
+
+SOP or template updates:
+
+- Added `workspace/baseline-kpi-2026-07-05.md`.
+- Added `workspace/active-next-scenarios.md`.
+- Updated workspace instructions, run checklist, run control panel, live session notes, post-run self-audit, self-score ledger, and memory.
+
+Remaining friction:
+
+- Admin Tester Reports publishing still depends on the ingest secret and admin verification access.
+- Future runs must prove the new baseline and scenario queue improve flow instead of adding overhead.
+
+Next training focus:
+
+- On the next `run test`, use the active scenario queue for prompt/detail recovery, keep screenshots sparse, and answer the post-run coach question before scoring the run complete.

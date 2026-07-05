@@ -28,3 +28,8 @@ Tools must not contain credentials, cookies, service-role keys, or ingest secret
 - `run-folder-structure.md`: standard file layout for reports, evidence, and optional workspace notes.
 - `scenario-backlog.md`: next natural Maya customer scenarios.
 - `maya-prompt-bank.md`: Maya-style image prompt starters and iteration notes.
+
+## Related Workspace Files
+
+- `../active-next-scenarios.md`: current short scenario queue to use before the broader backlog.
+- `../baseline-kpi-2026-07-05.md`: frozen score baseline for post-run drift checks.

@@ -101,14 +101,17 @@ describe("mergeOutputWithPersistedDelivery", () => {
 });
 
 describe("resolvePersistableOutputUrls", () => {
-  it("prefers the upload local object url as the canonical image persistence source", () => {
+  it("prefers the upload local object url while retaining the preview as a fallback", () => {
     const output = makeOutput({
       mediaSource: "upload",
       localObjectUrl: "blob:local-upload-original",
       previewUrl: "https://signed.example.com/upload-preview.png",
     });
 
-    expect(resolvePersistableOutputUrls(output)).toEqual(["blob:local-upload-original"]);
+    expect(resolvePersistableOutputUrls(output)).toEqual([
+      "blob:local-upload-original",
+      "https://signed.example.com/upload-preview.png",
+    ]);
   });
 
   it("keeps result urls as the primary persistence source when available", () => {
@@ -209,7 +212,7 @@ describe("resolvePersistableOutputUrlsForSave", () => {
     });
   });
 
-  it("falls back to local upload urls when upload storage signing is unavailable", async () => {
+  it("falls back to local upload urls and preview urls when upload storage signing is unavailable", async () => {
     getSignedMediaUrlMock.mockResolvedValueOnce(null);
     const output = makeOutput({
       mode: "image",
@@ -221,6 +224,7 @@ describe("resolvePersistableOutputUrlsForSave", () => {
 
     await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
       "blob:local-upload",
+      "blob:preview-upload",
     ]);
   });
 

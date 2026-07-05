@@ -175,6 +175,7 @@
 
 .bootstrapStyleScope :global(.ai-projects-modal-card) {
   appearance: none;
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 12px 14px;
@@ -223,8 +224,8 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-selected) {
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  padding-right: 60px;
   gap: 0;
   text-align: left;
   border-color: rgba(37, 169, 191, 0.48);
@@ -252,12 +253,21 @@
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-open-content) {
-  width: min(100%, 250px);
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 22%;
+  min-width: 50px;
+  max-width: 64px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  column-gap: 14px;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 6px 0 12px;
+  border-radius: 0 8px 8px 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.72) 44%, #000 100%);
 }
 
 .bootstrapStyleScope :global(.ai-projects-modal-card-open-icon) {
@@ -270,18 +280,28 @@
 .bootstrapStyleScope :global(.ai-projects-modal-card-open-label) {
   display: block;
   color: #f8fbff;
-  font-size: 23px;
-  line-height: 1.04;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1;
   font-weight: var(--font-bold);
   letter-spacing: 0;
+  text-overflow: clip;
+  white-space: nowrap;
   transition: transform 140ms ease;
   will-change: transform;
 }
 
 .bootstrapStyleScope
+  :global(.ai-projects-modal-card-open-content):global(.is-opening)
+  :global(.ai-projects-modal-card-open-label) {
+  font-size: 10px;
+}
+
+.bootstrapStyleScope
   :global(.ai-projects-modal-card-shell):global(.is-selected):hover
   :global(.ai-projects-modal-card-open-label) {
-  transform: translateX(8px);
+  transform: translateX(3px);
 }
 
 .bootstrapStyleScope

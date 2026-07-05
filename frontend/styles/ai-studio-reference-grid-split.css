@@ -495,6 +495,40 @@
   margin-left: 8px;
 }
 
+.reference-grid-hover-helper {
+  max-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(201, 205, 214, 0.58);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0;
+  text-transform: none;
+  transform: translateY(1px);
+  transition:
+    max-width 0.18s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.reference-all-refs-section:has(
+    .reference-card.has-preview:hover,
+    .reference-card.has-video:hover,
+    .reference-card.has-audio:hover,
+    .reference-card.has-preview:focus-visible,
+    .reference-card.has-video:focus-visible,
+    .reference-card.has-audio:focus-visible
+  )
+  .reference-grid-hover-helper {
+  max-width: 240px;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
 .reference-grid-top-warning {
   margin: 6px 8px 10px;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveMediaAudioBackgroundImageUrl,
   resolveMediaAudioPresentation,
+  resolveMediaFileRowDurationMs,
   resolveMediaMetadataDisplayTitle,
   resolveMediaMetadataDurationMs,
   type MediaFileRow,
@@ -33,6 +34,28 @@ describe("mediaLibraryModalModel audio metadata", () => {
     expect(resolveMediaMetadataDurationMs({ duration_ms: 0 }, { fileType: "audio/mpeg" })).toBe(
       null
     );
+  });
+
+  it("falls back to top-level row duration seconds when metadata has no duration", () => {
+    expect(
+      resolveMediaFileRowDurationMs(
+        createAudioRow({
+          duration_seconds: "12.5",
+          metadata: { source_mode: "music" },
+        })
+      )
+    ).toBe(12_500);
+  });
+
+  it("keeps metadata duration ahead of top-level row duration seconds", () => {
+    expect(
+      resolveMediaFileRowDurationMs(
+        createAudioRow({
+          duration_seconds: 15,
+          metadata: { duration_seconds: 8 },
+        })
+      )
+    ).toBe(8_000);
   });
 
   it("resolves audio companion art from metadata fallback fields", () => {

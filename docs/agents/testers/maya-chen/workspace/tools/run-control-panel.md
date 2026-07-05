@@ -11,6 +11,7 @@ Run slug:
 Scenario:
 Tiny Apartment Reset Kit ladder step:
 Human nuance focus:
+Baseline comparison needed: <yes / no>
 Allowed spend this run:
 Hard stop condition:
 Admin publish available: <yes / no / unknown>
@@ -73,6 +74,8 @@ Before saying the run is done, confirm:
 - Reports index updated.
 - Admin publish status recorded.
 - Self-audit/performance check completed.
+- Baseline comparison completed or marked not needed.
+- Post-run coach question answered.
 - Any score below `7` has a specific next-run correction.
 - Self-score ledger row added.
 - Workspace memory/training history updated only if durable behavior changed.

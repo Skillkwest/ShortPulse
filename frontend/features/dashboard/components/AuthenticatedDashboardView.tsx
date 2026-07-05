@@ -39,6 +39,7 @@ export type DashboardToolCard = {
 
 type AuthenticatedDashboardViewProps = {
   dashboardAnnouncement: DashboardAnnouncement | null;
+  dashboardAnnouncementLoading: boolean;
   dashboardFallbackHelperCopy: string;
   dashboardTutorials: DashboardTutorial[];
   firstName: string;
@@ -55,6 +56,7 @@ type AuthenticatedDashboardViewProps = {
  */
 export function AuthenticatedDashboardView({
   dashboardAnnouncement,
+  dashboardAnnouncementLoading,
   dashboardFallbackHelperCopy,
   dashboardTutorials,
   firstName,
@@ -80,7 +82,7 @@ export function AuthenticatedDashboardView({
                 <strong className="hero-announcement-title">{dashboardAnnouncement.title}</strong>
                 <span className="hero-announcement-message">{dashboardAnnouncement.message}</span>
               </p>
-            ) : (
+            ) : dashboardAnnouncementLoading ? null : (
               <p className="hero-subtext">{dashboardFallbackHelperCopy}</p>
             )}
           </div>

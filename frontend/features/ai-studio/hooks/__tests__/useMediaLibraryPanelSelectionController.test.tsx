@@ -251,10 +251,9 @@ describe("useMediaLibraryPanelSelectionController", () => {
       storage_path: "user-1/media/theme.mp3",
       preview_storage_path: "user-1/media/theme.mp3",
       signedUrl: null,
+      duration_seconds: 8,
       metadata: {
         companionArtUrl: "https://signed.example.com/theme-cover.webp",
-        duration_ms: 0,
-        resolved_duration_seconds: 8,
       },
       companion_art_storage_path: "user-1/media/theme-cover.webp",
       source: "ai_studio",

@@ -70,6 +70,11 @@ export function ReferenceGridArchiveControls({
               {showTopTitleDivider && showTitle ? (
                 <span className="reference-section-title-divider" aria-hidden="true" />
               ) : null}
+              {showTitle ? (
+                <p className="tiny subdued reference-grid-hover-helper" aria-hidden="true">
+                  Double-click a reference to view details.
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="preview-header-actions">

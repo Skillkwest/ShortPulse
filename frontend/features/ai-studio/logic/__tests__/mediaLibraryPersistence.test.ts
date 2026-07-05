@@ -61,6 +61,12 @@ const mockMediaEventsTable = () => ({
   insert: vi.fn(async () => ({ error: null })),
 });
 
+const createJsonResponse = (payload: unknown, status = 200): Response =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
 const mockVideoPosterExtraction = () => {
   const originalCreateElement = document.createElement.bind(document);
   const fakeDrawImage = vi.fn();
@@ -1362,16 +1368,9 @@ describe("saveMediaUrlToLibrary", () => {
       error: null,
     });
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
-    const single = vi.fn().mockResolvedValue({
-      data: { id: "media-remembered-upload" },
-      error: null,
-    });
-    const insert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single,
-      })),
-    }));
-    const upload = vi.fn().mockResolvedValue({ error: null });
+    const insert = vi.fn();
+    const upload = vi.fn();
+    const uploadToSignedUrl = vi.fn().mockResolvedValue({ error: null });
     const remove = vi.fn().mockResolvedValue({ error: null });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
@@ -1387,6 +1386,7 @@ describe("saveMediaUrlToLibrary", () => {
       storage: {
         from: vi.fn(() => ({
           upload,
+          uploadToSignedUrl,
           remove,
         })),
       },
@@ -1397,6 +1397,32 @@ describe("saveMediaUrlToLibrary", () => {
     rememberObjectUrlBlob(blobUrl, rememberedBlob);
     const browserFetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
     vi.stubGlobal("fetch", browserFetch);
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/uploaded_images/remembered.png",
+            uploadToken: "upload-token",
+            mimeType: "image/png",
+            name: "remembered.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          file: {
+            id: "media-remembered-upload",
+            filename: "remembered.png",
+            storage_path: "user-1/uploads/images/remembered.png",
+            preview_storage_path: "user-1/uploads/images/remembered.png",
+            file_type: "image",
+            file_size: rememberedBlob.size,
+            source: "upload",
+            created_at: "2026-07-05T00:00:00.000Z",
+            signedUrl: "https://cdn.shortpulse.test/remembered.png",
+          },
+        })
+      );
 
     try {
       const result = await saveMediaUrlToLibrary({
@@ -1408,20 +1434,30 @@ describe("saveMediaUrlToLibrary", () => {
 
       expect(result.mediaFileId).toBe("media-remembered-upload");
       expect(browserFetch).not.toHaveBeenCalled();
-      expect(upload).toHaveBeenCalledWith(
-        "user-1/uploads/images/uuid-remembered-upload-0.png",
-        rememberedBlob,
+      expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+        1,
+        "/api/media/prepare-upload",
+        expect.objectContaining({
+          method: "POST",
+        })
+      );
+      expect(uploadToSignedUrl).toHaveBeenCalledWith(
+        "user-1/upload-staging/uploaded_images/remembered.png",
+        "upload-token",
+        expect.any(File),
         expect.objectContaining({
           contentType: "image/png",
         })
       );
-      expect(insert).toHaveBeenCalledWith(
+      expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+        2,
+        "/api/media/finalize-upload",
         expect.objectContaining({
-          file_size: rememberedBlob.size,
-          file_type: "image",
-          storage_path: "user-1/uploads/images/uuid-remembered-upload-0.png",
+          method: "POST",
         })
       );
+      expect(upload).not.toHaveBeenCalled();
+      expect(insert).not.toHaveBeenCalled();
     } finally {
       forgetObjectUrlBlob(blobUrl);
     }
@@ -2539,6 +2575,7 @@ describe("saveMediaUrlToLibrary", () => {
     }));
     const variantUpsert = vi.fn(async () => ({ error: null }));
     const upload = vi.fn().mockResolvedValue({ error: null });
+    const uploadToSignedUrl = vi.fn().mockResolvedValue({ error: null });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -2571,6 +2608,7 @@ describe("saveMediaUrlToLibrary", () => {
       storage: {
         from: vi.fn(() => ({
           upload,
+          uploadToSignedUrl,
           remove: vi.fn(),
         })),
       },
@@ -2584,6 +2622,32 @@ describe("saveMediaUrlToLibrary", () => {
         headers: new Headers({ "content-type": "video/mp4" }),
       })
     );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/uploaded_videos/project-video.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "project-video.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          file: {
+            id: "media-project-1",
+            filename: "project-video.mp4",
+            storage_path: "user-1/uploads/videos/project-video.mp4",
+            preview_storage_path: "user-1/variants/videos/media-project-1/preview.mp4",
+            file_type: "video",
+            file_size: 5,
+            source: "upload",
+            created_at: "2026-07-05T00:00:00.000Z",
+            signedUrl: "https://cdn.shortpulse.test/project-video.mp4",
+          },
+        })
+      );
 
     const result = await saveMediaUrlToLibrary({
       url: "https://cdn.shortpulse.test/project-video.mp4",
@@ -2594,6 +2658,15 @@ describe("saveMediaUrlToLibrary", () => {
     });
 
     expect(result.mediaFileId).toBe("media-project-1");
+    expect(upload).not.toHaveBeenCalled();
+    expect(uploadToSignedUrl).toHaveBeenCalledWith(
+      "user-1/upload-staging/uploaded_videos/project-video.mp4",
+      "upload-token",
+      expect.any(File),
+      expect.objectContaining({
+        contentType: "video/mp4",
+      })
+    );
     expect(projectMediaUpsert).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -2638,6 +2711,7 @@ describe("saveMediaUrlToLibrary", () => {
     }));
     const variantUpsert = vi.fn(async () => ({ error: null }));
     const upload = vi.fn().mockResolvedValue({ error: null });
+    const uploadToSignedUrl = vi.fn().mockResolvedValue({ error: null });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -2670,6 +2744,7 @@ describe("saveMediaUrlToLibrary", () => {
       storage: {
         from: vi.fn(() => ({
           upload,
+          uploadToSignedUrl,
           remove: vi.fn(),
         })),
       },
@@ -2683,6 +2758,32 @@ describe("saveMediaUrlToLibrary", () => {
         headers: new Headers({ "content-type": "video/mp4" }),
       })
     );
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          target: {
+            storagePath: "user-1/upload-staging/uploaded_videos/project-video-failure.mp4",
+            uploadToken: "upload-token",
+            mimeType: "video/mp4",
+            name: "project-video-failure.mp4",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          file: {
+            id: "media-project-failure-1",
+            filename: "project-video-failure.mp4",
+            storage_path: "user-1/uploads/videos/project-video-failure.mp4",
+            preview_storage_path: "user-1/variants/videos/media-project-failure-1/preview.mp4",
+            file_type: "video",
+            file_size: 5,
+            source: "upload",
+            created_at: "2026-07-05T00:00:00.000Z",
+            signedUrl: "https://cdn.shortpulse.test/project-video-failure.mp4",
+          },
+        })
+      );
 
     const result = await saveMediaUrlToLibrary({
       url: "https://cdn.shortpulse.test/project-video-failure.mp4",
@@ -2693,6 +2794,8 @@ describe("saveMediaUrlToLibrary", () => {
     });
 
     expect(result.mediaFileId).toBe("media-project-failure-1");
+    expect(upload).not.toHaveBeenCalled();
+    expect(uploadToSignedUrl).toHaveBeenCalled();
     expect(projectMediaUpsert).toHaveBeenCalled();
   });
 });

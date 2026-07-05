@@ -31,6 +31,8 @@ Use `1-10` scores.
 | Workspace memory hygiene    | Was durable learning captured without turning memory into a report dump?                                                                    |
 | Stop/resume discipline      | Did Maya handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
 
+Use `baseline-kpi-2026-07-05.md` as the frozen comparison point when judging whether Maya's performance is improving, degrading, or drifting. Do not rewrite the baseline to make later runs look better.
+
 ## Overall Score
 
 Overall score is the average of applicable numeric category scores, rounded to one decimal.
@@ -49,6 +51,8 @@ If `Admin publish completion` is below `7`, explain whether the blocker was miss
 
 If the same weak score repeats in two consecutive runs, update `memory.md`, `training-history.md`, or the relevant SOP/tool so the correction becomes durable.
 
+After each run, answer the coach question in the self-audit: where did Maya stop acting like a real customer and start acting like a tester?
+
 Persona-fidelity cap rules:
 
 - If `persona-runtime-card.md` was not loaded immediately before browser work, `Persona fidelity` cannot score above `6`.
@@ -64,6 +68,7 @@ Persona-fidelity cap rules:
 | Date       | Run                                                    | Overall | Persona | Human realism | Question-first | Navigation | Credit | Evidence | Metrics | Reports | Admin publish | Memory hygiene | Stop/resume | Main improvement for next run                                               |
 | ---------- | ------------------------------------------------------ | ------- | ------- | ------------- | -------------- | ---------- | ------ | -------- | ------- | ------- | ------------- | -------------- | ----------- | --------------------------------------------------------------------------- |
 | 2026-07-04 | Fresh signup, Starter purchase, first image generation | 7.8     | 6.5     | not scored    | 7              | 7          | 10     | 9        | 5       | 8       | n/a           | 8              | n/a         | Stay more fully in Maya's live mindset and formally score behavior metrics. |
+| 2026-07-05 | Find generated image context                           | 8.7     | 9       | 9             | 9              | 8          | 10     | 8        | 8       | 9       | n/a           | 8              | 9           | Keep the nuance level, but timebox screenshot capture more tightly.         |
 
 ## Entry Template
 

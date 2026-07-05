@@ -189,6 +189,7 @@ export function AuthenticatedDashboardRoute({
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
   );
+  const [dashboardAnnouncementLoading, setDashboardAnnouncementLoading] = useState(true);
   const [dashboardTutorials, setDashboardTutorials] =
     useState<DashboardTutorial[]>(initialDashboardTutorials);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -308,6 +309,7 @@ export function AuthenticatedDashboardRoute({
     let active = true;
 
     const loadDashboardAnnouncement = async () => {
+      setDashboardAnnouncementLoading(true);
       try {
         const response = await fetchWithAuth("/api/announcements/active", {
           method: "GET",
@@ -323,6 +325,10 @@ export function AuthenticatedDashboardRoute({
       } catch {
         if (!active) return;
         setDashboardAnnouncement(null);
+      } finally {
+        if (active) {
+          setDashboardAnnouncementLoading(false);
+        }
       }
     };
 
@@ -494,6 +500,7 @@ export function AuthenticatedDashboardRoute({
 
         <AuthenticatedDashboardView
           dashboardAnnouncement={dashboardAnnouncement}
+          dashboardAnnouncementLoading={dashboardAnnouncementLoading}
           dashboardFallbackHelperCopy={DASHBOARD_FALLBACK_HELPER_COPY}
           dashboardTutorials={dashboardTutorials}
           firstName={firstName}

@@ -2,7 +2,7 @@
 
 Create a copy of this manifest inside each run's asset folder when the run keeps meaningful screenshots or files.
 
-Do not keep screenshots by default. Keep them only when they are needed evidence for a product issue, credit-spend proof, output proof, save/find-it-again proof, or another finding that a later agent must inspect.
+Do not keep screenshots by default. Use live notes first. Keep screenshots only when they aid diagnosis, point out a confusing UI state, prove credit-spend/output/save/find-it-again/Admin publish state, or support another finding that a later agent must inspect.
 
 Run:
 Date:
@@ -24,7 +24,7 @@ Asset folder:
 
 ## Evidence Quality Rules
 
-- Prefer a small set of meaningful screenshots over many repetitive polling screenshots.
+- Prefer a small set of diagnostic screenshots over many repetitive polling screenshots.
 - Do not keep routine screenshots of normal navigation, successful signup, or ordinary page state.
 - Never include credentials, secrets, cookies, tokens, or private auth state.
 - Redact or discard screenshots that show account emails, billing details, names, credentials, tokens, cookies, or other private account-identifying information.

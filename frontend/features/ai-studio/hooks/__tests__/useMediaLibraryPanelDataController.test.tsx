@@ -490,6 +490,117 @@ describe("useMediaLibraryPanelDataController", () => {
     );
   });
 
+  it("applies local library total deltas and clamps the badge count at zero", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-1",
+          filename: "cat.png",
+          file_type: "image/png",
+          created_at: "2026-04-27T00:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 2,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.libraryTotalCount).toBe(2);
+    });
+
+    act(() => {
+      result.current.applyLibraryTotalCountDelta(-1);
+    });
+    expect(result.current.libraryTotalCount).toBe(1);
+
+    act(() => {
+      result.current.applyLibraryTotalCountDelta(-99);
+    });
+    expect(result.current.libraryTotalCount).toBe(0);
+
+    act(() => {
+      result.current.applyLibraryTotalCountDelta(3);
+    });
+    expect(result.current.libraryTotalCount).toBe(3);
+  });
+
+  it("reconciles a locally adjusted library total count during forced active-row refresh", async () => {
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-1",
+          filename: "cat.png",
+          file_type: "image/png",
+          created_at: "2026-04-27T00:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 2,
+    });
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.libraryTotalCount).toBe(2);
+    });
+
+    act(() => {
+      result.current.applyLibraryTotalCountDelta(-1);
+    });
+    expect(result.current.libraryTotalCount).toBe(1);
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaListPageMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "media-2",
+          filename: "dog.png",
+          file_type: "image/png",
+          created_at: "2026-04-28T00:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 4,
+    });
+
+    await act(async () => {
+      await result.current.refreshActiveRows();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeLibraryTotalCount: true,
+      })
+    );
+    expect(result.current.libraryTotalCount).toBe(4);
+  });
+
   it("keeps current media rows visible during same-scope refresh", async () => {
     const refreshDeferred = createDeferred<{
       rows: Array<{ id: string; filename: string; file_type: string; created_at: string }>;

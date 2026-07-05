@@ -2501,8 +2501,7 @@ button.hero-onboarding {
   line-height: 1.5;
 }
 
-.authenticated-home-hero-copy .hero-subtext,
-.authenticated-home-hero-copy .hero-announcement {
+.authenticated-home-hero-copy .hero-subtext {
   position: absolute;
   top: 54%;
   left: calc(100% + var(--authenticated-home-column-gap));
@@ -2513,10 +2512,8 @@ button.hero-onboarding {
 }
 
 .authenticated-home-hero-copy .hero-announcement {
-  position: static;
   width: min(100%, 520px);
   max-width: none;
-  transform: none;
   text-align: left;
   gap: 14px;
 }

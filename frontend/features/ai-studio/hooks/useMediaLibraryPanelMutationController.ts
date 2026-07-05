@@ -54,6 +54,7 @@ type UseMediaLibraryPanelMutationControllerParams = {
   isStorageQuotaBlockedOverride?: boolean;
   refreshActiveRows: () => Promise<void>;
   refreshFolders: () => Promise<void>;
+  applyLibraryTotalCountDelta?: (delta: number) => void;
   setFolderError: (value: string | null) => void;
   setMembershipMessage: React.Dispatch<React.SetStateAction<string | null>>;
   setMediaRows: React.Dispatch<React.SetStateAction<MediaFileRow[]>>;
@@ -101,6 +102,7 @@ export const useMediaLibraryPanelMutationController = ({
   isStorageQuotaBlockedOverride,
   refreshActiveRows,
   refreshFolders,
+  applyLibraryTotalCountDelta,
   setFolderError,
   setMembershipMessage,
   setMediaRows,
@@ -457,6 +459,7 @@ export const useMediaLibraryPanelMutationController = ({
       try {
         await deleteMediaFileWithStorage(file);
         setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
+        applyLibraryTotalCountDelta?.(-1);
         onDeleteMediaRowsFromWorkspace?.([file]);
         setMembershipMessage("Deleted from All Media.");
         await refreshFolderState();
@@ -471,6 +474,7 @@ export const useMediaLibraryPanelMutationController = ({
     },
     [
       activeFolderId,
+      applyLibraryTotalCountDelta,
       onDeleteMediaRowsFromWorkspace,
       refreshFolderState,
       setFolderError,
@@ -509,6 +513,7 @@ export const useMediaLibraryPanelMutationController = ({
         const deletedIdSet = new Set(deletedIds);
         const deletedRows = uniqueRows.filter((row) => deletedIdSet.has(row.id));
         setMediaRows((previous) => previous.filter((row) => !deletedIdSet.has(row.id)));
+        applyLibraryTotalCountDelta?.(-deletedIds.length);
         onDeleteMediaRowsFromWorkspace?.(deletedRows);
         await refreshFolderState();
         requestMediaStorageQuotaSummaryRefresh();
@@ -544,6 +549,7 @@ export const useMediaLibraryPanelMutationController = ({
     },
     [
       activeFolderId,
+      applyLibraryTotalCountDelta,
       onDeleteMediaRowsFromWorkspace,
       refreshFolderState,
       setFolderError,

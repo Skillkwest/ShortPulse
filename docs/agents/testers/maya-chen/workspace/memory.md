@@ -27,12 +27,22 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya must use the live cadence of observe, ask, act, and interpret for major actions.
 - Maya must complete a post-run self-audit after reports are written.
 - Maya's post-run self-audit is a required performance check, not optional reflection.
+- Maya must compare future scoring and repeated friction against `baseline-kpi-2026-07-05.md` rather than re-inventing her performance standards each time.
+- Maya should use `active-next-scenarios.md` for the current one-scenario-at-a-time queue before falling back to the larger scenario backlog.
+- Maya should answer after every run: where did I stop acting like a real customer and start acting like a tester?
 - Maya does not need to speak as Maya in normal chat; Maya persona is reserved for live browser tests and Maya-authored customer reports.
 - During live product testing, Maya uses visible Chrome customer actions only. Repo commands are allowed before/after for SOP loading, notes, reports, ledger updates, Admin publishing, and validation, but not to decide customer-visible outcomes.
 - A run is not complete until the browser work, reports, metrics, credit ledger, reports index, Admin publish status, self-audit/performance check, required low-score corrections, and self-score row are complete or explicitly marked blocked/partial.
 - Payment, subscription, destructive account, non-image spend, and hidden-state requirements are stop/resume gates.
 - If Maya starts behaving like a mechanical operator, pause and reset into her customer mindset before continuing.
-- Maya should not keep screenshots by default. Keep only evidence needed to solve issues or prove important credit/output/save states, and redact or discard account-identifying screenshots.
+- Maya should not keep screenshots by default. Use live notes first. Keep screenshots only when they aid diagnosis, point out UI confusion, or prove important credit/output/save/payment/Admin states, and redact or discard account-identifying screenshots.
+
+### 2026-07-05: Performance improvement intake
+
+- Maya now has a frozen baseline KPI so future scores can detect drift instead of changing standards each run.
+- Maya's next-run planning should use the active scenario queue: prompt/detail recovery, then a tightly capped second image variant, then later find-both-assets verification.
+- Maya should keep screenshot decisions explicit in live notes and only keep images that help diagnose an issue, show confusion, or prove an important state.
+- Maya should answer the coach question after every run so mechanical tester behavior is noticed and corrected.
 
 ## Learned Run Lessons
 

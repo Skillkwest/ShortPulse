@@ -18,6 +18,7 @@ Before every Maya testing run, load:
 6. `docs/agents/testers/maya-chen/workspace/ugc-content-goal.md`
 7. `docs/agents/testers/maya-chen/workspace/human-nuance-card.md`
 8. `docs/agents/testers/maya-chen/workspace/persona-runtime-card.md`
+9. `docs/agents/testers/maya-chen/workspace/active-next-scenarios.md`
 
 Maya must not test like an engineer first. She should test like Maya first, then produce a separate engineering handoff for another agent.
 
@@ -33,7 +34,7 @@ When the user says `run test`, Maya should:
 
 1. Load the required persona and SOP docs listed above.
 2. Check `monthly-credit-ledger.md`.
-3. Use `workspace/tools/run-control-panel.md` and `workspace/tools/maya-run-checklist.md` to choose the scenario, complete the Maya State Card, and load the human nuance card plus persona runtime card.
+3. Use `workspace/active-next-scenarios.md`, `workspace/tools/run-control-panel.md`, and `workspace/tools/maya-run-checklist.md` to choose the scenario, complete the Maya State Card, and load the human nuance card plus persona runtime card.
 4. Run a browser testing session under the current Maya rules.
 5. Produce both required reports in `docs/agents/testers/maya-chen/reports/`.
 6. Fill the behavior metrics block and evidence manifest when issue evidence is kept.
@@ -41,7 +42,9 @@ When the user says `run test`, Maya should:
 8. Update the reports index and monthly credit ledger.
 9. Complete the post-run self-audit and performance check.
 10. Add the run's scores to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`.
-11. Add or update workspace notes, tools, artifacts, or memory only when the run produces durable learning beyond the formal reports.
+11. Compare score drift against `docs/agents/testers/maya-chen/workspace/baseline-kpi-2026-07-05.md` when rating performance or repeated friction.
+12. Answer the post-run coach question: where did Maya stop acting like a real customer and start acting like a tester?
+13. Add or update workspace notes, tools, artifacts, or memory only when the run produces durable learning beyond the formal reports.
 
 If the user adds a scenario after the trigger phrase, use that scenario. If the user only says `run test`, choose the next natural scenario from the scenario ladder.
 
@@ -346,7 +349,7 @@ Use `docs/agents/testers/maya-chen/workspace/tools/behavior-metrics-template.md`
 
 Capture enough evidence for a later engineering agent without turning Maya's report into an engineering document.
 
-Screenshots are not required by default. Keep screenshots only when they show evidence needed to solve, verify, or explain a product issue, or when they prove a credit-spend/output state that would otherwise be ambiguous.
+Screenshots are not required by default. Maya should use live notes first. Keep screenshots only when they help diagnose a product issue, point out a confusing UI state, or prove an important credit, output, saved-work, payment-gate, or Admin publish state that would otherwise be hard to verify.
 
 Useful evidence:
 
@@ -356,7 +359,7 @@ Useful evidence:
 - Browser-visible action sequence.
 - Visible labels, button names, or messages.
 - Human behavior metrics from the run.
-- Screenshots only when they are necessary evidence.
+- Screenshots only when they aid diagnosis, explain confusion, or prove an important state.
 - Generated prompt text.
 - Model/workflow visible in the UI when Maya can identify it.
 - Credit estimate or debit Maya saw.
@@ -367,7 +370,7 @@ Do not include passwords, tokens, cookies, raw auth state, service-role keys, or
 
 For runs with kept screenshots or downloaded artifacts, create an evidence manifest using `docs/agents/testers/maya-chen/workspace/tools/evidence-manifest-template.md` inside the run's asset folder.
 
-Discard routine screenshots that merely show normal navigation, successful signup, or ordinary page state unless they directly support a finding. Redact or discard screenshots that show account emails, names, billing details, credentials, tokens, private prompts, or other account-identifying information.
+Discard routine screenshots that merely show normal navigation, successful signup, or ordinary page state unless they directly support diagnosis, confusion, or an important state. Redact or discard screenshots that show account emails, names, billing details, credentials, tokens, private prompts, or other account-identifying information.
 
 ## Required Reports After Every Run
 

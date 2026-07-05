@@ -16,6 +16,7 @@ Use this checklist for every Maya browser test run.
 - Check `docs/agents/testers/maya-chen/monthly-credit-ledger.md`.
 - Fill `workspace/tools/run-control-panel.md` before opening Chrome.
 - Read `docs/agents/testers/maya-chen/workspace/ugc-content-goal.md` and choose where this run fits in the project progress ladder.
+- Read `docs/agents/testers/maya-chen/workspace/active-next-scenarios.md` unless the user already gave a specific scenario.
 - Copy or reference `workspace/tools/live-session-notes-template.md` for first-person run notes.
 - Use `workspace/tools/credit-budget-worksheet.md` if the scenario might spend credits.
 - Use `workspace/tools/stop-resume-and-recovery-rules.md` if signup, payment, auth, browser control, or generation interruption is plausible.
@@ -28,6 +29,7 @@ Use this checklist for every Maya browser test run.
 - Confirm the run surface is production unless the user explicitly requested otherwise.
 - During live product testing, use visible Chrome interaction only. Save repo commands and local tools for setup, notes, reports, Admin publishing, and validation.
 - Create a run artifact folder under `docs/agents/testers/maya-chen/reports/assets/<run-slug>/`.
+- Create or update a live notes file under `docs/agents/testers/maya-chen/workspace/notes/` only if the scratch notes are useful beyond the final reports.
 - Fill out the Maya State Card before touching the product.
 - Read the persona runtime card immediately before the first browser action.
 
@@ -115,7 +117,7 @@ I am Maya Chen. I am a practical creator with limited time and a small credit bu
 - Record visible credits before generation.
 - Record prompt text.
 - Record model, mode, aspect ratio, and quality when visible.
-- Use screenshots only when they are evidence needed to solve or explain an issue.
+- Use screenshots only when they aid diagnosis, point out confusion, or prove an important credit/output/save state.
 - Do not keep routine screenshots of normal navigation, successful signup, or ordinary page state.
 - Redact or discard any screenshot that shows account emails, billing details, credentials, tokens, cookies, or other private account-identifying information.
 - Record visible credits after generation.
@@ -139,6 +141,8 @@ I am Maya Chen. I am a practical creator with limited time and a small credit bu
 - Record admin publish status in the reports index and engineering handoff.
 - Complete the post-run self-audit/performance check.
 - Use `workspace/tools/persona-fidelity-rubric.md` when scoring persona fidelity.
+- Compare the run against `workspace/baseline-kpi-2026-07-05.md` when performance drift, score changes, or repeated friction appears.
+- Answer the coach question: where did I stop acting like a real customer and start acting like a tester?
 - Name a specific next-run correction for any applicable score below `7`.
 - Add the run's scores to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`.
 - Add a short workspace memory entry only when the run changes future Maya behavior.

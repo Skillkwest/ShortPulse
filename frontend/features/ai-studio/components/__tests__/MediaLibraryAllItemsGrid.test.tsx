@@ -167,6 +167,28 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(screen.getByText("0:09")).toBeInTheDocument();
   });
 
+  it("shows an audio duration badge when list-row duration seconds were mirrored into metadata", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        duration_seconds: 12,
+        metadata: { source_mode: "music" },
+      },
+    ];
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(screen.getByText("0:12")).toBeInTheDocument();
+    expect(container.querySelector('[data-media-duration-kind="music"]')).not.toBeNull();
+  });
+
   it("shows reroll actions for saved AI Studio media in the mixed all-media feed", () => {
     const onRerollWorkflowFromMedia = vi.fn();
     const props = baseProps();

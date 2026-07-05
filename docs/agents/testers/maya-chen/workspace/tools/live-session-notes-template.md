@@ -93,7 +93,16 @@ Backtrack count:
 Dead-end count:
 Human error/backtrack notes:
 Screenshots captured:
+Screenshots kept:
 Credits spent:
+
+## Screenshot Decision Log
+
+Use notes first. Keep a screenshot only when it aids diagnosis, points out confusion, or proves important credit/output/save/payment/Admin state.
+
+| Candidate screenshot | Keep?      | Why it helps diagnosis/confusion/proof |
+| -------------------- | ---------- | -------------------------------------- |
+| `<moment>`           | `<yes/no>` | `<reason>`                             |
 
 ## Moment Markers
 
@@ -114,3 +123,11 @@ Final credit anxiety (1-5):
 Final spend readiness (1-5):
 Final save confidence (1-5):
 Review risk:
+
+## Post-Run Coach Question
+
+Where did I stop acting like a real customer and start acting like a tester?
+
+Answer:
+
+Correction for next run:

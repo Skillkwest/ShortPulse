@@ -109,9 +109,14 @@ describe("ProjectsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select project Campaign Alpha" }));
 
     expect(onSelectProject).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Open project Campaign Alpha" })).toHaveTextContent(
-      "Open →"
-    );
+    const selectedProjectButton = screen.getByRole("button", {
+      name: "Open project Campaign Alpha",
+    });
+    expect(selectedProjectButton).toHaveTextContent("Campaign Alpha");
+    expect(selectedProjectButton).toHaveTextContent("Open →");
+    expect(
+      selectedProjectButton.querySelector(".ai-projects-modal-card-open-content")
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Delete selected project Campaign Alpha" })
     ).toBeEnabled();
@@ -172,7 +177,10 @@ describe("ProjectsModal", () => {
       expect(screen.getByText("Opening...")).toBeInTheDocument();
     });
     expect(alphaOpenButton).toHaveTextContent("Opening...");
-    expect(alphaOpenButton).not.toHaveTextContent("Campaign Alpha");
+    expect(alphaOpenButton).toHaveTextContent("Campaign Alpha");
+    expect(alphaOpenButton.querySelector(".ai-projects-modal-card-open-content")).toHaveTextContent(
+      "Opening"
+    );
     expect(betaButton).toBeDisabled();
 
     deferredOpen.resolve();

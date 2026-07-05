@@ -117,7 +117,7 @@ const resolvePersistableImageUrl = (
     return uniqueUrls([indexedResultUrl]);
   }
   if (output.mediaSource === "upload" && uploadLocalSource) {
-    return uniqueUrls([uploadLocalSource]);
+    return uniqueUrls([uploadLocalSource, output.previewUrl]);
   }
   return uniqueUrls([output.previewUrl, uploadLocalSource]);
 };

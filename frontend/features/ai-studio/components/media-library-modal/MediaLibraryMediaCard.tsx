@@ -15,7 +15,7 @@ import {
   resolveMediaAudioPresentation,
   resolveMediaMetadataAudioSourceMode,
   resolveMediaMetadataDisplayTitle,
-  resolveMediaMetadataDurationMs,
+  resolveMediaFileRowDurationMs,
   resolveMediaMetadataWaveformPeaks,
   type MediaCardRefCallback,
   type MediaFileRow,
@@ -379,7 +379,7 @@ export function MediaLibraryAudioCard({
   const audioPresentation = resolveMediaAudioPresentation(file);
   const audioLabel = audioPresentation.displayTitle ?? file.filename ?? "media";
   const displayTitle = audioPresentation.displayTitle;
-  const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
+  const durationMs = resolveMediaFileRowDurationMs(file);
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;
   const audioCardLabel = `${
@@ -521,7 +521,7 @@ export function MediaLibraryVisualMediaCard({
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const shouldRenderHoverVideo = Boolean(hasPosterBackedVideoPreview);
   const fallbackVideoPreload = "metadata";
-  const durationMs = resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type });
+  const durationMs = resolveMediaFileRowDurationMs(file);
   const durationMediaUrl = resolveMediaLibraryVideoDurationProbeUrl(file);
   const shouldSetAriaPressed =
     Boolean(onToggleMediaSelection) || setAriaPressedWithoutSelectionMode;

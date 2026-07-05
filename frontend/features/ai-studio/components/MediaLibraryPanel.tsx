@@ -237,6 +237,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     mediaLoading,
     promptLoading,
     mediaPagesLoaded,
+    applyLibraryTotalCountDelta,
     loadMediaPage,
     loadPromptPage,
     refreshActiveRows,
@@ -271,6 +272,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     isStorageQuotaBlockedOverride: routeStorageQuotaBlocked,
     refreshActiveRows,
     refreshFolders,
+    applyLibraryTotalCountDelta,
     setFolderError,
     setMembershipMessage,
     setMediaRows,
@@ -1284,6 +1286,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}
+        bulkDeleteSubmitting={deleteConfirmSubmitting}
         onCloseBulkDeleteConfirm={handleCloseBulkDeleteConfirm}
         onConfirmBulkDelete={() => {
           void handleConfirmBulkDelete();

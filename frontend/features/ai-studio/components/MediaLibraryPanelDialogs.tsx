@@ -24,6 +24,7 @@ type FolderDeleteTarget = {
 
 type MediaLibraryPanelDialogsProps = {
   pendingBulkDeleteIds: string[] | null;
+  bulkDeleteSubmitting?: boolean;
   onCloseBulkDeleteConfirm: () => void;
   onConfirmBulkDelete: () => void;
   bulkMoveDialogOpen: boolean;
@@ -49,6 +50,7 @@ type MediaLibraryPanelDialogsProps = {
  */
 export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDialogs({
   pendingBulkDeleteIds,
+  bulkDeleteSubmitting = false,
   onCloseBulkDeleteConfirm,
   onConfirmBulkDelete,
   bulkMoveDialogOpen,
@@ -79,13 +81,28 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
           <ConfirmationModal
             title="Delete selected items?"
             body={
-              <p>
-                {pendingBulkDeleteIds.length} selected{" "}
-                {pendingBulkDeleteIds.length === 1 ? "item" : "items"} will be removed permanently
-                from your library.
-              </p>
+              <>
+                <p>
+                  {pendingBulkDeleteIds.length} selected{" "}
+                  {pendingBulkDeleteIds.length === 1 ? "item" : "items"} will be removed permanently
+                  from your library.
+                </p>
+                {bulkDeleteSubmitting ? (
+                  <p
+                    className="media-library-panel-delete-progress"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Deleting selected items...
+                  </p>
+                ) : null}
+              </>
             }
             confirmLabel="Delete"
+            confirmBusyLabel="Deleting..."
+            confirmDisabled={bulkDeleteSubmitting}
+            cancelDisabled={bulkDeleteSubmitting}
+            closeOnEscape={!bulkDeleteSubmitting}
             onCancel={onCloseBulkDeleteConfirm}
             onConfirm={onConfirmBulkDelete}
           />

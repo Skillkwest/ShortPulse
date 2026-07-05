@@ -26,6 +26,7 @@ export type MediaFileRow = {
   storage_path: string;
   preview_storage_path?: string;
   file_type: string;
+  duration_seconds?: number | string | null;
   width?: number | null;
   height?: number | null;
   source?: string | null;
@@ -517,6 +518,17 @@ const normalizeMetadataDurationCandidateMs = (
   return Math.max(0, Math.round(durationMs));
 };
 
+const normalizeTopLevelDurationSecondsMs = (value: unknown): number | null => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim().length > 0
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.max(1, Math.round(parsed * 1000));
+};
+
 export const resolveMediaMetadataDurationMs = (
   metadata?: Record<string, unknown> | null,
   options?: { fileType?: string | null }
@@ -572,6 +584,12 @@ export const resolveMediaMetadataDurationMs = (
 
   return null;
 };
+
+export const resolveMediaFileRowDurationMs = (
+  file: Pick<MediaFileRow, "duration_seconds" | "file_type" | "metadata">
+): number | null =>
+  resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }) ??
+  normalizeTopLevelDurationSecondsMs(file.duration_seconds);
 
 export const resolveMediaMetadataWaveformPeaks = (
   metadata?: Record<string, unknown> | null

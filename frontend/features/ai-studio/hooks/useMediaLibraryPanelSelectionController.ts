@@ -6,8 +6,8 @@ import type { SharedMediaDetailSelectionTarget } from "../components/detail-moda
 import {
   resolveMediaAudioBackgroundImageUrl,
   resolveMediaAudioPresentation,
+  resolveMediaFileRowDurationMs,
   resolveMediaMetadataAudioSourceMode,
-  resolveMediaMetadataDurationMs,
   resolveMediaMetadataMusicMode,
   resolveMediaMetadataLyricsText,
   resolveMediaMetadataPromptText,
@@ -135,7 +135,7 @@ export const useMediaLibraryPanelSelectionController = ({
           companionArtStoragePath,
           audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
           musicMode: isAudio ? resolveMediaMetadataMusicMode(file.metadata) : null,
-          durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+          durationMs: resolveMediaFileRowDurationMs(file),
           waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
         })
       );
@@ -233,7 +233,7 @@ export const useMediaLibraryPanelSelectionController = ({
             companionArtStoragePath,
             audioSourceMode: isAudio ? resolveMediaMetadataAudioSourceMode(file.metadata) : null,
             musicMode: isAudio ? resolveMediaMetadataMusicMode(file.metadata) : null,
-            durationMs: resolveMediaMetadataDurationMs(file.metadata, { fileType: file.file_type }),
+            durationMs: resolveMediaFileRowDurationMs(file),
             waveformPeaks: isAudio ? resolveMediaMetadataWaveformPeaks(file.metadata) : null,
           },
         })

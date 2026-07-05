@@ -87,6 +87,27 @@ const buildInternalMediaRefKeySet = (
   return keys;
 };
 
+const resolveMediaFileIdForStoragePath = async ({
+  userId,
+  storagePath,
+}: {
+  userId: string;
+  storagePath: string;
+}): Promise<string | null> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("media_files")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("storage_path", storagePath)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to resolve internal media ref media file: ${error.message}`);
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  return normalizeNonEmptyString((data as { id?: unknown }).id);
+};
+
 export type InternalEditMediaRefs = {
   baseImageRef: InternalMediaRef | null;
   maskRef: InternalMediaRef | null;
@@ -189,6 +210,21 @@ export const resolveSignedUrlsForInternalMediaRefs = async ({
       resolvedEntries.push({ kind: "empty" });
       continue;
     }
+    const mediaFileId = await resolveMediaFileIdForStoragePath({ userId, storagePath });
+    if (mediaFileId) {
+      const resolved = await resolveProductUseImageReferenceForMediaFile({
+        userId,
+        mediaFileId,
+        sign: true,
+        expiresInSeconds,
+      });
+      if (resolved.signedUrl) {
+        resolvedEntries.push({ kind: "signed", signedUrl: resolved.signedUrl });
+      } else {
+        resolvedEntries.push({ kind: "empty" });
+      }
+      continue;
+    }
     storagePathsToSign.push(storagePath);
     resolvedEntries.push({ kind: "storage", storagePath });
   }
@@ -254,7 +290,17 @@ export const resolveOpenAiImageFilesForInternalMediaRefs = async ({
       label: "Internal media ref storage path",
     });
     if (storagePath) {
-      storagePaths.push(storagePath);
+      const mediaFileId = await resolveMediaFileIdForStoragePath({ userId, storagePath });
+      if (mediaFileId) {
+        const resolved = await resolveProductUseImageReferenceForMediaFile({
+          userId,
+          mediaFileId,
+          sign: false,
+        });
+        storagePaths.push(resolved.storagePath);
+      } else {
+        storagePaths.push(storagePath);
+      }
     }
   }
   if (!storagePaths.length) return [];

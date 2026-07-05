@@ -58,6 +58,6 @@ Generation runs should also have:
 
 Do not keep screenshots just because they were captured.
 
-Keep only screenshots or downloads that show evidence needed to solve an issue, prove credit spend, prove output state, prove save/find-it-again behavior, or support another specific finding.
+Keep only screenshots or downloads that aid diagnosis, point out confusing UI, prove credit spend, prove output state, prove save/find-it-again behavior, or support another specific finding.
 
 Delete, redact, or do not save screenshots that show account emails, billing details, credentials, tokens, cookies, private account state, or routine successful navigation that does not support a finding.

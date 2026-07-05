@@ -248,6 +248,41 @@ describe("Dashboard announcement rendering", () => {
     await vi.dynamicImportSettled();
   });
 
+  it("does not flash fallback helper copy while the announcement request is pending", async () => {
+    type AnnouncementResponse = { ok: boolean; json: () => Promise<unknown> };
+    let resolveAnnouncement: (value: AnnouncementResponse) => void = () => {
+      throw new Error("Announcement resolver was used before initialization.");
+    };
+    mockAuthenticatedDashboardFetch(
+      () =>
+        new Promise((resolve) => {
+          resolveAnnouncement = resolve;
+        })
+    );
+
+    render(<DashboardPage />);
+
+    await screen.findByRole("button", { name: "Profile menu" });
+    expect(screen.queryByText(/your next great idea is waiting/i)).not.toBeInTheDocument();
+
+    resolveAnnouncement?.({
+      ok: true,
+      json: async () => ({
+        announcement: {
+          id: "ann-1",
+          title: "Maintenance window",
+          message: "AI Studio saves may be briefly delayed at 2AM UTC.",
+          publishedAt: "2026-03-10T00:00:00.000Z",
+          updatedAt: "2026-03-10T00:00:00.000Z",
+        },
+      }),
+    });
+
+    await waitFor(() => expect(screen.getByText("Maintenance window")).toBeInTheDocument());
+    expect(screen.queryByText(/your next great idea is waiting/i)).not.toBeInTheDocument();
+    await vi.dynamicImportSettled();
+  });
+
   it("renders fallback helper copy when no active announcement exists", async () => {
     mockAuthenticatedDashboardFetch(async () => {
       return {

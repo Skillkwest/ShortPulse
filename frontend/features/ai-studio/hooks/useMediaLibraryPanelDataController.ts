@@ -62,12 +62,17 @@ type UseMediaLibraryPanelDataControllerResult = {
   mediaPagesLoaded: number;
   mediaScopeResolved: boolean;
   promptScopeResolved: boolean;
+  applyLibraryTotalCountDelta: (delta: number) => void;
   loadMediaPage: (options: LoadPanelPageOptions) => Promise<void>;
   loadPromptPage: (options: LoadPanelPageOptions) => Promise<void>;
   refreshActiveRows: () => Promise<void>;
 };
 
-type LoadPanelPageOptions = { reset: boolean; force?: boolean };
+type LoadPanelPageOptions = {
+  reset: boolean;
+  force?: boolean;
+  includeLibraryTotalCount?: boolean;
+};
 
 const PANEL_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("panel");
 const MEDIA_PAGE_SIZE = PANEL_SURFACE_CONFIG.pageSize;
@@ -353,8 +358,25 @@ export const useMediaLibraryPanelDataController = ({
 
   React.useEffect(() => cancelLibraryTotalCountRefresh, [cancelLibraryTotalCountRefresh]);
 
+  const applyLibraryTotalCountDelta = React.useCallback(
+    (delta: number) => {
+      if (!Number.isFinite(delta) || delta === 0) return;
+      const normalizedDelta = Math.trunc(delta);
+      if (normalizedDelta === 0) return;
+      commitMediaScopeCache((prev) =>
+        typeof prev.libraryTotalCount === "number"
+          ? {
+              ...prev,
+              libraryTotalCount: Math.max(0, prev.libraryTotalCount + normalizedDelta),
+            }
+          : prev
+      );
+    },
+    [commitMediaScopeCache]
+  );
+
   const loadMediaPage = React.useCallback(
-    async ({ reset, force = false }: LoadPanelPageOptions) => {
+    async ({ reset, force = false, includeLibraryTotalCount = false }: LoadPanelPageOptions) => {
       const scopeKey = activeRowsScopeKey;
       if (
         reset &&
@@ -403,7 +425,9 @@ export const useMediaLibraryPanelDataController = ({
           surface: listSurface,
           profile: resolveMediaLibraryPanelListProfile(itemType),
           folderId: requestFolderId,
-          includeLibraryTotalCount: false,
+          includeLibraryTotalCount: shouldRefreshLibraryTotalCount
+            ? includeLibraryTotalCount
+            : false,
           signal: resetAbortController?.signal,
         });
         if (!result) {
@@ -475,6 +499,7 @@ export const useMediaLibraryPanelDataController = ({
       normalizedSearch,
       requestFolderId,
       scheduleLibraryTotalCountRefresh,
+      shouldRefreshLibraryTotalCount,
       appendMediaRows,
       setMediaRows,
       setSignedUrls,
@@ -654,7 +679,9 @@ export const useMediaLibraryPanelDataController = ({
 
     const refreshTasks: Promise<void>[] = [];
     if (shouldShowMedia) {
-      refreshTasks.push(loadMediaPage({ reset: true, force: true }));
+      refreshTasks.push(
+        loadMediaPage({ reset: true, force: true, includeLibraryTotalCount: true })
+      );
     }
     if (shouldShowPrompts) {
       refreshTasks.push(loadPromptPage({ reset: true, force: true }));
@@ -959,6 +986,7 @@ export const useMediaLibraryPanelDataController = ({
     mediaPagesLoaded,
     mediaScopeResolved,
     promptScopeResolved,
+    applyLibraryTotalCountDelta,
     loadMediaPage,
     loadPromptPage,
     refreshActiveRows,

@@ -9,6 +9,7 @@ import {
   resolveMediaListSelectColumns,
   type MediaListProfile,
 } from "../../../lib/mediaListProfile";
+import { mergeMediaListDurationMetadata } from "../../../lib/mediaListDurationMetadata";
 import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
 import { isSupabaseRenderImageUrl } from "../../../lib/mediaPreviewTrustPolicy";
 import { isUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
@@ -46,6 +47,7 @@ type MediaListRow = {
   filename: string;
   storage_path: string;
   file_type: string | null;
+  duration_seconds?: number | string | null;
   width: number | null;
   height: number | null;
   file_size: number | null;
@@ -401,6 +403,10 @@ const sanitizeMediaListRowForUser = ({
   return {
     ...row,
     storage_path: storagePath,
+    metadata: mergeMediaListDurationMetadata({
+      metadata: row.metadata,
+      durationSeconds: row.duration_seconds,
+    }),
     thumb_variant_path: sanitizeScopedPath(row.thumb_variant_path, userId),
     poster_variant_path: sanitizeScopedPath(row.poster_variant_path, userId),
     preview_variant_path: sanitizeScopedPath(row.preview_variant_path, userId),

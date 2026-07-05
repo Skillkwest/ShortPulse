@@ -10,6 +10,7 @@ Human nuance card loaded before browser work: `<yes / no>`
 First-person Maya live notes captured: `<count>`
 Live notes with taste/social-stakes/pride/embarrassment/temptation/trust-shift read: `<count>`
 Authentic Maya questions before credit spend: `<count / not applicable>`
+Baseline comparison completed: `<yes / no / not needed>`
 
 | Parameter                   | Score          | Notes                                                                                                                                    |
 | --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,6 +27,20 @@ Authentic Maya questions before credit spend: `<count / not applicable>`
 | Stop/resume discipline      | `<1-10 / n/a>` | Did I handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
 
 Overall score: `<average of applicable numeric scores, rounded to one decimal>`
+
+## Baseline Comparison
+
+Compare against `docs/agents/testers/maya-chen/workspace/baseline-kpi-2026-07-05.md` when a run is scored, when the user asks for performance rating, or when repeated friction appears.
+
+Delta from baseline:
+
+## Improved since baseline:
+
+## Degraded since baseline:
+
+Non-negotiable fail conditions triggered:
+
+- `<none / list>`
 
 ## Score Rules
 
@@ -50,6 +65,14 @@ Overall score: `<average of applicable numeric scores, rounded to one decimal>`
 ## Persona Drift Moments
 
 -
+
+## Post-Run Coach Question
+
+Where did I stop acting like a real customer and start acting like a tester?
+
+Answer:
+
+Correction:
 
 ## Durable Learning To Add
 

@@ -18,6 +18,7 @@ export type BrowserCrashSessionStatus =
   | "confirmed_crash";
 
 export type BrowserCrashSessionConfidence = "none" | "low" | "medium" | "high";
+export type BrowserCrashSessionReviewStatus = "open" | "resolved" | "ignored";
 
 export type BrowserSessionEventType =
   | "session_start"
@@ -47,7 +48,14 @@ export type BrowserCrashSessionListFilters = {
   page: number;
   limit: number;
   status: BrowserCrashSessionStatus | "all" | "needs_review";
+  reviewStatus: BrowserCrashSessionReviewStatus | "all";
   search: string;
+};
+
+export type BrowserCrashSessionReviewStatusRequest = {
+  sessionId?: string;
+  status?: string;
+  note?: string | null;
 };
 
 const MAX_TEXT_LENGTH = 240;
@@ -56,6 +64,7 @@ const MAX_SESSION_ID_LENGTH = 160;
 const MAX_USER_AGENT_LENGTH = 500;
 const MAX_METADATA_KEYS = 48;
 const MAX_METADATA_KEY_LENGTH = 80;
+const MAX_REVIEW_NOTE_LENGTH = 400;
 const ACTIVE_STALE_AFTER_MS = 10 * 60 * 1000;
 
 const BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
@@ -237,6 +246,14 @@ const resolveBuildMetadata = (metadata: JsonObject) => ({
   client_environment: sanitizeText(metadata.client_environment, 80),
 });
 
+const resolveReviewStatus = (value: unknown): BrowserCrashSessionReviewStatus | null => {
+  const normalized = sanitizeText(value, 24)?.toLowerCase();
+  if (normalized === "open" || normalized === "resolved" || normalized === "ignored") {
+    return normalized;
+  }
+  return null;
+};
+
 const resolveSessionStartedAt = (eventType: BrowserSessionEventType, occurredAt: string) =>
   eventType === "session_start" ? occurredAt : undefined;
 
@@ -269,6 +286,7 @@ const buildSessionUpsert = (params: {
     host: readHeaderValue(params.req.headers.host),
     vercel_id: readHeaderValue(params.req.headers["x-vercel-id"], 160),
     metadata: params.metadata,
+    review_status: params.eventType === "session_start" ? "open" : undefined,
     started_at: resolveSessionStartedAt(params.eventType, params.occurredAt),
     last_seen_at: params.occurredAt,
     ended_at: params.eventType === "clean_close" ? params.occurredAt : null,
@@ -365,6 +383,58 @@ export const recordBrowserSessionEvent = async (params: {
   return { sessionId, previousSessionId: previousId, eventType };
 };
 
+/**
+ * Updates operator review state for one crash-session row without deleting evidence.
+ */
+export const updateBrowserCrashSessionReviewStatus = async (params: {
+  user: AuthenticatedApiUser;
+  payload: BrowserCrashSessionReviewStatusRequest;
+}): Promise<{
+  id: string;
+  review_status: BrowserCrashSessionReviewStatus;
+  reviewed_at: string | null;
+}> => {
+  const sessionId = sanitizeText(params.payload.sessionId, MAX_SESSION_ID_LENGTH);
+  if (!sessionId) throw new Error("A browser crash session id is required.");
+  const reviewStatus = resolveReviewStatus(params.payload.status);
+  if (!reviewStatus) throw new Error("status must be one of open, resolved, ignored.");
+
+  const now = new Date().toISOString();
+  const reviewPayload =
+    reviewStatus === "open"
+      ? {
+          review_status: reviewStatus,
+          reviewed_at: null,
+          reviewed_by: null,
+          reviewed_by_email: null,
+          review_note: sanitizeText(params.payload.note, MAX_REVIEW_NOTE_LENGTH),
+          updated_at: now,
+        }
+      : {
+          review_status: reviewStatus,
+          reviewed_at: now,
+          reviewed_by: params.user.id,
+          reviewed_by_email: sanitizeText(params.user.email, 320),
+          review_note: sanitizeText(params.payload.note, MAX_REVIEW_NOTE_LENGTH),
+          updated_at: now,
+        };
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("browser_crash_sessions")
+    .update(reviewPayload)
+    .eq("id", sessionId)
+    .select("id, review_status, reviewed_at")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data || typeof data.id !== "string") throw new Error("Crash session not found.");
+
+  return {
+    id: data.id,
+    review_status: resolveReviewStatus(data.review_status) ?? reviewStatus,
+    reviewed_at: asIso(data.reviewed_at),
+  };
+};
+
 const asIso = (value: unknown): string | null => (typeof value === "string" ? value : null);
 
 const resolveEffectiveStatus = (row: JsonObject, nowMs: number) => {
@@ -404,6 +474,9 @@ export const fetchBrowserCrashSessions = async (
     query = query.in("status", ["probable_freeze_or_crash", "confirmed_crash"]);
   } else if (filters.status !== "all") {
     query = query.eq("status", filters.status);
+  }
+  if (filters.reviewStatus !== "all") {
+    query = query.eq("review_status", filters.reviewStatus);
   }
   if (filters.search.trim()) {
     const pattern = `%${filters.search.trim().replace(/\s+/g, "%")}%`;

@@ -33,9 +33,10 @@ describe("adminCrashSessionsApi", () => {
   it("passes the review queue status filter through to the admin API", () => {
     const params = buildAdminCrashSessionsParams({
       status: "needs_review",
+      reviewStatus: "resolved",
     });
 
-    expect(params.toString()).toBe("page=1&limit=50&status=needs_review");
+    expect(params.toString()).toBe("page=1&limit=50&status=needs_review&reviewStatus=resolved");
   });
 
   it("normalizes snake-case crash-session rows and derived stale status", () => {
@@ -57,6 +58,11 @@ describe("adminCrashSessionsApi", () => {
           client_environment: "production",
           user_agent: "Mozilla Chrome/120",
           metadata: { pressure_level: 4 },
+          review_status: "resolved",
+          reviewed_at: "2026-07-05T01:03:00.000Z",
+          reviewed_by: "admin-1",
+          reviewed_by_email: "admin@example.com",
+          review_note: "cleared",
           started_at: "2026-07-05T01:00:00.000Z",
           last_seen_at: "2026-07-05T01:02:00.000Z",
         },
@@ -80,6 +86,11 @@ describe("adminCrashSessionsApi", () => {
       effectiveConfidence: "low",
       isStale: true,
       metadata: { pressure_level: 4 },
+      reviewStatus: "resolved",
+      reviewedAt: "2026-07-05T01:03:00.000Z",
+      reviewedBy: "admin-1",
+      reviewedByEmail: "admin@example.com",
+      reviewNote: "cleared",
     });
     expect(result.pagination.hasNextPage).toBe(false);
     expect(result.pagination.hasPrevPage).toBe(false);

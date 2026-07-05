@@ -2512,6 +2512,23 @@ button.hero-onboarding {
   text-align: left;
 }
 
+.authenticated-home-hero-copy .hero-announcement {
+  gap: 8px;
+}
+
+.authenticated-home-hero-copy .hero-announcement-title {
+  font-size: clamp(20px, 1.35vw, 25px);
+  line-height: 1.08;
+  font-weight: 850;
+}
+
+.authenticated-home-hero-copy .hero-announcement-message {
+  color: rgba(246, 248, 251, 0.7);
+  font-size: clamp(11px, 0.72vw, 13px);
+  line-height: 1.42;
+  font-weight: 400;
+}
+
 .authenticated-home-quick-row {
   position: relative;
   top: auto;

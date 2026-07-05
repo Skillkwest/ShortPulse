@@ -411,8 +411,7 @@ export function GuestDashboardView({
           </div>
 
           <h2 id="public-home-models-heading" className="public-home-hero-model-heading">
-            The world's best AI models. Thousands of workflows. One simple workspace.{" "}
-            <span className="public-home-hero-model-heading-break">Zero frustration.</span>
+            The world's best AI models. Thousands of workflows. One simple workspace.
           </h2>
 
           <div className="public-home-hero-actions">

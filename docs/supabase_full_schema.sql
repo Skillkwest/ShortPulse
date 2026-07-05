@@ -2645,6 +2645,11 @@ create table if not exists public.browser_crash_sessions (
     host text,
     vercel_id text,
     metadata jsonb not null default '{}'::jsonb,
+    review_status text not null default 'open',
+    reviewed_at timestamptz,
+    reviewed_by uuid references auth.users(id) on delete set null,
+    reviewed_by_email text,
+    review_note text,
     started_at timestamptz not null default now(),
     last_seen_at timestamptz not null default now(),
     ended_at timestamptz,
@@ -2663,6 +2668,9 @@ create table if not exists public.browser_crash_sessions (
     constraint browser_crash_sessions_confidence_check check (
         confidence in ('none', 'low', 'medium', 'high')
     ),
+    constraint browser_crash_sessions_review_status_check check (
+        review_status in ('open', 'resolved', 'ignored')
+    ),
     constraint browser_crash_sessions_session_id_check check (
         length(trim(browser_session_id)) > 0
     )
@@ -2673,6 +2681,9 @@ create unique index if not exists browser_crash_sessions_user_session_uidx
 
 create index if not exists browser_crash_sessions_status_last_seen_idx
     on public.browser_crash_sessions (status, last_seen_at desc);
+
+create index if not exists browser_crash_sessions_review_status_last_seen_idx
+    on public.browser_crash_sessions (review_status, last_seen_at desc);
 
 create index if not exists browser_crash_sessions_user_last_seen_idx
     on public.browser_crash_sessions (user_id, last_seen_at desc);

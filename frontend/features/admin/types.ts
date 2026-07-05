@@ -380,6 +380,7 @@ export type AdminCrashSessionStatus =
   | "confirmed_crash";
 
 export type AdminCrashSessionConfidence = "none" | "low" | "medium" | "high";
+export type AdminCrashSessionReviewStatus = "open" | "resolved" | "ignored";
 
 export type AdminCrashSessionRow = {
   id: string;
@@ -400,6 +401,11 @@ export type AdminCrashSessionRow = {
   host: string | null;
   vercelId: string | null;
   metadata: Record<string, unknown>;
+  reviewStatus: AdminCrashSessionReviewStatus;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  reviewedByEmail: string | null;
+  reviewNote: string | null;
   startedAt: string | null;
   lastSeenAt: string | null;
   endedAt: string | null;

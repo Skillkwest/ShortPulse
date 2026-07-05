@@ -391,7 +391,7 @@ describe("Dashboard actions", () => {
 
     render(<DashboardPage />);
 
-    expect(await screen.findByRole("heading", { name: /welcome back, ada/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /hello, ada/i })).toBeInTheDocument();
   });
 
   it("uses the email handle instead of the full email address for the dashboard hero greeting", async () => {
@@ -419,9 +419,7 @@ describe("Dashboard actions", () => {
 
     render(<DashboardPage />);
 
-    expect(
-      await screen.findByRole("heading", { name: /welcome back, skillkwest/i })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /hello, skillkwest/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /gmail\.com/i })).not.toBeInTheDocument();
   });
 

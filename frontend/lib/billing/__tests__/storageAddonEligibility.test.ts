@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getAllowedSelfServeStorageAddonIds,
+  getMinimumSelfServeStorageAddonPlanId,
   getMaximumSelfServeStorageAddonBytes,
   isCurrentBillableStorageAddonStatus,
   resolveStorageAddonEligibility,
@@ -30,6 +31,14 @@ describe("storage add-on eligibility", () => {
       "storage_100gb",
       "storage_250gb",
     ]);
+  });
+
+  it("reports the minimum paid plan for each self-serve storage add-on", () => {
+    expect(getMinimumSelfServeStorageAddonPlanId("storage_10gb")).toBe("starter");
+    expect(getMinimumSelfServeStorageAddonPlanId("storage_50gb")).toBe("media");
+    expect(getMinimumSelfServeStorageAddonPlanId("storage_100gb")).toBe("studio");
+    expect(getMinimumSelfServeStorageAddonPlanId("storage_250gb")).toBe("business");
+    expect(getMinimumSelfServeStorageAddonPlanId("storage_500gb")).toBeNull();
   });
 
   it("marks the 500 GB add-on as manual review only", () => {

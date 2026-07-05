@@ -48,7 +48,7 @@ import { profileClass } from "../features/profile/profileRouteStyles";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { fetchCanonicalAuthCallbackUrl } from "../lib/authRedirects";
-import { resolveStorageAddonEligibility } from "../lib/billing/storageAddonEligibility";
+import { isSelfServeStorageAddon } from "../lib/billing/storageAddonEligibility";
 import {
   resolveEmailChangeErrorMessage,
   resolvePasswordResetErrorMessage,
@@ -572,12 +572,9 @@ export default function ProfilePage() {
     );
     return storageAddonCatalog.filter((addon) => {
       if (activeStorageAddonIds.has(addon.id)) return true;
-      return resolveStorageAddonEligibility({
-        planId: activePlan?.id ?? "",
-        storageAddonId: addon.id,
-      }).isEligible;
+      return isSelfServeStorageAddon(addon.id);
     });
-  }, [activePlan?.id, activeStorageAddons, storageAddons]);
+  }, [activeStorageAddons, storageAddons]);
   const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
   const activeAddonRecurringPriceCents = activeStorageAddons.reduce(
     (total, addon) => total + Math.max(0, addon.recurringPriceCents),
@@ -1018,6 +1015,7 @@ export default function ProfilePage() {
           {section === "storage" ? (
             <ProfileStorageSection
               activeAddonStorageBytes={activeAddonStorageBytes}
+              activePlanId={activePlan.id}
               activePlanClassName={activePlan.className}
               activeStorageAddons={activeStorageAddons}
               billingContractLoading={billingContractLoading}

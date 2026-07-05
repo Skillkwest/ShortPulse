@@ -547,8 +547,10 @@ export function ProjectsModal({
                 const isSelectedProject = project.id === selectedProjectId;
                 const isPending =
                   pendingProjectId === project.id || deletePendingProjectId === project.id;
+                const isOpeningProject = pendingProjectId === project.id;
                 const isInteractionDisabled = hasProjectActionInFlight || isPending;
                 const showStatusPill = isCurrentProject || isPending;
+                const showOpenAction = isSelectedProject && deletePendingProjectId !== project.id;
                 return (
                   <div
                     key={project.id}
@@ -574,12 +576,14 @@ export function ProjectsModal({
                       aria-pressed={isSelectedProject}
                       disabled={isInteractionDisabled}
                     >
-                      {isSelectedProject && !isPending ? (
+                      {showOpenAction ? (
                         <span className="ai-projects-modal-card-open-content">
                           <span className="ai-projects-modal-card-open-icon" aria-hidden="true">
                             <FolderSimple size={30} weight="duotone" />
                           </span>
-                          <span className="ai-projects-modal-card-open-label">Open →</span>
+                          <span className="ai-projects-modal-card-open-label">
+                            {isOpeningProject ? "Opening..." : "Open →"}
+                          </span>
                         </span>
                       ) : (
                         <>

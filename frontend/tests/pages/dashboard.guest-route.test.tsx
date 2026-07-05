@@ -237,7 +237,7 @@ describe("Dashboard guest route", () => {
     expect(document.querySelector(".public-home-hero-bg")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /the world's best AI models\. Thousands of workflows\. One simple workspace\. Zero frustration\./i,
+        name: /the world's best AI models\. Thousands of workflows\. One simple workspace\./i,
       })
     ).toBeInTheDocument();
     expect(screen.queryByText("Offer 1")).not.toBeInTheDocument();

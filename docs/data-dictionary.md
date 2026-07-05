@@ -1297,6 +1297,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `build_id` / `client_release` / `client_environment` (text, nullable): Build/runtime identifiers sent by the authenticated client when available.
 - `user_agent` / `host` / `vercel_id` (text, nullable): Trusted server request metadata captured at ingest.
 - `metadata` (jsonb): Allowlisted browser/session evidence only, including connection, memory pressure, lifecycle, stall, and Reporting API crash-report keys. Do not store prompts, DOM text, signed URLs, raw storage paths, provider payloads, or arbitrary browser data here.
+- `review_status` (text): Operator triage state: `open` | `resolved` | `ignored`. This clears rows from the active admin review queue without deleting evidence or changing the crash evidence `status`.
+- `reviewed_at` / `reviewed_by` / `reviewed_by_email` / `review_note`: Optional admin review audit fields for the last crash-session review state change.
 - `started_at` / `last_seen_at` / `ended_at` / `suspected_at` (timestamptz): Session timeline. Hard browser exits are inferred from stale `last_seen_at` and `previous_session_abandoned` reports on the next authenticated page load because the browser may not send a final event.
 - `created_at` / `updated_at`
 - RLS: enabled with no client policies by default; table access is service-role-only.

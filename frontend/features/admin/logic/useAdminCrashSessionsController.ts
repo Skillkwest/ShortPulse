@@ -7,8 +7,11 @@ import type { AdminCrashSessionRow, AdminPagination } from "../types";
 import {
   CRASH_SESSIONS_PER_PAGE,
   fetchAdminCrashSessions,
+  updateAdminCrashSessionReviewStatus,
+  type AdminCrashSessionReviewStatusFilter,
   type AdminCrashSessionStatusFilter,
 } from "./adminCrashSessionsApi";
+import type { AdminCrashSessionReviewStatus } from "../types";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const REFRESH_INTERVAL_MS = 30_000;
@@ -24,9 +27,16 @@ type UseAdminCrashSessionsControllerResult = {
   error: string | null;
   pagination: AdminPagination;
   statusFilter: AdminCrashSessionStatusFilter;
+  reviewStatusFilter: AdminCrashSessionReviewStatusFilter;
   search: string;
+  updatingReviewSessionId: string | null;
   handleStatusFilterChange: (value: AdminCrashSessionStatusFilter) => void;
+  handleReviewStatusFilterChange: (value: AdminCrashSessionReviewStatusFilter) => void;
   handleSearchChange: (value: string) => void;
+  handleUpdateReviewStatus: (
+    sessionId: string,
+    status: AdminCrashSessionReviewStatus
+  ) => Promise<void>;
   handlePrevPage: () => void;
   handleNextPage: () => void;
   refresh: () => Promise<void>;
@@ -45,7 +55,10 @@ export const useAdminCrashSessionsController = ({
   const [page, setPage] = React.useState(1);
   const [statusFilter, setStatusFilter] =
     React.useState<AdminCrashSessionStatusFilter>("needs_review");
+  const [reviewStatusFilter, setReviewStatusFilter] =
+    React.useState<AdminCrashSessionReviewStatusFilter>("open");
   const [search, setSearch] = React.useState("");
+  const [updatingReviewSessionId, setUpdatingReviewSessionId] = React.useState<string | null>(null);
   const [pagination, setPagination] = React.useState<AdminPagination>({
     page: 1,
     perPage: CRASH_SESSIONS_PER_PAGE,
@@ -64,6 +77,7 @@ export const useAdminCrashSessionsController = ({
         const result = await fetchAdminCrashSessions({
           page: nextPage,
           status: statusFilter,
+          reviewStatus: reviewStatusFilter,
           search,
         });
         setSessions(result.rows);
@@ -75,7 +89,7 @@ export const useAdminCrashSessionsController = ({
         setLoading(false);
       }
     },
-    [enabled, search, statusFilter]
+    [enabled, reviewStatusFilter, search, statusFilter]
   );
 
   React.useEffect(() => {
@@ -84,7 +98,7 @@ export const useAdminCrashSessionsController = ({
       void loadCrashSessions(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeoutId);
-  }, [enabled, loadCrashSessions, search, statusFilter]);
+  }, [enabled, loadCrashSessions, reviewStatusFilter, search, statusFilter]);
 
   React.useEffect(() => {
     if (!enabled || !liveRefreshEnabled) return;
@@ -99,10 +113,36 @@ export const useAdminCrashSessionsController = ({
     setPage(1);
   }, []);
 
+  const handleReviewStatusFilterChange = React.useCallback(
+    (value: AdminCrashSessionReviewStatusFilter) => {
+      setReviewStatusFilter(value);
+      setPage(1);
+    },
+    []
+  );
+
   const handleSearchChange = React.useCallback((value: string) => {
     setSearch(value);
     setPage(1);
   }, []);
+
+  const handleUpdateReviewStatus = React.useCallback(
+    async (sessionId: string, status: AdminCrashSessionReviewStatus) => {
+      setUpdatingReviewSessionId(sessionId);
+      setError(null);
+      try {
+        await updateAdminCrashSessionReviewStatus({ sessionId, status });
+        await loadCrashSessions(page);
+      } catch (updateError) {
+        setError(
+          updateError instanceof Error ? updateError.message : "Unable to update crash session."
+        );
+      } finally {
+        setUpdatingReviewSessionId((current) => (current === sessionId ? null : current));
+      }
+    },
+    [loadCrashSessions, page]
+  );
 
   const handlePrevPage = React.useCallback(() => {
     if (!pagination.hasPrevPage || loading) return;
@@ -128,9 +168,13 @@ export const useAdminCrashSessionsController = ({
     error,
     pagination,
     statusFilter,
+    reviewStatusFilter,
     search,
+    updatingReviewSessionId,
     handleStatusFilterChange,
+    handleReviewStatusFilterChange,
     handleSearchChange,
+    handleUpdateReviewStatus,
     handlePrevPage,
     handleNextPage,
     refresh,

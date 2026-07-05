@@ -6,6 +6,10 @@ import { Receipt } from "phosphor-react";
 import type { BillingStorageAddonRecord } from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
 import {
+  getMinimumSelfServeStorageAddonPlanId,
+  resolveStorageAddonEligibility,
+} from "../../../lib/billing/storageAddonEligibility";
+import {
   formatCurrencyAmount,
   formatCurrencyFromCents,
   formatDateTimeLabel,
@@ -18,6 +22,7 @@ import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ProfileStorageSectionProps = {
   activeAddonStorageBytes: number;
+  activePlanId: string | null;
   activePlanClassName: string;
   activeStorageAddons: readonly BillingSubscriptionStorageAddon[];
   billingContractLoading: boolean;
@@ -34,11 +39,26 @@ type ProfileStorageSectionProps = {
   onStorageAddonChange: (params: { storageAddonId: string; action: "add" | "remove" }) => void;
 };
 
+const STORAGE_ADDON_PLAN_LABELS: Record<string, string> = {
+  starter: "Starter",
+  media: "Media",
+  studio: "Studio",
+  business: "Business",
+};
+
+function resolveStorageAddonMinimumPlanLabel(storageAddonId: string): string {
+  const minimumPlanId = getMinimumSelfServeStorageAddonPlanId(storageAddonId);
+  return minimumPlanId
+    ? `${STORAGE_ADDON_PLAN_LABELS[minimumPlanId] ?? "a higher"} plan`
+    : "a higher plan";
+}
+
 /**
  * Renders the storage usage and recurring add-on management panel stack.
  */
 export function ProfileStorageSection({
   activeAddonStorageBytes,
+  activePlanId,
   activePlanClassName,
   activeStorageAddons = [],
   billingContractLoading,
@@ -194,23 +214,35 @@ export function ProfileStorageSection({
                     (total, row) => total + Math.max(1, row.quantity),
                     0
                   );
+                  const eligibility = resolveStorageAddonEligibility({
+                    planId: activePlanId,
+                    storageAddonId: addon.id,
+                  });
                   const isActive = activeQuantity > 0;
+                  const blocksPlanEligibility =
+                    isStorageAddonManagementAvailable && !isActive && !eligibility.isEligible;
                   const blocksDifferentAddon = hasActiveStorageAddon && !isActive;
                   const isLoading = storageAddonChangeLoadingId === addon.id;
                   const isBusy = storageAddonChangeLoadingId !== null;
-                  const actionLabel = isLoading
-                    ? "Updating…"
-                    : isStorageAddonManagementAvailable
-                      ? isActive
-                        ? "Remove"
-                        : blocksDifferentAddon
-                          ? "Remove current add-on first"
-                          : `Add ${formatStorageBytes(addon.storage_limit_bytes)}`
-                      : storageAddonManagementState === "managed_internally"
-                        ? "Managed internally"
-                        : storageAddonManagementState === "requires_paid_plan"
-                          ? "Choose paid plan first"
-                          : "Subscription syncing";
+                  const minimumPlanLabel = resolveStorageAddonMinimumPlanLabel(addon.id);
+                  let actionLabel = "Subscription syncing";
+                  if (isLoading) {
+                    actionLabel = "Updating…";
+                  } else if (isStorageAddonManagementAvailable) {
+                    if (isActive) {
+                      actionLabel = "Remove";
+                    } else if (blocksPlanEligibility) {
+                      actionLabel = `Requires ${minimumPlanLabel}`;
+                    } else if (blocksDifferentAddon) {
+                      actionLabel = "Remove current add-on first";
+                    } else {
+                      actionLabel = `Add ${formatStorageBytes(addon.storage_limit_bytes)}`;
+                    }
+                  } else if (storageAddonManagementState === "managed_internally") {
+                    actionLabel = "Managed internally";
+                  } else if (storageAddonManagementState === "requires_paid_plan") {
+                    actionLabel = "Choose paid plan first";
+                  }
 
                   return (
                     <>
@@ -219,9 +251,11 @@ export function ProfileStorageSection({
                           ? activeQuantity > 1
                             ? `${activeQuantity} recurring units active`
                             : "Active and renewing with your subscription"
-                          : blocksDifferentAddon
-                            ? "Remove your active add-on before choosing a different package"
-                            : "Renews with your subscription"}
+                          : blocksPlanEligibility
+                            ? `Available on ${minimumPlanLabel} and above`
+                            : blocksDifferentAddon
+                              ? "Remove your active add-on before choosing a different package"
+                              : "Renews with your subscription"}
                       </p>
 
                       <div className={profileClass("profile-actions")}>
@@ -234,9 +268,14 @@ export function ProfileStorageSection({
                               action: isActive ? "remove" : "add",
                             })
                           }
-                          aria-disabled={blocksDifferentAddon ? true : undefined}
+                          aria-disabled={
+                            blocksPlanEligibility || blocksDifferentAddon ? true : undefined
+                          }
                           disabled={
-                            !isStorageAddonManagementAvailable || isBusy || blocksDifferentAddon
+                            !isStorageAddonManagementAvailable ||
+                            isBusy ||
+                            blocksPlanEligibility ||
+                            blocksDifferentAddon
                           }
                         >
                           {actionLabel}

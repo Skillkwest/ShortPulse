@@ -39,6 +39,13 @@ const SELF_SERVE_STORAGE_ADDONS_BY_PLAN: Record<string, readonly string[]> = {
   business: ["storage_10gb", "storage_50gb", "storage_100gb", "storage_250gb"],
 };
 
+export const MINIMUM_SELF_SERVE_STORAGE_ADDON_PLAN_BY_ID: Record<string, string> = {
+  storage_10gb: "starter",
+  storage_50gb: "media",
+  storage_100gb: "studio",
+  storage_250gb: "business",
+};
+
 export const STORAGE_ADDON_LIMIT_BYTES_BY_ID: Record<string, number> = {
   storage_25gb: 25 * BYTES_PER_GIB,
   storage_10gb: 10 * BYTES_PER_GIB,
@@ -94,6 +101,11 @@ export const getAllowedSelfServeStorageAddonIds = (planId: string | null | undef
   const normalizedPlanId = normalizeBillingPlanId(planId);
   return [...(SELF_SERVE_STORAGE_ADDONS_BY_PLAN[normalizedPlanId] ?? [])];
 };
+
+export const getMinimumSelfServeStorageAddonPlanId = (
+  storageAddonId: string | null | undefined
+): string | null =>
+  MINIMUM_SELF_SERVE_STORAGE_ADDON_PLAN_BY_ID[normalizeStorageAddonId(storageAddonId)] ?? null;
 
 export const getMaximumSelfServeStorageAddonBytes = (planId: string | null | undefined): number => {
   return getAllowedSelfServeStorageAddonIds(planId).reduce(

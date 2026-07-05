@@ -61,6 +61,7 @@ describe("GET /api/admin/crashes", () => {
       page: 2,
       limit: 25,
       status: "probable_freeze_or_crash",
+      reviewStatus: "open",
       search: "user@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
@@ -85,6 +86,7 @@ describe("GET /api/admin/crashes", () => {
       page: 1,
       limit: 50,
       status: "needs_review",
+      reviewStatus: "open",
       search: "",
     });
   });
@@ -102,7 +104,28 @@ describe("GET /api/admin/crashes", () => {
       page: 1,
       limit: 100,
       status: "all",
+      reviewStatus: "open",
       search: "x".repeat(120),
+    });
+  });
+
+  it("accepts explicit review status filters", async () => {
+    const req = {
+      method: "GET",
+      query: {
+        reviewStatus: "resolved",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchBrowserCrashSessionsMock).toHaveBeenCalledWith({
+      page: 1,
+      limit: 50,
+      status: "all",
+      reviewStatus: "resolved",
+      search: "",
     });
   });
 

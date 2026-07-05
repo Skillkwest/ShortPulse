@@ -3,7 +3,11 @@
  * Covers the server-side classification rules that decide which rows need review.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchBrowserCrashSessions, recordBrowserSessionEvent } from "../browserCrashSessions";
+import {
+  fetchBrowserCrashSessions,
+  recordBrowserSessionEvent,
+  updateBrowserCrashSessionReviewStatus,
+} from "../browserCrashSessions";
 
 const getSupabaseAdminMock = vi.hoisted(() => vi.fn());
 
@@ -136,9 +140,33 @@ describe("browserCrashSessions", () => {
       status: "active",
       confidence: "none",
       last_event: "session_start",
+      review_status: "open",
       route: "/ai-studio?projectId",
       suspected_at: null,
     });
+  });
+
+  it("does not reset review state on later heartbeat upserts", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "current-session",
+        route: "/ai-studio",
+        occurredAt: "2026-07-05T12:01:00.000Z",
+      },
+    });
+
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).not.toHaveProperty("review_status");
   });
 
   it("maps the needs-review list filter to probable and confirmed crash rows", async () => {
@@ -176,16 +204,43 @@ describe("browserCrashSessions", () => {
       page: 1,
       limit: 50,
       status: "needs_review",
+      reviewStatus: "open",
       search: "",
     });
 
     expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
-    expect(query.eq).not.toHaveBeenCalled();
+    expect(query.eq).toHaveBeenCalledWith("review_status", "open");
     expect(rangeMock).toHaveBeenCalledWith(0, 49);
     expect(result.pagination.totalCount).toBe(1);
     expect(result.sessions[0]).toMatchObject({
       id: "row-1",
       effective_status: "probable_freeze_or_crash",
     });
+  });
+
+  it("updates crash-session review state without changing crash evidence status", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    const result = await updateBrowserCrashSessionReviewStatus({
+      user: { id: "admin-1", email: "admin@example.com" },
+      payload: {
+        sessionId: "crash-1",
+        status: "resolved",
+      },
+    });
+
+    expect(result).toEqual({
+      id: "previous-row-id",
+      review_status: "resolved",
+      reviewed_at: null,
+    });
+    expect(supabase.updatePayloads[0]).toMatchObject({
+      review_status: "resolved",
+      reviewed_by: "admin-1",
+      reviewed_by_email: "admin@example.com",
+    });
+    expect(supabase.updatePayloads[0]).not.toHaveProperty("status");
+    expect(supabase.eqMock).toHaveBeenCalledWith("id", "crash-1");
   });
 });

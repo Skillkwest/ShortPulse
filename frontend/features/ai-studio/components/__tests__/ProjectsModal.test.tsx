@@ -99,7 +99,7 @@ describe("ProjectsModal", () => {
       expect.anything()
     );
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
-    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(await screen.findByText("Current")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete selected project" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Delete project/i })).toBeNull();
     expect(
@@ -171,6 +171,8 @@ describe("ProjectsModal", () => {
     await waitFor(() => {
       expect(screen.getByText("Opening...")).toBeInTheDocument();
     });
+    expect(alphaOpenButton).toHaveTextContent("Opening...");
+    expect(alphaOpenButton).not.toHaveTextContent("Campaign Alpha");
     expect(betaButton).toBeDisabled();
 
     deferredOpen.resolve();

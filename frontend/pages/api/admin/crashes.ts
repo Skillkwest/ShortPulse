@@ -7,6 +7,7 @@ import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
   fetchBrowserCrashSessions,
+  type BrowserCrashSessionReviewStatus,
   type BrowserCrashSessionStatus,
 } from "../../../lib/server/api/browserCrashSessions";
 
@@ -14,6 +15,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 type BrowserCrashSessionStatusFilter = BrowserCrashSessionStatus | "all" | "needs_review";
+type BrowserCrashSessionReviewStatusFilter = BrowserCrashSessionReviewStatus | "all";
 
 const STATUS_VALUES = new Set<BrowserCrashSessionStatusFilter>([
   "all",
@@ -23,6 +25,12 @@ const STATUS_VALUES = new Set<BrowserCrashSessionStatusFilter>([
   "possible_ungraceful_exit",
   "probable_freeze_or_crash",
   "confirmed_crash",
+]);
+const REVIEW_STATUS_VALUES = new Set<BrowserCrashSessionReviewStatusFilter>([
+  "open",
+  "resolved",
+  "ignored",
+  "all",
 ]);
 
 const firstQueryValue = (value: string | string[] | undefined): string =>
@@ -38,6 +46,15 @@ const asStatus = (value: string | string[] | undefined): BrowserCrashSessionStat
   return STATUS_VALUES.has(normalized as BrowserCrashSessionStatusFilter)
     ? (normalized as BrowserCrashSessionStatusFilter)
     : "all";
+};
+
+const asReviewStatus = (
+  value: string | string[] | undefined
+): BrowserCrashSessionReviewStatusFilter => {
+  const normalized = firstQueryValue(value).trim();
+  return REVIEW_STATUS_VALUES.has(normalized as BrowserCrashSessionReviewStatusFilter)
+    ? (normalized as BrowserCrashSessionReviewStatusFilter)
+    : "open";
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -62,8 +79,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const page = asPositiveInt(req.query.page, 1);
     const limit = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
     const status = asStatus(req.query.status);
+    const reviewStatus = asReviewStatus(req.query.reviewStatus);
     const search = firstQueryValue(req.query.search).trim().slice(0, 120);
-    const result = await fetchBrowserCrashSessions({ page, limit, status, search });
+    const result = await fetchBrowserCrashSessions({ page, limit, status, reviewStatus, search });
     return res.status(200).json(result);
   } catch (error) {
     await logApiRouteException({

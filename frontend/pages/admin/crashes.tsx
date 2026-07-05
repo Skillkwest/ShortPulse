@@ -26,9 +26,13 @@ export default function AdminCrashesPage() {
     error: crashSessionsError,
     pagination,
     statusFilter,
+    reviewStatusFilter,
     search,
+    updatingReviewSessionId,
     handleStatusFilterChange,
+    handleReviewStatusFilterChange,
     handleSearchChange,
+    handleUpdateReviewStatus,
     handlePrevPage,
     handleNextPage,
     refresh,
@@ -58,9 +62,15 @@ export default function AdminCrashesPage() {
         error={crashSessionsError}
         pagination={pagination}
         statusFilter={statusFilter}
+        reviewStatusFilter={reviewStatusFilter}
         search={search}
+        updatingReviewSessionId={updatingReviewSessionId}
         onStatusFilterChange={handleStatusFilterChange}
+        onReviewStatusFilterChange={handleReviewStatusFilterChange}
         onSearchChange={handleSearchChange}
+        onUpdateReviewStatus={(sessionId, status) => {
+          void handleUpdateReviewStatus(sessionId, status);
+        }}
         onPrevPage={handlePrevPage}
         onNextPage={handleNextPage}
         onRefresh={refresh}

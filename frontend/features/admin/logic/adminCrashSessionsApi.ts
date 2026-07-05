@@ -6,6 +6,7 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type {
   AdminCrashSessionConfidence,
   AdminCrashSessionRow,
+  AdminCrashSessionReviewStatus,
   AdminCrashSessionStatus,
   AdminPagination,
 } from "../types";
@@ -13,6 +14,7 @@ import type {
 export const CRASH_SESSIONS_PER_PAGE = 50;
 
 export type AdminCrashSessionStatusFilter = AdminCrashSessionStatus | "all" | "needs_review";
+export type AdminCrashSessionReviewStatusFilter = AdminCrashSessionReviewStatus | "all";
 
 export type NormalizedAdminCrashSessionsResponse = {
   rows: AdminCrashSessionRow[];
@@ -52,6 +54,11 @@ const toConfidence = (value: unknown): AdminCrashSessionConfidence => {
   return "none";
 };
 
+const toReviewStatus = (value: unknown): AdminCrashSessionReviewStatus => {
+  if (value === "resolved" || value === "ignored") return value;
+  return "open";
+};
+
 const buildPagination = (pagination: Partial<AdminPagination> | undefined): AdminPagination => {
   const page = toFiniteNumber(pagination?.page, 1);
   const perPage = toFiniteNumber(pagination?.perPage, CRASH_SESSIONS_PER_PAGE);
@@ -70,12 +77,16 @@ const buildPagination = (pagination: Partial<AdminPagination> | undefined): Admi
 export const buildAdminCrashSessionsParams = (overrides: {
   page?: number;
   status?: AdminCrashSessionStatusFilter;
+  reviewStatus?: AdminCrashSessionReviewStatusFilter;
   search?: string;
 }): URLSearchParams => {
   const params = new URLSearchParams();
   params.set("page", String(overrides.page ?? 1));
   params.set("limit", String(CRASH_SESSIONS_PER_PAGE));
   if (overrides.status && overrides.status !== "all") params.set("status", overrides.status);
+  if (overrides.reviewStatus && overrides.reviewStatus !== "open") {
+    params.set("reviewStatus", overrides.reviewStatus);
+  }
   if (overrides.search?.trim()) params.set("search", overrides.search.trim());
   return params;
 };
@@ -105,6 +116,11 @@ export const normalizeAdminCrashSessionsResponse = (data: {
       host: toStringOrNull(value.host),
       vercelId: toStringOrNull(value.vercel_id),
       metadata: toMetadataRecord(value.metadata),
+      reviewStatus: toReviewStatus(value.review_status),
+      reviewedAt: toStringOrNull(value.reviewed_at),
+      reviewedBy: toStringOrNull(value.reviewed_by),
+      reviewedByEmail: toStringOrNull(value.reviewed_by_email),
+      reviewNote: toStringOrNull(value.review_note),
       startedAt: toStringOrNull(value.started_at),
       lastSeenAt: toStringOrNull(value.last_seen_at),
       endedAt: toStringOrNull(value.ended_at),
@@ -119,6 +135,7 @@ export const normalizeAdminCrashSessionsResponse = (data: {
 export const fetchAdminCrashSessions = async (overrides: {
   page?: number;
   status?: AdminCrashSessionStatusFilter;
+  reviewStatus?: AdminCrashSessionReviewStatusFilter;
   search?: string;
 }): Promise<NormalizedAdminCrashSessionsResponse> => {
   const params = buildAdminCrashSessionsParams(overrides);
@@ -134,4 +151,22 @@ export const fetchAdminCrashSessions = async (overrides: {
     pagination?: Partial<AdminPagination>;
   };
   return normalizeAdminCrashSessionsResponse(data);
+};
+
+export const updateAdminCrashSessionReviewStatus = async (params: {
+  sessionId: string;
+  status: AdminCrashSessionReviewStatus;
+}): Promise<void> => {
+  const response = await fetchWithAuth("/api/admin/crashes-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+    shortpulseLogScope: "app",
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { error?: unknown };
+    throw new Error(
+      typeof data.error === "string" ? data.error : "Unable to update crash session."
+    );
+  }
 };

@@ -7,6 +7,7 @@ describe("ProfileStorageSection", () => {
     render(
       <ProfileStorageSection
         activeAddonStorageBytes={100 * 1024 * 1024 * 1024}
+        activePlanId="business"
         activePlanClassName="plan-business"
         activeStorageAddons={[
           {
@@ -61,5 +62,48 @@ describe("ProfileStorageSection", () => {
     expect(
       screen.getByText("Need 500 GB or more? Contact support for a storage review.")
     ).toBeInTheDocument();
+  });
+
+  it("shows plan-ineligible storage add-ons as disabled upgrade options", () => {
+    render(
+      <ProfileStorageSection
+        activeAddonStorageBytes={0}
+        activePlanId="starter"
+        activePlanClassName="plan-starter"
+        activeStorageAddons={[]}
+        billingContractLoading={false}
+        billingPlansLoading={false}
+        currentSubscriptionStorageLimitBytes={5 * 1024 * 1024 * 1024}
+        storageAddonChangeLoadingId={null}
+        storageAddonManagementState="eligible"
+        storageAddons={[
+          {
+            id: "storage_10gb",
+            display_name: "Extra 10 GB",
+            storage_limit_bytes: 10 * 1024 * 1024 * 1024,
+            monthly_price_cents: 700,
+            sort_order: 1,
+          },
+          {
+            id: "storage_50gb",
+            display_name: "Extra 50 GB",
+            storage_limit_bytes: 50 * 1024 * 1024 * 1024,
+            monthly_price_cents: 2900,
+            sort_order: 2,
+          },
+        ]}
+        storageTransactions={[]}
+        storageTransactionsError={null}
+        storageTransactionsLoading={false}
+        totalStorageLimitBytes={5 * 1024 * 1024 * 1024}
+        usedStorageBytes={0}
+        onStorageAddonChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Add 10 GB" })).toBeEnabled();
+    expect(screen.getByText("Extra 50 GB")).toBeInTheDocument();
+    expect(screen.getByText("Available on Media plan and above")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Requires Media plan" })).toBeDisabled();
   });
 });

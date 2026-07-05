@@ -36,6 +36,11 @@ const crashSession: AdminCrashSessionRow = {
     stall_duration_ms: 2400,
     heap_usage_ratio: 0.87,
   },
+  reviewStatus: "open",
+  reviewedAt: null,
+  reviewedBy: null,
+  reviewedByEmail: null,
+  reviewNote: null,
   startedAt: "2026-07-05T01:00:00.000Z",
   lastSeenAt: "2026-07-05T01:02:00.000Z",
   endedAt: null,
@@ -51,6 +56,7 @@ describe("AdminCrashLogsPanel", () => {
   });
 
   it("renders account-linked crash evidence and copies a triage packet", async () => {
+    const onUpdateReviewStatus = vi.fn();
     render(
       <AdminCrashLogsPanel
         sessions={[crashSession]}
@@ -65,9 +71,13 @@ describe("AdminCrashLogsPanel", () => {
           hasPrevPage: false,
         }}
         statusFilter="all"
+        reviewStatusFilter="open"
         search=""
+        updatingReviewSessionId={null}
         onStatusFilterChange={vi.fn()}
+        onReviewStatusFilterChange={vi.fn()}
         onSearchChange={vi.fn()}
+        onUpdateReviewStatus={onUpdateReviewStatus}
         onPrevPage={vi.fn()}
         onNextPage={vi.fn()}
         onRefresh={vi.fn()}
@@ -93,5 +103,8 @@ describe("AdminCrashLogsPanel", () => {
 
     expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("browser_crash_session");
     expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("alpha@example.com");
+
+    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
+    expect(onUpdateReviewStatus).toHaveBeenCalledWith("crash-1", "resolved");
   });
 });

@@ -382,7 +382,7 @@ describe("Profile storage actions", () => {
     );
   });
 
-  it("shows the approved Starter add-on button while the live storage catalog is empty", async () => {
+  it("shows all self-serve storage add-ons while disabling Starter-ineligible choices", async () => {
     billingProfileState.plan_id = "starter";
     billingContractState.value = {
       id: "contract_1",
@@ -443,9 +443,12 @@ describe("Profile storage actions", () => {
 
     expect(await screen.findByText("Extra 10 GB")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add 10 GB" })).toBeEnabled();
-    expect(screen.queryByText("Extra 50 GB")).toBeNull();
-    expect(screen.queryByText("Extra 100 GB")).toBeNull();
-    expect(screen.queryByText("Extra 250 GB")).toBeNull();
+    expect(screen.getByText("Extra 50 GB")).toBeInTheDocument();
+    expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
+    expect(screen.getByText("Extra 250 GB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Requires Media plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Requires Studio plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Requires Business plan" })).toBeDisabled();
   });
 
   it("shows add-on buttons as managed internally when the live catalog is empty", async () => {

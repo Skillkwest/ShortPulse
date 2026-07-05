@@ -6,11 +6,15 @@ import { useState } from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import type {
   AdminCrashSessionConfidence,
+  AdminCrashSessionReviewStatus,
   AdminCrashSessionRow,
   AdminCrashSessionStatus,
   AdminPagination,
 } from "../types";
-import type { AdminCrashSessionStatusFilter } from "../logic/adminCrashSessionsApi";
+import type {
+  AdminCrashSessionReviewStatusFilter,
+  AdminCrashSessionStatusFilter,
+} from "../logic/adminCrashSessionsApi";
 import { copyToClipboard } from "../logic/copyToClipboard";
 import { formatDateTime } from "../logic/errorIncidentViewUtils";
 import styles from "../../../styles/admin.module.css";
@@ -21,9 +25,13 @@ type AdminCrashLogsPanelProps = {
   error: string | null;
   pagination: AdminPagination;
   statusFilter: AdminCrashSessionStatusFilter;
+  reviewStatusFilter: AdminCrashSessionReviewStatusFilter;
   search: string;
+  updatingReviewSessionId: string | null;
   onStatusFilterChange: (value: AdminCrashSessionStatusFilter) => void;
+  onReviewStatusFilterChange: (value: AdminCrashSessionReviewStatusFilter) => void;
   onSearchChange: (value: string) => void;
+  onUpdateReviewStatus: (sessionId: string, status: AdminCrashSessionReviewStatus) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onRefresh: () => void;
@@ -38,6 +46,13 @@ const STATUS_OPTIONS: Array<{ value: AdminCrashSessionStatusFilter; label: strin
   { value: "clean_closed", label: "Clean closed" },
   { value: "all", label: "All statuses" },
 ];
+const REVIEW_STATUS_OPTIONS: Array<{ value: AdminCrashSessionReviewStatusFilter; label: string }> =
+  [
+    { value: "open", label: "Open review" },
+    { value: "resolved", label: "Resolved" },
+    { value: "ignored", label: "Ignored" },
+    { value: "all", label: "All review" },
+  ];
 
 const statusLabel = (status: AdminCrashSessionStatus): string => {
   if (status === "clean_closed") return "Clean closed";
@@ -133,9 +148,13 @@ export function AdminCrashLogsPanel({
   error,
   pagination,
   statusFilter,
+  reviewStatusFilter,
   search,
+  updatingReviewSessionId,
   onStatusFilterChange,
+  onReviewStatusFilterChange,
   onSearchChange,
+  onUpdateReviewStatus,
   onPrevPage,
   onNextPage,
   onRefresh,
@@ -181,6 +200,19 @@ export function AdminCrashLogsPanel({
           }
         >
           {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.searchInput}
+          value={reviewStatusFilter}
+          onChange={(event) =>
+            onReviewStatusFilterChange(event.target.value as AdminCrashSessionReviewStatusFilter)
+          }
+        >
+          {REVIEW_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -247,6 +279,8 @@ export function AdminCrashLogsPanel({
             const expanded = expandedSessionId === row.id;
             const signal = signalText(row);
             const evidence = evidenceText(row);
+            const isUpdatingReview = updatingReviewSessionId === row.id;
+            const canResolve = row.reviewStatus === "open";
             return (
               <div key={row.id} className={styles.adminCrashSessionGroup}>
                 <div
@@ -294,6 +328,7 @@ export function AdminCrashLogsPanel({
                       onClick={() => {
                         void copyPacket(row);
                       }}
+                      disabled={isUpdatingReview}
                     >
                       {copiedSessionId === row.id ? "Copied" : "Copy triage"}
                     </button>
@@ -304,6 +339,14 @@ export function AdminCrashLogsPanel({
                     >
                       {expanded ? "Hide" : "Details"}
                     </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => onUpdateReviewStatus(row.id, "resolved")}
+                      disabled={!canResolve || isUpdatingReview}
+                    >
+                      {isUpdatingReview ? "Resolving..." : canResolve ? "Resolve" : "Resolved"}
+                    </button>
                   </div>
                 </div>
                 {expanded ? (
@@ -312,6 +355,7 @@ export function AdminCrashLogsPanel({
                     <span>Host {row.host ?? "unknown"}</span>
                     <span>Vercel {row.vercelId ?? "unknown"}</span>
                     <span>Suspected {formatDateTime(row.suspectedAt)}</span>
+                    <span>Review {row.reviewStatus}</span>
                     <span>User agent {row.userAgent ?? "unknown"}</span>
                     <pre>{JSON.stringify(row.metadata, null, 2)}</pre>
                   </div>

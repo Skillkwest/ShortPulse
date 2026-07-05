@@ -2517,6 +2517,7 @@ button.hero-onboarding {
 }
 
 .authenticated-home-hero-copy .hero-announcement-title {
+  color: var(--color-teal);
   font-size: clamp(20px, 1.35vw, 25px);
   line-height: 1.08;
   font-weight: 850;

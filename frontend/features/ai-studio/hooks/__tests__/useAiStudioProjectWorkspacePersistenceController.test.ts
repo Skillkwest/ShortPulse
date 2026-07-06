@@ -1331,6 +1331,57 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(buildSessionSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it("allows project switching when the current project snapshot is unchanged from bootstrap", async () => {
+    const restoredSnapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const buildSessionSnapshot = vi.fn(() => restoredSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender();
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
+      })
+    );
+
+    let flushResult: Awaited<ReturnType<typeof result.current.flushProjectWorkspaceSnapshot>>;
+    await act(async () => {
+      flushResult = await result.current.flushProjectWorkspaceSnapshot({
+        reason: "project_switch",
+      });
+    });
+
+    expect(flushResult!).toEqual({
+      status: "skipped",
+      reason: "unchanged",
+      projectId: "project-1",
+      snapshotHash: null,
+      keepalive: false,
+    });
+    expect(mockedSaveProjectWorkspaceViaApi).not.toHaveBeenCalled();
+  });
+
   it("flushes the current project workspace snapshot while autosave work is deferred", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

@@ -1,24 +1,28 @@
 # Admin Tester Reports Review Checklist
 
-Purpose: first-run checklist for Hybervees to open Agent Tester Reports, read actual report content, analyze tester data, infer product insights, and suggest app improvements.
+Purpose: first-run checklist for Hybervees to access tester reports through canonical data/artifact paths, read actual report content, analyze tester data, infer product insights, and suggest app improvements.
 
 ## Review Steps
 
 1. Load Hybervees startup docs and Admin Tester Reports SOP.
 2. Confirm the task authorizes report inspection.
-3. Use the production URL unless the user explicitly asks for local validation:
-   - `https://www.shortpulse.ai/admin/tester-reports`
-4. Open the `Agent Tester Reports` admin surface.
-5. Identify the available report set:
-   - report rows are visible,
+3. Select the strongest available canonical source:
+   - local tester artifacts under `docs/agents/testers/<tester>/reports/`,
+   - authenticated `/api/admin/tester-reports`,
+   - an admin-authorized data path,
+   - or `https://www.shortpulse.ai/admin/tester-reports` when UI proof is needed.
+4. Identify the available report set:
+   - requested run is found,
+   - earliest or latest run is found,
+   - rows are visible in admin UI,
    - empty state is visible,
    - loading/error state is visible,
-   - auth/admin access is blocked.
-6. If rows are visible, open each requested run, or the most recent high-value runs when no set is specified.
-7. For every reviewed run, read both report bodies:
+   - or access is blocked.
+5. Open each requested run, or the earliest/highest-value run when no set is specified.
+6. For every reviewed run, read both report bodies:
    - `Persona report`
    - `Engineering handoff`
-8. Extract tester data:
+7. Extract tester data:
    - what the tester tried,
    - what confused them,
    - what felt trustworthy,
@@ -27,14 +31,14 @@ Purpose: first-run checklist for Hybervees to open Agent Tester Reports, read ac
    - what felt like waste,
    - what broke or blocked the task,
    - what engineering evidence was supplied.
-9. Infer product insights:
+8. Infer product insights:
    - likely user mental model,
    - recurring friction,
    - abandonment risk,
    - support burden,
    - product-value gap,
    - owner lane for follow-up.
-10. Suggest app improvements:
+9. Suggest app improvements:
 
 - user-facing UX/copy/workflow changes,
 - technical follow-up candidates,
@@ -43,18 +47,18 @@ Purpose: first-run checklist for Hybervees to open Agent Tester Reports, read ac
 
 11. Record the evidence boundary in the run notes:
 
-- live admin browser,
+- local tester artifact,
 - authenticated admin API,
-- local artifact fallback,
+- admin-authorized data path,
+- live admin browser,
 - or blocked.
 
 ## Stop Conditions
 
 Stop before insight analysis only when:
 
-- the route requires credentials that are not available,
-- the current user is not an admin,
-- the page fails to load and no local fallback is authorized,
+- all canonical report sources require credentials that are not available,
+- local artifacts do not exist and authenticated/admin-authorized data access is unavailable,
 - opening a report would expose private data the user did not authorize Hybervees to review.
 
 ## Done State

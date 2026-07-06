@@ -54,6 +54,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Expert Edit is the only Edit workflow surface in AI Studio.
 - Create has one supported Standard surface plus Pulse mode; there is no legacy fallback path.
 - The left-rail `Dashboard` control exits AI Studio through hard navigation to `/dashboard` so users can always leave the studio even when client-side runtime state is degraded.
+- `/dashboard` masks the static public dashboard when browser storage contains a Supabase auth-token hint, then lets the session-aware dashboard bootstrap prove whether the signed-in or public surface should render.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
 - For the July 7 launch window, Expert Edit `Markup` and `Inpaint` are launch-locked deferred surfaces. Preserve the existing hidden/locked behavior and compatibility tests, but do not treat Markup/Inpaint internals, history stacks, canvas masks, or related browser-load concerns as launch blockers or active hardening work unless the user explicitly opens a post-launch lane. Shared Expert Edit fixes may still preserve these paths when they are touched for an approved launch-scoped reason.
 - Double-clicking image/video/audio references in the Reference Grid or Quick Slot Inventory opens the shared detail modal; an unsaved-only floppy-disk save action persists that media into `All Media` and renders to the left of `Download`.

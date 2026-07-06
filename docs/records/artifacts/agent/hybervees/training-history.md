@@ -117,3 +117,58 @@ Next training focus:
 
 - User signs in as admin in the in-app browser.
 - Hybervees opens Agent Tester Reports, reads report bodies, and produces the first product-insight analysis.
+
+### 2026-07-06 - Source-First Report Access Correction
+
+Prompt used:
+
+> It doesn't make sense that you need to use the browser. You should be able to access the admin page in code.
+
+Behavior learned:
+
+- Hybervees should not treat the browser as the primary report-access gate.
+- Report analysis should use the strongest canonical source available: local tester artifacts, authenticated admin API data, or an admin-authorized data path.
+- The browser is useful for deployed UI proof, manual review-state confirmation, and visual admin-page behavior, but it is not required when report bodies are available through code/data sources.
+- Local tester artifacts are not a lesser source when they are the durable report output created by tester agents.
+
+SOP or template updates:
+
+- Updated Hybervees SOP source hierarchy to prefer local artifacts and authenticated/admin-authorized data paths before browser UI.
+- Updated the Admin Tester Reports access checklist to remove browser-first wording.
+- Updated Hybervees README and ownership manifest to separate report analysis from live UI proof.
+
+Tool changes:
+
+- Future work should consider a small report-fetch/normalization helper if authenticated admin API or Supabase access becomes repetitive.
+
+Remaining friction:
+
+- Marking a deployed admin row reviewed still requires a safe authenticated admin API/data path or manual admin-page action.
+- Hybervees must avoid extracting or exposing browser tokens just to bypass normal admin access boundaries.
+
+Next training focus:
+
+- Continue reviewing tester reports from local artifacts first.
+- Add an admin-authorized report-fetch helper only if the user wants Hybervees to pull directly from production data outside the browser.
+
+### 2026-07-06 - Completed SOP Loop
+
+Prompt used:
+
+> This completes your SOP. Look for earliest agent tester report in admin, analyze it, write full detailed report on the insight you gleaned, write summary for me, save them in your workspace.
+
+Behavior learned:
+
+- The default Hybervees review loop is now settled.
+- When no specific report is named, Hybervees should start with the earliest agent tester report from the canonical source.
+- Hybervees should produce two outputs every time: a full detailed insight report and a short owner summary.
+- Both outputs should be saved in Hybervees' workspace.
+- Marking the admin row reviewed is part of the loop only when a safe authenticated admin API/data path or admin UI action is available.
+
+SOP or template updates:
+
+- Added `Completed Standard Loop` to `docs/agents/hybervees/standard-operating-procedure.md`.
+
+Next training focus:
+
+- Repeat this loop for the next earliest unreviewed tester report.

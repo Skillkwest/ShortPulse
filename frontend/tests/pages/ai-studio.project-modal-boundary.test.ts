@@ -20,7 +20,10 @@ describe("AI Studio project modal boundary", () => {
     const pageSource = readPageSource();
     const shellRuntimeSource = readShellRuntimeSource();
 
-    expect(shellRuntimeSource).toContain("handleCreateProjectFromModal: navigateToProjectRoute,");
+    expect(shellRuntimeSource).toContain("const handleCreateProjectFromModal = useCallback");
+    expect(shellRuntimeSource).toContain(
+      'flushProjectWorkspaceSnapshot({ reason: "project_switch" })'
+    );
     expect(pageSource).not.toContain("onCreateProjectFromModal={navigateToProjectRoute}");
   });
 

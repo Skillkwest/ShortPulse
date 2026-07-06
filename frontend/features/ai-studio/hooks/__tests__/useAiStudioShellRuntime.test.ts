@@ -1,12 +1,19 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioShellRuntime } from "../useAiStudioShellRuntime";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
 import type { AiStudioProjectWorkspaceFlushResult } from "../aiStudioPersistenceControllerContract";
+import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../useAiStudioProjectRouteRecovery", () => ({
   useAiStudioProjectRouteRecovery: () => undefined,
 }));
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: vi.fn(async () => undefined),
+}));
+
+const mockedReportAppError = vi.mocked(reportAppError);
 
 type RouterEventHandler = (...args: unknown[]) => void;
 
@@ -86,6 +93,10 @@ const createFlushProjectWorkspaceSnapshot = (
 ) => vi.fn(async () => result);
 
 describe("useAiStudioShellRuntime", () => {
+  beforeEach(() => {
+    mockedReportAppError.mockClear();
+  });
+
   it("opens the studio once project bootstrap settles even before autosave-readiness proof matches", () => {
     const { result } = renderHook(() =>
       useAiStudioShellRuntime({
@@ -247,6 +258,156 @@ describe("useAiStudioShellRuntime", () => {
       "Project workspace could not be saved before switching projects."
     );
     expect(flushProjectWorkspaceSnapshot).toHaveBeenCalledWith({ reason: "project_switch" });
+    expect(mockedReportAppError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.project_switch_flush_blocked",
+        message: "Project workspace could not be saved before switching projects.",
+        endpoint: "/ai-studio?projectId=project-2",
+        metadata: expect.objectContaining({
+          current_project_id: "project-1",
+          target_project_id: "project-2",
+          flush_reason: "not_ready",
+        }),
+      })
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an actionable message when project switching is blocked by snapshot size", async () => {
+    const base = createBaseRuntime();
+    const push = vi.fn(async () => true);
+    base.router.push = push;
+    const flushProjectWorkspaceSnapshot = createFlushProjectWorkspaceSnapshot({
+      status: "skipped",
+      reason: "snapshot_too_large",
+      projectId: "project-1",
+      snapshotHash: "large-hash",
+      keepalive: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    await expect(result.current.handleSelectProjectFromModal("project-2")).rejects.toThrow(
+      "Project workspace is too large to save before switching projects."
+    );
+    expect(mockedReportAppError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.project_switch_flush_blocked",
+        message: "Project workspace is too large to save before switching projects.",
+        metadata: expect.objectContaining({
+          flush_reason: "snapshot_too_large",
+          snapshot_hash: "large-hash",
+        }),
+      })
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("flushes the current workspace before routing to a newly created project", async () => {
+    const base = createBaseRuntime();
+    const routerEvents = createRouterEvents();
+    const push = vi.fn(() => new Promise<boolean>(() => undefined));
+    base.router.events = routerEvents.events;
+    base.router.push = push;
+    const flushProjectWorkspaceSnapshot = createFlushProjectWorkspaceSnapshot();
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    const createProject = result.current.handleCreateProjectFromModal("project-new");
+    await Promise.resolve();
+    expect(flushProjectWorkspaceSnapshot).toHaveBeenCalledWith({ reason: "project_switch" });
+    routerEvents.emit("routeChangeComplete", "/ai-studio?projectId=project-new");
+
+    await expect(createProject).resolves.toBeUndefined();
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/ai-studio",
+      query: { projectId: "project-new" },
+    });
+  });
+
+  it("rejects newly created project routing when the workspace flush cannot safely save", async () => {
+    const base = createBaseRuntime();
+    const push = vi.fn(async () => true);
+    base.router.push = push;
+    const flushProjectWorkspaceSnapshot = createFlushProjectWorkspaceSnapshot({
+      status: "skipped",
+      reason: "not_ready",
+      projectId: "project-1",
+      snapshotHash: null,
+      keepalive: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        flushProjectWorkspaceSnapshot,
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    await expect(result.current.handleCreateProjectFromModal("project-new")).rejects.toThrow(
+      "Project workspace could not be saved before switching projects."
+    );
+    expect(flushProjectWorkspaceSnapshot).toHaveBeenCalledWith({ reason: "project_switch" });
+    expect(mockedReportAppError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.ai_studio.project_switch_flush_blocked",
+        endpoint: "/ai-studio?projectId=project-new",
+        metadata: expect.objectContaining({
+          current_project_id: "project-1",
+          target_project_id: "project-new",
+          flush_reason: "not_ready",
+        }),
+      })
+    );
     expect(push).not.toHaveBeenCalled();
   });
 

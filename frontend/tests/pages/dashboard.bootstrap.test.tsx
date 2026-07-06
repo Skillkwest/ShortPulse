@@ -219,7 +219,7 @@ describe("Dashboard bootstrap state", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the first signed-in client render aligned with the static public dashboard, then resolves auth", async () => {
+  it("masks the static public dashboard while a stored session hint resolves", async () => {
     const snapshot: {
       initialized: boolean;
       session: { user: typeof appUser } | null;
@@ -234,7 +234,9 @@ describe("Dashboard bootstrap state", () => {
     expect(renderToString(<DashboardPage />)).toContain(
       "A true all-in-one for <span>AI creators.</span>"
     );
+    expect(renderToString(<DashboardPage />)).toContain("dashboard-auth-bootstrap-pending");
 
+    document.documentElement.classList.add("dashboard-auth-bootstrap-pending");
     const { rerender } = render(<DashboardPage />);
     await waitFor(() => {
       expect(screen.getByRole("status")).toHaveTextContent("Loading dashboard");
@@ -247,6 +249,7 @@ describe("Dashboard bootstrap state", () => {
       screen.queryByRole("heading", { name: /the creative studio for ai creators/i })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveClass("dashboard-auth-bootstrap-pending");
 
     snapshot.initialized = true;
     snapshot.session = { user: appUser };
@@ -261,7 +264,7 @@ describe("Dashboard bootstrap state", () => {
       nextPath: "/dashboard",
       missingSessionBehavior: "clear",
     });
-    expect(screen.getByRole("heading", { name: /welcome back, kirk/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /hello, kirk/i })).toBeInTheDocument();
     expect(
       screen.queryByText("Checking your session before your dashboard workspace loads.")
     ).not.toBeInTheDocument();
@@ -286,7 +289,7 @@ describe("Dashboard bootstrap state", () => {
       missingSessionBehavior: "clear",
     });
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /hello/i })).not.toBeInTheDocument();
   });
 
   it("keeps signed-in dashboard content hidden when media consent is still required", async () => {
@@ -307,7 +310,7 @@ describe("Dashboard bootstrap state", () => {
       expect(screen.getByTestId("media-compliance-gate")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /hello/i })).not.toBeInTheDocument();
   });
 
   it("keeps signed-in dashboard content hidden before media consent status initializes", async () => {
@@ -331,6 +334,6 @@ describe("Dashboard bootstrap state", () => {
     });
     expect(screen.queryByTestId("media-compliance-gate")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /welcome back/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /hello/i })).not.toBeInTheDocument();
   });
 });

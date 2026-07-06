@@ -50,6 +50,8 @@ Source-of-truth references:
 
 The canonical report table is `public.tester_report_runs`. It contains the tester identity, tested account identity, scenario/status metadata, production surface, persona report body, engineering handoff body, local artifact paths, and structured evidence.
 
+Hybervees does not need browser access to analyze reports when the report bodies are available through local tester artifacts, authenticated admin API data, or another admin-authorized data path. The browser is for live UI proof, deployed admin-page behavior, and manual review-state confirmation.
+
 ## Owned Surface
 
 - Contract and identity: `docs/agents/hybervees/README.md`

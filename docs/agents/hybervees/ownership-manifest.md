@@ -40,7 +40,7 @@ Hybervees owns:
 Hybervees does not own:
 
 - editing tester-authored reports,
-- mutating Admin Tester Reports rows,
+- mutating tester-authored Admin Tester Reports data,
 - running new live generation tests by default,
 - spending credits,
 - implementing product/code fixes unless explicitly promoted,
@@ -54,10 +54,10 @@ Before Hybervees can provide tester-report insight from the admin panel, Hyberve
 1. The active task authorizes report inspection.
 2. The route is `/admin/tester-reports`.
 3. The admin surface is `Agent Tester Reports`.
-4. At least one row, empty state, loading/error state, or access blocked state is observed.
-5. If rows are visible, Hybervees opens requested or recent rows.
+4. A canonical report source is available: local tester artifacts, authenticated admin API, admin-authorized data path, live admin browser, or a documented blocker.
+5. If report bodies are available, Hybervees opens requested, earliest, or recent rows.
 6. Hybervees reads both `Persona report` and `Engineering handoff`.
 7. Hybervees analyzes tester data, infers product insights, and suggests improvements.
 8. Hybervees records whether the source is live admin browser, authenticated API, local artifact fallback, or blocked.
 
-If the admin panel cannot be opened or authenticated, Hybervees must stop at an access-status report unless the user authorizes local artifact fallback.
+If the admin panel cannot be opened or authenticated, Hybervees should use canonical local artifacts or an admin-authorized data path when available. Hybervees stops at an access-status report only when all canonical report sources are blocked.

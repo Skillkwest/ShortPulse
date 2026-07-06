@@ -18,6 +18,10 @@ const PROJECT_OPEN_INTERRUPTED_MESSAGE = "Project open was interrupted. Try agai
 const PROJECT_OPEN_TIMEOUT_MESSAGE = "Project open is taking longer than expected. Try again.";
 const PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE =
   "Project workspace could not be saved before switching projects.";
+const PROJECT_SWITCH_FLUSH_SERIALIZATION_BLOCKED_MESSAGE =
+  "Project workspace could not be prepared before switching projects.";
+const PROJECT_SWITCH_FLUSH_SIZE_BLOCKED_MESSAGE =
+  "Project workspace is too large to save before switching projects.";
 const PROJECT_OPEN_HANDOFF_TIMEOUT_MS = 8000;
 
 const blocksProjectSwitchAfterFlush = (result: AiStudioProjectWorkspaceFlushResult): boolean => {
@@ -27,6 +31,19 @@ const blocksProjectSwitchAfterFlush = (result: AiStudioProjectWorkspaceFlushResu
     result.reason === "serialization_failed" ||
     result.reason === "snapshot_too_large"
   );
+};
+
+const resolveProjectSwitchFlushBlockedMessage = (
+  result: AiStudioProjectWorkspaceFlushResult
+): string => {
+  if (result.status === "saved") return PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE;
+  if (result.reason === "serialization_failed") {
+    return PROJECT_SWITCH_FLUSH_SERIALIZATION_BLOCKED_MESSAGE;
+  }
+  if (result.reason === "snapshot_too_large") {
+    return PROJECT_SWITCH_FLUSH_SIZE_BLOCKED_MESSAGE;
+  }
+  return PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE;
 };
 
 const buildProjectRouteHref = (projectId: string): string =>
@@ -212,16 +229,59 @@ export const useAiStudioShellRuntime = ({
     [router]
   );
 
+  const assertProjectRouteChangeFlushAllowed = useCallback(
+    (nextProjectId: string, flushResult: AiStudioProjectWorkspaceFlushResult) => {
+      if (!blocksProjectSwitchAfterFlush(flushResult)) return;
+      const message = resolveProjectSwitchFlushBlockedMessage(flushResult);
+      void reportAppError({
+        source: "client.ai_studio.project_switch_flush_blocked",
+        scope: "app",
+        severity: "medium",
+        message,
+        route: typeof window !== "undefined" ? window.location.pathname : null,
+        endpoint: buildProjectRouteHref(nextProjectId),
+        metadata: {
+          current_project_id: projectId,
+          target_project_id: nextProjectId,
+          flush_status: flushResult.status,
+          flush_reason: flushResult.status === "skipped" ? flushResult.reason : null,
+          snapshot_hash: flushResult.snapshotHash,
+          keepalive: flushResult.keepalive,
+        },
+      });
+      throw new Error(message);
+    },
+    [projectId]
+  );
+
   const handleSelectProjectFromModal = useCallback(
     async (nextProjectId: string) => {
       if (nextProjectId === projectId) return;
       const flushResult = await flushProjectWorkspaceSnapshot({ reason: "project_switch" });
-      if (blocksProjectSwitchAfterFlush(flushResult)) {
-        throw new Error(PROJECT_SWITCH_FLUSH_BLOCKED_MESSAGE);
-      }
+      assertProjectRouteChangeFlushAllowed(nextProjectId, flushResult);
       await navigateToProjectRoute(nextProjectId);
     },
-    [flushProjectWorkspaceSnapshot, navigateToProjectRoute, projectId]
+    [
+      assertProjectRouteChangeFlushAllowed,
+      flushProjectWorkspaceSnapshot,
+      navigateToProjectRoute,
+      projectId,
+    ]
+  );
+
+  const handleCreateProjectFromModal = useCallback(
+    async (nextProjectId: string) => {
+      if (nextProjectId === projectId) return;
+      const flushResult = await flushProjectWorkspaceSnapshot({ reason: "project_switch" });
+      assertProjectRouteChangeFlushAllowed(nextProjectId, flushResult);
+      await navigateToProjectRoute(nextProjectId);
+    },
+    [
+      assertProjectRouteChangeFlushAllowed,
+      flushProjectWorkspaceSnapshot,
+      navigateToProjectRoute,
+      projectId,
+    ]
   );
 
   const handleOpenMediaLibraryPanelOnly = useCallback(() => {
@@ -325,7 +385,7 @@ export const useAiStudioShellRuntime = ({
     handleOpenProjectsModal,
     handleCloseProjectsModal,
     handleSelectProjectFromModal,
-    handleCreateProjectFromModal: navigateToProjectRoute,
+    handleCreateProjectFromModal,
     handleOpenMediaLibraryPanelOnly,
     handleOpenMediaLibraryProjectNameEditor,
     mediaProjectNameFocusRequestKey,

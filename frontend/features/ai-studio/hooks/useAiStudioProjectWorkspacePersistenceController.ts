@@ -626,6 +626,34 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       settledAutosaveBaseline,
     ]
   );
+  const resolveProjectSnapshotMatchesAutosaveBaseline = useCallback(
+    (snapshot: AiStudioSessionSnapshot | null): boolean => {
+      if (!projectId || !snapshot) return false;
+      const currentAutosaveUnlockSignature = resolveProjectAutosaveUnlockSignature(snapshot);
+      if (!currentAutosaveUnlockSignature) return false;
+
+      const matchesSettledBaseline =
+        settledAutosaveBaseline?.projectId === projectId &&
+        settledAutosaveBaseline.revision === projectRuntimeRevision &&
+        settledAutosaveBaseline.autosaveUnlockSignature === currentAutosaveUnlockSignature;
+      if (matchesSettledBaseline) return true;
+
+      return (
+        pendingVisibilityAutosaveBaseline?.projectId === projectId &&
+        pendingVisibilityAutosaveBaseline.revision === projectRuntimeRevision &&
+        pendingVisibilityAutosaveBaseline.restoreVisibilitySignature ===
+          expectedProjectRestoreVisibilitySignature &&
+        pendingVisibilityAutosaveBaseline.autosaveUnlockSignature === currentAutosaveUnlockSignature
+      );
+    },
+    [
+      expectedProjectRestoreVisibilitySignature,
+      pendingVisibilityAutosaveBaseline,
+      projectId,
+      projectRuntimeRevision,
+      settledAutosaveBaseline,
+    ]
+  );
   const autosaveSnapshotSelectionComputation = useMemo(
     () =>
       resolveProjectAutosaveSnapshotSelectionComputation(
@@ -1343,10 +1371,28 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       }
 
       const currentSnapshot = composeCurrentProjectWorkspaceSnapshot();
-      if (!currentSnapshot || !resolveProjectAutosaveReadyForSnapshot(currentSnapshot)) {
+      if (!currentSnapshot) {
         return {
           status: "skipped",
-          reason: currentSnapshot ? "not_ready" : "no_snapshot",
+          reason: "no_snapshot",
+          projectId,
+          snapshotHash: null,
+          keepalive: requestedKeepalive,
+        };
+      }
+      if (!resolveProjectAutosaveReadyForSnapshot(currentSnapshot)) {
+        if (resolveProjectSnapshotMatchesAutosaveBaseline(currentSnapshot)) {
+          return {
+            status: "skipped",
+            reason: "unchanged",
+            projectId,
+            snapshotHash: null,
+            keepalive: requestedKeepalive,
+          };
+        }
+        return {
+          status: "skipped",
+          reason: "not_ready",
           projectId,
           snapshotHash: null,
           keepalive: requestedKeepalive,
@@ -1439,6 +1485,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       handleProjectPersistError,
       projectBootstrapSettled,
       projectId,
+      resolveProjectSnapshotMatchesAutosaveBaseline,
       resolveProjectAutosaveReadyForSnapshot,
       runImperativeProjectWorkspaceFlush,
       sessionId,

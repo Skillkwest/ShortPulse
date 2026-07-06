@@ -25,6 +25,18 @@ This SOP covers:
 
 It does not cover implementation unless the user explicitly asks Hybervees to move from analysis into code/doc changes.
 
+## Completed Standard Loop
+
+When the user asks Hybervees to review tester reports without naming a specific report, use this loop:
+
+1. Find the earliest unreviewed agent tester report from the canonical report source.
+2. Read the persona report and engineering handoff.
+3. Analyze the report for product insight, tester feelings, user confusion, trust shifts, workflow friction, and improvement opportunities.
+4. Write a full detailed Hybervees insight report.
+5. Write a short owner summary in simple, ADHD-friendly language.
+6. Save both reports in Hybervees' workspace.
+7. When a safe authenticated admin API/data path or admin UI action is available, mark the tester report as Hybervees reviewed.
+
 ## Repo Guardrails
 
 - Inherit root `AGENTS.md`, `docs/agents/hybervees/README.md`, local `AGENTS.md`, Hybervees memory, and `docs/agents/hybervees/ownership-manifest.md` before producing decision-grade insight.
@@ -41,30 +53,27 @@ It does not cover implementation unless the user explicitly asks Hybervees to mo
 Use current repo-local and live/authenticated sources in this order:
 
 1. User-provided report ids, tester names, date windows, or scenarios.
-2. `/admin/tester-reports` when browser admin access is available.
-3. `/api/admin/tester-reports` when authenticated API access is available.
-4. Local tester report artifacts under `docs/agents/testers/<tester>/reports/`.
+2. Local tester report artifacts under `docs/agents/testers/<tester>/reports/` when the tester has already written durable reports.
+3. `/api/admin/tester-reports` or a service-role/admin-authorized data path when authenticated report data access is available.
+4. `/admin/tester-reports` in the browser when the task needs live UI proof, deployed admin-page behavior, or manual row review.
 5. Hybervees retained ledgers for historical pattern comparison.
 
 Do not use temporary scratch exports as source of truth unless the user explicitly names the export for the current task.
 
 ## First Capability Gate: Read Agent Tester Reports
 
-Before Hybervees produces tester insight, Hybervees must open the report source, read actual report bodies, and analyze the tester data. Visibility alone is not enough.
+Before Hybervees produces tester insight, Hybervees must access a canonical report source, read actual report bodies, and analyze the tester data. Browser visibility is not required when canonical local artifacts, authenticated API data, or an admin-authorized data path provide the report bodies.
 
 Use `docs/agents/hybervees/workspace/admin-tester-reports-access-checklist.md`.
 
 Minimum review proof:
 
-- route checked: `/admin/tester-reports`,
-- admin surface opened: `Agent Tester Reports`,
-- source boundary stated: live admin browser, authenticated API, local artifact fallback, or blocked,
-- page state recorded: rows visible, empty state, loading/error state, or auth/admin blocked,
-- if rows are visible, requested or recent report rows are opened,
+- source checked: local tester artifact, authenticated admin API, admin-authorized data path, live admin browser, or blocked,
+- source boundary stated clearly,
 - both `Persona report` and `Engineering handoff` are read for each reviewed run,
 - Hybervees extracts tester data, infers product insights, and suggests app improvements.
 
-If this gate is blocked by auth, admin access, or page failure, Hybervees should stop with an access-status note instead of pretending to analyze reports it cannot read.
+If all canonical report sources are blocked, Hybervees should stop with an access-status note instead of pretending to analyze reports it cannot read.
 
 ## Required Workflow
 
@@ -82,12 +91,13 @@ If this gate is blocked by auth, admin access, or page failure, Hybervees should
   - or all available local reports.
 - Confirm whether this is `analysis only` or an explicitly promoted implementation lane.
 
-### Step 2. Open And Read Admin Tester Reports
+### Step 2. Open And Read The Report Source
 
 - Run the first capability gate.
-- Prefer live admin browser visibility when available.
-- Use authenticated API or local artifacts only when live admin browser visibility is unavailable or the user asks for that source.
-- Open report rows and read both report bodies before analysis.
+- Prefer durable local tester artifacts when the requested report already exists there.
+- Use authenticated API or admin-authorized data access when local artifacts are missing or the user wants current production DB truth.
+- Use the live admin browser only for UI proof, deployed admin-page behavior, or manual review-state confirmation.
+- Read both report bodies before analysis.
 - Record the evidence boundary before making suggestions.
 
 ### Step 3. Gather Reports

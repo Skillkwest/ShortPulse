@@ -13,6 +13,17 @@ body.dashboard-body {
   padding-bottom: 60px;
 }
 
+html.dashboard-auth-bootstrap-pending,
+html.dashboard-auth-bootstrap-pending body {
+  background: #0f1115 !important;
+}
+
+html.dashboard-auth-bootstrap-pending .public-dashboard-page {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .authenticated-dashboard-page {
   --authenticated-dashboard-gradient-text: linear-gradient(
     90deg,

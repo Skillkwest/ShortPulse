@@ -16,6 +16,35 @@ import { readSupabaseSessionBootstrapHint } from "../lib/supabaseSessionHints";
 
 const DASHBOARD_BOOTSTRAP_TITLE = "Loading dashboard";
 const DASHBOARD_BOOTSTRAP_MESSAGE = "Checking your session before your dashboard workspace loads.";
+const DASHBOARD_AUTH_BOOTSTRAP_CLASS = "dashboard-auth-bootstrap-pending";
+const DASHBOARD_AUTH_BOOTSTRAP_SCRIPT_ID = "shortpulse-dashboard-auth-bootstrap-mask";
+const DASHBOARD_AUTH_BOOTSTRAP_SCRIPT = `
+(function () {
+  try {
+    var pathname = window.location && window.location.pathname;
+    if (pathname !== "/" && pathname !== "/dashboard") return;
+    var storage = window.localStorage;
+    if (!storage) return;
+    for (var index = 0; index < storage.length; index += 1) {
+      var key = storage.key(index);
+      if (!key || !/auth-token/i.test(key)) continue;
+      var rawValue = storage.getItem(key);
+      if (!rawValue) continue;
+      try {
+        var parsed = JSON.parse(rawValue);
+        var candidates = [parsed, parsed && parsed.currentSession, parsed && parsed.session];
+        for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+          var candidate = candidates[candidateIndex];
+          if (candidate && (typeof candidate.access_token === "string" || typeof candidate.refresh_token === "string")) {
+            document.documentElement.classList.add("${DASHBOARD_AUTH_BOOTSTRAP_CLASS}");
+            return;
+          }
+        }
+      } catch (error) {}
+    }
+  } catch (error) {}
+})();
+`;
 
 type DashboardPageStaticProps = InferGetStaticPropsType<typeof getStaticProps>;
 
@@ -42,6 +71,20 @@ const loadDashboardRouteSessionAware = async () => {
 if (typeof window !== "undefined" && readSupabaseSessionBootstrapHint()) {
   void loadDashboardRouteSessionAware();
 }
+
+const clearDashboardAuthBootstrapMask = () => {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.remove(DASHBOARD_AUTH_BOOTSTRAP_CLASS);
+};
+
+const DashboardAuthBootstrapMask = () => (
+  <Head>
+    <script
+      id={DASHBOARD_AUTH_BOOTSTRAP_SCRIPT_ID}
+      dangerouslySetInnerHTML={{ __html: DASHBOARD_AUTH_BOOTSTRAP_SCRIPT }}
+    />
+  </Head>
+);
 
 /**
  * Loads the public billing catalog snapshot used by dashboard guest mode and the pricing route.
@@ -82,6 +125,12 @@ export default function DashboardPage({
   }, []);
 
   useEffect(() => {
+    if (shouldResolveSession) {
+      clearDashboardAuthBootstrapMask();
+    }
+  }, [shouldResolveSession]);
+
+  useEffect(() => {
     if (!shouldResolveSession || SessionAwareDashboardRoute) return;
     let cancelled = false;
     void loadDashboardRouteSessionAware().then((component) => {
@@ -96,11 +145,14 @@ export default function DashboardPage({
 
   if (!shouldResolveSession) {
     return (
-      <PublicDashboardRoute
-        billingCatalog={billingCatalog}
-        dashboardTutorials={dashboardTutorials}
-        manageBodyClass={false}
-      />
+      <>
+        <DashboardAuthBootstrapMask />
+        <PublicDashboardRoute
+          billingCatalog={billingCatalog}
+          dashboardTutorials={dashboardTutorials}
+          manageBodyClass={false}
+        />
+      </>
     );
   }
 

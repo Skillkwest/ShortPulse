@@ -45,10 +45,11 @@ Optional fields include `status`, run timing, `creditsSpent`, `productionSurface
 3. Click a run row to reveal run metadata and the two report cards.
 4. Expand `Persona report` or `Engineering handoff` to read the body.
 5. Treat the engineering handoff as an input packet for a separate scoped implementation or audit lane.
+6. After Hybervees has read and analyzed the local tester report or admin report content, mark the row `Hybervees reviewed` in `/admin/tester-reports` so the admin page reflects insight-review progress separately from the tester-run status.
 
 ## Security Boundary
 
-`tester_report_runs` is RLS-enabled and service-role-only. Browser access must stay behind `/api/admin/tester-reports` with `requireAdminUser`. Tester automation must use the internal ingest secret route. Do not expose tester reports through customer-facing report surfaces, public routes, or direct Supabase client reads.
+`tester_report_runs` is RLS-enabled and service-role-only. Browser access must stay behind `/api/admin/tester-reports` with `requireAdminUser`, and review-status mutations must stay behind `/api/admin/tester-reports-review` with `requireAdminUser`. Tester automation must use the internal ingest secret route. Do not expose tester reports through customer-facing report surfaces, public routes, or direct Supabase client reads.
 
 ## Validation
 

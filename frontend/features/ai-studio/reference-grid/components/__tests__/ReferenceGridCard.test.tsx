@@ -579,6 +579,8 @@ describe("ReferenceGridCard", () => {
     const rerollButton = screen.getByLabelText("Re-roll");
     const reloadButton = screen.getByLabelText("Reload workflow");
 
+    expect(rerollButton).toHaveAttribute("title", "Re-roll");
+    expect(reloadButton).toHaveAttribute("title", "Reload workflow");
     expect(reloadButton.parentElement).toHaveClass("reference-card-bottom-actions");
     expect(reloadButton.previousElementSibling).toBe(rerollButton);
   });
@@ -631,6 +633,8 @@ describe("ReferenceGridCard", () => {
     const rerollButton = screen.getByLabelText("Re-roll");
     const reloadButton = screen.getByLabelText("Reload workflow");
 
+    expect(rerollButton).toHaveAttribute("title", "Re-roll");
+    expect(reloadButton).toHaveAttribute("title", "Reload workflow");
     expect(rerollButton.parentElement).toHaveClass("reference-card-bottom-actions");
     expect(reloadButton.parentElement).toBe(rerollButton.parentElement);
     expect(reloadButton.previousElementSibling).toBe(rerollButton);
@@ -1704,6 +1708,8 @@ describe("ReferenceGridCard", () => {
     const removeButton = screen.getByLabelText("Remove reference from grid");
     const actionRow = downloadButton.parentElement;
 
+    expect(downloadButton).toHaveAttribute("title", "Download");
+    expect(removeButton).toHaveAttribute("title", "Remove from Reference Grid");
     expect(actionRow).toHaveClass("reference-card-actions");
     expect(removeButton.parentElement).toBe(actionRow);
     expect(container.querySelector(".reference-card-audio-download")).toBeNull();
@@ -1714,6 +1720,45 @@ describe("ReferenceGridCard", () => {
 
     fireEvent.click(removeButton);
     expect(onDeleteOutput).toHaveBeenCalledWith("audio-ref-1");
+  });
+
+  it("adds simple hover tooltip titles to reference card action buttons", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "image-ref-1",
+            prompt: "Prompt to pin",
+            mode: "image",
+            mediaSource: "generated",
+            generationId: "generation-image-ref-1",
+            taskState: "success",
+          }),
+          activeOutputId: "image-ref-1",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/reference.png",
+          imageSrc: "https://example.com/reference.png",
+          onSaveToLibrary: vi.fn(),
+          onPinPromptReference: vi.fn(),
+          onDownload: vi.fn(),
+          onDeleteOutput: vi.fn(),
+        })}
+      />
+    );
+
+    expect(screen.getByLabelText("Save to media library")).toHaveAttribute(
+      "title",
+      "Save to media library"
+    );
+    expect(screen.getByLabelText("Pin text reference to reference grid")).toHaveAttribute(
+      "title",
+      "Pin text to Reference Grid"
+    );
+    expect(screen.getByLabelText("Download reference")).toHaveAttribute("title", "Download");
+    expect(screen.getByLabelText("Remove reference from grid")).toHaveAttribute(
+      "title",
+      "Remove from Reference Grid"
+    );
   });
 
   it("pins a media reference prompt into the Reference Grid", () => {
@@ -1863,6 +1908,9 @@ describe("ReferenceGridCard", () => {
     const removeButton = screen.getByLabelText("Remove from curated");
     const actionRow = downloadButton.parentElement;
 
+    expect(pinButton).toHaveAttribute("title", "Pin text to Reference Grid");
+    expect(downloadButton).toHaveAttribute("title", "Download");
+    expect(removeButton).toHaveAttribute("title", "Remove from Quick Slot");
     expect(actionRow).toHaveAttribute("aria-label", "Curated actions");
     expect(actionRow).toHaveClass("reference-card-actions");
     expect(pinButton.parentElement).toBe(actionRow);

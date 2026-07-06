@@ -3,7 +3,9 @@
  */
 import {
   TESTER_REPORT_PAGE_SIZE,
+  isHyberveesReviewStatus,
   isTesterReportStatus,
+  type HyberveesReviewStatus,
   type TesterReportStatus,
 } from "../../../lib/testerReports";
 import type { AdminPagination, AdminTesterReportRunRow, AdminTesterReportSummary } from "../types";
@@ -47,6 +49,9 @@ const toStringOrNull = (value: unknown): string | null =>
 
 const toStatus = (value: unknown): TesterReportStatus =>
   isTesterReportStatus(value) ? value : "completed";
+
+const toHyberveesReviewStatus = (value: unknown): HyberveesReviewStatus =>
+  isHyberveesReviewStatus(value) ? value : "unreviewed";
 
 const toCreatedBySource = (value: unknown): "tester_agent" | "automation" | "admin" => {
   if (value === "automation" || value === "admin") return value;
@@ -118,6 +123,11 @@ export const normalizeAdminTesterReportsResponse = (
       engineeringReportBody: String(value.engineering_report_body ?? ""),
       reportArtifactPaths: toStringArray(value.report_artifact_paths),
       evidence: toObjectRecord(value.evidence),
+      hyberveesReviewStatus: toHyberveesReviewStatus(value.hybervees_review_status),
+      hyberveesReviewedAt: toStringOrNull(value.hybervees_reviewed_at),
+      hyberveesReviewedBy: toStringOrNull(value.hybervees_reviewed_by),
+      hyberveesInsightSummary: toStringOrNull(value.hybervees_insight_summary),
+      hyberveesInsightArtifactPath: toStringOrNull(value.hybervees_insight_artifact_path),
       createdBySource: toCreatedBySource(value.created_by_source),
       createdByUserId: toStringOrNull(value.created_by_user_id),
       createdByEmail: toStringOrNull(value.created_by_email),

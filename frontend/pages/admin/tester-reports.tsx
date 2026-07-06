@@ -20,6 +20,8 @@ export default function AdminTesterReportsPage() {
     testerReports,
     testerReportsLoading,
     testerReportsError,
+    hyberveesReviewSavingId,
+    hyberveesReviewError,
     testerReportSummary,
     testerReportsPagination,
     testerReportStatusFilter,
@@ -30,6 +32,7 @@ export default function AdminTesterReportsPage() {
     handleTesterReportSearchChange,
     handleTesterReportsPrevPage,
     handleTesterReportsNextPage,
+    markHyberveesReviewed,
     refreshTesterReports,
   } = useAdminTesterReportsController({
     enabled: Boolean(user && adminEnabled),
@@ -54,6 +57,8 @@ export default function AdminTesterReportsPage() {
         testerReports={testerReports}
         testerReportsLoading={testerReportsLoading}
         testerReportsError={testerReportsError}
+        hyberveesReviewSavingId={hyberveesReviewSavingId}
+        hyberveesReviewError={hyberveesReviewError}
         testerReportSummary={testerReportSummary}
         testerReportsPagination={testerReportsPagination}
         testerReportStatusFilter={testerReportStatusFilter}
@@ -64,6 +69,7 @@ export default function AdminTesterReportsPage() {
         onTesterReportSearchChange={handleTesterReportSearchChange}
         onPrevPage={handleTesterReportsPrevPage}
         onNextPage={handleTesterReportsNextPage}
+        onMarkHyberveesReviewed={markHyberveesReviewed}
         onRefresh={refreshTesterReports}
       />
     </AdminRouteShell>

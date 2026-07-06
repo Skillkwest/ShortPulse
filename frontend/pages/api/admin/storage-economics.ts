@@ -31,6 +31,7 @@ const STORAGE_ADDON_TELEMETRY_SOURCE = "telemetry.storage.addon";
 const PAYMENT_EXEMPT_PLAN_ID = "payment_exempt";
 const PAYMENT_EXEMPT_PLAN_LABEL = "Payment exempt testers";
 const PAYMENT_EXEMPT_PLAN_VISIBILITY = "hidden/admin only";
+const STORAGE_OBJECT_PAGE_SIZE = 1000;
 
 const ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
   storageCostPerGbMonth: 0.021,
@@ -146,6 +147,20 @@ type QueryResult<T> = {
   error: { message?: string } | null;
 };
 
+type StorageObjectMetadataRow = {
+  metadata: Record<string, unknown> | null;
+};
+
+type StorageObjectsSchemaClient = {
+  schema?: (schema: string) => {
+    from: (tableName: string) => {
+      select: (columns: string) => {
+        range: (from: number, to: number) => Promise<QueryResult<StorageObjectMetadataRow>>;
+      };
+    };
+  };
+};
+
 const emptyWindow = (): AdminStatsCountWindow => ({
   total: 0,
   last24h: 0,
@@ -191,6 +206,11 @@ const percentile = (values: number[], pct: number): number => {
 const median = (values: number[]): number => percentile(values, 50);
 
 const bytesToGb = (bytes: number): number => bytes / BYTES_PER_GIB;
+
+const envNumber = (value: string | undefined, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+};
 
 const estimateStorageCostCents = (bytes: number): number =>
   Math.round(bytesToGb(bytes) * ASSUMPTIONS.storageCostPerGbMonth * 100);
@@ -802,6 +822,81 @@ const buildDataGaps = (
   return gaps;
 };
 
+const metadataSizeBytes = (metadata: Record<string, unknown> | null): number => {
+  const size = metadata?.size ?? metadata?.contentLength ?? metadata?.content_length;
+  return toCount(size);
+};
+
+const loadStorageObjectsBytes = async (
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>
+): Promise<number | null> => {
+  const storageClient = supabaseAdmin as unknown as StorageObjectsSchemaClient;
+  if (typeof storageClient.schema !== "function") return null;
+
+  let from = 0;
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const result = await storageClient
+        .schema("storage")
+        .from("objects")
+        .select("metadata")
+        .range(from, from + STORAGE_OBJECT_PAGE_SIZE - 1);
+      if (result.error) return null;
+      const rows = Array.isArray(result.data) ? result.data : [];
+      rows.forEach((row) => {
+        totalBytes += metadataSizeBytes(row.metadata);
+      });
+      if (rows.length < STORAGE_OBJECT_PAGE_SIZE) break;
+      from += STORAGE_OBJECT_PAGE_SIZE;
+    }
+  } catch {
+    return null;
+  }
+
+  return totalBytes;
+};
+
+const currentSnapshotMonth = (capturedAt: Date): string =>
+  `${capturedAt.getUTCFullYear()}-${String(capturedAt.getUTCMonth() + 1).padStart(2, "0")}-01`;
+
+const buildAutomaticStorageUsageSnapshot = async ({
+  supabaseAdmin,
+  productTrackedBytes,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  productTrackedBytes: number;
+}): Promise<AdminStorageUsageSnapshotRow> => {
+  const storageObjectsBytes = await loadStorageObjectsBytes(supabaseAdmin);
+  const storageBytes = storageObjectsBytes ?? productTrackedBytes;
+  const capturedAt = new Date();
+  const sourceDetail =
+    storageObjectsBytes === null ? "media_files.file_size fallback" : "storage.objects metadata";
+
+  return {
+    snapshot_month: currentSnapshotMonth(capturedAt),
+    captured_at: capturedAt.toISOString(),
+    source: "api_import",
+    supabase_plan: process.env.SUPABASE_PLAN_NAME?.trim() || "Production",
+    compute_plan: process.env.SUPABASE_COMPUTE_PLAN?.trim() || ASSUMPTIONS.computePlan,
+    compute_monthly_cost_cents: envNumber(
+      process.env.SUPABASE_COMPUTE_MONTHLY_COST_CENTS,
+      ASSUMPTIONS.computeMonthlyCostCents
+    ),
+    storage_used_gb: bytesToGb(storageBytes),
+    storage_included_gb: envNumber(process.env.SUPABASE_STORAGE_INCLUDED_GB, 100),
+    uncached_egress_gb: envNumber(process.env.SUPABASE_UNCACHED_EGRESS_GB, 0),
+    cached_egress_gb: envNumber(process.env.SUPABASE_CACHED_EGRESS_GB, 0),
+    uncached_egress_included_gb: envNumber(process.env.SUPABASE_UNCACHED_EGRESS_INCLUDED_GB, 250),
+    cached_egress_included_gb: envNumber(process.env.SUPABASE_CACHED_EGRESS_INCLUDED_GB, 250),
+    observed_storage_overage_cost_cents: null,
+    observed_uncached_egress_overage_cost_cents: null,
+    observed_cached_egress_overage_cost_cents: null,
+    notes: `Automatic production snapshot from ${sourceDetail}. Egress fields use configured Supabase env overrides when present.`,
+  };
+};
+
 const loadRiskQueueUserEmails = async (
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   userIds: string[]
@@ -927,8 +1022,12 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   });
   const usageByUser = new Map(accounts.map((account) => [account.userId, account.trackedBytes]));
   const totalTrackedBytes = accounts.reduce((sum, account) => sum + account.trackedBytes, 0);
+  const automaticProviderUsageRow = await buildAutomaticStorageUsageSnapshot({
+    supabaseAdmin,
+    productTrackedBytes: totalTrackedBytes,
+  });
   const providerUsage = buildAdminStorageProviderUsage({
-    row: providerUsageRows[0] ?? null,
+    row: automaticProviderUsageRow ?? providerUsageRows[0] ?? null,
     assumptions: ASSUMPTIONS,
     productTrackedBytes: totalTrackedBytes,
   });

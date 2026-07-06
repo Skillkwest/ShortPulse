@@ -324,16 +324,15 @@ describe("GET /api/admin/storage-economics", () => {
     expect(payload.providerUsage).toEqual(
       expect.objectContaining({
         status: "current",
-        source: "manual",
-        snapshotMonth: "2026-07-01",
-        storageUsedGb: 42,
-        uncachedEgressGb: 120,
-        cachedEgressGb: 60,
-        storageQuotaUsedPct: 42,
+        source: "api_import",
+        supabasePlan: "Production",
+        uncachedEgressGb: 0,
+        cachedEgressGb: 0,
         egressMultiple: expect.any(Number),
-        notes: "usage page snapshot",
       })
     );
+    expect(payload.providerUsage.storageUsedGb).toBeCloseTo(1100 / 1073741824);
+    expect(payload.providerUsage.notes).toContain("media_files.file_size fallback");
     expect(payload.byPlan).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

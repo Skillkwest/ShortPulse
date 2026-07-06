@@ -4,7 +4,6 @@
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
-import { AdminStorageSnapshotCaptureModal } from "./AdminStorageSnapshotCaptureModal";
 import type {
   AdminStorageEconomicsResponse,
   AdminStorageProviderUsage,
@@ -52,7 +51,7 @@ const PROVIDER_SOURCE_LABELS: Record<AdminStorageProviderUsage["source"], string
   manual: "Manual entry",
   supabase_usage_page: "Supabase usage page",
   supabase_export: "Supabase export",
-  api_import: "API import",
+  api_import: "Production database",
   unavailable: "No source",
 };
 
@@ -123,7 +122,6 @@ export const AdminStorageEconomicsPanel = ({
   error,
   onRefresh,
 }: AdminStorageEconomicsPanelProps) => {
-  const [captureOpen, setCaptureOpen] = React.useState(false);
   const { providerUsage, byPlan, addonPackages, riskQueue } = storageEconomics;
   const hasProviderSnapshot =
     providerUsage.status !== "unavailable" && providerUsage.source !== "unavailable";
@@ -138,19 +136,16 @@ export const AdminStorageEconomicsPanel = ({
             <p className={styles.adminSectionEyebrow}>Supabase pressure</p>
             <h2 className={styles.adminSectionTitle}>Supabase usage</h2>
             <p className="tiny subdued">
-              Latest provider snapshot for storage, egress, and overage.
+              Automatic production snapshot for Supabase storage, egress, and overage.
             </p>
           </div>
           <div className={styles.adminHeaderActions}>
-            <button type="button" className="ghost-btn mini" onClick={() => setCaptureOpen(true)}>
-              Capture snapshot
-            </button>
             <button
               type="button"
               className="ghost-btn mini"
               onClick={onRefresh}
               disabled={loading}
-              title="Reload ShortPulse storage data. Use Capture snapshot to add Supabase provider usage."
+              title="Reload live ShortPulse storage and Supabase production usage."
               aria-label="Reload ShortPulse storage data"
             >
               {loading ? "Refreshing…" : "Refresh"}
@@ -177,8 +172,7 @@ export const AdminStorageEconomicsPanel = ({
             role="status"
           >
             <p className={styles.adminWarningDescription}>
-              Capture a service-role provider snapshot before using this panel for Supabase storage
-              or egress decisions.
+              The automatic production snapshot could not be built from Supabase data.
             </p>
           </AppMessage>
         ) : null}
@@ -255,14 +249,6 @@ export const AdminStorageEconomicsPanel = ({
           />
         </div>
       </section>
-
-      {captureOpen ? (
-        <AdminStorageSnapshotCaptureModal
-          providerUsage={providerUsage}
-          onClose={() => setCaptureOpen(false)}
-          onCaptured={onRefresh}
-        />
-      ) : null}
 
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>

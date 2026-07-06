@@ -150,6 +150,12 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gutan/standard-operating-procedure.md`
 - `docs/agents/gutan/memory.md`
 - `docs/agents/gutan/ownership-manifest.md`
+- `docs/agents/hybervees/README.md`
+- `docs/agents/hybervees/AGENTS.md`
+- `docs/agents/hybervees/memory.md`
+- `docs/agents/hybervees/standard-operating-procedure.md`
+- `docs/agents/hybervees/ownership-manifest.md`
+- `docs/agents/hybervees/workspace/README.md`
 - `docs/agents/Money Stuff/README.md`
 - `docs/agents/nogo/README.md`
 - `docs/agents/nogo/AGENTS.md`

@@ -2,8 +2,10 @@
  * Shared tester-report contracts for admin ingestion and display.
  */
 export const TESTER_REPORT_STATUS_VALUES = ["completed", "blocked", "failed", "partial"] as const;
+export const HYBERVEES_REVIEW_STATUS_VALUES = ["unreviewed", "reviewed"] as const;
 
 export type TesterReportStatus = (typeof TESTER_REPORT_STATUS_VALUES)[number];
+export type HyberveesReviewStatus = (typeof HYBERVEES_REVIEW_STATUS_VALUES)[number];
 
 export const TESTER_REPORT_PAGE_SIZE = 25;
 export const TESTER_REPORT_MAX_PAGE_SIZE = 100;
@@ -16,12 +18,18 @@ export const TESTER_REPORT_SURFACE_MAX_LENGTH = 1024;
 export const TESTER_REPORT_TITLE_MAX_LENGTH = 180;
 export const TESTER_REPORT_BODY_MAX_LENGTH = 50000;
 export const TESTER_REPORT_SEARCH_MAX_LENGTH = 120;
+export const HYBERVEES_REVIEW_SUMMARY_MAX_LENGTH = 1000;
+export const HYBERVEES_REVIEW_ARTIFACT_PATH_MAX_LENGTH = 1024;
 
 const TESTER_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const isTesterReportStatus = (value: unknown): value is TesterReportStatus =>
   typeof value === "string" && (TESTER_REPORT_STATUS_VALUES as readonly string[]).includes(value);
+
+export const isHyberveesReviewStatus = (value: unknown): value is HyberveesReviewStatus =>
+  typeof value === "string" &&
+  (HYBERVEES_REVIEW_STATUS_VALUES as readonly string[]).includes(value);
 
 export const normalizeTesterReportText = (
   value: unknown,

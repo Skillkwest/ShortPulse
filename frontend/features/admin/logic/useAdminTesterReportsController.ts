@@ -22,6 +22,8 @@ type UseAdminTesterReportsControllerResult = {
   testerReports: AdminTesterReportRunRow[];
   testerReportsLoading: boolean;
   testerReportsError: string | null;
+  hyberveesReviewSavingId: string | null;
+  hyberveesReviewError: string | null;
   testerReportSummary: AdminTesterReportSummary;
   testerReportsPagination: AdminPagination;
   testerReportStatusFilter: "all" | TesterReportStatus;
@@ -32,6 +34,7 @@ type UseAdminTesterReportsControllerResult = {
   handleTesterReportSearchChange: (value: string) => void;
   handleTesterReportsPrevPage: () => void;
   handleTesterReportsNextPage: () => void;
+  markHyberveesReviewed: (reportId: string) => Promise<void>;
   refreshTesterReports: () => Promise<void>;
 };
 
@@ -41,6 +44,8 @@ export const useAdminTesterReportsController = ({
   const [testerReports, setTesterReports] = React.useState<AdminTesterReportRunRow[]>([]);
   const [testerReportsLoading, setTesterReportsLoading] = React.useState(false);
   const [testerReportsError, setTesterReportsError] = React.useState<string | null>(null);
+  const [hyberveesReviewSavingId, setHyberveesReviewSavingId] = React.useState<string | null>(null);
+  const [hyberveesReviewError, setHyberveesReviewError] = React.useState<string | null>(null);
   const [testerReportSummary, setTesterReportSummary] = React.useState<AdminTesterReportSummary>(
     DEFAULT_ADMIN_TESTER_REPORT_SUMMARY
   );
@@ -175,10 +180,39 @@ export const useAdminTesterReportsController = ({
     await loadTesterReports();
   }, [enabled, loadTesterReports]);
 
+  const markHyberveesReviewed = React.useCallback(
+    async (reportId: string) => {
+      if (!enabled || hyberveesReviewSavingId) return;
+      setHyberveesReviewSavingId(reportId);
+      setHyberveesReviewError(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/tester-reports-review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportId, status: "reviewed" }),
+        });
+        if (!response.ok) {
+          const details = await response.json().catch(() => ({}));
+          throw new Error(details?.error || "Failed to mark tester report reviewed.");
+        }
+        await loadTesterReports();
+      } catch (error) {
+        setHyberveesReviewError(
+          error instanceof Error ? error.message : "Failed to mark tester report reviewed."
+        );
+      } finally {
+        setHyberveesReviewSavingId(null);
+      }
+    },
+    [enabled, hyberveesReviewSavingId, loadTesterReports]
+  );
+
   return {
     testerReports,
     testerReportsLoading,
     testerReportsError,
+    hyberveesReviewSavingId,
+    hyberveesReviewError,
     testerReportSummary,
     testerReportsPagination,
     testerReportStatusFilter,
@@ -189,6 +223,7 @@ export const useAdminTesterReportsController = ({
     handleTesterReportSearchChange,
     handleTesterReportsPrevPage,
     handleTesterReportsNextPage,
+    markHyberveesReviewed,
     refreshTesterReports,
   };
 };

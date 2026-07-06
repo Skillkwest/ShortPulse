@@ -2582,6 +2582,11 @@ create table if not exists public.tester_report_runs (
     engineering_report_body text not null,
     report_artifact_paths jsonb not null default '[]'::jsonb,
     evidence jsonb not null default '{}'::jsonb,
+    hybervees_review_status text not null default 'unreviewed',
+    hybervees_reviewed_at timestamptz,
+    hybervees_reviewed_by text,
+    hybervees_insight_summary text,
+    hybervees_insight_artifact_path text,
     created_by_source text not null default 'tester_agent',
     created_by_user_id uuid references auth.users(id) on delete set null,
     created_by_email text,
@@ -2651,6 +2656,30 @@ create table if not exists public.tester_report_runs (
     constraint tester_report_runs_evidence_check check (
         jsonb_typeof(evidence) = 'object'
     ),
+    constraint tester_report_runs_hybervees_review_status_check check (
+        hybervees_review_status in ('unreviewed', 'reviewed')
+    ),
+    constraint tester_report_runs_hybervees_reviewed_by_check check (
+        hybervees_reviewed_by is null
+        or (
+            hybervees_reviewed_by = btrim(hybervees_reviewed_by)
+            and char_length(hybervees_reviewed_by) between 1 and 160
+        )
+    ),
+    constraint tester_report_runs_hybervees_insight_summary_check check (
+        hybervees_insight_summary is null
+        or (
+            hybervees_insight_summary = btrim(hybervees_insight_summary)
+            and char_length(hybervees_insight_summary) between 1 and 1000
+        )
+    ),
+    constraint tester_report_runs_hybervees_insight_artifact_path_check check (
+        hybervees_insight_artifact_path is null
+        or (
+            hybervees_insight_artifact_path = btrim(hybervees_insight_artifact_path)
+            and char_length(hybervees_insight_artifact_path) between 1 and 1024
+        )
+    ),
     constraint tester_report_runs_created_by_source_check check (
         created_by_source in ('tester_agent', 'automation', 'admin')
     ),
@@ -2677,6 +2706,9 @@ create index if not exists ix_tester_report_runs_user_created_at
 
 create index if not exists ix_tester_report_runs_status_created_at
     on public.tester_report_runs (status, created_at desc);
+
+create index if not exists ix_tester_report_runs_hybervees_review_created_at
+    on public.tester_report_runs (hybervees_review_status, created_at desc);
 
 alter table public.tester_report_runs enable row level security;
 

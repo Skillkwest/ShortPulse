@@ -2,6 +2,8 @@
 -- The existing ai_credit_ledger and ai_credit_balance remain audit/projection
 -- surfaces; grant lots become the spendability authority for new debits.
 
+drop policy if exists insert_ai_credit_ledger_user_debits on public.ai_credit_ledger;
+
 create table if not exists public.ai_credit_grants (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references auth.users(id) on delete cascade,
@@ -1166,7 +1168,7 @@ declare
     recaptured_from_released boolean := false;
     v_ledger_id uuid;
     v_allocation record;
-    v_debit_status text;
+    v_released_amount integer := 0;
 begin
     if p_user_id is null then
         raise exception 'User id is required';
@@ -1204,11 +1206,28 @@ begin
             return;
         end if;
 
-        select d.status, d.ledger_id
-          into v_debit_status, v_ledger_id
-          from public.debit_account_credits(
+        select coalesce(sum(a.amount_cents), 0)::integer
+          into v_released_amount
+          from public.ai_credit_grant_allocations a
+         where a.reservation_id = reservation_row.id
+           and a.allocation_status = 'released';
+
+        if v_released_amount <= 0 then
+            return query select 'already_released'::text, reservation_row.source_ref, null::text;
+            return;
+        end if;
+
+        insert into public.ai_credit_ledger (
+            user_id,
+            change_cents,
+            reason,
+            source,
+            source_ref,
+            metadata
+        )
+        values (
             reservation_row.user_id,
-            reservation_row.amount_cents,
+            -abs(v_released_amount),
             p_reason,
             'generation_charge',
             reservation_row.source_ref,
@@ -1217,12 +1236,50 @@ begin
                 'provider_request_id', p_provider_request_id,
                 'captured_from_reservation', true,
                 'recaptured_from_released', true,
-                'release_finality', release_finality
+                'release_finality', release_finality,
+                'credit_lot_debit', true,
+                'released_allocation_cents', v_released_amount
             ) || coalesce(reservation_row.metadata, '{}'::jsonb)
-              || coalesce(p_metadata, '{}'::jsonb),
-            null
-          ) d
-         limit 1;
+              || coalesce(p_metadata, '{}'::jsonb)
+        )
+        on conflict (user_id, source, source_ref) where source_ref is not null
+        do nothing
+        returning id into v_ledger_id;
+
+        if v_ledger_id is null then
+            select id
+              into v_ledger_id
+              from public.ai_credit_ledger
+             where user_id = reservation_row.user_id
+               and source = 'generation_charge'
+               and source_ref = reservation_row.source_ref
+             limit 1;
+        end if;
+
+        for v_allocation in
+            select a.*, g.remaining_cents
+              from public.ai_credit_grant_allocations a
+              join public.ai_credit_grants g on g.id = a.grant_id
+             where a.reservation_id = reservation_row.id
+               and a.allocation_status = 'released'
+             for update of a, g
+        loop
+            if v_allocation.remaining_cents < v_allocation.amount_cents then
+                raise exception 'Released reservation credits are no longer available';
+            end if;
+
+            update public.ai_credit_grants g
+               set remaining_cents = g.remaining_cents - v_allocation.amount_cents
+             where g.id = v_allocation.grant_id;
+
+            update public.ai_credit_grant_allocations a
+               set allocation_status = 'captured',
+                   ledger_id = v_ledger_id,
+                   metadata = coalesce(a.metadata, '{}'::jsonb)
+                     || jsonb_build_object('capture_reason', p_reason, 'recaptured_from_released', true)
+                     || coalesce(p_metadata, '{}'::jsonb)
+             where a.id = v_allocation.id;
+        end loop;
 
         recaptured_from_released := true;
     else

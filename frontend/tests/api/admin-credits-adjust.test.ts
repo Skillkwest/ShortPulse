@@ -29,6 +29,40 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+const createSupabaseAdminMock = ({
+  balanceCents = 1234,
+  balanceError = null,
+  grantSummary = {
+    spendable_cents: 1000,
+    reserved_cents: 234,
+    expiring_cents: 700,
+    non_expiring_cents: 300,
+    next_expiring_cents: 200,
+    next_expires_at: "2026-09-04T00:00:00.000Z",
+  },
+  grantSummaryError = null,
+}: {
+  balanceCents?: number;
+  balanceError?: { message: string } | null;
+  grantSummary?: Record<string, unknown> | null;
+  grantSummaryError?: { message: string } | null;
+} = {}) => ({
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({
+          data: balanceError ? null : { balance_cents: balanceCents },
+          error: balanceError,
+        }),
+      }),
+    }),
+  }),
+  rpc: async () => ({
+    data: grantSummary ? [grantSummary] : [],
+    error: grantSummaryError,
+  }),
+});
+
 describe("POST /api/admin/credits/adjust", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,15 +117,7 @@ describe("POST /api/admin/credits/adjust", () => {
   });
 
   it("returns updated balance after successful adjustment", async () => {
-    getSupabaseAdminMock.mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { balance_cents: 1234 }, error: null }),
-          }),
-        }),
-      }),
-    });
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock());
 
     const req = {
       method: "POST",
@@ -118,6 +144,12 @@ describe("POST /api/admin/credits/adjust", () => {
       ok: true,
       userId: "user-1",
       balanceCents: 1234,
+      spendableCents: 1000,
+      reservedCents: 234,
+      expiringCents: 700,
+      nonExpiringCents: 300,
+      nextExpiringCents: 200,
+      nextExpiresAt: "2026-09-04T00:00:00.000Z",
       status: "granted",
       ledgerId: null,
       grantId: null,
@@ -131,15 +163,7 @@ describe("POST /api/admin/credits/adjust", () => {
       ledgerId: "ledger-1",
       grantId: "grant-1",
     });
-    getSupabaseAdminMock.mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { balance_cents: 1234 }, error: null }),
-          }),
-        }),
-      }),
-    });
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock());
 
     const req = {
       method: "POST",
@@ -153,6 +177,12 @@ describe("POST /api/admin/credits/adjust", () => {
       ok: true,
       userId: "user-1",
       balanceCents: 1234,
+      spendableCents: 1000,
+      reservedCents: 234,
+      expiringCents: 700,
+      nonExpiringCents: 300,
+      nextExpiringCents: 200,
+      nextExpiresAt: "2026-09-04T00:00:00.000Z",
       status: "duplicate",
       ledgerId: "ledger-1",
       grantId: "grant-1",
@@ -160,18 +190,9 @@ describe("POST /api/admin/credits/adjust", () => {
   });
 
   it("fails closed when the updated balance read fails", async () => {
-    getSupabaseAdminMock.mockReturnValue({
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({
-              data: null,
-              error: { message: "balance read failed" },
-            }),
-          }),
-        }),
-      }),
-    });
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ balanceError: { message: "balance read failed" } })
+    );
 
     const req = {
       method: "POST",
@@ -182,5 +203,21 @@ describe("POST /api/admin/credits/adjust", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "balance read failed" });
+  });
+
+  it("fails closed when the updated grant-lot summary read fails", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({ grantSummaryError: { message: "summary read failed" } })
+    );
+
+    const req = {
+      method: "POST",
+      body: { userId: "user-1", changeCents: 100, idempotencyKey: "adjustment-1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "summary read failed" });
   });
 });

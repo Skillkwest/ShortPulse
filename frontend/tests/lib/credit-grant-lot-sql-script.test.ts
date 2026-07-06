@@ -7,6 +7,10 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const migrationPath = path.join(repoRoot, "sql/migrations/200_add_credit_grant_lot_expiration.sql");
+const reservationAmbiguityHotfixPath = path.join(
+  repoRoot,
+  "sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql"
+);
 const auditPath = path.join(repoRoot, "sql/audit_billing_credit_rls.sql");
 const schedulerConfigurePath = path.join(
   repoRoot,
@@ -50,8 +54,20 @@ describe("credit grant-lot SQL scripts", () => {
     expect(sql).toContain("where g.user_id = p_user_id\n       and g.expired_at is null");
   });
 
+  it("recaptures released reservations only from their original released grant allocations", () => {
+    const sql = fs.readFileSync(migrationPath, "utf8");
+
+    expect(sql).toContain("v_released_amount integer := 0");
+    expect(sql).toContain("and a.allocation_status = 'released'");
+    expect(sql).toContain("if v_released_amount <= 0 then");
+    expect(sql).toContain("return query select 'already_released'::text");
+    expect(sql).toContain("raise exception 'Released reservation credits are no longer available'");
+    expect(sql).toContain("'released_allocation_cents', v_released_amount");
+  });
+
   it("retires the pre-grant-lot aggregate reservation RPC", () => {
     const migrationSql = fs.readFileSync(migrationPath, "utf8");
+    const hotfixSql = fs.readFileSync(reservationAmbiguityHotfixPath, "utf8");
     const runtimeAuditSql = fs.readFileSync(runtimeSecurityAuditPath, "utf8");
     const enforceGateSql = fs.readFileSync(controlPlaneEnforceGatePath, "utf8");
 
@@ -66,6 +82,33 @@ describe("credit grant-lot SQL scripts", () => {
     expect(enforceGateSql).toContain(
       "to_regprocedure('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)') is null"
     );
+    expect(hotfixSql).toContain(
+      "drop function if exists public.reserve_generation_credits(uuid, text, text, integer, text, jsonb)"
+    );
+  });
+
+  it("guards grant-lot reservation RPCs against source_ref ambiguity", () => {
+    const hotfixSql = fs.readFileSync(reservationAmbiguityHotfixPath, "utf8");
+    const runtimeAuditSql = fs.readFileSync(runtimeSecurityAuditPath, "utf8");
+    const protectedSignatures = [
+      "public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)",
+      "public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)",
+      "public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+      "public.release_generation_reservation_by_id(uuid,text,jsonb)",
+      "public.capture_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+    ];
+
+    expect(hotfixSql).toContain("#variable_conflict use_column");
+    expect(hotfixSql).toContain("pg_get_functiondef(to_regprocedure(target_function.signature))");
+    expect(runtimeAuditSql).toContain("variable_conflict_use_column");
+    expect(runtimeAuditSql).toContain(
+      "reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity"
+    );
+
+    for (const signature of protectedSignatures) {
+      expect(hotfixSql).toContain(signature);
+      expect(runtimeAuditSql).toContain(signature);
+    }
   });
 
   it("audits missing balance/source-ref states after apply", () => {
@@ -74,6 +117,26 @@ describe("credit grant-lot SQL scripts", () => {
     expect(sql).toContain("'ai_credit_positive_ledger_missing_balance'");
     expect(sql).toContain("'ai_credit_grants_missing_source_ref'");
     expect(sql).toContain("'ai_credit_lot_ledger_missing_source_ref'");
+  });
+
+  it("retires authenticated direct ledger debit inserts", () => {
+    const bootstrapSql = fs.readFileSync(
+      path.join(repoRoot, "sql/create_billing_credit_tables.sql"),
+      "utf8"
+    );
+    const migrationSql = fs.readFileSync(migrationPath, "utf8");
+    const auditSql = fs.readFileSync(auditPath, "utf8");
+
+    expect(bootstrapSql).toContain(
+      "drop policy if exists insert_ai_credit_ledger_user_debits on ai_credit_ledger"
+    );
+    expect(bootstrapSql).not.toContain(
+      "create policy insert_ai_credit_ledger_user_debits on ai_credit_ledger"
+    );
+    expect(migrationSql).toContain(
+      "drop policy if exists insert_ai_credit_ledger_user_debits on public.ai_credit_ledger"
+    );
+    expect(auditSql).not.toContain("insert_ai_credit_ledger_user_debits'::text");
   });
 
   it("guards destructive rollback after grant-lot rows exist", () => {

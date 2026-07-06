@@ -309,6 +309,31 @@ forbidden_function_checks(signature, check_name, check_pass, detail) as (
         'retired aggregate-balance reservation RPC must not exist'::text as detail
     from forbidden_runtime_functions f
 ),
+expected_variable_conflict_functions as (
+    select *
+    from (
+        values
+            ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
+            ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),
+            ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text),
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)'::text),
+            ('public.capture_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text)
+    ) as f(signature)
+),
+function_body_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'variable_conflict_use_column'::text as check_name,
+        case
+            when to_regprocedure(f.signature) is null then false
+            else position(
+                '#variable_conflict use_column'
+                in lower(pg_get_functiondef(to_regprocedure(f.signature)))
+            ) > 0
+        end as check_pass,
+        'reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
+    from expected_variable_conflict_functions f
+),
 all_checks as (
     select * from function_checks
     union all
@@ -319,6 +344,8 @@ all_checks as (
     select * from sequence_checks
     union all
     select * from forbidden_function_checks
+    union all
+    select * from function_body_checks
 )
 select
     signature,
@@ -632,6 +659,31 @@ forbidden_function_checks(signature, check_name, check_pass, detail) as (
         'retired aggregate-balance reservation RPC must not exist'::text as detail
     from forbidden_runtime_functions f
 ),
+expected_variable_conflict_functions as (
+    select *
+    from (
+        values
+            ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
+            ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),
+            ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text),
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)'::text),
+            ('public.capture_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text)
+    ) as f(signature)
+),
+function_body_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'variable_conflict_use_column'::text as check_name,
+        case
+            when to_regprocedure(f.signature) is null then false
+            else position(
+                '#variable_conflict use_column'
+                in lower(pg_get_functiondef(to_regprocedure(f.signature)))
+            ) > 0
+        end as check_pass,
+        'reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
+    from expected_variable_conflict_functions f
+),
 all_checks as (
     select * from function_checks
     union all
@@ -642,6 +694,8 @@ all_checks as (
     select * from sequence_checks
     union all
     select * from forbidden_function_checks
+    union all
+    select * from function_body_checks
 )
 select
     count(*)::integer as total_checks,

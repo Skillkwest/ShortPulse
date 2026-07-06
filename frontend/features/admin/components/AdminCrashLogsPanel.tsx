@@ -87,26 +87,6 @@ const reviewStatusLabel = (status: AdminCrashSessionReviewStatus): string => {
   return "Open review";
 };
 
-const reviewStatusClassName = (status: AdminCrashSessionReviewStatus): string => {
-  if (status === "ignored") return styles.pillWarn;
-  if (status === "resolved") return styles.pillOk;
-  return styles.pillNeutral;
-};
-
-const statusClassName = (status: AdminCrashSessionStatus): string => {
-  if (status === "confirmed_crash" || status === "probable_freeze_or_crash") {
-    return styles.pillCritical;
-  }
-  if (status === "possible_ungraceful_exit") return styles.pillWarn;
-  return styles.pillOk;
-};
-
-const confidenceClassName = (confidence: AdminCrashSessionConfidence): string => {
-  if (confidence === "high") return styles.pillCritical;
-  if (confidence === "medium" || confidence === "low") return styles.pillWarn;
-  return styles.pillOk;
-};
-
 const evidenceText = (row: AdminCrashSessionRow): string => {
   const pressure = row.metadata.pressure_level;
   const stall = row.metadata.stall_duration_ms ?? row.metadata.max_input_stall_ms;
@@ -227,20 +207,19 @@ export function AdminCrashLogsPanel({
         </button>
       </div>
 
-      <div className={styles.adminCrashModeTabs} aria-label="Crash log view">
-        {VIEW_MODE_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            className={viewMode === option.value ? "primary-btn mini" : "ghost-btn mini"}
-            onClick={() => onViewModeChange(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
       <div className={styles.adminErrorsToolbar}>
+        <select
+          aria-label="Crash log view"
+          className={styles.searchInput}
+          value={viewMode}
+          onChange={(event) => onViewModeChange(event.target.value as AdminCrashSessionsViewMode)}
+        >
+          {VIEW_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <input
           className={styles.searchInput}
           type="search"
@@ -350,19 +329,11 @@ export function AdminCrashLogsPanel({
                   }`}
                 >
                   <div className={styles.errorCell}>
-                    <span className={`${styles.pill} ${statusClassName(row.effectiveStatus)}`}>
-                      {statusLabel(row.effectiveStatus)}
-                    </span>
+                    <span>{statusLabel(row.effectiveStatus)}</span>
                     <span className="tiny subdued">{row.lastEvent.replaceAll("_", " ")}</span>
-                    <span className={`${styles.pill} ${reviewStatusClassName(row.reviewStatus)}`}>
-                      {reviewStatusLabel(row.reviewStatus)}
-                    </span>
+                    <span className="tiny subdued">{reviewStatusLabel(row.reviewStatus)}</span>
                   </div>
-                  <span
-                    className={`${styles.pill} ${confidenceClassName(row.effectiveConfidence)}`}
-                  >
-                    {confidenceLabel(row.effectiveConfidence)}
-                  </span>
+                  <span>{confidenceLabel(row.effectiveConfidence)}</span>
                   <div className={styles.errorCell}>
                     <span>{signal}</span>
                     <span className="tiny subdued">

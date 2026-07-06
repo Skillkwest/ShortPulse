@@ -4,7 +4,7 @@ Purpose: operate `/admin/storage` without confusing product-tracked media usage 
 
 ## Scope
 
-Use this SOP when reviewing storage pressure, capturing Supabase usage, or interpreting `/admin/storage`.
+Use this SOP when reviewing storage pressure or interpreting `/admin/storage`.
 
 This SOP does not authorize production deletes, storage lifecycle cleanup, Stripe billing changes, provider dashboard setting changes, or Supabase image transformations.
 
@@ -12,35 +12,27 @@ This SOP does not authorize production deletes, storage lifecycle cleanup, Strip
 
 - Product-tracked customer media usage: `media_files.file_size`
 - Admin storage read route: `frontend/pages/api/admin/storage-economics.ts`
-- Provider snapshot write route: `frontend/pages/api/admin/storage-usage-snapshots.ts`
-- Provider evidence table: `public.admin_storage_usage_snapshots`
-- Snapshot UI: `frontend/features/admin/components/AdminStorageSnapshotCaptureModal.tsx`
+- Automatic production snapshot source: Supabase `storage.objects.metadata` through the service-role admin client when readable.
+- Product-tracked fallback source: `media_files.file_size`.
+- Legacy/manual provider snapshot write route: `frontend/pages/api/admin/storage-usage-snapshots.ts`
+- Legacy/manual provider evidence table: `public.admin_storage_usage_snapshots`
 
-Provider snapshots are bill-pressure evidence only. They are not customer entitlement, quota, Stripe, or invoice authority.
+Automatic and manual provider snapshots are bill-pressure evidence only. They are not customer entitlement, quota, Stripe, or invoice authority.
 
-## Capturing A Snapshot
+## Automatic Snapshot Behavior
 
-1. Open the Supabase production project usage or billing surface for the same period you want to review.
-2. Open `/admin/storage`.
-3. Click `Capture snapshot`.
-4. Enter:
-   - snapshot month,
-   - capture time,
-   - source,
-   - Supabase plan and compute context,
-   - storage used and included GB,
-   - uncached egress used and included GB,
-   - cached egress used and included GB,
-   - observed overage cents when invoice/export proof exists,
-   - short source notes.
-5. Save the snapshot and let `/admin/storage` refresh.
+1. Open `/admin/storage`.
+2. The page loads `/api/admin/storage-economics`.
+3. The API attempts to sum production Supabase `storage.objects.metadata.size`.
+4. If that storage schema read is unavailable, the API falls back to production `media_files.file_size`.
+5. `Refresh` reruns the live admin API read. No manual entry is required.
 
 ## Interpretation Rules
 
-- `Refresh` reloads the ShortPulse admin API; it does not import from Supabase by itself.
-- `No snapshot` means no provider usage row is available to the admin API. It does not mean Supabase usage is zero.
+- `Refresh` reloads the ShortPulse admin API and rebuilds the automatic production snapshot.
+- `No snapshot` means the automatic production snapshot could not be built. It does not mean Supabase usage is zero.
 - `Stale` means the latest provider snapshot is older than the freshness window used by the admin API.
-- Product-tracked bytes and provider usage can differ. Product-tracked bytes come from app rows; provider usage comes from Supabase usage/billing evidence.
+- Product-tracked bytes and provider usage can differ. Product-tracked bytes come from app rows; automatic provider storage comes from Supabase storage metadata when readable.
 - Do not paste raw storage paths, signed URLs, invoice files, customer payment details, service-role keys, or temporary env values into snapshot notes.
 
 ## Validation

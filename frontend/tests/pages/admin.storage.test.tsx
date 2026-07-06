@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminStoragePage from "../../pages/admin/storage";
@@ -90,7 +90,7 @@ const buildStorageEconomicsState = () => ({
     },
     providerUsage: {
       status: "current",
-      source: "manual",
+      source: "api_import",
       snapshotMonth: "2026-07-01",
       capturedAt: "2026-07-15T00:00:00.000Z",
       supabasePlan: "Pro",
@@ -253,7 +253,7 @@ describe("Admin storage page", () => {
     expect(screen.getByText("Supabase usage")).toBeInTheDocument();
     expect(screen.getByText("Supabase pressure")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
-    expect(screen.getByText(/Manual entry/)).toBeInTheDocument();
+    expect(screen.getByText(/Production database/)).toBeInTheDocument();
     expect(screen.getByText("Total Egress")).toBeInTheDocument();
     expect(screen.getByText("18.00x product-tracked storage")).toBeInTheDocument();
     expect(screen.queryByText("Capacity and margin snapshot")).not.toBeInTheDocument();
@@ -341,40 +341,22 @@ describe("Admin storage page", () => {
     render(<AdminStoragePage />);
 
     expect(screen.getByText("No Supabase usage snapshot is available.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Capture snapshot" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Capture snapshot" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reload ShortPulse storage data" })).toHaveAttribute(
       "title",
-      "Reload ShortPulse storage data. Use Capture snapshot to add Supabase provider usage."
+      "Reload live ShortPulse storage and Supabase production usage."
     );
     expect(screen.getByText("No snapshot")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.queryByText("0.0 GB")).not.toBeInTheDocument();
   });
 
-  it("opens the provider snapshot capture modal from the storage warning state", () => {
-    const baseState = buildStorageEconomicsState();
-    useAdminStorageEconomicsControllerMock.mockReturnValue({
-      ...baseState,
-      storageEconomics: {
-        ...baseState.storageEconomics,
-        providerUsage: {
-          ...baseState.storageEconomics.providerUsage,
-          status: "unavailable",
-          source: "unavailable",
-          snapshotMonth: null,
-          capturedAt: null,
-          supabasePlan: null,
-        },
-      },
-    });
-
+  it("does not expose manual provider snapshot entry from the storage page", () => {
     render(<AdminStoragePage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Capture snapshot" }));
-
-    expect(screen.getByRole("heading", { name: "Capture Supabase usage" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Snapshot month")).toBeInTheDocument();
-    expect(screen.getByLabelText("Storage used GB")).toBeInTheDocument();
-    expect(screen.getByLabelText("Uncached egress GB")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Capture snapshot" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Capture Supabase usage" })
+    ).not.toBeInTheDocument();
   });
 });

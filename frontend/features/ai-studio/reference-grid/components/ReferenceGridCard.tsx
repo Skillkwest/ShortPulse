@@ -227,6 +227,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     : item.saveState === "failed" || item.saveState === "blocked_storage"
       ? "Retry save"
       : "Save to media library";
+  const pinPromptTitle = "Pin text to Reference Grid";
+  const downloadTitle = "Download";
+  const removeReferenceTitle = "Remove from Reference Grid";
+  const removeQuickSlotTitle = "Remove from Quick Slot";
+  const rerollTitle = "Re-roll";
+  const reloadWorkflowTitle = "Reload workflow";
   const canSaveReference = canSaveReferenceOutput(item);
   const canDownloadReference = canDownloadReferenceOutput(item);
   const shouldShowSaveAction = Boolean(
@@ -711,6 +717,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-action-btn--danger reference-loading-clear-btn"
               aria-label={clearLoadingLabel}
+              title={clearLoadingLabel}
               onPointerDown={(event) => {
                 event.stopPropagation();
               }}
@@ -762,6 +769,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             type="button"
             className="reference-card-action-btn reference-card-action-btn--danger"
             aria-label="Remove error from grid"
+            title="Remove error from grid"
             onClick={(event) => {
               event.stopPropagation();
               onDeleteOutput(item.id);
@@ -778,6 +786,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-pin-prompt-btn"
               aria-label="Pin text reference to reference grid"
+              title={pinPromptTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -794,6 +803,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn"
               aria-label="Download reference"
+              title={downloadTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -807,6 +817,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             type="button"
             className="reference-card-action-btn reference-card-action-btn--danger"
             aria-label="Remove from curated"
+            title={removeQuickSlotTitle}
             onClick={(event) => {
               event.stopPropagation();
               onRemoveCuratedReference?.(item.id);
@@ -823,6 +834,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-reroll-btn"
               aria-label="Re-roll"
+              title={rerollTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -837,6 +849,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-workflow-reload-btn"
               aria-label="Reload workflow"
+              title={reloadWorkflowTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -855,6 +868,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn"
               aria-label={saveLabel}
+              title={saveLabel}
               disabled={saveDisabled}
               onClick={(event) => {
                 event.stopPropagation();
@@ -870,6 +884,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-pin-prompt-btn"
               aria-label="Pin text reference to reference grid"
+              title={pinPromptTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -886,6 +901,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn"
               aria-label="Download reference"
+              title={downloadTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectOutput(item.id);
@@ -900,6 +916,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-action-btn--danger"
               aria-label="Remove reference from grid"
+              title={removeReferenceTitle}
               onClick={(event) => {
                 event.stopPropagation();
                 onDeleteOutput(item.id);

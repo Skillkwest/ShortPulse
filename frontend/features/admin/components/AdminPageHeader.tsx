@@ -40,6 +40,7 @@ type AdminPageHeaderProps = {
   userEmail: string | null | undefined;
   currentPath: string;
   renderBareNav?: boolean;
+  hideSubNav?: boolean;
 };
 
 /**
@@ -51,6 +52,7 @@ export function AdminPageHeader({
   userEmail,
   currentPath,
   renderBareNav = false,
+  hideSubNav = false,
 }: AdminPageHeaderProps) {
   const isCustomerSupportPath = CUSTOMER_SUPPORT_NAV_ITEMS.some(
     (item) => item.href === currentPath
@@ -94,7 +96,7 @@ export function AdminPageHeader({
           );
         })}
       </nav>
-      {activeSubNav ? (
+      {activeSubNav && !hideSubNav ? (
         <div className={styles.adminSubNavShell}>
           <p className={styles.adminNavLabel}>{activeSubNav.label}</p>
           <nav

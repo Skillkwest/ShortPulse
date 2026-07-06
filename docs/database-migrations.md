@@ -332,6 +332,8 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 198.  `sql/migrations/199_repair_create_pulse_builtin_catalog.sql`
 199.  `sql/migrations/200_add_credit_grant_lot_expiration.sql`
 200.  `sql/migrations/201_harden_paid_media_library_access_contract_authority.sql`
+201.  `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`
+202.  `sql/migrations/203_add_hybervees_tester_report_review.sql`
       Rollback files:
 
 
@@ -444,6 +446,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/198_allow_equal_timestamp_project_workspace_updates_rollback.sql`
     - `sql/migrations/rollback/199_repair_create_pulse_builtin_catalog_rollback.sql`
     - `sql/migrations/rollback/200_add_credit_grant_lot_expiration_rollback.sql`
+    - `sql/migrations/rollback/203_add_hybervees_tester_report_review_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -577,6 +580,8 @@ Billing safety note:
 - Migration `199_repair_create_pulse_builtin_catalog.sql` repairs legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions. Hosted apply remains a separate approved Supabase operation.
 - Migration `200_add_credit_grant_lot_expiration.sql` adds grant-lot credit accounting, expiration-aware reservation/debit allocation, 60-day subscription credit expiration, non-expiring paid top-up lots, and the service-role expiration RPC. It also retires the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC so runtime reservations must use `admit_and_reserve_generation_credits(...)` with grant allocations. Hosted apply and scheduler enablement remain separate approved Supabase operations.
 - Migration `201_harden_paid_media_library_access_contract_authority.sql` hardens `user_has_paid_media_library_access(uuid)` so Media Library and Reference Grid inserts trust only a current non-free `billing_subscription_contracts` row; `billing_profiles` remains a projection and profile-only paid state is drift to repair. Hosted apply remains a separate approved Supabase operation.
+- Migration `202_harden_credit_grant_lot_reservation_ambiguity.sql` hardens grant-lot reservation RPC ambiguity without changing customer-facing billing policy. Hosted apply remains a separate approved Supabase operation.
+- Migration `203_add_hybervees_tester_report_review.sql` adds Hybervees review metadata to `tester_report_runs` so `/admin/tester-reports` can show whether an insight review happened without changing the tester-run result status. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

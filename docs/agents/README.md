@@ -133,6 +133,13 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/gutan/AGENTS.md`: Gutan-scoped execution overlay for image admission, resizing, compression, and boundary handoffs.
   - `docs/agents/gutan/standard-operating-procedure.md`: Gutan's standing SOP for image-admission audits, plans, implementation runs, and validation.
   - `docs/agents/gutan/ownership-manifest.md`: Gutan's ownership boundary map for product image admission versus display, storage, security, and Create/Pulse runtime lanes.
+- `docs/agents/hybervees/README.md`: Hybervees tester-insights analyst contract for reading Admin Tester Reports and turning tester evidence into product-decision intelligence.
+  - `docs/agents/hybervees/AGENTS.md`: Hybervees-scoped instruction overlay for tester-report insight analysis.
+  - `docs/agents/hybervees/memory.md`: Hybervees' concise durable memory and default product-context anchors.
+  - `docs/agents/hybervees/standard-operating-procedure.md`: standing SOP for reviewing tester reports, extracting human and engineering signal, and routing product follow-ups.
+  - `docs/agents/hybervees/ownership-manifest.md`: Hybervees boundary map against tester personas, UX, debug, engineering, launch-readiness, security, billing, and repo-steward lanes.
+  - `docs/agents/hybervees/workspace/README.md`: Hybervees workspace and intake/dropbox surface.
+  - retained artifacts live under `docs/records/artifacts/agent/hybervees/`.
 - `docs/agents/Create Workflow/README.md`: Create Workflow Create-panel stewardship contract and memory entrypoint for Standard/Pulse runtime boundaries, composer behavior, and retained workflow training.
   - `docs/agents/Create Workflow/create-panel-operating-brief.md`: compact current-state brief for Create panel runtime ownership, composer contract, and workflow boundaries.
   - `docs/agents/Create Workflow/create-panel-system-map.md`: compact system map for Create page orchestration, Standard/Pulse runtime boundaries, composer intake, and reference-feed ownership.

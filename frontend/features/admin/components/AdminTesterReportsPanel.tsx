@@ -12,6 +12,8 @@ type AdminTesterReportsPanelProps = {
   testerReports: AdminTesterReportRunRow[];
   testerReportsLoading: boolean;
   testerReportsError: string | null;
+  hyberveesReviewSavingId: string | null;
+  hyberveesReviewError: string | null;
   testerReportSummary: AdminTesterReportSummary;
   testerReportsPagination: AdminPagination;
   testerReportStatusFilter: "all" | TesterReportStatus;
@@ -22,6 +24,7 @@ type AdminTesterReportsPanelProps = {
   onTesterReportSearchChange: (value: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  onMarkHyberveesReviewed: (reportId: string) => void;
   onRefresh: () => void;
 };
 
@@ -59,6 +62,8 @@ export function AdminTesterReportsPanel({
   testerReports,
   testerReportsLoading,
   testerReportsError,
+  hyberveesReviewSavingId,
+  hyberveesReviewError,
   testerReportSummary,
   testerReportsPagination,
   testerReportStatusFilter,
@@ -69,6 +74,7 @@ export function AdminTesterReportsPanel({
   onTesterReportSearchChange,
   onPrevPage,
   onNextPage,
+  onMarkHyberveesReviewed,
   onRefresh,
 }: AdminTesterReportsPanelProps) {
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
@@ -201,6 +207,7 @@ export function AdminTesterReportsPanel({
             <div className={reportStyles.adminTesterReportsHead}>
               <span>Date/time</span>
               <span>Status</span>
+              <span>Review</span>
               <span>Tester</span>
               <span>Account</span>
               <span>Scenario</span>
@@ -237,6 +244,8 @@ export function AdminTesterReportsPanel({
                 const engineeringKey = `${report.id}:engineering`;
                 const personaExpanded = expandedReportKeys.has(personaKey);
                 const engineeringExpanded = expandedReportKeys.has(engineeringKey);
+                const hyberveesReviewed = report.hyberveesReviewStatus === "reviewed";
+                const isSavingReview = hyberveesReviewSavingId === report.id;
                 return (
                   <div key={report.id} className={reportStyles.adminTesterReportGroup}>
                     <button
@@ -265,6 +274,18 @@ export function AdminTesterReportsPanel({
                           {statusLabel(report.status)}
                         </span>
                       </span>
+                      <span>
+                        <span
+                          className={[
+                            reportStyles.reportStatusPill,
+                            hyberveesReviewed
+                              ? reportStyles.testerReportStatusCompleted
+                              : reportStyles.testerReportReviewPending,
+                          ].join(" ")}
+                        >
+                          {hyberveesReviewed ? "Hybervees reviewed" : "Needs Hybervees"}
+                        </span>
+                      </span>
                       <span className={reportStyles.reportIdentityCell}>
                         <strong>{report.testerDisplayName}</strong>
                       </span>
@@ -286,6 +307,33 @@ export function AdminTesterReportsPanel({
                           </span>
                           <span>Credits: {formatOptionalNumber(report.creditsSpent)}</span>
                           <span>Surface: {report.productionSurface ?? "Not recorded"}</span>
+                          <span>
+                            Hybervees:{" "}
+                            {hyberveesReviewed
+                              ? `reviewed ${formatDateTime(report.hyberveesReviewedAt)}`
+                              : "not reviewed"}
+                          </span>
+                          {report.hyberveesInsightArtifactPath ? (
+                            <span>Insight: {report.hyberveesInsightArtifactPath}</span>
+                          ) : null}
+                        </div>
+                        <div className={reportStyles.adminTesterReportReviewActions}>
+                          <button
+                            type="button"
+                            className="ghost-btn mini"
+                            disabled={hyberveesReviewed || isSavingReview}
+                            onClick={() => onMarkHyberveesReviewed(report.id)}
+                          >
+                            {isSavingReview ? "Saving..." : "Mark Hybervees reviewed"}
+                          </button>
+                          {report.hyberveesInsightSummary ? (
+                            <span className="tiny subdued">{report.hyberveesInsightSummary}</span>
+                          ) : null}
+                          {hyberveesReviewError ? (
+                            <span className={reportStyles.adminTesterReportReviewError}>
+                              {hyberveesReviewError}
+                            </span>
+                          ) : null}
                         </div>
                         <div className={reportStyles.adminTesterReportPanels}>
                           <article className={reportStyles.adminTesterReportPanel}>

@@ -14,7 +14,7 @@ import { requireAdminUser } from "../../../lib/server/api/auth";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 const TESTER_REPORT_COLUMNS =
-  "id, external_run_id, tester_slug, tester_display_name, shortpulse_user_id, shortpulse_user_email, scenario, status, run_started_at, run_finished_at, duration_minutes, credits_spent, production_surface, persona_report_title, persona_report_body, engineering_report_title, engineering_report_body, report_artifact_paths, evidence, created_by_source, created_by_user_id, created_by_email, created_at, updated_at";
+  "id, external_run_id, tester_slug, tester_display_name, shortpulse_user_id, shortpulse_user_email, scenario, status, run_started_at, run_finished_at, duration_minutes, credits_spent, production_surface, persona_report_title, persona_report_body, engineering_report_title, engineering_report_body, report_artifact_paths, evidence, hybervees_review_status, hybervees_reviewed_at, hybervees_reviewed_by, hybervees_insight_summary, hybervees_insight_artifact_path, created_by_source, created_by_user_id, created_by_email, created_at, updated_at";
 
 type TesterReportQuery = {
   eq: (column: string, value: string) => TesterReportQuery;

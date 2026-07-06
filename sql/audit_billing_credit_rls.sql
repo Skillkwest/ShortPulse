@@ -64,7 +64,6 @@ with expected as (
     ('billing_subscription_contracts'::text, 'service_role_manage_billing_subscription_contracts'::text),
     ('ai_credit_balance'::text, 'select_ai_credit_balance_isolation'::text),
     ('ai_credit_ledger'::text, 'select_ai_credit_ledger_isolation'::text),
-    ('ai_credit_ledger'::text, 'insert_ai_credit_ledger_user_debits'::text),
     ('ai_credit_grants'::text, 'select_ai_credit_grants_isolation'::text),
     ('ai_credit_grants'::text, 'service_role_manage_ai_credit_grants'::text),
     ('ai_credit_grant_allocations'::text, 'service_role_manage_ai_credit_grant_allocations'::text),

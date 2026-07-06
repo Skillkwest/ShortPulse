@@ -37,8 +37,11 @@ type CreditSnapshotApiResponse = {
   updatedAt: string | null;
 };
 
-let creditSnapshotRetryAfterMs = 0;
-let creditSnapshotInFlightPromise: Promise<CreditSnapshotApiResponse | null> | null = null;
+const creditSnapshotRetryAfterMsByUserId = new Map<string, number>();
+const creditSnapshotInFlightPromiseByUserId = new Map<
+  string,
+  Promise<CreditSnapshotApiResponse | null>
+>();
 const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
 const CREDIT_SNAPSHOT_IDLE_REFRESH_INTERVAL_MS = 120_000;
 const CREDIT_SNAPSHOT_TRANSIENT_RETRY_DELAY_MS = 750;
@@ -63,8 +66,8 @@ const createBalanceState = (
 });
 
 export const resetUseCreditsTestState = () => {
-  creditSnapshotRetryAfterMs = 0;
-  creditSnapshotInFlightPromise = null;
+  creditSnapshotRetryAfterMsByUserId.clear();
+  creditSnapshotInFlightPromiseByUserId.clear();
 };
 
 const asNumber = (value: unknown): number | null => {
@@ -108,12 +111,14 @@ const requestCreditSnapshot = async (): Promise<Response> =>
     shortpulseRetryNetworkOnce: true,
   });
 
-const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> => {
-  if (creditSnapshotRetryAfterMs > Date.now()) {
+const fetchCreditSnapshot = async (userId: string): Promise<CreditSnapshotApiResponse | null> => {
+  const retryAfterMs = creditSnapshotRetryAfterMsByUserId.get(userId) ?? 0;
+  if (retryAfterMs > Date.now()) {
     return null;
   }
-  if (creditSnapshotInFlightPromise) {
-    return await creditSnapshotInFlightPromise;
+  const inFlightRequest = creditSnapshotInFlightPromiseByUserId.get(userId);
+  if (inFlightRequest) {
+    return await inFlightRequest;
   }
 
   const request = (async () => {
@@ -124,24 +129,27 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
         response = await requestCreditSnapshot();
       }
       if (!response.ok) {
-        creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
+        creditSnapshotRetryAfterMsByUserId.set(
+          userId,
+          Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS
+        );
         return null;
       }
       const payload = await response.json();
-      creditSnapshotRetryAfterMs = 0;
+      creditSnapshotRetryAfterMsByUserId.delete(userId);
       return parseCreditSnapshot(payload);
     } catch {
-      creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
+      creditSnapshotRetryAfterMsByUserId.set(userId, Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS);
       return null;
     }
   })();
 
-  creditSnapshotInFlightPromise = request;
+  creditSnapshotInFlightPromiseByUserId.set(userId, request);
   try {
     return await request;
   } finally {
-    if (creditSnapshotInFlightPromise === request) {
-      creditSnapshotInFlightPromise = null;
+    if (creditSnapshotInFlightPromiseByUserId.get(userId) === request) {
+      creditSnapshotInFlightPromiseByUserId.delete(userId);
     }
   }
 };
@@ -175,7 +183,7 @@ export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
           return null;
         }
 
-        const snapshot = await fetchCreditSnapshot();
+        const snapshot = await fetchCreditSnapshot(id);
         if (snapshot) {
           incrementFreezeInvestigationCounter("credits.refresh.snapshotSuccess");
         } else {

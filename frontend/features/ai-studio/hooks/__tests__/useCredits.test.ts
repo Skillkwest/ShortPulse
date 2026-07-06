@@ -323,6 +323,61 @@ describe("useCredits", () => {
     expect(second.result.current.balanceReservedCents).toBe(120);
   });
 
+  it("does not reuse an in-flight credit snapshot across authenticated users", async () => {
+    const resolvers: Array<(value: Response) => void> = [];
+    fetchWithAuthMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve as (value: Response) => void);
+        })
+    );
+
+    const first = renderHook(() => useCredits());
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    sessionState = createSessionState("user-456");
+    const second = renderHook(() => useCredits());
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolvers[1]?.({
+        ok: true,
+        json: async () => ({
+          spendableCents: 450,
+          reservedCents: 30,
+          updatedAt: "2026-02-16T20:00:00.000Z",
+        }),
+      } as unknown as Response);
+    });
+
+    await waitFor(() => {
+      expect(second.result.current.balanceLoading).toBe(false);
+    });
+    expect(second.result.current.balanceCents).toBe(450);
+    expect(second.result.current.balanceReservedCents).toBe(30);
+
+    await act(async () => {
+      resolvers[0]?.({
+        ok: true,
+        json: async () => ({
+          spendableCents: 900,
+          reservedCents: 120,
+          updatedAt: "2026-02-15T20:00:00.000Z",
+        }),
+      } as unknown as Response);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(first.result.current.balanceCents).toBeNull();
+    expect(first.result.current.balanceReservedCents).toBeNull();
+    expect(second.result.current.balanceCents).toBe(450);
+    expect(second.result.current.balanceReservedCents).toBe(30);
+  });
+
   it("keeps idle credit polling sparse and skips hidden tabs", async () => {
     Object.defineProperty(document, "visibilityState", {
       configurable: true,

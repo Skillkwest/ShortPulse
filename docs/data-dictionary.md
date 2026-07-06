@@ -910,6 +910,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `engineering_report_title` / `engineering_report_body` (text): Technical engineering handoff report for follow-up agent work.
 - `report_artifact_paths` (jsonb array): Optional repo/doc artifact paths attached to the run.
 - `evidence` (jsonb object): Optional structured evidence summary such as screenshots, traces, or browser notes.
+- `hybervees_review_status` (text): Hybervees insight-review state (`unreviewed | reviewed`) independent of tester-run `status`.
+- `hybervees_reviewed_at` (timestamptz, nullable) / `hybervees_reviewed_by` (text, nullable): Timestamp and reviewer marker when Hybervees has reviewed the report.
+- `hybervees_insight_summary` (text, nullable): Optional short summary of the Hybervees product insight.
+- `hybervees_insight_artifact_path` (text, nullable): Optional retained Hybervees report artifact path.
 - `created_by_source`, `created_by_user_id`, `created_by_email`: Source attribution for tester agents, automation, or admin-created rows.
 - `created_at` / `updated_at` (timestamptz): Canonical creation/update timestamps.
 - Runtime role: canonical automated tester-report log for `/api/internal/tester-reports/ingest`, `/api/admin/tester-reports`, and `/admin/tester-reports`.

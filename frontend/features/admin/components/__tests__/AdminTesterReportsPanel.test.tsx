@@ -22,6 +22,11 @@ const buildReport = () => ({
   engineeringReportBody: "Verify autosave confidence around AI Studio draft restore.",
   reportArtifactPaths: ["docs/agents/testers/maya-chen/reports/2026-07-04.md"],
   evidence: { screenshots: 2 },
+  hyberveesReviewStatus: "unreviewed" as const,
+  hyberveesReviewedAt: null,
+  hyberveesReviewedBy: null,
+  hyberveesInsightSummary: null,
+  hyberveesInsightArtifactPath: null,
   createdBySource: "tester_agent" as const,
   createdByUserId: null,
   createdByEmail: null,
@@ -34,6 +39,8 @@ const renderPanel = (overrides = {}) => {
     testerReports: [buildReport()],
     testerReportsLoading: false,
     testerReportsError: null,
+    hyberveesReviewSavingId: null,
+    hyberveesReviewError: null,
     testerReportSummary: {
       totalCount: 1,
       completedCount: 1,
@@ -57,6 +64,7 @@ const renderPanel = (overrides = {}) => {
     onTesterReportSearchChange: vi.fn(),
     onPrevPage: vi.fn(),
     onNextPage: vi.fn(),
+    onMarkHyberveesReviewed: vi.fn(),
     onRefresh: vi.fn(),
     ...overrides,
   };
@@ -119,5 +127,38 @@ describe("AdminTesterReportsPanel", () => {
 
     expect(props.onTesterReportStatusFilterChange).toHaveBeenCalledWith("completed");
     expect(props.onTesterReportTesterFilterChange).toHaveBeenCalledWith("maya-chen");
+  });
+
+  it("marks tester runs as reviewed by Hybervees", () => {
+    const props = renderPanel();
+
+    expect(screen.getByText("Needs Hybervees")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Hybervees reviewed" }));
+
+    expect(props.onMarkHyberveesReviewed).toHaveBeenCalledWith("tester-run-1");
+  });
+
+  it("shows reviewed tester runs without enabling duplicate review actions", () => {
+    renderPanel({
+      testerReports: [
+        {
+          ...buildReport(),
+          hyberveesReviewStatus: "reviewed" as const,
+          hyberveesReviewedAt: "2026-07-06T20:00:00.000Z",
+          hyberveesReviewedBy: "hybervees",
+          hyberveesInsightSummary: "Reference Grid labels need clearer first-run guidance.",
+          hyberveesInsightArtifactPath:
+            "docs/records/artifacts/agent/hybervees/reports/2026-07-06-reference-grid.md",
+        },
+      ],
+    });
+
+    expect(screen.getByText("Hybervees reviewed")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
+    expect(screen.getByRole("button", { name: "Mark Hybervees reviewed" })).toBeDisabled();
+    expect(
+      screen.getByText("Reference Grid labels need clearer first-run guidance.")
+    ).toBeInTheDocument();
   });
 });

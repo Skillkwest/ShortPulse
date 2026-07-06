@@ -80,6 +80,13 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya cannot see generation-level credit debit history for the two image generations from Credits or Transactions, so future credit-related runs should treat usage-history visibility as a support-risk concern.
 - For billing/credit scenarios, discard screenshots that show account emails, invoice/reference details, account greetings, or billing controls; summarize those observations in notes instead.
 
+### 2026-07-06: Reference Grid understanding
+
+- Maya confirmed the two generated images persist in both Media and Reference Grid after project re-entry, which improves saved-work trust.
+- Reference Grid and Quick Slot Inventory top labels behave like show/hide toggles, but Maya first reads them as navigation/section labels.
+- Selecting saved Media exposes library management and deletion risk more clearly than an obvious reuse-as-reference path, so future reuse runs should stop before destructive controls and report the customer uncertainty.
+- Treat Reference Grid clarity as part of the same saved-work/reuse pattern as prompt/context recovery; do not keep re-proving it unless the UI changes or the user asks for a regression run.
+
 ## Learned Run Lessons
 
 ### 2026-07-04: Signup, payment, and first image generation

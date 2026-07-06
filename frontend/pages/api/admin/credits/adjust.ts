@@ -6,6 +6,7 @@ import { requireAdminUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { debitAccountCredits, grantAccountCredits } from "../../../../lib/server/api/creditLedger";
+import { fetchCreditGrantSummaries } from "../../../../lib/server/api/creditGrantSummary";
 
 type AdjustRequest = {
   userId?: string;
@@ -93,11 +94,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (balanceError) {
       throw new Error(balanceError.message || "Failed to read updated credit balance.");
     }
+    const grantSummaryResult = await fetchCreditGrantSummaries([userId]);
+    if (grantSummaryResult.error) {
+      throw new Error(grantSummaryResult.error.message || "Failed to read updated credit summary.");
+    }
+    const grantSummary = grantSummaryResult.summariesByUserId.get(userId);
+    if (!grantSummary) {
+      throw new Error("Failed to read updated credit summary.");
+    }
 
     return res.status(200).json({
       ok: true,
       userId,
       balanceCents: Number(balance?.balance_cents ?? 0),
+      spendableCents: grantSummary.spendableCents,
+      reservedCents: grantSummary.reservedCents,
+      expiringCents: grantSummary.expiringCents,
+      nonExpiringCents: grantSummary.nonExpiringCents,
+      nextExpiringCents: grantSummary.nextExpiringCents,
+      nextExpiresAt: grantSummary.nextExpiresAt,
       status: ledgerResult.status ?? (adjustmentCents > 0 ? "granted" : "debited"),
       ledgerId: ledgerResult.ledgerId ?? null,
       grantId: ledgerResult.grantId ?? null,

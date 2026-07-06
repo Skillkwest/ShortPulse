@@ -121,10 +121,7 @@ describe("Admin Crash Logs page", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Crash logs" })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "Crash Logs" })).toHaveAttribute(
-        "aria-current",
-        "page"
-      );
+      expect(screen.queryByRole("link", { name: "Crash Logs" })).not.toBeInTheDocument();
       expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
       expect(screen.getByText("Probable freeze")).toBeInTheDocument();
     });

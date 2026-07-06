@@ -1086,12 +1086,15 @@ Symptoms:
 
 Cause:
 
-- Environment is running an older `reserve_generation_credits`/reservation RPC definition (pre-fix for ambiguous output-column names).
+- Environment is running a reservation RPC body without the PL/pgSQL ambiguity guard for output-column names.
+- In pre-grant-lot environments this is usually an older `reserve_generation_credits`/reservation RPC definition.
+- In grant-lot environments after `sql/migrations/200_add_credit_grant_lot_expiration.sql`, this means the grant-lot reservation/settlement RPCs need the migration `202` ambiguity hardening.
 
 Fix:
 
-- Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
-- Then run `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- For pre-grant-lot environments, run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`, then `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
+- For environments with migration `200` applied, run `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`.
+- Run `sql/check_runtime_sql_security_audit.sql` and require `failing_checks = 0`.
 - Refresh Supabase schema cache and retry generation.
 
 Notes:

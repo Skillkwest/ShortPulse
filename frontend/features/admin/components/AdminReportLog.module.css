@@ -112,7 +112,7 @@
 .adminTesterReportsHead,
 .adminTesterReportsRow {
   display: grid;
-  grid-template-columns: 1.15fr 0.8fr 1.1fr 1.35fr 2fr;
+  grid-template-columns: 1.1fr 0.75fr 1fr 1.05fr 1.25fr 1.85fr;
   gap: 8px;
   align-items: center;
 }
@@ -146,6 +146,18 @@
   border: 1px solid var(--admin-border-soft);
   border-radius: 999px;
   background: var(--admin-surface-2);
+}
+
+.adminTesterReportReviewActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.adminTesterReportReviewError {
+  color: #fecaca;
+  font-size: 12px;
 }
 
 .adminTesterReportPanels {
@@ -229,6 +241,11 @@
 .testerReportStatusPartial {
   border-color: var(--admin-border);
   color: var(--admin-text-strong);
+}
+
+.testerReportReviewPending {
+  border-color: var(--admin-border-soft);
+  color: var(--admin-text-muted);
 }
 
 .reportIdentityCell {

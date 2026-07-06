@@ -38,6 +38,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Unified settlement service: `frontend/lib/server/api/generationBilling/settlementService.ts` (`settleGenerationOutcome`).
 - Ledger insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Credit grant-lot migration: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
+- Credit grant-lot reservation ambiguity hotfix: `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`.
 - Credit expiration scheduler: `sql/configure_credit_expiration_scheduler_supabase.sql`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
@@ -107,15 +108,17 @@ Legacy `ref_id`-only ledger deployments are not supported by generation or admin
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
 10. Run `sql/migrations/200_add_credit_grant_lot_expiration.sql` before enabling subscription rollover/expiration behavior.
-11. Confirm `sql/check_runtime_sql_security_audit.sql` reports the retired `reserve_generation_credits(...)` RPC absent and the grant-aware RPC executable only by `service_role`.
-12. Apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after the migration is present and the target Vault URL points at `/api/internal/credit-expirations/run`.
-13. Run `sql/audit_billing_credit_rls.sql` and confirm no failing billing/credit integrity rows.
-14. Verify admin credit adjustment in `/admin` succeeds.
-15. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+11. Run `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql` after migration 200 so grant-lot reservation and settlement RPCs retain `#variable_conflict use_column`.
+12. Confirm `sql/check_runtime_sql_security_audit.sql` reports the retired `reserve_generation_credits(...)` RPC absent, the grant-aware RPCs executable only by `service_role`, and the reservation RPC ambiguity guards present.
+13. Apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after the migration is present and the target Vault URL points at `/api/internal/credit-expirations/run`.
+14. Run `sql/audit_billing_credit_rls.sql` and confirm no failing billing/credit integrity rows.
+15. Verify admin credit adjustment in `/admin` succeeds.
+16. Verify Fal/Kie reservation submit paths no longer return ambiguous SQL errors:
 
 - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
+- Confirm `/api/fal/kie-seedance-2-submit` does not return `GENERATION_ADMISSION_UNAVAILABLE` with `reservation_rpc_ambiguous_column`.
 
-16. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+17. Verify reservation RPC hardening checks are present in staged function bodies and grants:
 
 - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
 - explicit `revoke ... from public, anon, authenticated`

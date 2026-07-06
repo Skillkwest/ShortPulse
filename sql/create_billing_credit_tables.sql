@@ -820,12 +820,6 @@ drop policy if exists select_ai_credit_ledger_isolation on ai_credit_ledger;
 create policy select_ai_credit_ledger_isolation on ai_credit_ledger
     for select using (user_id = auth.uid());
 drop policy if exists insert_ai_credit_ledger_user_debits on ai_credit_ledger;
-create policy insert_ai_credit_ledger_user_debits on ai_credit_ledger
-    for insert with check (
-        user_id = auth.uid()
-        and change_cents < 0
-        and coalesce(created_by, auth.uid()) = auth.uid()
-    );
 
 -- Credit grant lots are the expiration-aware spend authority for new credit
 -- debits. ai_credit_ledger and ai_credit_balance remain audit/projection

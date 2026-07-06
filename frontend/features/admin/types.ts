@@ -5,7 +5,7 @@ import type { AdminPricingCustomRowsDocument } from "../../lib/model-runtime/adm
 import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
 import type { AdminModelWorkflowType } from "../../lib/model-runtime/modelWorkflowType";
 import type { IssueReportStatus } from "../../lib/issueReports";
-import type { TesterReportStatus } from "../../lib/testerReports";
+import type { HyberveesReviewStatus, TesterReportStatus } from "../../lib/testerReports";
 
 export type AdminUserRow = {
   id: string;
@@ -348,6 +348,11 @@ export type AdminTesterReportRunRow = {
   engineeringReportBody: string;
   reportArtifactPaths: string[];
   evidence: Record<string, unknown>;
+  hyberveesReviewStatus: HyberveesReviewStatus;
+  hyberveesReviewedAt: string | null;
+  hyberveesReviewedBy: string | null;
+  hyberveesInsightSummary: string | null;
+  hyberveesInsightArtifactPath: string | null;
   createdBySource: "tester_agent" | "automation" | "admin";
   createdByUserId: string | null;
   createdByEmail: string | null;

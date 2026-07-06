@@ -34,6 +34,7 @@ const baseProps: React.ComponentProps<typeof VideoAssetSlotsCard> = {
   handleSeedanceElementMediaDrop: () => vi.fn(),
   handleSeedanceElementMediaFileSelection: () => vi.fn(),
   openElementPicker: vi.fn(),
+  reorderSelectedElementSlot: vi.fn(),
   removeSelectedElement: vi.fn(),
   elementPickerError: null,
 };

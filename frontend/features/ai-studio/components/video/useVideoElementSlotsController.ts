@@ -44,6 +44,8 @@ type SeedanceElementMediaSlotValue = {
   name?: string | null;
 } | null;
 
+export type VideoElementSlotReorderPlacement = "before" | "after" | "replace";
+
 type UseVideoElementSlotsControllerArgs = {
   isSeedance2FamilyModelSelected: boolean;
   klingElements: AiStudioKlingElement[];
@@ -76,9 +78,8 @@ export function useVideoElementSlotsController({
       const committedVisibleElements = elements
         .map((item, index) => {
           if (!item) return null;
-          const slotIndex = resolveKlingElementPanelSlotIndex(item, index);
-          if (slotIndex == null || !visibleSlotIndexes.has(slotIndex)) return null;
-          return item.slotIndex === slotIndex ? item : { ...item, slotIndex };
+          if (!visibleSlotIndexes.has(index)) return null;
+          return item.slotIndex === index ? item : { ...item, slotIndex: index };
         })
         .filter((item): item is AiStudioKlingElement => Boolean(item));
       const preservedHiddenElements = klingElements.filter((element, index) => {
@@ -271,6 +272,65 @@ export function useVideoElementSlotsController({
     [commitSelectedKlingElements, klingElementSlotCount, selectedKlingElements]
   );
 
+  const reorderSelectedElementSlot = React.useCallback(
+    (
+      sourceSlotIndex: number,
+      targetSlotIndex: number,
+      placement: VideoElementSlotReorderPlacement = "replace"
+    ) => {
+      if (
+        sourceSlotIndex === targetSlotIndex ||
+        sourceSlotIndex < 0 ||
+        sourceSlotIndex >= klingElementSlotCount ||
+        targetSlotIndex < 0 ||
+        targetSlotIndex >= klingElementSlotCount
+      ) {
+        return;
+      }
+      const next = Array.from(
+        { length: klingElementSlotCount },
+        (_, index) => selectedKlingElements[index] ?? null
+      );
+      const sourceElement = next[sourceSlotIndex];
+      if (!sourceElement) return;
+      if (placement === "replace" && !next[targetSlotIndex]) {
+        next[sourceSlotIndex] = null;
+        next[targetSlotIndex] = sourceElement;
+        const limitError = resolveSeedanceElementSlotLimitError(next);
+        if (limitError) {
+          setSeedanceSlotLimitWarning(limitError);
+          return;
+        }
+        setSeedanceSlotLimitWarning(null);
+        commitSelectedKlingElements(next);
+        return;
+      }
+
+      next.splice(sourceSlotIndex, 1);
+      const adjustedTargetIndex =
+        sourceSlotIndex < targetSlotIndex ? targetSlotIndex - 1 : targetSlotIndex;
+      const insertIndex =
+        placement === "after"
+          ? Math.min(adjustedTargetIndex + 1, next.length)
+          : Math.max(adjustedTargetIndex, 0);
+      next.splice(insertIndex, 0, sourceElement);
+      const visibleSlots = next.slice(0, klingElementSlotCount);
+      const limitError = resolveSeedanceElementSlotLimitError(visibleSlots);
+      if (limitError) {
+        setSeedanceSlotLimitWarning(limitError);
+        return;
+      }
+      setSeedanceSlotLimitWarning(null);
+      commitSelectedKlingElements(visibleSlots);
+    },
+    [
+      commitSelectedKlingElements,
+      klingElementSlotCount,
+      resolveSeedanceElementSlotLimitError,
+      selectedKlingElements,
+    ]
+  );
+
   return {
     closeElementPicker,
     elementPickerError,
@@ -281,6 +341,7 @@ export function useVideoElementSlotsController({
     klingElementSlotCount,
     modelVisibleKlingElements,
     openElementPicker,
+    reorderSelectedElementSlot,
     removeSelectedElement,
     seedanceSlotLimitWarning,
     selectedKlingElements,

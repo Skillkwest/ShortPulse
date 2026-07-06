@@ -6,6 +6,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoPropertiesPanel } from "../VideoPropertiesPanel";
+import { VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME } from "../video/VideoAssetSlotsCard";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
@@ -3406,6 +3407,205 @@ describe("VideoPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove attached element Taylor" }));
 
     expect(onKlingElementsChange).toHaveBeenCalledWith([]);
+  });
+
+  it("reorders Kling attached asset slots through the visible reorder handle", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          {
+            id: "element-red-lantern",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceCharacterId: null,
+            sourceElementId: "element-red-lantern",
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "Warm lacquered lantern",
+            profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+            frontalImageUrl: "https://example.com/red-lantern-front.jpg",
+            referenceImageUrls: "https://example.com/red-lantern-side.jpg",
+            videoUrl: "",
+          },
+          {
+            id: "element-steam-train",
+            slotIndex: 1,
+            sourceKind: "element",
+            sourceCharacterId: null,
+            sourceElementId: "element-steam-train",
+            name: "Steam Train",
+            alias: "steamtrain",
+            description: "Black steam train",
+            profileImageUrl: "https://example.com/steam-train-profile.jpg",
+            frontalImageUrl: "https://example.com/steam-train-front.jpg",
+            referenceImageUrls: "https://example.com/steam-train-side.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const transfer = createTransferStore();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "Reorder attached element Red Lantern" }),
+      {
+        dataTransfer: transfer,
+      }
+    );
+    expect(transfer.setData).toHaveBeenCalledWith(VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME, "0");
+
+    const targetTile = screen
+      .getByRole("button", { name: "Replace attached element Steam Train" })
+      .closest(".video-elements-placeholder-tile--filled") as HTMLElement;
+    fireEvent.drop(targetTile, { dataTransfer: transfer });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "element-steam-train", slotIndex: 0 }),
+      expect.objectContaining({ id: "element-red-lantern", slotIndex: 1 }),
+    ]);
+  });
+
+  it("moves a Seedance asset into an empty slot without changing media-ingress drops", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
+        modelLabel="Seedance 2"
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          {
+            id: "seedance-image",
+            slotIndex: 0,
+            sourceKind: "reference-image",
+            sourceCharacterId: null,
+            sourceElementId: null,
+            name: "Image reference",
+            alias: "",
+            description: "",
+            profileImageUrl: "https://example.com/seedance-image.png",
+            profileImageTransform: null,
+            frontalImageUrl: "https://example.com/seedance-image.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+          {
+            id: "seedance-audio",
+            slotIndex: 1,
+            sourceKind: "reference-audio",
+            sourceCharacterId: null,
+            sourceElementId: null,
+            name: "Audio reference",
+            alias: "",
+            description: "",
+            profileImageUrl: null,
+            profileImageTransform: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+            audioUrl: "https://example.com/reference-voice.mp3",
+          },
+        ]}
+      />
+    );
+
+    const transfer = createTransferStore();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "Reorder attached element Image reference" }),
+      { dataTransfer: transfer }
+    );
+    fireEvent.drop(
+      screen.getByRole("button", { name: "Add element to slot 4" }).parentElement as HTMLElement,
+      {
+        dataTransfer: transfer,
+      }
+    );
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "seedance-audio", slotIndex: 1 }),
+      expect.objectContaining({ id: "seedance-image", slotIndex: 3 }),
+    ]);
+  });
+
+  it("reorders Motion Control element assets while fixed character and motion slots stay fixed", () => {
+    useReferencePropertiesDerivedStateMock.mockReturnValue({
+      ...defaultDerivedState,
+      activeVideoMode: "motion",
+      isMotionMode: true,
+      isStandardMode: false,
+      referenceStepTitle: "Add Motion Inputs",
+      referenceStepSubtitle: "Add motion inputs",
+    });
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        videoReferenceMode="motion"
+        referenceImageUrl="https://example.com/character.png"
+        motionVideoUrl="https://example.com/motion.mp4"
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          {
+            id: "motion-prop",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceCharacterId: null,
+            sourceElementId: "motion-prop",
+            name: "Motion Prop",
+            alias: "motionprop",
+            description: "Prop visible during motion transfer",
+            profileImageUrl: "https://example.com/motion-prop-profile.jpg",
+            frontalImageUrl: "https://example.com/motion-prop-front.jpg",
+            referenceImageUrls: "https://example.com/motion-prop-side.jpg",
+            videoUrl: "",
+          },
+          {
+            id: "motion-background",
+            slotIndex: 1,
+            sourceKind: "element",
+            sourceCharacterId: null,
+            sourceElementId: "motion-background",
+            name: "Motion Background",
+            alias: "motionbackground",
+            description: "Backdrop visible during motion transfer",
+            profileImageUrl: "https://example.com/motion-background-profile.jpg",
+            frontalImageUrl: "https://example.com/motion-background-front.jpg",
+            referenceImageUrls: "https://example.com/motion-background-side.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Motion Control" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    const transfer = createTransferStore();
+    fireEvent.dragStart(
+      screen.getByRole("button", { name: "Reorder attached element Motion Prop" }),
+      {
+        dataTransfer: transfer,
+      }
+    );
+    const targetTile = screen
+      .getByRole("button", { name: "Replace attached element Motion Background" })
+      .closest(".video-elements-placeholder-tile--filled") as HTMLElement;
+    fireEvent.drop(targetTile, { dataTransfer: transfer });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "motion-background", slotIndex: 0 }),
+      expect.objectContaining({ id: "motion-prop", slotIndex: 1 }),
+    ]);
+    expect(screen.getByTestId("reference-media-step")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Motion Control" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
   });
 
   it("keeps slot 1 stable when slot 0 is deleted from a sparse Kling slot layout", async () => {

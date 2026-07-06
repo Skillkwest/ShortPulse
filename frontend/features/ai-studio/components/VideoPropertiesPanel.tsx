@@ -276,6 +276,7 @@ export function VideoPropertiesPanel({
     klingElementSlotCount,
     modelVisibleKlingElements,
     openElementPicker,
+    reorderSelectedElementSlot,
     removeSelectedElement,
     seedanceSlotLimitWarning,
     selectedKlingElements,
@@ -1087,6 +1088,7 @@ export function VideoPropertiesPanel({
                           handleSeedanceElementMediaFileSelection
                         }
                         openElementPicker={openElementPicker}
+                        reorderSelectedElementSlot={reorderSelectedElementSlot}
                         removeSelectedElement={removeSelectedElement}
                         elementPickerError={elementPickerError}
                       />

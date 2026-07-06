@@ -624,7 +624,7 @@ export function ProjectsModal({
                             <FolderSimple size={22} weight="duotone" />
                           </span>
                           <span className="ai-projects-modal-card-open-label">
-                            {isOpeningProject ? "Opening" : "Open →"}
+                            {isOpeningProject ? "Opening" : "Open"}
                           </span>
                         </span>
                       ) : null}

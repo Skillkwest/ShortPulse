@@ -216,6 +216,45 @@ describe("buildKieKlingElementsPayload", () => {
     ]);
   });
 
+  it("uses rewritten slot indexes after UI asset reorder", () => {
+    const payload = buildKieKlingElementsPayload([
+      {
+        id: "red-lantern",
+        slotIndex: 1,
+        name: "Red Lantern",
+        alias: "redlantern",
+        frontalImageUrl: "https://example.com/red-lantern-front.png",
+        referenceImageUrls: "https://example.com/red-lantern-side.png",
+        videoUrl: "",
+      },
+      {
+        id: "steam-train",
+        slotIndex: 0,
+        name: "Steam Train",
+        alias: "steamtrain",
+        frontalImageUrl: "",
+        referenceImageUrls: "",
+        videoUrl: "https://example.com/steam-train.mp4",
+      },
+    ]);
+
+    expect(payload).toEqual([
+      {
+        name: "element1",
+        description: "Reference video for Steam Train",
+        element_input_video_urls: ["https://example.com/steam-train.mp4"],
+      },
+      {
+        name: "element2",
+        description: "Reference images for Red Lantern",
+        element_input_urls: [
+          "https://example.com/red-lantern-front.png",
+          "https://example.com/red-lantern-side.png",
+        ],
+      },
+    ]);
+  });
+
   it("fails closed for one-image Kling elements", () => {
     expect(() =>
       buildKieKlingElementsPayload([

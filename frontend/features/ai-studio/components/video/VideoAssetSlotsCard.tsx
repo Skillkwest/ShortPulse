@@ -2,7 +2,15 @@
  * Video workflow asset-slot card for Kling Elements and Seedance 2 media inputs.
  */
 import React from "react";
-import { Pause, Play, SpeakerHigh, Trash, UploadSimple, VideoCamera } from "phosphor-react";
+import {
+  DotsSixVertical,
+  Pause,
+  Play,
+  SpeakerHigh,
+  Trash,
+  UploadSimple,
+  VideoCamera,
+} from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import {
   getAiStudioKlingElementReferenceUrls,
@@ -19,8 +27,11 @@ import { handleVideoSegmentedTabListKeyDown } from "./videoSegmentedTabs";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { INTERNAL_MEDIA_REF_BUCKET } from "../../../../lib/media/internalMediaRefs";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
+import type { VideoElementSlotReorderPlacement } from "./useVideoElementSlotsController";
 
 const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
+export const VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME =
+  "application/x-shortpulse-video-asset-slot-index";
 const SHOT_MODE_TAB_VALUES = ["single", "multi"] as const;
 const SEEDANCE_REFERENCE_MODE_TAB_VALUES = ["elements", "keyframes"] as const;
 
@@ -62,6 +73,11 @@ type VideoAssetSlotsCardProps = {
     index: number
   ) => (event: React.ChangeEvent<HTMLInputElement>) => void;
   openElementPicker: (slotIndex: number) => void;
+  reorderSelectedElementSlot: (
+    sourceSlotIndex: number,
+    targetSlotIndex: number,
+    placement?: VideoElementSlotReorderPlacement
+  ) => void;
   removeSelectedElement: (slotIndex: number) => void;
   elementPickerError: string | null;
 };
@@ -80,6 +96,18 @@ const resolveSeedanceSlotPreviewSourceUrl = (element: AiStudioKlingElement | nul
     }
   )[0] ??
   null;
+
+const hasVideoElementSlotReorderData = (dataTransfer: DataTransfer): boolean =>
+  Array.from(dataTransfer.types ?? []).includes(VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME);
+
+const resolveSlotReorderPlacement = (
+  event: React.DragEvent<HTMLElement>,
+  isTargetEmpty: boolean
+): VideoElementSlotReorderPlacement => {
+  if (isTargetEmpty) return "replace";
+  const rect = event.currentTarget.getBoundingClientRect();
+  return event.clientX < rect.left + rect.width / 2 ? "before" : "after";
+};
 
 /**
  * Renders the Video asset-slot controls while the parent keeps selection and upload state.
@@ -109,11 +137,17 @@ export function VideoAssetSlotsCard({
   handleSeedanceElementMediaDrop,
   handleSeedanceElementMediaFileSelection,
   openElementPicker,
+  reorderSelectedElementSlot,
   removeSelectedElement,
   elementPickerError,
 }: VideoAssetSlotsCardProps) {
   const audioPreviewElementRef = React.useRef<HTMLAudioElement | null>(null);
   const [playingAudioPreviewUrl, setPlayingAudioPreviewUrl] = React.useState<string | null>(null);
+  const [slotReorderState, setSlotReorderState] = React.useState<{
+    sourceIndex: number;
+    targetIndex: number | null;
+    placement: VideoElementSlotReorderPlacement;
+  } | null>(null);
   const [signedSeedanceSlotPreviewUrls, setSignedSeedanceSlotPreviewUrls] = React.useState<
     Record<string, string>
   >({});
@@ -210,6 +244,73 @@ export function VideoAssetSlotsCard({
       setPlayingAudioPreviewUrl(normalizedAudioUrl);
     },
     [playingAudioPreviewUrl]
+  );
+
+  const updateSlotReorderTarget = React.useCallback(
+    (event: React.DragEvent<HTMLElement>, targetIndex: number, isTargetEmpty: boolean) => {
+      if (!hasVideoElementSlotReorderData(event.dataTransfer) && !slotReorderState) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      const rawSourceIndex = event.dataTransfer.getData(VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME);
+      const parsedSourceIndex = Number.parseInt(rawSourceIndex, 10);
+      const sourceIndex = Number.isInteger(parsedSourceIndex)
+        ? parsedSourceIndex
+        : slotReorderState?.sourceIndex;
+      if (typeof sourceIndex !== "number" || !Number.isInteger(sourceIndex)) return true;
+      if (sourceIndex === targetIndex) return true;
+      setSlotReorderState({
+        sourceIndex,
+        targetIndex,
+        placement: resolveSlotReorderPlacement(event, isTargetEmpty),
+      });
+      return true;
+    },
+    [slotReorderState]
+  );
+
+  const handleSlotReorderDrop = React.useCallback(
+    (event: React.DragEvent<HTMLElement>, targetIndex: number, isTargetEmpty: boolean) => {
+      if (!hasVideoElementSlotReorderData(event.dataTransfer)) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      const rawSourceIndex = event.dataTransfer.getData(VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME);
+      const sourceIndex = Number.parseInt(rawSourceIndex, 10);
+      if (Number.isInteger(sourceIndex) && sourceIndex !== targetIndex) {
+        reorderSelectedElementSlot(
+          sourceIndex,
+          targetIndex,
+          resolveSlotReorderPlacement(event, isTargetEmpty)
+        );
+      }
+      setSlotReorderState(null);
+      return true;
+    },
+    [reorderSelectedElementSlot]
+  );
+
+  const handleSlotReorderKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, sourceIndex: number) => {
+      const columnCount = 3;
+      const directionByKey: Record<string, number> = {
+        ArrowLeft: -1,
+        ArrowRight: 1,
+        ArrowUp: -columnCount,
+        ArrowDown: columnCount,
+      };
+      const delta = directionByKey[event.key];
+      if (!delta) return;
+      const targetIndex = sourceIndex + delta;
+      if (targetIndex < 0 || targetIndex >= klingElementSlotCount) return;
+      event.preventDefault();
+      const placement: VideoElementSlotReorderPlacement = modelVisibleKlingElements[targetIndex]
+        ? delta > 0
+          ? "after"
+          : "before"
+        : "replace";
+      reorderSelectedElementSlot(sourceIndex, targetIndex, placement);
+    },
+    [klingElementSlotCount, modelVisibleKlingElements, reorderSelectedElementSlot]
   );
 
   return (
@@ -387,6 +488,12 @@ export function VideoAssetSlotsCard({
                 const openMediaFilePicker = () => {
                   seedanceImageInputRef?.current?.click();
                 };
+                const reorderTargetClass =
+                  slotReorderState?.targetIndex === index
+                    ? `is-slot-reorder-target is-slot-reorder-target--${slotReorderState.placement}`
+                    : "";
+                const reorderSourceClass =
+                  slotReorderState?.sourceIndex === index ? "is-slot-reorder-source" : "";
 
                 if (!selectedElement) {
                   return (
@@ -397,26 +504,50 @@ export function VideoAssetSlotsCard({
                       }}
                       className={`video-elements-placeholder-tile ${
                         isImageDropActive ? "is-dragging" : ""
-                      } ${isImageLoading ? "is-loading" : ""}`.trim()}
+                      } ${isImageLoading ? "is-loading" : ""} ${reorderTargetClass}`.trim()}
                       onDragEnter={
                         canUseSeedanceImageIngress
-                          ? handleSeedanceElementMediaDragEnter(index)
-                          : undefined
+                          ? (event) => {
+                              if (updateSlotReorderTarget(event, index, true)) return;
+                              handleSeedanceElementMediaDragEnter(index)(event);
+                            }
+                          : (event) => {
+                              updateSlotReorderTarget(event, index, true);
+                            }
                       }
                       onDragOver={
                         canUseSeedanceImageIngress
-                          ? handleSeedanceElementMediaDragOver(index)
-                          : undefined
+                          ? (event) => {
+                              if (updateSlotReorderTarget(event, index, true)) return;
+                              handleSeedanceElementMediaDragOver(index)(event);
+                            }
+                          : (event) => {
+                              updateSlotReorderTarget(event, index, true);
+                            }
                       }
                       onDragLeave={
                         canUseSeedanceImageIngress
-                          ? handleSeedanceElementMediaDragLeave(index)
-                          : undefined
+                          ? (event) => {
+                              setSlotReorderState((current) =>
+                                current?.targetIndex === index ? null : current
+                              );
+                              handleSeedanceElementMediaDragLeave(index)(event);
+                            }
+                          : () => {
+                              setSlotReorderState((current) =>
+                                current?.targetIndex === index ? null : current
+                              );
+                            }
                       }
                       onDrop={
                         canUseSeedanceImageIngress
-                          ? handleSeedanceElementMediaDrop(index)
-                          : undefined
+                          ? (event) => {
+                              if (handleSlotReorderDrop(event, index, true)) return;
+                              handleSeedanceElementMediaDrop(index)(event);
+                            }
+                          : (event) => {
+                              handleSlotReorderDrop(event, index, true);
+                            }
                       }
                       aria-label={`Add element to slot ${index + 1}`}
                     >
@@ -479,25 +610,51 @@ export function VideoAssetSlotsCard({
                               : "video-elements-placeholder-tile--element"
                     } ${isImageDropActive ? "is-dragging" : ""} ${
                       isImageLoading ? "is-loading" : ""
-                    }`.trim()}
+                    } ${reorderSourceClass} ${reorderTargetClass}`.trim()}
                     draggable={Boolean(dragToken)}
                     onDragEnter={
                       canUseSeedanceImageIngress
-                        ? handleSeedanceElementMediaDragEnter(index)
-                        : undefined
+                        ? (event) => {
+                            if (updateSlotReorderTarget(event, index, false)) return;
+                            handleSeedanceElementMediaDragEnter(index)(event);
+                          }
+                        : (event) => {
+                            updateSlotReorderTarget(event, index, false);
+                          }
                     }
                     onDragOver={
                       canUseSeedanceImageIngress
-                        ? handleSeedanceElementMediaDragOver(index)
-                        : undefined
+                        ? (event) => {
+                            if (updateSlotReorderTarget(event, index, false)) return;
+                            handleSeedanceElementMediaDragOver(index)(event);
+                          }
+                        : (event) => {
+                            updateSlotReorderTarget(event, index, false);
+                          }
                     }
                     onDragLeave={
                       canUseSeedanceImageIngress
-                        ? handleSeedanceElementMediaDragLeave(index)
-                        : undefined
+                        ? (event) => {
+                            setSlotReorderState((current) =>
+                              current?.targetIndex === index ? null : current
+                            );
+                            handleSeedanceElementMediaDragLeave(index)(event);
+                          }
+                        : () => {
+                            setSlotReorderState((current) =>
+                              current?.targetIndex === index ? null : current
+                            );
+                          }
                     }
                     onDrop={
-                      canUseSeedanceImageIngress ? handleSeedanceElementMediaDrop(index) : undefined
+                      canUseSeedanceImageIngress
+                        ? (event) => {
+                            if (handleSlotReorderDrop(event, index, false)) return;
+                            handleSeedanceElementMediaDrop(index)(event);
+                          }
+                        : (event) => {
+                            handleSlotReorderDrop(event, index, false);
+                          }
                     }
                     onDragStart={(event) => {
                       if (!dragToken) return;
@@ -566,6 +723,29 @@ export function VideoAssetSlotsCard({
                       />
                     ) : null}
                     <span className="video-elements-slot-actions">
+                      <button
+                        type="button"
+                        className="ghost-btn mini video-elements-slot-reorder-handle"
+                        draggable
+                        aria-label={`Reorder attached element ${selectedElement.name || index + 1}`}
+                        onDragStart={(event) => {
+                          event.stopPropagation();
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData(
+                            VIDEO_ELEMENT_SLOT_REORDER_TRANSFER_MIME,
+                            String(index)
+                          );
+                          setSlotReorderState({
+                            sourceIndex: index,
+                            targetIndex: null,
+                            placement: "replace",
+                          });
+                        }}
+                        onDragEnd={() => setSlotReorderState(null)}
+                        onKeyDown={(event) => handleSlotReorderKeyDown(event, index)}
+                      >
+                        <DotsSixVertical size={12} weight="bold" />
+                      </button>
                       <button
                         type="button"
                         className="ghost-btn mini"

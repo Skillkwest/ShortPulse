@@ -225,7 +225,7 @@
 
 .bootstrapStyleScope :global(.ai-projects-modal-card):global(.is-selected) {
   overflow: hidden;
-  padding-right: 82px;
+  padding-right: 112px;
   gap: 0;
   text-align: left;
   border-color: rgba(37, 169, 191, 0.48);
@@ -255,9 +255,9 @@
 .bootstrapStyleScope :global(.ai-projects-modal-card-open-content) {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 32%;
-  min-width: 70px;
-  max-width: 88px;
+  width: 42%;
+  min-width: 94px;
+  max-width: 120px;
   z-index: 2;
   display: flex;
   flex-direction: column;

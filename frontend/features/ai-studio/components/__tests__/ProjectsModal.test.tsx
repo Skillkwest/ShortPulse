@@ -113,7 +113,7 @@ describe("ProjectsModal", () => {
       name: "Open project Campaign Alpha",
     });
     expect(selectedProjectButton).toHaveTextContent("Campaign Alpha");
-    expect(selectedProjectButton).toHaveTextContent("Open →");
+    expect(selectedProjectButton).toHaveTextContent("Open");
     expect(
       selectedProjectButton.querySelector(".ai-projects-modal-card-open-content")
     ).toBeInTheDocument();

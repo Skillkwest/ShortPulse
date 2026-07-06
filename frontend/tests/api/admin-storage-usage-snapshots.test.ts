@@ -54,7 +54,12 @@ const createSupabaseAdmin = () => {
     },
     error: null,
   });
-  const builder = {
+  type StorageSnapshotInsertBuilder = {
+    insert: (row: unknown) => StorageSnapshotInsertBuilder;
+    select: (columns: string) => StorageSnapshotInsertBuilder;
+    single: typeof single;
+  };
+  const builder: StorageSnapshotInsertBuilder = {
     insert: vi.fn((row: unknown) => {
       insert(row);
       return builder;

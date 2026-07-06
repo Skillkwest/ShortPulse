@@ -349,6 +349,7 @@ Recommended operator sequence:
   - `offer_id` pointing at a hidden internal-comp offer in `billing_plan_offers`
   - `stripe_price_id` intentionally nullable in this mode
 - For diagnostics and operator visibility, use `/api/admin/billing-diagnostics` and `billing_source` rows in `/api/admin/users` as the source of truth for plan entitlement and credits.
+- `/admin/storage` groups `contract_source = 'internal_comp'` accounts under the hidden `payment_exempt` reporting row so tester/admin exemptions are visible without making `payment_exempt` a public or purchasable billing plan.
 - Avoid creating additional public Stripe products to represent payment-exempt access; reserve new Stripe offers for externally billable plan variants only.
 - Payment-exempt users still receive full plan context through contract/offer snapshots (plan id + current public offer metadata), but access/renewal is enforced through `billing_subscription_contracts` with `contract_source='internal_comp'` and no Stripe recurring charge.
 

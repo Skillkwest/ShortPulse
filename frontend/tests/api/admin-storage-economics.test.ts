@@ -87,6 +87,11 @@ describe("GET /api/admin/storage-economics", () => {
           file_size: 300,
           created_at: "2026-06-30T00:00:00.000Z",
         },
+        {
+          user_id: "user-exempt",
+          file_size: 200,
+          created_at: "2026-06-29T00:00:00.000Z",
+        },
       ],
       billing_subscription_contracts: [
         {
@@ -98,6 +103,30 @@ describe("GET /api/admin/storage-economics", () => {
           recurring_price_cents: 1900,
           billing_interval: "month",
           status: "active",
+        },
+        {
+          user_id: "user-exempt",
+          plan_id: "business",
+          offer_id: "business__current",
+          storage_limit_bytes: 15000,
+          contract_source: "stripe",
+          stripe_subscription_id: null,
+          recurring_price_cents: 29900,
+          billing_interval: "month",
+          status: "inactive",
+          created_at: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          user_id: "user-exempt",
+          plan_id: "media",
+          offer_id: "media__internal_comp",
+          storage_limit_bytes: 2500,
+          contract_source: null,
+          stripe_subscription_id: null,
+          recurring_price_cents: 0,
+          billing_interval: "month",
+          status: "active",
+          created_at: "2026-07-01T00:00:00.000Z",
         },
       ],
       billing_profiles: [
@@ -146,6 +175,17 @@ describe("GET /api/admin/storage-economics", () => {
           effective_start_at: "2026-06-01T00:00:00.000Z",
           effective_end_at: null,
           created_at: "2026-06-01T00:00:00.000Z",
+        },
+        {
+          id: "media__internal_comp",
+          plan_id: "media",
+          recurring_price_cents: 0,
+          billing_interval: "month",
+          acquisition_enabled: false,
+          is_active: true,
+          effective_start_at: "2026-07-01T00:00:00.000Z",
+          effective_end_at: null,
+          created_at: "2026-07-01T00:00:00.000Z",
         },
       ],
       billing_storage_addons: [
@@ -246,9 +286,9 @@ describe("GET /api/admin/storage-economics", () => {
     const payload = res.json.mock.calls[0]?.[0];
     expect(payload.overview).toEqual(
       expect.objectContaining({
-        trackedAccounts: 2,
-        accountsWithMedia: 2,
-        totalTrackedBytes: 900,
+        trackedAccounts: 3,
+        accountsWithMedia: 3,
+        totalTrackedBytes: 1100,
         baselineStorageUsers: 1,
         activeAddonSubscribers: 1,
         activeAddonMrrCents: 900,
@@ -284,6 +324,19 @@ describe("GET /api/admin/storage-economics", () => {
           contractMrrCents: 1900,
           isActive: true,
           accountsOver80Pct: 0,
+        }),
+        expect.objectContaining({
+          planId: "payment_exempt",
+          displayName: "Payment exempt testers",
+          visibilityLabel: "hidden/admin only",
+          catalogStorageLimitBytes: 2500,
+          catalogAcquisitionEnabled: false,
+          activeStripeContracts: 0,
+          contractMrrCents: 0,
+          accountCount: 1,
+          usersWithMedia: 1,
+          totalTrackedBytes: 200,
+          baseLimitBytes: 2500,
         }),
         expect.objectContaining({
           planId: "media",
@@ -333,6 +386,9 @@ describe("GET /api/admin/storage-economics", () => {
     expect(supabase.selects.media_files?.[0]).toBe("user_id, file_size, created_at");
     expect(supabase.selects.billing_plans?.[0]).toBe(
       "id, display_name, monthly_price_cents, storage_limit_bytes, sort_order, is_active"
+    );
+    expect(supabase.selects.billing_subscription_contracts?.[0]).toBe(
+      "user_id, plan_id, offer_id, storage_limit_bytes, contract_source, stripe_subscription_id, recurring_price_cents, billing_interval, status, created_at"
     );
     expect(supabase.selects.billing_plan_offers?.[0]).toBe(
       "id, plan_id, recurring_price_cents, billing_interval, acquisition_enabled, is_active, effective_start_at, effective_end_at, created_at"

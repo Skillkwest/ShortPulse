@@ -311,7 +311,7 @@ export const AdminStorageEconomicsPanel = ({
                   <span className={styles.adminMonoCell}>
                     {row.displayName}
                     <small className={styles.adminInlineMeta}>
-                      ID: {row.planId} • {row.isActive ? "active" : "inactive"}
+                      ID: {row.planId} • {row.visibilityLabel}
                     </small>
                   </span>
                   <span>{formatCount(row.accountCount)}</span>

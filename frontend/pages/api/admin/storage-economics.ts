@@ -28,6 +28,9 @@ import type {
 } from "../../../features/admin/types";
 
 const STORAGE_ADDON_TELEMETRY_SOURCE = "telemetry.storage.addon";
+const PAYMENT_EXEMPT_PLAN_ID = "payment_exempt";
+const PAYMENT_EXEMPT_PLAN_LABEL = "Payment exempt testers";
+const PAYMENT_EXEMPT_PLAN_VISIBILITY = "hidden/admin only";
 
 const ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
   storageCostPerGbMonth: 0.021,
@@ -50,12 +53,14 @@ type MediaFileRow = {
 type BillingContractRow = {
   user_id: string | null;
   plan_id: string | null;
+  offer_id: string | null;
   storage_limit_bytes: number | null;
   contract_source: string | null;
   stripe_subscription_id: string | null;
   recurring_price_cents: number | null;
   billing_interval: string | null;
   status: string | null;
+  created_at: string | null;
 };
 
 type BillingProfileRow = {
@@ -124,6 +129,8 @@ type AppErrorEventRow = {
 type AccountStorageState = {
   userId: string;
   planId: string;
+  reportingPlanId: string;
+  reportingDisplayName: string;
   displayName: string;
   baseLimitBytes: number;
   addonLimitBytes: number;
@@ -207,6 +214,38 @@ const isCurrentStripeContract = (contract: BillingContractRow | null): boolean =
   return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
 };
 
+const isPaymentExemptContract = (contract: BillingContractRow | null): boolean => {
+  if (!contract) return false;
+  return (
+    contract.contract_source === "internal_comp" ||
+    String(contract.offer_id ?? "").endsWith("__internal_comp")
+  );
+};
+
+const isCurrentBillableContract = (contract: BillingContractRow | null): boolean => {
+  if (!contract) return false;
+  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+};
+
+const contractTimestamp = (contract: BillingContractRow): number => {
+  const parsed = contract.created_at ? Date.parse(contract.created_at) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const choosePreferredContract = (
+  current: BillingContractRow | undefined,
+  next: BillingContractRow
+): BillingContractRow => {
+  if (!current) return next;
+  const currentExempt = isPaymentExemptContract(current);
+  const nextExempt = isPaymentExemptContract(next);
+  if (currentExempt !== nextExempt) return nextExempt ? next : current;
+  const currentBillable = isCurrentBillableContract(current);
+  const nextBillable = isCurrentBillableContract(next);
+  if (currentBillable !== nextBillable) return nextBillable ? next : current;
+  return contractTimestamp(next) > contractTimestamp(current) ? next : current;
+};
+
 const recurringToMonthlyCents = (
   recurringPriceCents: number | null | undefined,
   billingInterval: string | null | undefined
@@ -270,6 +309,7 @@ const getLatestPublicPlanOffer = (
     .filter((offer) => {
       if (toPlanId(offer.plan_id) !== planId) return false;
       if (!offer.is_active) return false;
+      if (!offer.acquisition_enabled) return false;
       if (String(offer.billing_interval ?? "month").toLowerCase() !== "month") return false;
       if (offer.effective_end_at && Date.parse(offer.effective_end_at) <= now) return false;
       return true;
@@ -370,7 +410,10 @@ const buildAccountStates = (params: {
   params.contracts.forEach((row) => {
     if (!row.user_id) return;
     userIds.add(row.user_id);
-    contractsByUser.set(row.user_id, row);
+    contractsByUser.set(
+      row.user_id,
+      choosePreferredContract(contractsByUser.get(row.user_id), row)
+    );
   });
 
   params.profiles.forEach((row) => {
@@ -388,6 +431,7 @@ const buildAccountStates = (params: {
     const profile = profilesByUser.get(userId) ?? null;
     const planId = toPlanId(contract?.plan_id ?? profile?.plan_id);
     const plan = params.plansById.get(planId);
+    const paymentExempt = isPaymentExemptContract(contract);
     const baseLimitBytes =
       contract?.storage_limit_bytes !== null && contract?.storage_limit_bytes !== undefined
         ? toCount(contract.storage_limit_bytes)
@@ -403,6 +447,8 @@ const buildAccountStates = (params: {
     return {
       userId,
       planId,
+      reportingPlanId: paymentExempt ? PAYMENT_EXEMPT_PLAN_ID : planId,
+      reportingDisplayName: paymentExempt ? PAYMENT_EXEMPT_PLAN_LABEL : "",
       displayName: plan?.display_name?.trim() || planId,
       baseLimitBytes,
       addonLimitBytes,
@@ -422,14 +468,15 @@ const buildPlanRows = (
 ): AdminStorageEconomicsPlanRow[] => {
   const byPlan = new Map<string, AccountStorageState[]>();
   accounts.forEach((account) => {
-    const rows = byPlan.get(account.planId) ?? [];
+    const rows = byPlan.get(account.reportingPlanId) ?? [];
     rows.push(account);
-    byPlan.set(account.planId, rows);
+    byPlan.set(account.reportingPlanId, rows);
   });
 
   const planIds = new Set<string>([
+    PAYMENT_EXEMPT_PLAN_ID,
     ...plans.map((plan) => toPlanId(plan.id)),
-    ...accounts.map((account) => account.planId),
+    ...accounts.map((account) => account.reportingPlanId),
   ]);
   const planCatalogById = new Map(plans.map((plan) => [toPlanId(plan.id), plan]));
 
@@ -438,18 +485,33 @@ const buildPlanRows = (
       const rows = byPlan.get(planId) ?? [];
       const plan = planCatalogById.get(planId) ?? null;
       const offer = getLatestPublicPlanOffer(planOffers, planId);
+      const isPaymentExemptPlan = planId === PAYMENT_EXEMPT_PLAN_ID;
       const currentStripeRows = rows.filter((row) => isCurrentStripeContract(row.contract));
       const trackedValues = rows.map((row) => row.trackedBytes);
       return {
         planId,
-        displayName: plan?.display_name?.trim() || rows[0]?.displayName || planId,
-        isActive: Boolean(plan?.is_active),
-        sortOrder: toCount(plan?.sort_order),
-        catalogStorageLimitBytes: toCount(plan?.storage_limit_bytes),
-        catalogRecurringPriceCents: toCount(
-          offer?.recurring_price_cents ?? plan?.monthly_price_cents
-        ),
-        catalogAcquisitionEnabled: Boolean(offer?.acquisition_enabled),
+        displayName:
+          (isPaymentExemptPlan ? PAYMENT_EXEMPT_PLAN_LABEL : null) ||
+          plan?.display_name?.trim() ||
+          rows[0]?.reportingDisplayName ||
+          rows[0]?.displayName ||
+          planId,
+        isActive: isPaymentExemptPlan ? false : Boolean(plan?.is_active),
+        visibilityLabel: isPaymentExemptPlan
+          ? PAYMENT_EXEMPT_PLAN_VISIBILITY
+          : plan?.is_active
+            ? "active"
+            : "inactive",
+        sortOrder: isPaymentExemptPlan ? 999 : toCount(plan?.sort_order),
+        catalogStorageLimitBytes: isPaymentExemptPlan
+          ? rows.reduce((sum, row) => sum + row.baseLimitBytes, 0)
+          : toCount(plan?.storage_limit_bytes),
+        catalogRecurringPriceCents: isPaymentExemptPlan
+          ? 0
+          : toCount(offer?.recurring_price_cents ?? plan?.monthly_price_cents),
+        catalogAcquisitionEnabled: isPaymentExemptPlan
+          ? false
+          : Boolean(offer?.acquisition_enabled),
         activeStripeContracts: currentStripeRows.length,
         contractMrrCents: currentStripeRows.reduce(
           (sum, row) =>
@@ -757,7 +819,7 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "user_id, plan_id, storage_limit_bytes, contract_source, stripe_subscription_id, recurring_price_cents, billing_interval, status"
+        "user_id, plan_id, offer_id, storage_limit_bytes, contract_source, stripe_subscription_id, recurring_price_cents, billing_interval, status, created_at"
       )
       .is("ended_at", null),
     supabaseAdmin.from("billing_profiles").select("user_id, plan_id"),

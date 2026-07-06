@@ -184,23 +184,36 @@ const readSafePersistedOutputResultUrls = async ({
     );
   const signedUrlByPath = new Map<string, string | null>();
   const resultUrls: string[] = [];
+  let usedTransientProviderFallback = false;
 
   for (const row of visibleOutputRows) {
     const mediaFileId = asString(row.mediaFileId);
     if (mediaFileId) {
       const deliveryPaths = deliveryPathsByMediaId.get(mediaFileId);
       const fullStoragePath = asString(deliveryPaths?.fullStoragePath);
-      if (!fullStoragePath) continue;
-      if (!signedUrlByPath.has(fullStoragePath)) {
-        try {
-          signedUrlByPath.set(fullStoragePath, await createSignedMediaUrl(fullStoragePath));
-        } catch {
-          signedUrlByPath.set(fullStoragePath, null);
+      if (fullStoragePath) {
+        if (!signedUrlByPath.has(fullStoragePath)) {
+          try {
+            signedUrlByPath.set(fullStoragePath, await createSignedMediaUrl(fullStoragePath));
+          } catch {
+            signedUrlByPath.set(fullStoragePath, null);
+          }
+        }
+        const signedUrl = signedUrlByPath.get(fullStoragePath);
+        if (typeof signedUrl === "string" && signedUrl.length > 0) {
+          resultUrls.push(signedUrl);
+          continue;
         }
       }
-      const signedUrl = signedUrlByPath.get(fullStoragePath);
-      if (typeof signedUrl === "string" && signedUrl.length > 0) {
-        resultUrls.push(signedUrl);
+
+      const trustedTransientUrls = sanitizePersistedProjectionResultUrls({
+        resultUrls: [row.resultUrl],
+        userId,
+        deliveryState: "transient_provider",
+      });
+      if (trustedTransientUrls.length) {
+        usedTransientProviderFallback = true;
+        resultUrls.push(trustedTransientUrls[0]);
       }
       continue;
     }
@@ -217,7 +230,8 @@ const readSafePersistedOutputResultUrls = async ({
 
   return {
     resultUrls,
-    deliveryState: allOutputsOwned ? "canonical_owned" : "transient_provider",
+    deliveryState:
+      allOutputsOwned && !usedTransientProviderFallback ? "canonical_owned" : "transient_provider",
     hasVisibilityPendingOutputs,
   };
 };

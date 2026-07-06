@@ -122,6 +122,7 @@ const buildStorageEconomicsState = () => ({
         planId: "starter",
         displayName: "Starter",
         isActive: true,
+        visibilityLabel: "active",
         sortOrder: 2,
         catalogStorageLimitBytes: 5368709120,
         catalogRecurringPriceCents: 1900,
@@ -138,6 +139,31 @@ const buildStorageEconomicsState = () => ({
         monthlyStorageGrowthBytes: null,
         accountsOver50Pct: 1,
         accountsOver80Pct: 1,
+        accountsOver95Pct: 0,
+        accountsOverQuota: 0,
+        baselineStorageUsers: 0,
+      },
+      {
+        planId: "payment_exempt",
+        displayName: "Payment exempt testers",
+        isActive: false,
+        visibilityLabel: "hidden/admin only",
+        sortOrder: 999,
+        catalogStorageLimitBytes: 161061273600,
+        catalogRecurringPriceCents: 0,
+        catalogAcquisitionEnabled: false,
+        activeStripeContracts: 0,
+        contractMrrCents: 0,
+        accountCount: 1,
+        usersWithMedia: 1,
+        totalTrackedBytes: 2147483648,
+        medianTrackedBytes: 2147483648,
+        p90TrackedBytes: 2147483648,
+        baseLimitBytes: 161061273600,
+        addonLimitBytes: 0,
+        monthlyStorageGrowthBytes: null,
+        accountsOver50Pct: 0,
+        accountsOver80Pct: 0,
         accountsOver95Pct: 0,
         accountsOverQuota: 0,
         baselineStorageUsers: 0,
@@ -241,6 +267,12 @@ describe("Admin storage page", () => {
     expect(within(planSection as HTMLElement).getByText("Starter")).toBeInTheDocument();
     expect(
       within(planSection as HTMLElement).getByText("ID: starter • active")
+    ).toBeInTheDocument();
+    expect(
+      within(planSection as HTMLElement).getByText("Payment exempt testers")
+    ).toBeInTheDocument();
+    expect(
+      within(planSection as HTMLElement).getByText("ID: payment_exempt • hidden/admin only")
     ).toBeInTheDocument();
     expect(screen.queryByText(/Starterstarter/)).not.toBeInTheDocument();
     expect(screen.getAllByText("$19")[0]).toBeInTheDocument();

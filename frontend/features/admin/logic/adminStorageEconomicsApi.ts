@@ -278,6 +278,7 @@ const normalizePlanRows = (value: unknown): AdminStorageEconomicsPlanRow[] => {
       planId: toText(row.planId, "unknown"),
       displayName: toText(row.displayName, toText(row.planId, "Unknown")),
       isActive: Boolean(row.isActive),
+      visibilityLabel: toText(row.visibilityLabel, row.isActive ? "active" : "inactive"),
       sortOrder: toCount(row.sortOrder),
       catalogStorageLimitBytes: toCount(row.catalogStorageLimitBytes),
       catalogRecurringPriceCents: toCount(row.catalogRecurringPriceCents),

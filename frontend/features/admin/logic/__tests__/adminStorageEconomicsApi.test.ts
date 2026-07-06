@@ -58,6 +58,7 @@ describe("adminStorageEconomicsApi", () => {
           planId: "starter",
           displayName: "Starter",
           isActive: true,
+          visibilityLabel: "active",
           sortOrder: 2,
           catalogStorageLimitBytes: 5368709120,
           catalogRecurringPriceCents: 1900,
@@ -131,6 +132,7 @@ describe("adminStorageEconomicsApi", () => {
       expect.objectContaining({
         planId: "starter",
         isActive: true,
+        visibilityLabel: "active",
         catalogStorageLimitBytes: 5368709120,
         catalogRecurringPriceCents: 1900,
         catalogAcquisitionEnabled: true,

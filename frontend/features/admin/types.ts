@@ -761,6 +761,7 @@ export type AdminStorageEconomicsPlanRow = {
   planId: string;
   displayName: string;
   isActive: boolean;
+  visibilityLabel: string;
   sortOrder: number;
   catalogStorageLimitBytes: number;
   catalogRecurringPriceCents: number;

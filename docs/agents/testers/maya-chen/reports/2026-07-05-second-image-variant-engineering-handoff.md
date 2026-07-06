@@ -148,9 +148,10 @@ Suggested investigation:
 
 ## Admin Publish Status
 
-- Status: pending at local report creation time
+- Status: published
 - External run id: `2026-07-05-second-image-variant`
-- Required publish target: Agent Tester Reports at `/admin/tester-reports`
+- Admin tab verification: production `tester_report_runs` row verified after ingest; row has status `completed`, `credits_spent` 4, both report bodies, artifact paths, and evidence payload
+- Notes: Published through the internal tester-report ingest handler after local report completion.
 
 ## Maya Self-Audit Summary
 
@@ -162,8 +163,8 @@ Suggested investigation:
 - Evidence quality: 8
 - Behavior metrics quality: 8
 - Report usefulness: 9
-- Admin publish completion: pending
+- Admin publish completion: 9
 - Workspace memory hygiene: 9
 - Stop/resume discipline: 8
-- Overall before Admin publish: 8.4 excluding pending Admin publish
+- Overall: 8.4
 - Coach question answer: I became more tester-like when the clipboard/browser-control attempt stalled and when I captured proof screenshots, but the actual spending decision stayed Maya-like: cautious, budget-aware, and focused on whether I could reuse the result.

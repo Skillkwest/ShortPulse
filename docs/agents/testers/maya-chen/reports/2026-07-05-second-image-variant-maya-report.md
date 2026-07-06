@@ -79,4 +79,9 @@ The harsher review version would be: "ShortPulse will save your images, but it m
 
 ## Admin Publish Status
 
-Pending at local report creation time. This report should be published to Agent Tester Reports at `/admin/tester-reports` with external run id `2026-07-05-second-image-variant`.
+Published to Agent Tester Reports at `/admin/tester-reports`.
+
+- External run id: `2026-07-05-second-image-variant`
+- Status: `completed`
+- Publish method: internal tester-report ingest handler
+- Verification: production `tester_report_runs` row exists with both report bodies

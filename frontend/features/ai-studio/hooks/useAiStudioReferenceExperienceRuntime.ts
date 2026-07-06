@@ -67,6 +67,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     addLibraryMediaReference,
     addLibraryMediaReferences,
     addLibraryPromptReference,
+    addAgentPromptReference,
     addPastedMediaReference,
     addPastedPromptReference,
     clearGenerationOutput,
@@ -134,6 +135,15 @@ export const useAiStudioReferenceExperienceRuntime = ({
           }
         : addPastedMediaReference,
     [addPastedMediaReference, isPlanAccessBlocked, onMediaPlanAccessAttempt]
+  );
+  const handlePlanBlockedReferencePromptPin = useMemo(
+    () =>
+      isPlanAccessBlocked
+        ? () => {
+            onMediaPlanAccessAttempt?.();
+          }
+        : addAgentPromptReference,
+    [addAgentPromptReference, isPlanAccessBlocked, onMediaPlanAccessAttempt]
   );
   const notifyPlanBlockedVoid = useMemo(
     () =>
@@ -203,6 +213,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       onSelectOutput: handleSelectOutput,
       onSaveToLibrary: (output: StudioOutput) => handleSaveReference(output.id),
       onDownload: (output: StudioOutput) => handleDownloadReference(output.id),
+      onPinPromptReference: handlePlanBlockedReferencePromptPin,
       onRerollOutput: (output: StudioOutput) => resolvedRerollOutput(output.id),
       onReloadWorkflowOutput: manualWorkflowReloadHandler,
       onRemoveCanvasItem: removeCanvasItemById,
@@ -211,6 +222,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     [
       findOutputById,
       handleDownloadReference,
+      handlePlanBlockedReferencePromptPin,
       handleSaveReference,
       handleSelectOutput,
       isMediaStorageFull,
@@ -251,6 +263,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
     setDetailOutputId,
     handleSaveReference,
     handleDownloadReference,
+    handlePinPromptReference: handlePlanBlockedReferencePromptPin,
     handlePasteTextReference: handlePlanBlockedTextReference,
     handlePasteMediaReference: handlePlanBlockedMediaReference,
     handleAddLibraryMediaReference: isPlanAccessBlocked

@@ -78,6 +78,8 @@ const PulseCreatePanelViewContent = ({
     setPresetPanelIds: onSelectedPulsePresetIdsChange,
     savedPresets: savedPulsePresets,
     builtInDefinitions,
+    builtInDefinitionsLoading,
+    builtInDefinitionsAuthoritative,
     refreshBuiltInDefinitions,
     setSavedPresets: onSavedPulsePresetsChange,
   } = pulsePreferenceRuntime;
@@ -379,6 +381,8 @@ const PulseCreatePanelViewContent = ({
               isActivationBusy={isPulseSessionLocked}
               builtInDefinitions={builtInDefinitions}
               refreshBuiltInDefinitions={refreshBuiltInDefinitions}
+              isBuiltInCatalogLoading={builtInDefinitionsLoading}
+              isBuiltInCatalogAuthoritative={builtInDefinitionsAuthoritative}
               savedPresets={savedPulsePresets}
               onSavedPresetsChange={onSavedPulsePresetsChange}
               onOpenPresetsLibrary={onOpenPresetsLibrary}

@@ -35,6 +35,69 @@ describe("appErrorLogs skip rules", () => {
     expect(result).toEqual({ ok: true, skipped: false, id: null });
   });
 
+  it("skips automated-browser route-loader timeout noise from older client bundles", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.route_change",
+      scope: "app",
+      severity: "medium",
+      message: "Route change failed: Route did not complete loading: /ai-studio",
+      route: "/auth",
+      endpoint: "/ai-studio",
+      stack: "Error: Route did not complete loading: /ai-studio\n    at loadRoute",
+      metadata: {
+        host: "www.shortpulse.ai",
+        client_environment: "production",
+        user_agent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: true, id: null });
+  });
+
+  it("keeps real-browser route-loader timeouts actionable", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.route_change_timeout",
+      scope: "app",
+      severity: "medium",
+      message: "Route change timed out: Route did not complete loading: /ai-studio",
+      route: "/auth",
+      endpoint: "/ai-studio",
+      stack: "Error: Route did not complete loading: /ai-studio\n    at loadRoute",
+      metadata: {
+        host: "www.shortpulse.ai",
+        client_environment: "production",
+        user_agent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/145.0.7632.6 Safari/537.36",
+      },
+    });
+
+    expect(result).toEqual({ ok: false, skipped: false, id: null });
+  });
+
+  it("skips expected billing diagnostics missing-user client response noise", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_response",
+      scope: "app",
+      severity: "low",
+      message:
+        "API 404 response from /api/admin/billing-diagnostics?userId=11111111-1111-4111-8111-111111111111",
+      endpoint: "/api/admin/billing-diagnostics?userId=11111111-1111-4111-8111-111111111111",
+      statusCode: 404,
+      route: "/admin",
+      stack: null,
+      metadata: {
+        method: "GET",
+        host: "www.shortpulse.ai",
+        client_environment: "production",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: true, id: null });
+  });
+
   it("skips hidden-tab local workspace fetch noise", async () => {
     const result = await writeAppErrorLog({
       source: "client.api_network",

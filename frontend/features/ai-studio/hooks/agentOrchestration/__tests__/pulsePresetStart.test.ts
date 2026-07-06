@@ -143,12 +143,122 @@ describe("pulsePresetStart", () => {
     });
   });
 
-  it("fails closed when a kickoff response has no displayable message or workflow prompt", async () => {
+  it("starts from the configured starter when a guided kickoff response is blank", async () => {
     const setPulseWorkflowSession = vi.fn();
     const trackAgentUiEvent = vi.fn();
 
     const result = await startPulsePreset({
       preset: videoPromptPreset,
+      options: {
+        deferWorkflowSessionCommit: true,
+        activationIsCurrent: () => true,
+      },
+      agentBootstrapReady: true,
+      agentIsSending: false,
+      agentSessionEnabled: true,
+      agentUiBusyRef: { current: false },
+      latestAgentPrompt: null,
+      lastAssistantMessage: null,
+      selectedTool: "create",
+      pulseSessionInstanceId: null,
+      resolvePulseSessionNamespace: vi.fn(() => "ai-studio:session-1::pulse:image:test"),
+      getAgentContext: vi.fn(() => ({})),
+      notifyBootstrapPending: vi.fn(),
+      sendToAgent: vi.fn(async () => ({
+        response: { message: "   " },
+        actions: undefined,
+        workflowSession: null,
+      })),
+      trackAgentUiEvent,
+      setAgentSessionEnabled: vi.fn(),
+      setAgentAttachmentError: vi.fn(),
+      setAgentUiBusy: vi.fn(),
+      setPulseWorkflowSession,
+      setLatestAgentPrompt: vi.fn(),
+      setSharedPrompt: vi.fn(),
+      setPromptOrigin: vi.fn(),
+    });
+
+    expect(result).toEqual({
+      status: "started",
+      latestAgentPrompt: null,
+      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
+    });
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepPrompt: videoPromptPreset.starterAssistantMessage,
+      })
+    );
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_pulse_start_succeeded", {
+      preset_id: "image",
+      workflow_status: "awaiting_input",
+      has_apply_prompt: false,
+      fallback_reason: "starter_workflow_session",
+    });
+  });
+
+  it("starts from the configured starter when a guided kickoff returns no response object", async () => {
+    const setPulseWorkflowSession = vi.fn();
+
+    const result = await startPulsePreset({
+      preset: videoPromptPreset,
+      options: {
+        deferWorkflowSessionCommit: true,
+        activationIsCurrent: () => true,
+      },
+      agentBootstrapReady: true,
+      agentIsSending: false,
+      agentSessionEnabled: true,
+      agentUiBusyRef: { current: false },
+      latestAgentPrompt: null,
+      lastAssistantMessage: null,
+      selectedTool: "create",
+      pulseSessionInstanceId: null,
+      resolvePulseSessionNamespace: vi.fn(() => "ai-studio:session-1::pulse:image:test"),
+      getAgentContext: vi.fn(() => ({})),
+      notifyBootstrapPending: vi.fn(),
+      sendToAgent: vi.fn(async () => ({
+        response: null,
+        actions: undefined,
+        workflowSession: null,
+      })),
+      trackAgentUiEvent: vi.fn(),
+      setAgentSessionEnabled: vi.fn(),
+      setAgentAttachmentError: vi.fn(),
+      setAgentUiBusy: vi.fn(),
+      setPulseWorkflowSession,
+      setLatestAgentPrompt: vi.fn(),
+      setSharedPrompt: vi.fn(),
+      setPromptOrigin: vi.fn(),
+    });
+
+    expect(result).toEqual({
+      status: "started",
+      latestAgentPrompt: null,
+      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
+    });
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepPrompt: videoPromptPreset.starterAssistantMessage,
+      })
+    );
+  });
+
+  it("fails closed when a guided kickoff has no response and no starter workflow prompt", async () => {
+    const starterlessPreset = {
+      ...videoPromptPreset,
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+    };
+    const setPulseWorkflowSession = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+
+    const result = await startPulsePreset({
+      preset: starterlessPreset,
       options: {
         deferWorkflowSessionCommit: true,
         activationIsCurrent: () => true,

@@ -5,6 +5,7 @@
 
 const NEXT_STATIC_CHUNK_PATTERN =
   /(?:https?:\/\/[^\s"')]+)?(\/_next\/static\/chunks\/[^\s"')]+?\.js)(?:\?[^\s"')]+)?/;
+const NEXT_ROUTE_LOAD_TIMEOUT_PATTERN = /^Route did not complete loading:\s*(\/\S*)/i;
 
 /**
  * Extracts a normalized message from an unknown chunk-load error payload.
@@ -37,5 +38,20 @@ export const hasNextChunkLoadFailureText = (value: string): boolean => {
  */
 export const extractFailedNextChunk = (value: string): string | null => {
   const match = value.match(NEXT_STATIC_CHUNK_PATTERN);
+  return match?.[1] ?? null;
+};
+
+/**
+ * Detects Next.js route-loader timeouts separately from missing chunk assets.
+ */
+export const hasNextRouteLoadTimeoutText = (value: string): boolean => {
+  return NEXT_ROUTE_LOAD_TIMEOUT_PATTERN.test(value.trim());
+};
+
+/**
+ * Returns the route whose client entrypoint did not register before timeout.
+ */
+export const extractNextRouteLoadTimeoutRoute = (value: string): string | null => {
+  const match = value.trim().match(NEXT_ROUTE_LOAD_TIMEOUT_PATTERN);
   return match?.[1] ?? null;
 };

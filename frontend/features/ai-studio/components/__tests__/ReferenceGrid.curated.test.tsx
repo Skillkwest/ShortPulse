@@ -2630,7 +2630,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Saved")).toBeNull();
     expect(queryByLabelText("Save to media library")).toBeNull();
     fireEvent.click(getByLabelText("Remove reference from grid"));
     expect(onDeleteOutput).toHaveBeenCalledWith(savedPromptReference.id);
@@ -2678,7 +2678,7 @@ describe("ReferenceGrid curated split", () => {
       saveState: "saved",
     };
 
-    const { queryByLabelText, getByLabelText } = render(
+    const { queryByLabelText } = render(
       <ReferenceGrid
         {...createProps({
           outputs: [savedUploadedImage],
@@ -2688,7 +2688,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Saved")).toBeNull();
     expect(queryByLabelText("Save to media library")).toBeNull();
   });
 
@@ -2888,7 +2888,7 @@ describe("ReferenceGrid curated split", () => {
       saveState: "saved",
     };
 
-    const { getByLabelText, queryByLabelText } = render(
+    const { queryByLabelText } = render(
       <ReferenceGrid
         {...createProps({
           outputs: [savedUploadedVideo],
@@ -2898,7 +2898,7 @@ describe("ReferenceGrid curated split", () => {
       />
     );
 
-    expect(getByLabelText("Saved")).toBeInTheDocument();
+    expect(queryByLabelText("Saved")).toBeNull();
     expect(queryByLabelText("Save to media library")).toBeNull();
   });
 

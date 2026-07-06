@@ -12,6 +12,7 @@ import {
   buildImageSatisfiedPulseWorkflowSession,
   hasPulseImageContext,
 } from "../../logic/pulseImageIntake";
+import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { UseAiStudioAgentOrchestrationParams } from "./types";
 
 type StartPulsePresetParams = {
@@ -42,6 +43,19 @@ type StartPulsePresetParams = {
   setLatestAgentPrompt: UseAiStudioAgentOrchestrationParams["setLatestAgentPrompt"];
   setSharedPrompt: UseAiStudioAgentOrchestrationParams["setSharedPrompt"];
   setPromptOrigin: React.Dispatch<React.SetStateAction<PromptOrigin>>;
+};
+
+const normalizeStarterFallbackSession = (
+  session: AgentPulseWorkflowSession | null
+): AgentPulseWorkflowSession | null => {
+  const currentStepPrompt =
+    typeof session?.currentStepPrompt === "string" ? session.currentStepPrompt.trim() : "";
+  if (!session || !currentStepPrompt) return null;
+  return {
+    ...session,
+    status: "awaiting_input",
+    currentStepPrompt,
+  };
 };
 
 export const startPulsePreset = async ({
@@ -159,6 +173,7 @@ export const startPulsePreset = async ({
     buildPendingPulseWorkflowSessionForStart({
       preset: pulseContext.pulse,
     });
+  const starterFallbackWorkflowSession = normalizeStarterFallbackSession(pendingWorkflowSession);
   if (pendingWorkflowSession && !options?.deferWorkflowSessionCommit && isActivationCurrent()) {
     setPulseWorkflowSession(pendingWorkflowSession);
   }
@@ -193,6 +208,24 @@ export const startPulsePreset = async ({
     }
 
     if (!response) {
+      if (
+        failureKind !== "transport_error" &&
+        starterFallbackWorkflowSession &&
+        isActivationCurrent()
+      ) {
+        setPulseWorkflowSession(starterFallbackWorkflowSession);
+        trackAgentUiEvent("studio_agent_pulse_start_succeeded", {
+          preset_id: preset.presetId,
+          workflow_status: starterFallbackWorkflowSession.status,
+          has_apply_prompt: false,
+          fallback_reason: "starter_workflow_session",
+        });
+        return {
+          status: "started",
+          latestAgentPrompt: null,
+          starterAssistantMessage: starterFallbackWorkflowSession.currentStepPrompt,
+        };
+      }
       if (!options?.deferWorkflowSessionCommit && isActivationCurrent()) {
         setPulseWorkflowSession(null);
       }
@@ -228,6 +261,20 @@ export const startPulsePreset = async ({
     const responseMessage = normalizePromptText(response.message);
     const workflowStepPrompt = normalizePromptText(workflowSession?.currentStepPrompt);
     if (!appliedPrompt && !responseMessage && !workflowStepPrompt) {
+      if (starterFallbackWorkflowSession) {
+        setPulseWorkflowSession(starterFallbackWorkflowSession);
+        trackAgentUiEvent("studio_agent_pulse_start_succeeded", {
+          preset_id: preset.presetId,
+          workflow_status: starterFallbackWorkflowSession.status,
+          has_apply_prompt: false,
+          fallback_reason: "starter_workflow_session",
+        });
+        return {
+          status: "started",
+          latestAgentPrompt: null,
+          starterAssistantMessage: starterFallbackWorkflowSession.currentStepPrompt,
+        };
+      }
       if (!options?.deferWorkflowSessionCommit && isActivationCurrent()) {
         setPulseWorkflowSession(null);
       }

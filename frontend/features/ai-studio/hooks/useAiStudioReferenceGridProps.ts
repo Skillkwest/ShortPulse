@@ -35,6 +35,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   setDetailOutputId: (id: string | null) => void;
   handleSaveReference: (id: string) => void;
   handleDownloadReference: (id: string) => void;
+  handlePinPromptReference?: (text: string) => void;
   isMediaStorageFull?: boolean;
   handlePasteTextReference: (text: string) => void;
   handlePasteMediaReference: (reference: { url: string; mimeType?: string | null }) => void;
@@ -81,6 +82,7 @@ export const useAiStudioReferenceGridProps = ({
   setDetailOutputId,
   handleSaveReference,
   handleDownloadReference,
+  handlePinPromptReference,
   isMediaStorageFull = false,
   handlePasteTextReference,
   handlePasteMediaReference,
@@ -222,6 +224,7 @@ export const useAiStudioReferenceGridProps = ({
       },
       onSaveToLibrary: (output) => handleSaveReference(output.id),
       onDownload: (output) => handleDownloadReference(output.id),
+      onPinPromptReference: handlePinPromptReference,
       onPasteTextReference: handlePasteTextReference,
       onPasteMediaReference: handlePasteMediaReference,
       onAddLibraryMediaReference: handleAddLibraryMediaReference,
@@ -257,6 +260,7 @@ export const useAiStudioReferenceGridProps = ({
       clearGenerationOutput,
       deleteOutput,
       handleDownloadReference,
+      handlePinPromptReference,
       handleAddLibraryMediaReference,
       handleAddLibraryMediaReferences,
       handleAddLibraryPromptReference,

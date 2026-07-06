@@ -34,6 +34,7 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   onTriggerFileSelect: vi.fn(),
   onSaveToLibrary: vi.fn(),
   onDownload: vi.fn(),
+  onPinPromptReference: vi.fn(),
   onRerollOutput: vi.fn(),
   onReloadWorkflowOutput: vi.fn(),
   onDeleteOutput: vi.fn(),
@@ -156,6 +157,15 @@ describe("areReferenceGridPropsEqual", () => {
     const base = createProps();
     const next = createProps({
       onReloadWorkflowOutput: vi.fn(),
+    });
+
+    expect(areReferenceGridPropsEqual(base, next)).toBe(false);
+  });
+
+  it("detects prompt pin action changes", () => {
+    const base = createProps();
+    const next = createProps({
+      onPinPromptReference: vi.fn(),
     });
 
     expect(areReferenceGridPropsEqual(base, next)).toBe(false);

@@ -131,6 +131,9 @@ const shouldLogHttpFailure = (
   if (endpoint.startsWith("/api/admin") && (status === 401 || status === 403)) {
     return false;
   }
+  if (/^\/api\/admin\/billing-diagnostics(?:\?|$)/.test(endpoint) && status === 404) {
+    return false;
+  }
   if (scope === "generation") return status >= 400;
   return status >= 400;
 };

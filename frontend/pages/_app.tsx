@@ -11,8 +11,10 @@ import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
 import { installBrowserSessionHealthMonitor } from "../lib/browserSessionHealth";
 import {
+  extractNextRouteLoadTimeoutRoute,
   extractFailedNextChunk,
   hasNextChunkLoadFailureText,
+  hasNextRouteLoadTimeoutText,
   toChunkLoadErrorMessage,
 } from "../lib/chunkLoadErrors";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
@@ -40,6 +42,11 @@ const SharedProtectedRouteBootstrapGate = dynamic(
     ),
   }
 );
+
+const isLikelyAutomatedBrowser = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  return /HeadlessChrome|Playwright|Chrome-Lighthouse/i.test(navigator.userAgent);
+};
 
 /**
  * Render the active page with its provided props.
@@ -88,6 +95,7 @@ export default function App({ Component, pageProps }: AppProps) {
       const routeErrorMessage = toChunkLoadErrorMessage(routeError);
       const telemetryRouteChangeTarget = redactUrlForTelemetry(url);
       const hasScriptLoadFailure = hasNextChunkLoadFailureText(routeErrorMessage);
+      const hasRouteLoadTimeout = hasNextRouteLoadTimeoutText(routeErrorMessage);
 
       addBreadcrumb({
         type: "route",
@@ -112,6 +120,29 @@ export default function App({ Component, pageProps }: AppProps) {
           metadata: {
             route_change_target: telemetryRouteChangeTarget,
             route_change_script_chunk: extractFailedNextChunk(routeErrorMessage),
+          },
+        });
+        return;
+      }
+
+      if (hasRouteLoadTimeout) {
+        const automatedBrowser = isLikelyAutomatedBrowser();
+        void reportAppError({
+          source: automatedBrowser
+            ? "telemetry.route_change.timeout"
+            : "client.route_change_timeout",
+          scope: "app",
+          severity: automatedBrowser ? "low" : "medium",
+          message: routeErrorMessage
+            ? `Route change timed out: ${routeErrorMessage}`
+            : "Route change timed out",
+          stack: routeError?.stack ?? null,
+          route: typeof window !== "undefined" ? window.location.pathname : null,
+          endpoint: telemetryRouteChangeTarget,
+          metadata: {
+            route_change_target: telemetryRouteChangeTarget,
+            route_change_timeout_route: extractNextRouteLoadTimeoutRoute(routeErrorMessage),
+            route_change_automated_browser: automatedBrowser,
           },
         });
         return;

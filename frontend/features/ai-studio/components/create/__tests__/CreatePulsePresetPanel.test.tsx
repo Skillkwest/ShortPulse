@@ -74,6 +74,22 @@ describe("CreatePulsePresetPanel", () => {
     });
   });
 
+  it("holds the rail on a stable loading state until the live Pulse catalog is authoritative", () => {
+    render(
+      <CreatePulsePresetPanel
+        isBuiltInCatalogLoading
+        isBuiltInCatalogAuthoritative={false}
+        selectedPresetIds={["image", "multi_shot"]}
+        builtInDefinitions={CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS}
+        onActivePresetIdChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading pulses...");
+    expect(screen.queryByRole("button", { name: "Video Prompt Magic preset" })).toBeNull();
+    expect(screen.getByRole("button", { name: "More Pulses" })).toBeDisabled();
+  });
+
   it("activates the selected pulse preset without mutating the visible composer", async () => {
     const onActivePresetIdChange = vi.fn();
     render(<CreatePulsePresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
@@ -230,6 +246,19 @@ describe("CreatePulsePresetPanel", () => {
             memoryPolicy: "session",
             createdAt: null,
           },
+          {
+            presetId: "prompt_modifier",
+            label: "Prompt Modifier",
+            description: "Retired prompt modifier pulse.",
+            systemInstructions: "Rewrite a pasted prompt.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: null,
+            outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
         ]}
         onSavedPresetsChange={vi.fn()}
         onActivePresetIdChange={onActivePresetIdChange}
@@ -237,6 +266,9 @@ describe("CreatePulsePresetPanel", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Prompt Modifier preset" })
+    ).not.toBeInTheDocument();
   });
 
   it("starts the built-in story builder workflow immediately on click", async () => {

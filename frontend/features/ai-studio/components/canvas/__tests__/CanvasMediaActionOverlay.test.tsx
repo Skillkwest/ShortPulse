@@ -165,6 +165,7 @@ const createActions = (
   onSelectOutput: vi.fn(),
   onSaveToLibrary: vi.fn(),
   onDownload: vi.fn(),
+  onPinPromptReference: vi.fn(),
   onRerollOutput: vi.fn(),
   onReloadWorkflowOutput: vi.fn(),
   onRemoveCanvasItem: vi.fn(),
@@ -186,6 +187,7 @@ describe("CanvasMediaActionOverlay", () => {
 
     const downloadButton = screen.getByLabelText("Download reference");
     expect(screen.getByLabelText("Save to media library")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pin text reference to reference grid")).toBeInTheDocument();
     expect(downloadButton).toBeInTheDocument();
     expect(screen.getByLabelText("Remove from canvas")).toBeInTheDocument();
     expect(screen.getByLabelText("Re-roll")).toBeInTheDocument();
@@ -199,6 +201,10 @@ describe("CanvasMediaActionOverlay", () => {
     expect(actions.onSelectOutput).toHaveBeenCalledWith("out-image-1");
     expect(actions.onDownload).toHaveBeenCalledWith(output);
 
+    fireEvent.click(screen.getByLabelText("Pin text reference to reference grid"));
+    expect(actions.onSelectOutput).toHaveBeenCalledWith("out-image-1");
+    expect(actions.onPinPromptReference).toHaveBeenCalledWith("A white horse");
+
     fireEvent.click(screen.getByLabelText("Re-roll"));
     expect(actions.onRerollOutput).toHaveBeenCalledWith(output);
 
@@ -211,13 +217,26 @@ describe("CanvasMediaActionOverlay", () => {
     expect(actions.onRemoveCanvasItem).toHaveBeenCalledWith("canvas-image-1");
   });
 
-  it("keeps saved output state as a selected Canvas chip instead of a save button", () => {
+  it("hides saved output chips and save actions for saved Canvas media", () => {
     const actions = createActions(createImageOutput({ saveState: "saved" }));
 
     render(<CanvasMediaActionOverlay item={imageItem} actions={actions} />);
 
-    expect(screen.getByLabelText("Saved")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Saved")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Save to media library")).not.toBeInTheDocument();
+  });
+
+  it("does not show prompt pinning for Canvas media without prompt text", () => {
+    const actions = createActions(
+      createImageOutput({
+        prompt: "",
+        generationReplay: undefined,
+      })
+    );
+
+    render(<CanvasMediaActionOverlay item={imageItem} actions={actions} />);
+
+    expect(screen.queryByLabelText("Pin text reference to reference grid")).toBeNull();
   });
 
   it("uses video workflow hints for reload and reroll", () => {

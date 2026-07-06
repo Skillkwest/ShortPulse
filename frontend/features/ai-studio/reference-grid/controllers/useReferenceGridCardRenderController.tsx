@@ -92,6 +92,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
+  onPinPromptReference?: (text: string) => void;
 };
 
 type UseReferenceGridCardRenderControllerResult = {
@@ -161,6 +162,7 @@ export const useReferenceGridCardRenderController = ({
   isMediaStorageFull = false,
   onSaveToLibrary,
   onDownload,
+  onPinPromptReference,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
   const resolvedAudioPlaybackController = audioPlaybackController ?? NOOP_AUDIO_PLAYBACK_CONTROLLER;
   incrementFreezeInvestigationCounter("referenceGrid.cardRender.recompute");
@@ -391,6 +393,7 @@ export const useReferenceGridCardRenderController = ({
           isMediaStorageFull={isMediaStorageFull}
           onSaveToLibrary={onSaveToLibrary}
           onDownload={onDownload}
+          onPinPromptReference={onPinPromptReference}
           hideReferenceActions={options.isCuratedSurface}
           allowRerollWhenActionsHidden={options.isCuratedSurface}
           allowWorkflowReloadWhenActionsHidden={options.isCuratedSurface}
@@ -419,6 +422,7 @@ export const useReferenceGridCardRenderController = ({
       onClearGenerationOutput,
       onAllRefsMediaHoverChange,
       onDownload,
+      onPinPromptReference,
       onOpenDetails,
       onRemoveCuratedReference,
       onReloadWorkflowOutput,

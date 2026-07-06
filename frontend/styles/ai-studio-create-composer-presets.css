@@ -204,6 +204,24 @@
   cursor: pointer;
 }
 
+.create-composer-presets-loading {
+  width: 100%;
+  min-height: 152px;
+  border-radius: 8px;
+  border: 1px dashed rgba(201, 205, 214, 0.22);
+  background: rgba(37, 41, 47, 0.22);
+  color: rgba(168, 179, 193, 0.82);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
 .create-composer-presets-card.is-awaiting-pulse-selection .create-composer-presets-empty-drop {
   border-color: rgba(100, 209, 230, 0.34);
   background: rgba(37, 41, 47, 0.34);
@@ -213,6 +231,23 @@
 .create-composer-presets-empty-drop:hover {
   border-color: rgba(100, 209, 230, 0.38);
   background: rgba(37, 41, 47, 0.4);
+}
+
+.create-composer-presets-empty-drop:disabled,
+.create-composer-presets-btn:disabled {
+  cursor: default;
+  opacity: 0.72;
+  transform: none;
+}
+
+.create-composer-presets-btn:disabled:hover,
+.create-composer-presets-btn:disabled:focus-visible,
+.create-composer-presets-empty-drop:disabled:hover,
+.create-composer-presets-empty-drop:disabled:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .create-composer-presets-empty-drop:focus-visible {

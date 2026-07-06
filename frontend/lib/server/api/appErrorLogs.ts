@@ -322,6 +322,7 @@ const shouldSkipLog = (params: {
   const appEnvironmentValues = getMetadataText(metadata.app_environment);
   const clientEnvironmentValues = getMetadataText(metadata.client_environment);
   const visibilityStateValues = getMetadataText(metadata.visibility_state);
+  const userAgentValues = getMetadataText(metadata.user_agent);
   const isLocalHost = hostValues.some(
     (host) => host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0")
   );
@@ -352,6 +353,34 @@ const shouldSkipLog = (params: {
 
   const stackText = (params.stack ?? "").toLowerCase();
   const messageText = params.message.toLowerCase();
+  const hasAutomatedBrowserUserAgent = userAgentValues.some(
+    (userAgent) =>
+      userAgent.includes("headlesschrome") ||
+      userAgent.includes("playwright") ||
+      userAgent.includes("chrome-lighthouse")
+  );
+  const isRouteLoadTimeoutNoise =
+    params.scope === "app" &&
+    (params.source === "client.route_change" ||
+      params.source === "client.route_change_timeout" ||
+      params.source === "telemetry.route_change.timeout") &&
+    messageText.includes("route did not complete loading:") &&
+    hasAutomatedBrowserUserAgent;
+
+  if (isRouteLoadTimeoutNoise) {
+    return true;
+  }
+
+  const isAdminBillingDiagnosticsMissingUserClientNoise =
+    params.scope === "app" &&
+    params.source === "client.api_response" &&
+    params.statusCode === 404 &&
+    /^\/api\/admin\/billing-diagnostics(?:\?|$)/.test(endpointText);
+
+  if (isAdminBillingDiagnosticsMissingUserClientNoise) {
+    return true;
+  }
+
   const isResizeObserverLoopNoise =
     params.source.startsWith("client.") &&
     (messageText === "resizeobserver loop completed with undelivered notifications." ||

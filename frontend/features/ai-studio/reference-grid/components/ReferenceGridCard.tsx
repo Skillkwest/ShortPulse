@@ -5,10 +5,10 @@
 import React from "react";
 import {
   ArrowClockwise,
-  CheckCircle,
   DownloadSimple,
   FloppyDisk,
   FlowArrow,
+  PushPinSimple,
   TrashSimple,
   X,
 } from "phosphor-react";
@@ -24,6 +24,7 @@ import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
+import { resolveStudioOutputReferencePromptText } from "../../logic/referencePromptText";
 import { formatPerfAuditDebugLine, isPerfAuditRuntimeEnabled } from "../../logic/perfAuditDebug";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
@@ -116,12 +117,13 @@ export type ReferenceGridCardProps = {
   isMediaStorageFull?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
+  onPinPromptReference?: (text: string) => void;
   hideReferenceActions?: boolean;
   allowRerollWhenActionsHidden?: boolean;
   allowWorkflowReloadWhenActionsHidden?: boolean;
 };
 
-const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
+const renderSaveChip = (item: StudioOutput) => {
   if (!item.saveState || item.saveState === "idle") return null;
   const label =
     item.saveState === "saving"
@@ -132,12 +134,7 @@ const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
           ? "Storage full"
           : "Save failed";
   if (item.saveState === "saved") {
-    if (!isSelected) return null;
-    return (
-      <div className={`reference-save-chip is-${item.saveState}`} aria-label="Saved">
-        <CheckCircle size={16} weight="fill" aria-hidden />
-      </div>
-    );
+    return null;
   }
   return (
     <div className={`reference-save-chip is-${item.saveState}`}>
@@ -208,6 +205,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   isMediaStorageFull = false,
   onSaveToLibrary,
   onDownload,
+  onPinPromptReference,
   hideReferenceActions = false,
   allowRerollWhenActionsHidden = false,
   allowWorkflowReloadWhenActionsHidden = false,
@@ -237,6 +235,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     item.saveState !== "saved" &&
     (isPromptOnly || isImagePreview || isVideoPreview || isAudioPreview)
   );
+  const referencePromptText = resolveStudioOutputReferencePromptText(item);
+  const hasGeneratedPromptSource = Boolean(
+    item.generationReplay ||
+    item.workflowReload ||
+    item.mediaSource === "generated" ||
+    item.generationId
+  );
+  const shouldShowPinPromptAction = Boolean(
+    onPinPromptReference &&
+    referencePromptText &&
+    hasGeneratedPromptSource &&
+    !isPromptOnly &&
+    (isImagePreview || isVideoPreview || isAudioPreview)
+  );
   const workflowReloadMediaKindHint: WorkflowReloadMediaKindHint =
     inferWorkflowReloadMediaKindForOutput(item, {
       mediaKindHint: isVideoPreview ? "video" : isAudioPreview ? "audio" : null,
@@ -263,11 +275,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     isImagePreview || isVideoPreview || isAudioPreview || isPromptOnly || item.previewText
   );
   const shouldShowCuratedActionRow = Boolean(
-    showCuratedRemoveAction && onRemoveCuratedReference && isSelected
+    showCuratedRemoveAction &&
+    isSelected &&
+    (shouldShowPinPromptAction ||
+      (onDownload &&
+        canDownloadReference &&
+        (isImagePreview || isVideoPreview || isAudioPreview)) ||
+      onRemoveCuratedReference)
   );
   const shouldShowReferenceActionRow = Boolean(
     !shouldShowCuratedActionRow &&
-    (shouldShowSaveAction ||
+    (shouldShowPinPromptAction ||
+      shouldShowSaveAction ||
       (onDownload &&
         canDownloadReference &&
         (isImagePreview || isVideoPreview || isAudioPreview)) ||
@@ -736,7 +755,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           {perfAuditDebugLabel}
         </div>
       ) : null}
-      {renderSaveChip(item, isSelected)}
+      {renderSaveChip(item)}
       {isFailing && onDeleteOutput && isSelected ? (
         <div className="reference-card-actions" aria-label="Reference actions">
           <button
@@ -754,6 +773,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {shouldShowCuratedActionRow ? (
         <div className="reference-card-actions" aria-label="Curated actions">
+          {shouldShowPinPromptAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-pin-prompt-btn"
+              aria-label="Pin text reference to reference grid"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onPinPromptReference?.(referencePromptText);
+              }}
+            >
+              <PushPinSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
           {onDownload &&
           canDownloadReference &&
           (isImagePreview || isVideoPreview || isAudioPreview) ? (
@@ -830,6 +863,20 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               }}
             >
               {saveIcon}
+            </button>
+          ) : null}
+          {shouldShowPinPromptAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-pin-prompt-btn"
+              aria-label="Pin text reference to reference grid"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectOutput(item.id);
+                onPinPromptReference?.(referencePromptText);
+              }}
+            >
+              <PushPinSimple size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
           {onDownload &&

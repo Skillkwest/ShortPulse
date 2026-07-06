@@ -67,6 +67,7 @@ export type CanvasMediaActions = {
   onSelectOutput?: (id: string) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
+  onPinPromptReference?: (text: string) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,

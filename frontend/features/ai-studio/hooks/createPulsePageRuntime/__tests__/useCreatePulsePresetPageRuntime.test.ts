@@ -44,7 +44,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     });
   });
 
-  it("keeps the Pulse built-in catalog disabled while plain Standard Create is mounted", () => {
+  it("warms the Pulse built-in catalog while plain Standard Create is mounted", () => {
     renderHook(() =>
       useCreatePulsePresetPageRuntime(
         createParams({
@@ -56,7 +56,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     );
 
     expect(useCreatePulseBuiltInCatalogMock).toHaveBeenLastCalledWith({
-      enabled: false,
+      enabled: true,
     });
   });
 

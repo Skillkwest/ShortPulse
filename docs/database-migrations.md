@@ -326,6 +326,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 195.  `sql/migrations/196_add_browser_crash_sessions.sql`
 196.  `sql/migrations/197_add_browser_crash_session_review_status.sql`
 197.  `sql/migrations/198_allow_equal_timestamp_project_workspace_updates.sql`
+198.  `sql/migrations/199_repair_create_pulse_builtin_catalog.sql`
       Rollback files:
 
 
@@ -436,6 +437,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/196_add_browser_crash_sessions_rollback.sql`
     - `sql/migrations/rollback/197_add_browser_crash_session_review_status_rollback.sql`
     - `sql/migrations/rollback/198_allow_equal_timestamp_project_workspace_updates_rollback.sql`
+    - `sql/migrations/rollback/199_repair_create_pulse_builtin_catalog_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -566,6 +568,7 @@ Billing safety note:
 - Migration `196_add_browser_crash_sessions.sql` adds the service-role-only `browser_crash_sessions` table for authenticated browser freeze/crash session evidence, including stale-heartbeat/admin-list indexes and an explicit rollback. Hosted apply remains a separate approved Supabase operation.
 - Migration `197_add_browser_crash_session_review_status.sql` adds operator review state to `browser_crash_sessions` so `/admin/crashes` rows can be resolved or ignored without deleting evidence or changing browser-crash classification. Hosted apply remains a separate approved Supabase operation.
 - Migration `198_allow_equal_timestamp_project_workspace_updates.sql` changes the project workspace freshness trigger to reject only strictly older `snapshot_updated_at` writes, so same-timestamp structural checkpoint updates can persist while out-of-order older autosaves still no-op. Hosted apply remains a separate approved Supabase operation.
+- Migration `199_repair_create_pulse_builtin_catalog.sql` repairs the admin-owned Create Pulse built-in catalog to the three canonical built-ins while preserving hidden system instructions and removing retired built-in entries. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

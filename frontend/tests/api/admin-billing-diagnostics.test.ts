@@ -102,6 +102,30 @@ describe("GET /api/admin/billing-diagnostics", () => {
     expect(res.status).toHaveBeenCalledWith(405);
   });
 
+  it("returns 404 without logging an API exception when the target auth user is missing", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi.fn().mockResolvedValue({
+            data: { user: null },
+            error: { message: "User not found", status: 404 },
+          }),
+        },
+      },
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "User not found." });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("returns billing diagnostics and grandfathered-price findings", async () => {
     const billingProfileQuery = {
       eq: vi.fn().mockReturnValue({

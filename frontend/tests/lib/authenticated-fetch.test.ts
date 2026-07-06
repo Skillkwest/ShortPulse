@@ -43,6 +43,23 @@ describe("fetchWithAuth telemetry", () => {
     expect(addBreadcrumbMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report missing-user billing diagnostics responses", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"error":"User not found."}', { status: 404 })
+    );
+
+    const response = await fetchWithAuth(
+      "/api/admin/billing-diagnostics?userId=11111111-1111-4111-8111-111111111111",
+      {
+        method: "GET",
+      }
+    );
+
+    expect(response.status).toBe(404);
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+    expect(addBreadcrumbMock).toHaveBeenCalledTimes(1);
+  });
+
   it("still reports admin server failures (500)", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 500 }));
 

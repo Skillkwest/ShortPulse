@@ -418,6 +418,50 @@ describe("Admin pricing page", () => {
     expect(screen.queryByText("Baseline fallback")).not.toBeInTheDocument();
   });
 
+  it("renders the payment-exempt tester row as admin-only catalog visibility", () => {
+    const state = buildPricingStateWithPlans();
+    state.plans = [
+      ...state.plans,
+      {
+        planId: "payment_exempt",
+        displayName: "Payment exempt testers",
+        offerId: "payment_exempt__internal",
+        sortOrder: 999,
+        accountCount: 3,
+        status: "payment_exempt",
+        recurringPriceCents: 0,
+        monthlyCreditsCents: 22500,
+        storageLimitBytes: 483183820800,
+        maxConcurrentGenerations: 24,
+        stripeProductId: null,
+        stripePriceId: null,
+        acquisitionEnabled: false,
+        isActive: false,
+        effectiveStartAt: null,
+        monthlyOffer: null,
+        annualOffer: null,
+      },
+    ];
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminCatalogPage />);
+
+    const planSection = screen.getByRole("heading", { name: "Public plans" }).closest("section");
+    expect(planSection).toBeTruthy();
+    expect(
+      within(planSection as HTMLElement).getByText("Payment exempt testers")
+    ).toBeInTheDocument();
+    expect(within(planSection as HTMLElement).getByText("payment exempt")).toBeInTheDocument();
+    expect(within(planSection as HTMLElement).getByText("3")).toBeInTheDocument();
+    expect(within(planSection as HTMLElement).getByText("$0.00")).toBeInTheDocument();
+  });
+
   it("omits Stripe and action columns from the public plans catalog", () => {
     useAdminPricingControllerMock.mockReturnValue({
       pricingState: buildPricingStateWithPlans(),

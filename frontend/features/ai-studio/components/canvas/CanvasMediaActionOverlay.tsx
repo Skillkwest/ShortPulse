@@ -5,10 +5,10 @@
 import React from "react";
 import {
   ArrowClockwise,
-  CheckCircle,
   DownloadSimple,
   FloppyDisk,
   FlowArrow,
+  PushPinSimple,
   TrashSimple,
 } from "phosphor-react";
 import {
@@ -20,6 +20,7 @@ import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
+import { resolveStudioOutputReferencePromptText } from "../../logic/referencePromptText";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
 import type { CanvasMediaActions } from "./canvasWorkspaceContracts";
 import type { CanvasSceneItem } from "./canvasTypes";
@@ -52,11 +53,7 @@ const renderSaveChip = (output: StudioOutput) => {
           ? "Storage full"
           : "Save failed";
   if (output.saveState === "saved") {
-    return (
-      <div className="reference-save-chip is-saved" aria-label="Saved">
-        <CheckCircle size={16} weight="fill" aria-hidden />
-      </div>
-    );
+    return null;
   }
   return (
     <div className={`reference-save-chip is-${output.saveState}`}>
@@ -92,6 +89,16 @@ export function CanvasMediaActionOverlay({
   const shouldShowDownloadAction = Boolean(
     actions.onDownload && canDownloadReferenceOutput(output)
   );
+  const referencePromptText = resolveStudioOutputReferencePromptText(output);
+  const hasGeneratedPromptSource = Boolean(
+    output.generationReplay ||
+    output.workflowReload ||
+    output.mediaSource === "generated" ||
+    output.generationId
+  );
+  const shouldShowPinPromptAction = Boolean(
+    actions.onPinPromptReference && referencePromptText && hasGeneratedPromptSource
+  );
   const shouldShowDeleteAction = Boolean(actions.onRemoveCanvasItem);
   const mediaKindHint = inferWorkflowReloadMediaKindForOutput(output, {
     mediaKindHint: resolveCanvasMediaKindHint(item),
@@ -109,7 +116,10 @@ export function CanvasMediaActionOverlay({
       <FloppyDisk size={16} weight="bold" aria-hidden />
     );
   const shouldShowTopActions = Boolean(
-    shouldShowSaveAction || shouldShowDownloadAction || shouldShowDeleteAction
+    shouldShowPinPromptAction ||
+    shouldShowSaveAction ||
+    shouldShowDownloadAction ||
+    shouldShowDeleteAction
   );
   const shouldShowReplayActions = Boolean(shouldShowRerollAction || shouldShowWorkflowReloadAction);
 
@@ -124,6 +134,20 @@ export function CanvasMediaActionOverlay({
           onPointerUp={(event) => event.stopPropagation()}
           onDoubleClick={stopCanvasActionEvent}
         >
+          {shouldShowPinPromptAction ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-pin-prompt-btn"
+              aria-label="Pin text reference to reference grid"
+              onClick={(event) => {
+                stopCanvasActionEvent(event);
+                actions.onSelectOutput?.(output.id);
+                actions.onPinPromptReference?.(referencePromptText);
+              }}
+            >
+              <PushPinSimple size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
           {shouldShowSaveAction ? (
             <button
               type="button"

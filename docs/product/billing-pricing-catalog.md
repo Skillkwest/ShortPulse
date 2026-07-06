@@ -39,6 +39,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 - Admin/internal non-public access is modeled as hidden offers plus contract source, not as a public tier:
   - hidden `billing_plan_offers` rows such as `business__internal_comp`
   - `billing_subscription_contracts.contract_source = 'internal_comp'`
+  - `/admin/catalog` may show a `Payment exempt testers` reporting row for operator visibility, but `payment_exempt` is not a `billing_plans` id and must not be acquisition-enabled.
 
 ## Subscriber pricing policy
 

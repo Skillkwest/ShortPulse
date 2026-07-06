@@ -48,6 +48,8 @@ type CreatePulsePresetPanelProps = {
   ) => Promise<boolean> | boolean | void;
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   refreshBuiltInDefinitions?: () => Promise<readonly CreatePulseBuiltInPresetDefinition[] | null>;
+  isBuiltInCatalogLoading?: boolean;
+  isBuiltInCatalogAuthoritative?: boolean;
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
@@ -66,6 +68,8 @@ export function CreatePulsePresetPanel({
   onSelectedPresetIdsChange,
   builtInDefinitions,
   refreshBuiltInDefinitions,
+  isBuiltInCatalogLoading = false,
+  isBuiltInCatalogAuthoritative = true,
   savedPresets,
   onSavedPresetsChange,
   onOpenPresetsLibrary,
@@ -245,9 +249,13 @@ export function CreatePulsePresetPanel({
   const pulseLibraryBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closePulseLibrary);
 
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
+  const shouldHoldPulseCatalog = !isBuiltInCatalogAuthoritative;
   const isPulsePresetInteractionBlocked =
-    !isPulseActivationEnabled || (isActivationBusy && !activePresetId);
+    !isPulseActivationEnabled || shouldHoldPulseCatalog || (isActivationBusy && !activePresetId);
   const shouldEmphasizePulseRail = !activePresetId;
+  const pulseCatalogStatusMessage = isBuiltInCatalogLoading
+    ? "Loading pulses..."
+    : "Pulse catalog unavailable. Reload and try again.";
 
   return (
     <section className="create-composer-presets-panel" aria-label="Create pulse presets">
@@ -273,7 +281,15 @@ export function CreatePulsePresetPanel({
             onDragLeave={handlePresetPanelDragLeave}
             onDrop={handlePresetPanelDrop}
           >
-            {hasSelectedPresetIds ? (
+            {shouldHoldPulseCatalog ? (
+              <div
+                className="create-composer-presets-loading"
+                role={isBuiltInCatalogLoading ? "status" : "alert"}
+                aria-live="polite"
+              >
+                {pulseCatalogStatusMessage}
+              </div>
+            ) : hasSelectedPresetIds ? (
               selectedPanelPresets.map((preset) => (
                 <button
                   key={preset.presetId}
@@ -298,6 +314,7 @@ export function CreatePulsePresetPanel({
                 className="create-composer-presets-empty-drop"
                 aria-label="Empty pulse preset drop target"
                 onClick={() => setIsMorePresetsSurfaceOpen(true)}
+                disabled={shouldHoldPulseCatalog}
               >
                 Choose from catalog
               </button>
@@ -312,6 +329,7 @@ export function CreatePulsePresetPanel({
             aria-expanded={isMorePresetsSurfaceOpen}
             aria-controls={morePresetsSurfaceId}
             onClick={toggleMorePresetsSurface}
+            disabled={shouldHoldPulseCatalog}
           >
             <span className="create-composer-presets-btn-icon" aria-hidden="true">
               <GearSix size={12} weight="regular" />

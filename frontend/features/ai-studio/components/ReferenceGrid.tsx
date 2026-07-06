@@ -90,6 +90,7 @@ function ReferenceGridComponent({
   onTriggerFileSelect,
   onSaveToLibrary,
   onDownload,
+  onPinPromptReference,
   onRerollOutput,
   onReloadWorkflowOutput,
   onDeleteOutput,
@@ -625,6 +626,7 @@ function ReferenceGridComponent({
     isMediaStorageFull,
     onSaveToLibrary,
     onDownload,
+    onPinPromptReference,
   });
 
   const wasBackgroundWorkSuspendedRef = React.useRef(suspendBackgroundVisualWork);

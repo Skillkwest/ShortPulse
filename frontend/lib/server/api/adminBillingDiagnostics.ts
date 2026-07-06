@@ -62,6 +62,17 @@ export class AdminBillingDiagnosticsServiceError extends Error {
 
 export const isAdminBillingDiagnosticsUserId = isUuid;
 
+const isTargetUserNotFoundAuthError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const errorRecord = error as { message?: unknown; status?: unknown; statusCode?: unknown };
+  const message =
+    typeof errorRecord.message === "string"
+      ? errorRecord.message.trim().replace(/\.$/, "").toLowerCase()
+      : "";
+  const status = Number(errorRecord.status ?? errorRecord.statusCode);
+  return message === "user not found" || status === 404;
+};
+
 export const resolveAdminBillingDiagnostics = async ({
   userId,
   logStripeLookupException,
@@ -72,6 +83,9 @@ export const resolveAdminBillingDiagnostics = async ({
   const supabaseAdmin = getSupabaseAdmin();
   const userResult = await supabaseAdmin.auth.admin.getUserById(userId);
   if (userResult.error) {
+    if (isTargetUserNotFoundAuthError(userResult.error)) {
+      throw new AdminBillingDiagnosticsServiceError(404, "User not found.");
+    }
     throw new Error(userResult.error.message || "Failed to load target user.");
   }
   if (!userResult.data.user) {

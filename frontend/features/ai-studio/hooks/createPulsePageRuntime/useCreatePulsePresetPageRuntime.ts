@@ -61,9 +61,7 @@ export const useCreatePulsePresetPageRuntime = ({
     selectedTool === "create" &&
     expertCreateMode === "pulse" &&
     savedPresets == null;
-  const shouldLoadBuiltInPulseCatalog =
-    selectedTool === "create" &&
-    (expertCreateMode === "pulse" || activeCreatePulsePresetId != null);
+  const shouldLoadBuiltInPulseCatalog = selectedTool === "create";
   const builtInCatalog = useCreatePulseBuiltInCatalog({
     enabled: shouldLoadBuiltInPulseCatalog,
   });

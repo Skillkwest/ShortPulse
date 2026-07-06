@@ -79,7 +79,14 @@ type BillingPlanOfferRow = {
 type BillingSubscriptionContractCountRow = {
   user_id: string;
   plan_id: string;
+  offer_id: string | null;
+  contract_source: string | null;
   recurring_price_cents: number;
+  monthly_credits_cents: number | null;
+  storage_limit_bytes: number | null;
+  max_concurrent_generations: number | null;
+  status: string | null;
+  created_at: string | null;
 };
 
 type BillingProfileCountRow = {
@@ -103,6 +110,11 @@ const RETIRED_LEGACY_CREDIT_PACKAGE_IDS = new Set([
   "scale_6000",
   "studio_10000",
 ]);
+
+const PAYMENT_EXEMPT_PLAN_ID = "payment_exempt";
+const PAYMENT_EXEMPT_PLAN_LABEL = "Payment exempt testers";
+const PAYMENT_EXEMPT_PLAN_SORT_ORDER = 999;
+const CURRENT_BILLABLE_CONTRACT_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"]);
 
 type BillingStorageAddonMetadataRow = {
   id: string;
@@ -186,6 +198,71 @@ const compareOfferRecency = <T extends { effective_start_at: string | null; crea
   const bDate = Date.parse(b.effective_start_at ?? b.created_at);
   return bDate - aDate;
 };
+
+const isPaymentExemptContract = (contract: BillingSubscriptionContractCountRow | null): boolean => {
+  if (!contract) return false;
+  return (
+    contract.contract_source === "internal_comp" ||
+    String(contract.offer_id ?? "").endsWith("__internal_comp")
+  );
+};
+
+const isCurrentBillableContract = (
+  contract: BillingSubscriptionContractCountRow | null
+): boolean => {
+  if (!contract) return false;
+  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+};
+
+const contractTimestamp = (contract: BillingSubscriptionContractCountRow): number => {
+  const parsed = contract.created_at ? Date.parse(contract.created_at) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const choosePreferredContract = (
+  current: BillingSubscriptionContractCountRow | undefined,
+  next: BillingSubscriptionContractCountRow
+): BillingSubscriptionContractCountRow => {
+  if (!current) return next;
+  const currentExempt = isPaymentExemptContract(current);
+  const nextExempt = isPaymentExemptContract(next);
+  if (currentExempt !== nextExempt) return nextExempt ? next : current;
+  const currentBillable = isCurrentBillableContract(current);
+  const nextBillable = isCurrentBillableContract(next);
+  if (currentBillable !== nextBillable) return nextBillable ? next : current;
+  return contractTimestamp(next) > contractTimestamp(current) ? next : current;
+};
+
+const buildPaymentExemptPlanRow = (
+  contracts: BillingSubscriptionContractCountRow[]
+): AdminPricingPlanRow => ({
+  planId: PAYMENT_EXEMPT_PLAN_ID,
+  displayName: PAYMENT_EXEMPT_PLAN_LABEL,
+  offerId: `${PAYMENT_EXEMPT_PLAN_ID}__internal`,
+  sortOrder: PAYMENT_EXEMPT_PLAN_SORT_ORDER,
+  accountCount: contracts.length,
+  status: "payment_exempt",
+  recurringPriceCents: 0,
+  monthlyCreditsCents: contracts.reduce(
+    (sum, contract) => sum + Number(contract.monthly_credits_cents ?? 0),
+    0
+  ),
+  storageLimitBytes: contracts.reduce(
+    (sum, contract) => sum + Number(contract.storage_limit_bytes ?? 0),
+    0
+  ),
+  maxConcurrentGenerations: contracts.reduce(
+    (sum, contract) => sum + Number(contract.max_concurrent_generations ?? 0),
+    0
+  ),
+  stripeProductId: null,
+  stripePriceId: null,
+  acquisitionEnabled: false,
+  isActive: false,
+  effectiveStartAt: null,
+  monthlyOffer: null,
+  annualOffer: null,
+});
 
 const mapPricingPreview = (
   modelId: string,
@@ -501,7 +578,9 @@ export default async function handler(
         .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("billing_subscription_contracts")
-        .select("user_id, plan_id, recurring_price_cents")
+        .select(
+          "user_id, plan_id, offer_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, created_at"
+        )
         .is("ended_at", null),
       supabaseAdmin.from("billing_profiles").select("user_id, plan_id"),
     ]);
@@ -552,11 +631,22 @@ export default async function handler(
       }
     }
 
-    const accountCountByPlanId = new Map<string, number>();
-    const usersWithCurrentContracts = new Set<string>();
+    const currentContractByUserId = new Map<string, BillingSubscriptionContractCountRow>();
     for (const contract of (currentContractsResult.data ??
       []) as BillingSubscriptionContractCountRow[]) {
+      currentContractByUserId.set(
+        contract.user_id,
+        choosePreferredContract(currentContractByUserId.get(contract.user_id), contract)
+      );
+    }
+
+    const preferredContracts = [...currentContractByUserId.values()];
+    const paymentExemptContracts = preferredContracts.filter(isPaymentExemptContract);
+    const accountCountByPlanId = new Map<string, number>();
+    const usersWithCurrentContracts = new Set<string>();
+    for (const contract of preferredContracts) {
       usersWithCurrentContracts.add(contract.user_id);
+      if (isPaymentExemptContract(contract)) continue;
       accountCountByPlanId.set(
         contract.plan_id,
         (accountCountByPlanId.get(contract.plan_id) ?? 0) + 1
@@ -571,103 +661,102 @@ export default async function handler(
       );
     }
 
-    const plans: AdminPricingPlanRow[] = [...planMetadata.values()]
-      .map((metadata) => {
-        const activeMonthlyOffer =
-          activeAcquisitionOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
-        const activeAnnualOffer =
-          activeAcquisitionOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
-        const currentMonthlyOffer =
-          currentOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
-        const currentAnnualOffer = currentOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
-        const latestMonthlyOffer =
-          latestPlanOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
-        const latestAnnualOffer =
-          latestPlanOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
-        const monthlyOffer = activeMonthlyOffer ?? currentMonthlyOffer ?? latestMonthlyOffer;
-        const annualOffer = activeAnnualOffer ?? currentAnnualOffer ?? latestAnnualOffer;
-        const offer = monthlyOffer ?? annualOffer;
-        const accountCount = accountCountByPlanId.get(metadata.id) ?? 0;
-        const isActive =
-          Boolean(metadata.is_active) &&
-          Boolean(
-            activeMonthlyOffer?.acquisition_enabled ?? activeAnnualOffer?.acquisition_enabled
-          ) &&
-          Boolean(activeMonthlyOffer?.is_active ?? activeAnnualOffer?.is_active);
-        const status: AdminPricingPlanRow["status"] =
-          metadata.id === "free"
-            ? "baseline_access"
-            : isActive
-              ? "active"
-              : accountCount > 0
-                ? "legacy"
-                : "inactive";
-        return {
-          planId: metadata.id,
-          displayName: metadata.display_name,
-          offerId: offer?.id ?? `${metadata.id}__none`,
-          sortOrder: Number(metadata.sort_order ?? 0),
-          accountCount,
-          status,
-          recurringPriceCents: Number(
-            offer?.recurring_price_cents ?? metadata.monthly_price_cents ?? 0
-          ),
-          monthlyCreditsCents: Number(
-            offer?.monthly_credits_cents ?? metadata.monthly_credits_cents ?? 0
-          ),
-          storageLimitBytes: Number(
-            offer?.storage_limit_bytes ?? metadata.storage_limit_bytes ?? 0
-          ),
-          maxConcurrentGenerations: Number(
-            offer?.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(metadata.id)
-          ),
-          stripeProductId: metadata.stripe_product_id,
-          stripePriceId: offer?.stripe_price_id ?? metadata.stripe_price_id,
-          acquisitionEnabled: Boolean(
-            activeMonthlyOffer?.acquisition_enabled ?? activeAnnualOffer?.acquisition_enabled
-          ),
-          isActive,
-          effectiveStartAt: offer?.effective_start_at ?? null,
-          monthlyOffer: monthlyOffer
-            ? {
-                offerId: monthlyOffer.id,
-                recurringPriceCents: Number(monthlyOffer.recurring_price_cents ?? 0),
-                monthlyCreditsCents: Number(monthlyOffer.monthly_credits_cents ?? 0),
-                storageLimitBytes: Number(monthlyOffer.storage_limit_bytes ?? 0),
-                maxConcurrentGenerations: Number(
-                  monthlyOffer.max_concurrent_generations ??
-                    resolveDefaultPlanConcurrencyLimit(metadata.id)
-                ),
-                stripePriceId: monthlyOffer.stripe_price_id,
-                acquisitionEnabled: Boolean(monthlyOffer.acquisition_enabled),
-                isActive: Boolean(monthlyOffer.is_active),
-                effectiveStartAt: monthlyOffer.effective_start_at ?? null,
-              }
-            : null,
-          annualOffer: annualOffer
-            ? {
-                offerId: annualOffer.id,
-                recurringPriceCents: Number(annualOffer.recurring_price_cents ?? 0),
-                monthlyCreditsCents: Number(annualOffer.monthly_credits_cents ?? 0),
-                storageLimitBytes: Number(annualOffer.storage_limit_bytes ?? 0),
-                maxConcurrentGenerations: Number(
-                  annualOffer.max_concurrent_generations ??
-                    resolveDefaultPlanConcurrencyLimit(metadata.id)
-                ),
-                stripePriceId: annualOffer.stripe_price_id,
-                acquisitionEnabled: Boolean(annualOffer.acquisition_enabled),
-                isActive: Boolean(annualOffer.is_active),
-                effectiveStartAt: annualOffer.effective_start_at ?? null,
-              }
-            : null,
-        } satisfies AdminPricingPlanRow;
-      })
-      .sort((a, b) => {
-        if (a.sortOrder === b.sortOrder) {
-          return a.recurringPriceCents - b.recurringPriceCents;
-        }
-        return a.sortOrder - b.sortOrder;
-      });
+    const catalogPlans: AdminPricingPlanRow[] = [...planMetadata.values()].map((metadata) => {
+      const activeMonthlyOffer =
+        activeAcquisitionOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
+      const activeAnnualOffer =
+        activeAcquisitionOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
+      const currentMonthlyOffer = currentOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
+      const currentAnnualOffer = currentOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
+      const latestMonthlyOffer =
+        latestPlanOfferByPlanAndInterval.get(`${metadata.id}:month`) ?? null;
+      const latestAnnualOffer = latestPlanOfferByPlanAndInterval.get(`${metadata.id}:year`) ?? null;
+      const monthlyOffer = activeMonthlyOffer ?? currentMonthlyOffer ?? latestMonthlyOffer;
+      const annualOffer = activeAnnualOffer ?? currentAnnualOffer ?? latestAnnualOffer;
+      const offer = monthlyOffer ?? annualOffer;
+      const accountCount = accountCountByPlanId.get(metadata.id) ?? 0;
+      const isActive =
+        Boolean(metadata.is_active) &&
+        Boolean(
+          activeMonthlyOffer?.acquisition_enabled ?? activeAnnualOffer?.acquisition_enabled
+        ) &&
+        Boolean(activeMonthlyOffer?.is_active ?? activeAnnualOffer?.is_active);
+      const status: AdminPricingPlanRow["status"] =
+        metadata.id === "free"
+          ? "baseline_access"
+          : isActive
+            ? "active"
+            : accountCount > 0
+              ? "legacy"
+              : "inactive";
+      return {
+        planId: metadata.id,
+        displayName: metadata.display_name,
+        offerId: offer?.id ?? `${metadata.id}__none`,
+        sortOrder: Number(metadata.sort_order ?? 0),
+        accountCount,
+        status,
+        recurringPriceCents: Number(
+          offer?.recurring_price_cents ?? metadata.monthly_price_cents ?? 0
+        ),
+        monthlyCreditsCents: Number(
+          offer?.monthly_credits_cents ?? metadata.monthly_credits_cents ?? 0
+        ),
+        storageLimitBytes: Number(offer?.storage_limit_bytes ?? metadata.storage_limit_bytes ?? 0),
+        maxConcurrentGenerations: Number(
+          offer?.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(metadata.id)
+        ),
+        stripeProductId: metadata.stripe_product_id,
+        stripePriceId: offer?.stripe_price_id ?? metadata.stripe_price_id,
+        acquisitionEnabled: Boolean(
+          activeMonthlyOffer?.acquisition_enabled ?? activeAnnualOffer?.acquisition_enabled
+        ),
+        isActive,
+        effectiveStartAt: offer?.effective_start_at ?? null,
+        monthlyOffer: monthlyOffer
+          ? {
+              offerId: monthlyOffer.id,
+              recurringPriceCents: Number(monthlyOffer.recurring_price_cents ?? 0),
+              monthlyCreditsCents: Number(monthlyOffer.monthly_credits_cents ?? 0),
+              storageLimitBytes: Number(monthlyOffer.storage_limit_bytes ?? 0),
+              maxConcurrentGenerations: Number(
+                monthlyOffer.max_concurrent_generations ??
+                  resolveDefaultPlanConcurrencyLimit(metadata.id)
+              ),
+              stripePriceId: monthlyOffer.stripe_price_id,
+              acquisitionEnabled: Boolean(monthlyOffer.acquisition_enabled),
+              isActive: Boolean(monthlyOffer.is_active),
+              effectiveStartAt: monthlyOffer.effective_start_at ?? null,
+            }
+          : null,
+        annualOffer: annualOffer
+          ? {
+              offerId: annualOffer.id,
+              recurringPriceCents: Number(annualOffer.recurring_price_cents ?? 0),
+              monthlyCreditsCents: Number(annualOffer.monthly_credits_cents ?? 0),
+              storageLimitBytes: Number(annualOffer.storage_limit_bytes ?? 0),
+              maxConcurrentGenerations: Number(
+                annualOffer.max_concurrent_generations ??
+                  resolveDefaultPlanConcurrencyLimit(metadata.id)
+              ),
+              stripePriceId: annualOffer.stripe_price_id,
+              acquisitionEnabled: Boolean(annualOffer.acquisition_enabled),
+              isActive: Boolean(annualOffer.is_active),
+              effectiveStartAt: annualOffer.effective_start_at ?? null,
+            }
+          : null,
+      } satisfies AdminPricingPlanRow;
+    });
+
+    const plans: AdminPricingPlanRow[] = [
+      ...catalogPlans,
+      buildPaymentExemptPlanRow(paymentExemptContracts),
+    ].sort((a, b) => {
+      if (a.sortOrder === b.sortOrder) {
+        return a.recurringPriceCents - b.recurringPriceCents;
+      }
+      return a.sortOrder - b.sortOrder;
+    });
 
     const creditPackages: AdminPricingCreditPackageRow[] = (
       (creditPackagesResult.data ?? []) as BillingCreditPackageRow[]

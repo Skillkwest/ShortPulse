@@ -149,6 +149,54 @@ describe("App route-change recovery", () => {
     );
   });
 
+  it("reports real-browser route-loader timeouts separately from generic route changes", () => {
+    renderApp();
+    const routeChangeError = routeEvents.get("routeChangeError");
+    expect(routeChangeError).toBeTypeOf("function");
+
+    routeChangeError?.(new Error("Route did not complete loading: /ai-studio"), "/ai-studio");
+
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.route_change_timeout",
+        endpoint: "/ai-studio",
+        severity: "medium",
+        metadata: expect.objectContaining({
+          route_change_timeout_route: "/ai-studio",
+          route_change_automated_browser: false,
+        }),
+      })
+    );
+  });
+
+  it("keeps automated browser route-loader timeouts telemetry-only", () => {
+    const userAgentSpy = vi
+      .spyOn(window.navigator, "userAgent", "get")
+      .mockReturnValue(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36"
+      );
+    renderApp();
+    const routeChangeError = routeEvents.get("routeChangeError");
+    expect(routeChangeError).toBeTypeOf("function");
+
+    routeChangeError?.(new Error("Route did not complete loading: /ai-studio"), "/ai-studio");
+
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.route_change.timeout",
+        endpoint: "/ai-studio",
+        severity: "low",
+        metadata: expect.objectContaining({
+          route_change_timeout_route: "/ai-studio",
+          route_change_automated_browser: true,
+        }),
+      })
+    );
+
+    userAgentSpy.mockRestore();
+  });
+
   it("does not recover when navigation was cancelled", () => {
     const assignSpy = vi.fn();
     const restoreLocationAssign = withMockedLocationAssign(assignSpy);

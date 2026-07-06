@@ -127,6 +127,9 @@ export const areReferenceGridPropsEqual = (
   if (previous.onDownload !== next.onDownload) {
     return false;
   }
+  if (previous.onPinPromptReference !== next.onPinPromptReference) {
+    return false;
+  }
   if (previous.onRerollOutput !== next.onRerollOutput) {
     return false;
   }

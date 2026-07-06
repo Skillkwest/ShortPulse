@@ -39,12 +39,14 @@ type PlanStatus = AdminPricingPlanRow["status"];
 export const getPlanStatusClassName = (status: PlanStatus): string => {
   if (status === "active") return styles.pillOk;
   if (status === "baseline_access") return styles.pillInfo;
+  if (status === "payment_exempt") return styles.pillInfo;
   if (status === "legacy") return styles.pillWarn;
   return styles.pillCritical;
 };
 
 export const getPlanStatusLabel = (status: PlanStatus): string => {
   if (status === "baseline_access") return "baseline access";
+  if (status === "payment_exempt") return "payment exempt";
   return status;
 };
 

@@ -1716,8 +1716,125 @@ describe("ReferenceGridCard", () => {
     expect(onDeleteOutput).toHaveBeenCalledWith("audio-ref-1");
   });
 
+  it("pins a media reference prompt into the Reference Grid", () => {
+    const onPinPromptReference = vi.fn();
+    const onSelectOutput = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "image-ref-1",
+            prompt: "  Store this visible prompt  ",
+            mode: "image",
+            mediaSource: "generated",
+            taskState: "success",
+          }),
+          activeOutputId: "image-ref-1",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/reference.png",
+          imageSrc: "https://example.com/reference.png",
+          onPinPromptReference,
+          onSelectOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Pin text reference to reference grid"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith("image-ref-1");
+    expect(onPinPromptReference).toHaveBeenCalledWith("Store this visible prompt");
+  });
+
+  it("does not show prompt pinning for prompt-only text references or promptless media", () => {
+    const onPinPromptReference = vi.fn();
+    const { rerender } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "prompt-ref-1",
+            prompt: "Prompt reference text",
+            mode: "text",
+            taskState: "success",
+            previewText: "Prompt reference text",
+            mediaSource: "prompt",
+          }),
+          activeOutputId: "prompt-ref-1",
+          isPromptOnly: true,
+          onPinPromptReference,
+        })}
+      />
+    );
+
+    expect(screen.queryByLabelText("Pin text reference to reference grid")).toBeNull();
+
+    rerender(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "image-ref-empty-prompt",
+            prompt: "",
+            mode: "image",
+            mediaSource: "generated",
+            taskState: "success",
+          }),
+          activeOutputId: "image-ref-empty-prompt",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/reference.png",
+          imageSrc: "https://example.com/reference.png",
+          onPinPromptReference,
+        })}
+      />
+    );
+
+    expect(screen.queryByLabelText("Pin text reference to reference grid")).toBeNull();
+
+    rerender(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "uploaded-image-ref",
+            prompt: "Uploaded image",
+            mode: "image",
+            mediaSource: "upload",
+            taskState: "success",
+          }),
+          activeOutputId: "uploaded-image-ref",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/upload.png",
+          imageSrc: "https://example.com/upload.png",
+          onPinPromptReference,
+        })}
+      />
+    );
+
+    expect(screen.queryByLabelText("Pin text reference to reference grid")).toBeNull();
+  });
+
+  it("does not render the saved check chip for saved references", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "saved-ref-1",
+            mode: "image",
+            taskState: "success",
+            saveState: "saved",
+          }),
+          activeOutputId: "saved-ref-1",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/reference.png",
+          imageSrc: "https://example.com/reference.png",
+        })}
+      />
+    );
+
+    expect(screen.queryByLabelText("Saved")).toBeNull();
+  });
+
   it("renders audio download and curated remove together in the curated action row", () => {
     const onDownload = vi.fn();
+    const onPinPromptReference = vi.fn();
     const onRemoveCuratedReference = vi.fn();
     const { container } = render(
       <ReferenceGridCard
@@ -1725,6 +1842,8 @@ describe("ReferenceGridCard", () => {
           item: createOutput({
             id: "audio-ref-1",
             mode: "audio",
+            mediaSource: "generated",
+            generationId: "generation-audio-ref-1",
             taskState: "success",
             durationMs: 30_000,
           }),
@@ -1732,20 +1851,26 @@ describe("ReferenceGridCard", () => {
           isAudioPreview: true,
           cardPreviewUrl: "https://example.com/audio.mp3",
           onDownload,
+          onPinPromptReference,
           onRemoveCuratedReference,
           showCuratedRemoveAction: true,
         })}
       />
     );
 
+    const pinButton = screen.getByLabelText("Pin text reference to reference grid");
     const downloadButton = screen.getByLabelText("Download reference");
     const removeButton = screen.getByLabelText("Remove from curated");
     const actionRow = downloadButton.parentElement;
 
     expect(actionRow).toHaveAttribute("aria-label", "Curated actions");
     expect(actionRow).toHaveClass("reference-card-actions");
+    expect(pinButton.parentElement).toBe(actionRow);
     expect(removeButton.parentElement).toBe(actionRow);
     expect(container.querySelector(".reference-card-audio-download")).toBeNull();
+
+    fireEvent.click(pinButton);
+    expect(onPinPromptReference).toHaveBeenCalledWith("Prompt");
 
     fireEvent.click(downloadButton);
     expect(onDownload).toHaveBeenCalledWith(expect.objectContaining({ id: "audio-ref-1" }));

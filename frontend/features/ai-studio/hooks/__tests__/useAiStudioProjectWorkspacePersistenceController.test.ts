@@ -1382,6 +1382,143 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedSaveProjectWorkspaceViaApi).not.toHaveBeenCalled();
   });
 
+  it("allows project switching from an unchanged empty project without a saved workspace row", async () => {
+    const liveEmptyProjectSnapshot = {
+      ...createEmptyAiStudioSessionSnapshot({
+        sessionId: "session-1",
+        updatedAt: "2026-04-24T18:00:00.000Z",
+      }),
+      canvas: serializeAiStudioSessionCanvasState({
+        items: [],
+        draftTextEntry: null,
+        textEditSession: null,
+        draftOwnerInstanceId: null,
+        textEditOwnerInstanceId: null,
+        mainCamera: { x: 0, y: 0, zoom: 1 },
+        railCamera: { x: 0, y: 0, zoom: 1 },
+      }),
+    } as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(null);
+    const buildSessionSnapshot = vi.fn(() => liveEmptyProjectSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    rerender();
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        enabled: false,
+        snapshot: null,
+        preparedSnapshot: null,
+      })
+    );
+
+    let flushResult: Awaited<ReturnType<typeof result.current.flushProjectWorkspaceSnapshot>>;
+    await act(async () => {
+      flushResult = await result.current.flushProjectWorkspaceSnapshot({
+        reason: "project_switch",
+      });
+    });
+
+    expect(flushResult!).toEqual({
+      status: "skipped",
+      reason: "unchanged",
+      projectId: "project-1",
+      snapshotHash: null,
+      keepalive: false,
+    });
+    expect(mockedSaveProjectWorkspaceViaApi).not.toHaveBeenCalled();
+  });
+
+  it("allows unchanged project switching after bootstrap settles before visibility proof matches", async () => {
+    const restoreSnapshot = {
+      ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),
+      workspace: {
+        ...createSnapshot().workspace,
+        rightRailLayout: {
+          schemaVersion: 1,
+          panels: {
+            canvas: true,
+            quickSlot: false,
+            referenceGrid: true,
+          },
+          splits: {
+            canvasInventoryTopRatio: 0.34,
+            quickSlotReferenceTopRatio: 0.72,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshotV2;
+    const mismatchedLiveSnapshot = {
+      ...restoreSnapshot,
+      workspace: {
+        ...restoreSnapshot.workspace,
+        rightRailLayout: {
+          ...restoreSnapshot.workspace.rightRailLayout,
+          panels: {
+            ...restoreSnapshot.workspace.rightRailLayout?.panels,
+            quickSlot: true,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshotV2;
+    mockReadyRestoreCandidate(restoreSnapshot);
+    const buildSessionSnapshot = vi.fn(() => mismatchedLiveSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapSettled).toBe(true);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+
+    let flushResult: Awaited<ReturnType<typeof result.current.flushProjectWorkspaceSnapshot>>;
+    await act(async () => {
+      flushResult = await result.current.flushProjectWorkspaceSnapshot({
+        reason: "project_switch",
+      });
+    });
+
+    expect(flushResult!).toEqual({
+      status: "skipped",
+      reason: "unchanged",
+      projectId: "project-1",
+      snapshotHash: null,
+      keepalive: false,
+    });
+    expect(mockedSaveProjectWorkspaceViaApi).not.toHaveBeenCalled();
+  });
+
   it("flushes the current project workspace snapshot while autosave work is deferred", async () => {
     const restoredSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

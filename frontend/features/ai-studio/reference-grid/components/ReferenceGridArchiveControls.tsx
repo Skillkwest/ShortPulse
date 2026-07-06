@@ -64,9 +64,7 @@ export function ReferenceGridArchiveControls({
               Media: {visibleItemCount}/{REFERENCE_GRID_MAX_VISIBLE_ITEMS}
             </p>
             <p
-              className={`tiny subdued reference-grid-hover-helper${
-                showHoverHelper ? " is-visible" : ""
-              }`}
+              className={`tiny reference-grid-hover-helper${showHoverHelper ? " is-visible" : ""}`}
               aria-hidden="true"
             >
               Double-click a reference to view details.

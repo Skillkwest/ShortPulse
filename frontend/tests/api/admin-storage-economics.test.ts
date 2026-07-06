@@ -23,8 +23,22 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
-const createSupabaseAdmin = (tables: Record<string, unknown[]>) => {
+const createSupabaseAdmin = (
+  tables: Record<string, unknown[]>,
+  authEmailsByUserId: Record<string, string | null> = {}
+) => {
   const selects: Record<string, string[]> = {};
+  const getUserById = vi.fn(async (userId: string) => ({
+    data: {
+      user: authEmailsByUserId[userId]
+        ? {
+            id: userId,
+            email: authEmailsByUserId[userId],
+          }
+        : null,
+    },
+    error: null,
+  }));
   type MockQueryResult = { data: unknown[]; error: null };
   type MockQueryBuilder = {
     select: ReturnType<typeof vi.fn>;
@@ -51,7 +65,13 @@ const createSupabaseAdmin = (tables: Record<string, unknown[]>) => {
   });
 
   return {
+    auth: {
+      admin: {
+        getUserById,
+      },
+    },
     from,
+    getUserById,
     selects,
   };
 };
@@ -74,208 +94,213 @@ describe("GET /api/admin/storage-economics", () => {
   });
 
   it("returns aggregate storage economics without selecting private storage paths", async () => {
-    const supabase = createSupabaseAdmin({
-      media_files: [
-        {
-          user_id: "user-paid",
-          file_size: 600,
-          created_at: "2026-07-01T00:00:00.000Z",
-          storage_path: "must-not-be-selected",
-        },
-        {
-          user_id: "user-free",
-          file_size: 300,
-          created_at: "2026-06-30T00:00:00.000Z",
-        },
-        {
-          user_id: "user-exempt",
-          file_size: 200,
-          created_at: "2026-06-29T00:00:00.000Z",
-        },
-      ],
-      billing_subscription_contracts: [
-        {
-          user_id: "user-paid",
-          plan_id: "starter",
-          storage_limit_bytes: 1000,
-          contract_source: "stripe",
-          stripe_subscription_id: "sub_123",
-          recurring_price_cents: 1900,
-          billing_interval: "month",
-          status: "active",
-        },
-        {
-          user_id: "user-exempt",
-          plan_id: "business",
-          offer_id: "business__current",
-          storage_limit_bytes: 15000,
-          contract_source: "stripe",
-          stripe_subscription_id: null,
-          recurring_price_cents: 29900,
-          billing_interval: "month",
-          status: "inactive",
-          created_at: "2026-06-01T00:00:00.000Z",
-        },
-        {
-          user_id: "user-exempt",
-          plan_id: "media",
-          offer_id: "media__internal_comp",
-          storage_limit_bytes: 2500,
-          contract_source: null,
-          stripe_subscription_id: null,
-          recurring_price_cents: 0,
-          billing_interval: "month",
-          status: "active",
-          created_at: "2026-07-01T00:00:00.000Z",
-        },
-      ],
-      billing_profiles: [
-        {
-          user_id: "user-free",
-          plan_id: "free",
-        },
-      ],
-      billing_plans: [
-        {
-          id: "starter",
-          display_name: "Starter",
-          monthly_price_cents: 1900,
-          storage_limit_bytes: 1000,
-          sort_order: 2,
-          is_active: true,
-        },
-        {
-          id: "media",
-          display_name: "Media",
-          monthly_price_cents: 3900,
-          storage_limit_bytes: 2500,
-          sort_order: 3,
-          is_active: true,
-        },
-      ],
-      billing_plan_offers: [
-        {
-          id: "offer-starter-monthly",
-          plan_id: "starter",
-          recurring_price_cents: 1900,
-          billing_interval: "month",
-          acquisition_enabled: true,
-          is_active: true,
-          effective_start_at: "2026-06-01T00:00:00.000Z",
-          effective_end_at: null,
-          created_at: "2026-06-01T00:00:00.000Z",
-        },
-        {
-          id: "offer-media-monthly",
-          plan_id: "media",
-          recurring_price_cents: 3900,
-          billing_interval: "month",
-          acquisition_enabled: true,
-          is_active: true,
-          effective_start_at: "2026-06-01T00:00:00.000Z",
-          effective_end_at: null,
-          created_at: "2026-06-01T00:00:00.000Z",
-        },
-        {
-          id: "media__internal_comp",
-          plan_id: "media",
-          recurring_price_cents: 0,
-          billing_interval: "month",
-          acquisition_enabled: false,
-          is_active: true,
-          effective_start_at: "2026-07-01T00:00:00.000Z",
-          effective_end_at: null,
-          created_at: "2026-07-01T00:00:00.000Z",
-        },
-      ],
-      billing_storage_addons: [
-        {
-          id: "storage_50gb",
-          display_name: "50 GB",
-          sort_order: 1,
-          is_active: true,
-        },
-        {
-          id: "storage_250gb",
-          display_name: "250 GB",
-          sort_order: 2,
-          is_active: true,
-        },
-      ],
-      billing_storage_addon_offers: [
-        {
-          id: "offer-storage-50gb",
-          storage_addon_id: "storage_50gb",
-          storage_limit_bytes: 500,
-          recurring_price_cents: 900,
-          acquisition_enabled: true,
-          is_active: true,
-          effective_start_at: "2026-06-01T00:00:00.000Z",
-          effective_end_at: null,
-          created_at: "2026-06-01T00:00:00.000Z",
-        },
-        {
-          id: "offer-storage-250gb",
-          storage_addon_id: "storage_250gb",
-          storage_limit_bytes: 2500,
-          recurring_price_cents: 2500,
-          acquisition_enabled: true,
-          is_active: true,
-          effective_start_at: "2026-06-01T00:00:00.000Z",
-          effective_end_at: null,
-          created_at: "2026-06-01T00:00:00.000Z",
-        },
-      ],
-      billing_subscription_storage_addons: [
-        {
-          user_id: "user-paid",
-          storage_addon_id: "storage_50gb",
-          offer_id: "offer-storage-50gb",
-          stripe_subscription_item_id: "si_123",
-          stripe_price_id: "price_123",
-          storage_limit_bytes: 500,
-          quantity: 1,
-          recurring_price_cents: 900,
-          status: "active",
-        },
-      ],
-      admin_storage_usage_snapshots: [
-        {
-          snapshot_month: "2026-07-01",
-          captured_at: new Date().toISOString(),
-          source: "manual",
-          supabase_plan: "Pro",
-          compute_plan: "medium",
-          compute_monthly_cost_cents: 6000,
-          storage_used_gb: 42,
-          storage_included_gb: 100,
-          uncached_egress_gb: 120,
-          cached_egress_gb: 60,
-          uncached_egress_included_gb: 250,
-          cached_egress_included_gb: 250,
-          observed_storage_overage_cost_cents: null,
-          observed_uncached_egress_overage_cost_cents: null,
-          observed_cached_egress_overage_cost_cents: null,
-          notes: "usage page snapshot",
-        },
-      ],
-      app_error_events: [
-        {
-          message: "storage_addon_request_started",
-          occurred_at: "2026-07-01T00:00:00.000Z",
-          metadata: {
-            event_name: "storage_addon_request_started",
+    const supabase = createSupabaseAdmin(
+      {
+        media_files: [
+          {
+            user_id: "user-paid",
+            file_size: 600,
+            created_at: "2026-07-01T00:00:00.000Z",
+            storage_path: "must-not-be-selected",
           },
-        },
-        {
-          message: "storage_addon_request_succeeded",
-          occurred_at: "2026-07-01T00:00:00.000Z",
-          metadata: {
-            event_name: "storage_addon_request_succeeded",
+          {
+            user_id: "user-free",
+            file_size: 300,
+            created_at: "2026-06-30T00:00:00.000Z",
           },
-        },
-      ],
-    });
+          {
+            user_id: "user-exempt",
+            file_size: 200,
+            created_at: "2026-06-29T00:00:00.000Z",
+          },
+        ],
+        billing_subscription_contracts: [
+          {
+            user_id: "user-paid",
+            plan_id: "starter",
+            storage_limit_bytes: 1000,
+            contract_source: "stripe",
+            stripe_subscription_id: "sub_123",
+            recurring_price_cents: 1900,
+            billing_interval: "month",
+            status: "active",
+          },
+          {
+            user_id: "user-exempt",
+            plan_id: "business",
+            offer_id: "business__current",
+            storage_limit_bytes: 15000,
+            contract_source: "stripe",
+            stripe_subscription_id: null,
+            recurring_price_cents: 29900,
+            billing_interval: "month",
+            status: "inactive",
+            created_at: "2026-06-01T00:00:00.000Z",
+          },
+          {
+            user_id: "user-exempt",
+            plan_id: "media",
+            offer_id: "media__internal_comp",
+            storage_limit_bytes: 2500,
+            contract_source: null,
+            stripe_subscription_id: null,
+            recurring_price_cents: 0,
+            billing_interval: "month",
+            status: "active",
+            created_at: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+        billing_profiles: [
+          {
+            user_id: "user-free",
+            plan_id: "free",
+          },
+        ],
+        billing_plans: [
+          {
+            id: "starter",
+            display_name: "Starter",
+            monthly_price_cents: 1900,
+            storage_limit_bytes: 1000,
+            sort_order: 2,
+            is_active: true,
+          },
+          {
+            id: "media",
+            display_name: "Media",
+            monthly_price_cents: 3900,
+            storage_limit_bytes: 2500,
+            sort_order: 3,
+            is_active: true,
+          },
+        ],
+        billing_plan_offers: [
+          {
+            id: "offer-starter-monthly",
+            plan_id: "starter",
+            recurring_price_cents: 1900,
+            billing_interval: "month",
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-06-01T00:00:00.000Z",
+            effective_end_at: null,
+            created_at: "2026-06-01T00:00:00.000Z",
+          },
+          {
+            id: "offer-media-monthly",
+            plan_id: "media",
+            recurring_price_cents: 3900,
+            billing_interval: "month",
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-06-01T00:00:00.000Z",
+            effective_end_at: null,
+            created_at: "2026-06-01T00:00:00.000Z",
+          },
+          {
+            id: "media__internal_comp",
+            plan_id: "media",
+            recurring_price_cents: 0,
+            billing_interval: "month",
+            acquisition_enabled: false,
+            is_active: true,
+            effective_start_at: "2026-07-01T00:00:00.000Z",
+            effective_end_at: null,
+            created_at: "2026-07-01T00:00:00.000Z",
+          },
+        ],
+        billing_storage_addons: [
+          {
+            id: "storage_50gb",
+            display_name: "50 GB",
+            sort_order: 1,
+            is_active: true,
+          },
+          {
+            id: "storage_250gb",
+            display_name: "250 GB",
+            sort_order: 2,
+            is_active: true,
+          },
+        ],
+        billing_storage_addon_offers: [
+          {
+            id: "offer-storage-50gb",
+            storage_addon_id: "storage_50gb",
+            storage_limit_bytes: 500,
+            recurring_price_cents: 900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-06-01T00:00:00.000Z",
+            effective_end_at: null,
+            created_at: "2026-06-01T00:00:00.000Z",
+          },
+          {
+            id: "offer-storage-250gb",
+            storage_addon_id: "storage_250gb",
+            storage_limit_bytes: 2500,
+            recurring_price_cents: 2500,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-06-01T00:00:00.000Z",
+            effective_end_at: null,
+            created_at: "2026-06-01T00:00:00.000Z",
+          },
+        ],
+        billing_subscription_storage_addons: [
+          {
+            user_id: "user-paid",
+            storage_addon_id: "storage_50gb",
+            offer_id: "offer-storage-50gb",
+            stripe_subscription_item_id: "si_123",
+            stripe_price_id: "price_123",
+            storage_limit_bytes: 500,
+            quantity: 1,
+            recurring_price_cents: 900,
+            status: "active",
+          },
+        ],
+        admin_storage_usage_snapshots: [
+          {
+            snapshot_month: "2026-07-01",
+            captured_at: new Date().toISOString(),
+            source: "manual",
+            supabase_plan: "Pro",
+            compute_plan: "medium",
+            compute_monthly_cost_cents: 6000,
+            storage_used_gb: 42,
+            storage_included_gb: 100,
+            uncached_egress_gb: 120,
+            cached_egress_gb: 60,
+            uncached_egress_included_gb: 250,
+            cached_egress_included_gb: 250,
+            observed_storage_overage_cost_cents: null,
+            observed_uncached_egress_overage_cost_cents: null,
+            observed_cached_egress_overage_cost_cents: null,
+            notes: "usage page snapshot",
+          },
+        ],
+        app_error_events: [
+          {
+            message: "storage_addon_request_started",
+            occurred_at: "2026-07-01T00:00:00.000Z",
+            metadata: {
+              event_name: "storage_addon_request_started",
+            },
+          },
+          {
+            message: "storage_addon_request_succeeded",
+            occurred_at: "2026-07-01T00:00:00.000Z",
+            metadata: {
+              event_name: "storage_addon_request_succeeded",
+            },
+          },
+        ],
+      },
+      {
+        "user-free": "free@example.com",
+      }
+    );
     getSupabaseAdminMock.mockReturnValue(supabase);
     const req = { method: "GET", query: {} };
     const res = createMockResponse();
@@ -378,10 +403,12 @@ describe("GET /api/admin/storage-economics", () => {
       expect.arrayContaining([
         expect.objectContaining({
           userId: "user-free",
+          userEmail: "free@example.com",
           riskTypes: expect.arrayContaining(["baseline_storage_usage"]),
         }),
       ])
     );
+    expect(supabase.getUserById).toHaveBeenCalledWith("user-free");
     expect(JSON.stringify(payload)).not.toContain("must-not-be-selected");
     expect(supabase.selects.media_files?.[0]).toBe("user_id, file_size, created_at");
     expect(supabase.selects.billing_plans?.[0]).toBe(

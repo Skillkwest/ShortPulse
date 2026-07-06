@@ -14,7 +14,11 @@ import type {
 export const CRASH_SESSIONS_PER_PAGE = 50;
 
 export type AdminCrashSessionStatusFilter = AdminCrashSessionStatus | "all" | "needs_review";
-export type AdminCrashSessionReviewStatusFilter = AdminCrashSessionReviewStatus | "all";
+export type AdminCrashSessionReviewStatusFilter =
+  | AdminCrashSessionReviewStatus
+  | "reviewed"
+  | "all";
+export type AdminCrashSessionsViewMode = "needs_review" | "history" | "all_evidence";
 
 export type NormalizedAdminCrashSessionsResponse = {
   rows: AdminCrashSessionRow[];
@@ -156,6 +160,7 @@ export const fetchAdminCrashSessions = async (overrides: {
 export const updateAdminCrashSessionReviewStatus = async (params: {
   sessionId: string;
   status: AdminCrashSessionReviewStatus;
+  note?: string;
 }): Promise<void> => {
   const response = await fetchWithAuth("/api/admin/crashes-status", {
     method: "POST",

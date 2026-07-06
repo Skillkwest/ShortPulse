@@ -45,6 +45,7 @@ const REQUIRED_OPERATIONAL_ROUTES = [
   "/api/internal/media-derivatives/run",
   "/api/internal/admin-user-health-fleet/run",
   "/api/internal/billing-contract-renewals/run",
+  "/api/internal/credit-expirations/run",
 ];
 
 const OWNER_PLACEHOLDER_PATTERN =

@@ -1786,6 +1786,12 @@
   border: 1px solid var(--admin-warning-border-strong);
 }
 
+.pillNeutral {
+  background: rgba(201, 205, 214, 0.14);
+  color: #d7dde8;
+  border: 1px solid rgba(201, 205, 214, 0.28);
+}
+
 .pillCritical {
   background: rgba(248, 78, 78, 0.26);
   color: #fff0f0;
@@ -2547,6 +2553,7 @@
 .pricingCreditCatalogGrid {
   grid-template-columns:
     minmax(180px, 1.4fr)
+    minmax(112px, 0.7fr)
     minmax(96px, 0.8fr)
     minmax(96px, 0.8fr)
     minmax(128px, 0.9fr);
@@ -2554,7 +2561,8 @@
 
 .pricingCreditCatalogGrid span:nth-child(2),
 .pricingCreditCatalogGrid span:nth-child(3),
-.pricingCreditCatalogGrid span:nth-child(4) {
+.pricingCreditCatalogGrid span:nth-child(4),
+.pricingCreditCatalogGrid span:nth-child(5) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -2562,12 +2570,14 @@
 .pricingStorageCatalogGrid {
   grid-template-columns:
     minmax(180px, 1.4fr)
+    minmax(112px, 0.7fr)
     minmax(120px, 0.8fr)
     minmax(120px, 0.8fr);
 }
 
 .pricingStorageCatalogGrid span:nth-child(2),
-.pricingStorageCatalogGrid span:nth-child(3) {
+.pricingStorageCatalogGrid span:nth-child(3),
+.pricingStorageCatalogGrid span:nth-child(4) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -2578,7 +2588,6 @@
   grid-template-columns:
     minmax(180px, 1.4fr)
     80px
-    130px
     minmax(96px, 0.7fr)
     minmax(104px, 0.7fr)
     minmax(96px, 0.7fr)
@@ -2589,17 +2598,17 @@
 }
 
 .pricingPlanCatalogHead span:nth-child(2),
+.pricingPlanCatalogHead span:nth-child(3),
 .pricingPlanCatalogHead span:nth-child(4),
 .pricingPlanCatalogHead span:nth-child(5),
 .pricingPlanCatalogHead span:nth-child(6),
 .pricingPlanCatalogHead span:nth-child(7),
-.pricingPlanCatalogHead span:nth-child(8),
 .pricingPlanCatalogRow span:nth-child(2),
+.pricingPlanCatalogRow span:nth-child(3),
 .pricingPlanCatalogRow span:nth-child(4),
 .pricingPlanCatalogRow span:nth-child(5),
 .pricingPlanCatalogRow span:nth-child(6),
-.pricingPlanCatalogRow span:nth-child(7),
-.pricingPlanCatalogRow span:nth-child(8) {
+.pricingPlanCatalogRow span:nth-child(7) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -4631,6 +4640,13 @@
   gap: 10px;
   align-items: center;
   margin: 8px 0 12px;
+}
+
+.adminCrashModeTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 10px;
 }
 
 .adminErrorsHead,

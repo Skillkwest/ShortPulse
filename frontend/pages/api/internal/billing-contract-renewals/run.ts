@@ -12,7 +12,7 @@ import {
   INTERNAL_COMP_RENEWAL_GRANT_SOURCE,
   isUniqueViolationError,
 } from "../../../../lib/server/api/billingContracts";
-import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
+import { grantAccountCredits } from "../../../../lib/server/api/creditLedger";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 
 type BillingContractRow = {
@@ -74,6 +74,17 @@ const asDate = (value: string | null | undefined): Date | null => {
 
 const isRenewalRunnerEnabled = (): boolean =>
   parseBooleanEnv(process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED, false);
+
+const isDuplicateGrantResult = (ledgerResult: {
+  error?: { code?: string; message?: string } | null;
+  status?: string | null;
+}): boolean =>
+  ledgerResult.status === "duplicate" || isUniqueViolationError(ledgerResult.error ?? null);
+
+const SUBSCRIPTION_CREDIT_LIFESPAN_DAYS = 60;
+
+const resolveSubscriptionCreditExpiresAt = () =>
+  new Date(Date.now() + SUBSCRIPTION_CREDIT_LIFESPAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
 const readBatchSize = (): number => {
   const parsed = Number(process.env.SHORTPULSE_INTERNAL_BILLING_RENEWAL_BATCH_SIZE ?? 100);
@@ -162,12 +173,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           periodStartIso: periodStart.toISOString(),
         });
         grantsAttempted += 1;
-        const ledgerResult = await insertCreditLedgerEntry({
+        const ledgerResult = await grantAccountCredits({
           userId: contract.user_id,
-          changeCents: asCents(contract.monthly_credits_cents),
+          amountCents: asCents(contract.monthly_credits_cents),
           reason: `Internal comp monthly renewal for ${contract.plan_id ?? "unknown plan"}`,
           source: INTERNAL_COMP_RENEWAL_GRANT_SOURCE,
           sourceRef,
+          creditKind: "subscription_allocation",
+          expiresAt: resolveSubscriptionCreditExpiresAt(),
           metadata: {
             contract_id: contract.id,
             contract_source: contract.contract_source,
@@ -186,7 +199,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           break;
         }
 
-        if (ledgerResult.error) {
+        if (isDuplicateGrantResult(ledgerResult)) {
           duplicateGrants += 1;
         } else {
           grantsInserted += 1;
@@ -281,12 +294,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           grantAtIso: nextGrantAt.toISOString(),
         });
         grantsAttempted += 1;
-        const ledgerResult = await insertCreditLedgerEntry({
+        const ledgerResult = await grantAccountCredits({
           userId: contract.user_id,
-          changeCents: asCents(contract.monthly_credits_cents),
+          amountCents: asCents(contract.monthly_credits_cents),
           reason: `Annual monthly credit allocation for ${contract.plan_id ?? "unknown plan"}`,
           source: ANNUAL_CONTRACT_MONTHLY_GRANT_SOURCE,
           sourceRef,
+          creditKind: "subscription_allocation",
+          expiresAt: resolveSubscriptionCreditExpiresAt(),
           metadata: {
             contract_id: contract.id,
             contract_source: contract.contract_source,
@@ -306,7 +321,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           break;
         }
 
-        if (ledgerResult.error) {
+        if (isDuplicateGrantResult(ledgerResult)) {
           duplicateGrants += 1;
         } else {
           grantsInserted += 1;

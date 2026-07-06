@@ -12,6 +12,7 @@ import type {
   AdminPagination,
 } from "../types";
 import type {
+  AdminCrashSessionsViewMode,
   AdminCrashSessionReviewStatusFilter,
   AdminCrashSessionStatusFilter,
 } from "../logic/adminCrashSessionsApi";
@@ -24,14 +25,20 @@ type AdminCrashLogsPanelProps = {
   loading: boolean;
   error: string | null;
   pagination: AdminPagination;
+  viewMode: AdminCrashSessionsViewMode;
   statusFilter: AdminCrashSessionStatusFilter;
   reviewStatusFilter: AdminCrashSessionReviewStatusFilter;
   search: string;
   updatingReviewSessionId: string | null;
+  onViewModeChange: (value: AdminCrashSessionsViewMode) => void;
   onStatusFilterChange: (value: AdminCrashSessionStatusFilter) => void;
   onReviewStatusFilterChange: (value: AdminCrashSessionReviewStatusFilter) => void;
   onSearchChange: (value: string) => void;
-  onUpdateReviewStatus: (sessionId: string, status: AdminCrashSessionReviewStatus) => void;
+  onUpdateReviewStatus: (
+    sessionId: string,
+    status: AdminCrashSessionReviewStatus,
+    note?: string
+  ) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onRefresh: () => void;
@@ -49,10 +56,17 @@ const STATUS_OPTIONS: Array<{ value: AdminCrashSessionStatusFilter; label: strin
 const REVIEW_STATUS_OPTIONS: Array<{ value: AdminCrashSessionReviewStatusFilter; label: string }> =
   [
     { value: "open", label: "Open review" },
-    { value: "resolved", label: "Resolved" },
+    { value: "reviewed", label: "Reviewed history" },
+    { value: "resolved", label: "Reviewed" },
     { value: "ignored", label: "Ignored" },
     { value: "all", label: "All review" },
   ];
+
+const VIEW_MODE_OPTIONS: Array<{ value: AdminCrashSessionsViewMode; label: string }> = [
+  { value: "needs_review", label: "Needs Review" },
+  { value: "history", label: "History" },
+  { value: "all_evidence", label: "All Evidence" },
+];
 
 const statusLabel = (status: AdminCrashSessionStatus): string => {
   if (status === "clean_closed") return "Clean closed";
@@ -65,6 +79,18 @@ const statusLabel = (status: AdminCrashSessionStatus): string => {
 const confidenceLabel = (confidence: AdminCrashSessionConfidence): string => {
   if (confidence === "none") return "No crash signal";
   return `${confidence} confidence`;
+};
+
+const reviewStatusLabel = (status: AdminCrashSessionReviewStatus): string => {
+  if (status === "resolved") return "Reviewed";
+  if (status === "ignored") return "Ignored";
+  return "Open review";
+};
+
+const reviewStatusClassName = (status: AdminCrashSessionReviewStatus): string => {
+  if (status === "ignored") return styles.pillWarn;
+  if (status === "resolved") return styles.pillOk;
+  return styles.pillNeutral;
 };
 
 const statusClassName = (status: AdminCrashSessionStatus): string => {
@@ -132,6 +158,10 @@ const buildCrashPacket = (row: AdminCrashSessionRow): string =>
         buildId: row.buildId,
         clientRelease: row.clientRelease,
         clientEnvironment: row.clientEnvironment,
+        reviewStatus: row.reviewStatus,
+        reviewedAt: row.reviewedAt,
+        reviewedByEmail: row.reviewedByEmail,
+        reviewNote: row.reviewNote,
         metadata: row.metadata,
       },
     },
@@ -147,10 +177,12 @@ export function AdminCrashLogsPanel({
   loading,
   error,
   pagination,
+  viewMode,
   statusFilter,
   reviewStatusFilter,
   search,
   updatingReviewSessionId,
+  onViewModeChange,
   onStatusFilterChange,
   onReviewStatusFilterChange,
   onSearchChange,
@@ -161,6 +193,11 @@ export function AdminCrashLogsPanel({
 }: AdminCrashLogsPanelProps) {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null);
+  const [reviewDraft, setReviewDraft] = useState<{
+    row: AdminCrashSessionRow;
+    status: Extract<AdminCrashSessionReviewStatus, "resolved" | "ignored">;
+    note: string;
+  } | null>(null);
   const resultStart =
     pagination.totalCount === 0 ? 0 : (pagination.page - 1) * pagination.perPage + 1;
   const resultEnd = Math.min(pagination.page * pagination.perPage, pagination.totalCount);
@@ -170,18 +207,37 @@ export function AdminCrashLogsPanel({
     if (copied) setCopiedSessionId(row.id);
   };
 
+  const submitReviewDraft = () => {
+    if (!reviewDraft) return;
+    onUpdateReviewStatus(reviewDraft.row.id, reviewDraft.status, reviewDraft.note);
+    setReviewDraft(null);
+  };
+
   return (
     <section className={styles.adminSection}>
       <div className={styles.adminSectionHead}>
         <div>
           <p className="eyebrow">Crash Logs</p>
           <p className="tiny subdued">
-            Browser sessions with freeze, crash, close, and stale-heartbeat evidence.
+            Review crash evidence, keep historical context, and reopen rows when signals recur.
           </p>
         </div>
         <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={loading}>
           {loading ? "Refreshing..." : "Refresh"}
         </button>
+      </div>
+
+      <div className={styles.adminCrashModeTabs} aria-label="Crash log view">
+        {VIEW_MODE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={viewMode === option.value ? "primary-btn mini" : "ghost-btn mini"}
+            onClick={() => onViewModeChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       <div className={styles.adminErrorsToolbar}>
@@ -280,7 +336,7 @@ export function AdminCrashLogsPanel({
             const signal = signalText(row);
             const evidence = evidenceText(row);
             const isUpdatingReview = updatingReviewSessionId === row.id;
-            const canResolve = row.reviewStatus === "open";
+            const isOpenReview = row.reviewStatus === "open";
             return (
               <div key={row.id} className={styles.adminCrashSessionGroup}>
                 <div
@@ -298,6 +354,9 @@ export function AdminCrashLogsPanel({
                       {statusLabel(row.effectiveStatus)}
                     </span>
                     <span className="tiny subdued">{row.lastEvent.replaceAll("_", " ")}</span>
+                    <span className={`${styles.pill} ${reviewStatusClassName(row.reviewStatus)}`}>
+                      {reviewStatusLabel(row.reviewStatus)}
+                    </span>
                   </div>
                   <span
                     className={`${styles.pill} ${confidenceClassName(row.effectiveConfidence)}`}
@@ -339,14 +398,35 @@ export function AdminCrashLogsPanel({
                     >
                       {expanded ? "Hide" : "Details"}
                     </button>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => onUpdateReviewStatus(row.id, "resolved")}
-                      disabled={!canResolve || isUpdatingReview}
-                    >
-                      {isUpdatingReview ? "Resolving..." : canResolve ? "Resolve" : "Resolved"}
-                    </button>
+                    {isOpenReview ? (
+                      <>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => setReviewDraft({ row, status: "resolved", note: "" })}
+                          disabled={isUpdatingReview}
+                        >
+                          {isUpdatingReview ? "Updating..." : "Mark reviewed"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => setReviewDraft({ row, status: "ignored", note: "" })}
+                          disabled={isUpdatingReview}
+                        >
+                          Ignore signal
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => onUpdateReviewStatus(row.id, "open")}
+                        disabled={isUpdatingReview}
+                      >
+                        {isUpdatingReview ? "Updating..." : "Reopen"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {expanded ? (
@@ -355,7 +435,10 @@ export function AdminCrashLogsPanel({
                     <span>Host {row.host ?? "unknown"}</span>
                     <span>Vercel {row.vercelId ?? "unknown"}</span>
                     <span>Suspected {formatDateTime(row.suspectedAt)}</span>
-                    <span>Review {row.reviewStatus}</span>
+                    <span>Review {reviewStatusLabel(row.reviewStatus)}</span>
+                    <span>Reviewed {formatDateTime(row.reviewedAt)}</span>
+                    <span>Reviewer {row.reviewedByEmail ?? "not recorded"}</span>
+                    <span>Review note {row.reviewNote ?? "none"}</span>
                     <span>User agent {row.userAgent ?? "unknown"}</span>
                     <pre>{JSON.stringify(row.metadata, null, 2)}</pre>
                   </div>
@@ -365,6 +448,43 @@ export function AdminCrashLogsPanel({
           })
         )}
       </div>
+
+      {reviewDraft ? (
+        <div className={styles.adminModalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.adminModalCard}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">
+                  {reviewDraft.status === "ignored" ? "Ignore Crash Signal" : "Mark Reviewed"}
+                </p>
+                <h3>{reviewDraft.row.userEmail ?? "Unknown user"}</h3>
+                <p className="tiny subdued">
+                  {reviewDraft.row.route ?? "Unknown route"} ·{" "}
+                  {formatDateTime(reviewDraft.row.lastSeenAt)}
+                </p>
+              </div>
+            </div>
+            <textarea
+              className={styles.reportNotesInput}
+              value={reviewDraft.note}
+              onChange={(event) =>
+                setReviewDraft((current) =>
+                  current ? { ...current, note: event.target.value } : current
+                )
+              }
+              placeholder="Add a short review note for history"
+            />
+            <div className={styles.errorActions}>
+              <button type="button" className="primary-btn mini" onClick={submitReviewDraft}>
+                {reviewDraft.status === "ignored" ? "Ignore signal" : "Mark reviewed"}
+              </button>
+              <button type="button" className="ghost-btn mini" onClick={() => setReviewDraft(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

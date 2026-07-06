@@ -22,11 +22,6 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
-type SelectResult = {
-  data: unknown;
-  error: { message: string } | null;
-};
-
 describe("GET /api/credits/snapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,8 +57,21 @@ describe("GET /api/credits/snapshot", () => {
     });
   });
 
-  it("returns available, reserved, and spendable credits", async () => {
+  it("returns grant-lot authoritative reserved and spendable credits", async () => {
     getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            spendable_cents: 1170,
+            reserved_cents: 30,
+            expiring_cents: 670,
+            non_expiring_cents: 500,
+            next_expiring_cents: 300,
+            next_expires_at: "2026-04-15T20:00:00.000Z",
+          },
+        ],
+        error: null,
+      }),
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -76,24 +84,6 @@ describe("GET /api/credits/snapshot", () => {
               }),
             }),
           };
-        }
-
-        if (table === "ai_credit_reservations") {
-          const chain = {
-            eq: vi.fn(),
-            order: vi.fn(
-              async () =>
-                ({
-                  data: [
-                    { amount_cents: 25, updated_at: "2026-02-15T20:00:10.000Z" },
-                    { amount_cents: 5, updated_at: "2026-02-15T19:59:10.000Z" },
-                  ],
-                  error: null,
-                }) as SelectResult
-            ),
-          };
-          chain.eq.mockReturnValue(chain);
-          return { select: () => chain };
         }
 
         throw new Error(`Unexpected table: ${table}`);
@@ -112,58 +102,45 @@ describe("GET /api/credits/snapshot", () => {
       reservedCents: 30,
       spendableCents: 1170,
       balanceUpdatedAt: "2026-02-15T20:00:00.000Z",
-      reservationsUpdatedAt: "2026-02-15T20:00:10.000Z",
-      updatedAt: "2026-02-15T20:00:10.000Z",
+      reservationsUpdatedAt: null,
+      updatedAt: "2026-02-15T20:00:00.000Z",
       reservationsSupported: true,
+      grantsSupported: true,
+      expiringCents: 670,
+      nonExpiringCents: 500,
+      nextExpiringCents: 300,
+      nextExpiresAt: "2026-04-15T20:00:00.000Z",
       source: "balance_table",
     });
   });
 
-  it("falls back to ledger and marks reservations unsupported when schemas are missing", async () => {
+  it("uses grant-lot summary fields when supported", async () => {
     getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            spendable_cents: 900,
+            reserved_cents: 75,
+            expiring_cents: 400,
+            non_expiring_cents: 500,
+            next_expiring_cents: 125,
+            next_expires_at: "2026-04-15T20:00:00.000Z",
+          },
+        ],
+        error: null,
+      }),
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
             select: () => ({
               eq: () => ({
                 maybeSingle: async () => ({
-                  data: null,
-                  error: { message: 'column "balance_cents" does not exist' },
-                }),
-              }),
-            }),
-          };
-        }
-
-        if (table === "ai_credit_ledger") {
-          return {
-            select: () => ({
-              eq: () => ({
-                order: async () => ({
-                  data: [
-                    { change_cents: 300, created_at: "2026-02-15T20:00:00.000Z" },
-                    { change_cents: -50, created_at: "2026-02-15T19:00:00.000Z" },
-                  ],
+                  data: { balance_cents: 975, updated_at: "2026-02-15T20:00:00.000Z" },
                   error: null,
                 }),
               }),
             }),
           };
-        }
-
-        if (table === "ai_credit_reservations") {
-          const chain = {
-            eq: vi.fn(),
-            order: vi.fn(
-              async () =>
-                ({
-                  data: null,
-                  error: { message: "relation ai_credit_reservations does not exist" },
-                }) as SelectResult
-            ),
-          };
-          chain.eq.mockReturnValue(chain);
-          return { select: () => chain };
         }
 
         throw new Error(`Unexpected table: ${table}`);
@@ -176,48 +153,38 @@ describe("GET /api/credits/snapshot", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      userId: "user-1",
-      availableCents: 250,
-      reservedCents: 0,
-      spendableCents: 250,
-      balanceUpdatedAt: "2026-02-15T20:00:00.000Z",
-      reservationsUpdatedAt: null,
-      updatedAt: "2026-02-15T20:00:00.000Z",
-      reservationsSupported: false,
-      source: "ledger_fallback",
-    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableCents: 975,
+        reservedCents: 75,
+        spendableCents: 900,
+        expiringCents: 400,
+        nonExpiringCents: 500,
+        nextExpiringCents: 125,
+        nextExpiresAt: "2026-04-15T20:00:00.000Z",
+        grantsSupported: true,
+      })
+    );
   });
 
-  it("fails closed when reservation query returns an unexpected backend error", async () => {
+  it("fails closed when the grant-lot summary RPC is unavailable", async () => {
     getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "function get_credit_grant_summary does not exist" },
+      }),
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
             select: () => ({
               eq: () => ({
                 maybeSingle: async () => ({
-                  data: { balance_cents: 900, updated_at: "2026-02-16T20:41:20.000Z" },
-                  error: null,
+                  data: null,
+                  error: { message: 'column "balance_cents" does not exist' },
                 }),
               }),
             }),
           };
-        }
-
-        if (table === "ai_credit_reservations") {
-          const chain = {
-            eq: vi.fn(),
-            order: vi.fn(
-              async () =>
-                ({
-                  data: null,
-                  error: { message: "Internal server error." },
-                }) as SelectResult
-            ),
-          };
-          chain.eq.mockReturnValue(chain);
-          return { select: () => chain };
         }
 
         throw new Error(`Unexpected table: ${table}`);
@@ -236,8 +203,66 @@ describe("GET /api/credits/snapshot", () => {
     expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 
-  it("clamps spendable credits to zero when active reservations exceed available balance", async () => {
+  it("fails closed when the balance projection is unavailable", async () => {
     getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            spendable_cents: 900,
+            reserved_cents: 0,
+            expiring_cents: 900,
+            non_expiring_cents: 0,
+            next_expiring_cents: 900,
+            next_expires_at: "2026-04-15T20:00:00.000Z",
+          },
+        ],
+        error: null,
+      }),
+      from: (table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: null,
+                  error: { message: 'column "balance_cents" does not exist' },
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to load credit snapshot.",
+    });
+    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clamps negative grant-summary values to zero", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            spendable_cents: -25,
+            reserved_cents: -10,
+            expiring_cents: 0,
+            non_expiring_cents: 0,
+            next_expiring_cents: 0,
+            next_expires_at: null,
+          },
+        ],
+        error: null,
+      }),
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -250,24 +275,6 @@ describe("GET /api/credits/snapshot", () => {
               }),
             }),
           };
-        }
-
-        if (table === "ai_credit_reservations") {
-          const chain = {
-            eq: vi.fn(),
-            order: vi.fn(
-              async () =>
-                ({
-                  data: [
-                    { amount_cents: 60, updated_at: "2026-02-17T01:02:00.000Z" },
-                    { amount_cents: -70, updated_at: "2026-02-17T01:01:00.000Z" },
-                  ],
-                  error: null,
-                }) as SelectResult
-            ),
-          };
-          chain.eq.mockReturnValue(chain);
-          return { select: () => chain };
         }
 
         throw new Error(`Unexpected table: ${table}`);
@@ -283,20 +290,39 @@ describe("GET /api/credits/snapshot", () => {
     expect(res.json).toHaveBeenCalledWith({
       userId: "user-1",
       availableCents: 80,
-      reservedCents: 130,
+      reservedCents: 0,
       spendableCents: 0,
       balanceUpdatedAt: "2026-02-17T01:00:00.000Z",
-      reservationsUpdatedAt: "2026-02-17T01:02:00.000Z",
-      updatedAt: "2026-02-17T01:02:00.000Z",
+      reservationsUpdatedAt: null,
+      updatedAt: "2026-02-17T01:00:00.000Z",
       reservationsSupported: true,
+      grantsSupported: true,
+      expiringCents: 0,
+      nonExpiringCents: 0,
+      nextExpiringCents: 0,
+      nextExpiresAt: null,
       source: "balance_table",
     });
   });
 
-  it("scopes both balance and reservation reads to the authenticated user id", async () => {
+  it("scopes balance reads and grant-summary RPCs to the authenticated user id", async () => {
     const userFilters: Array<{ table: string; column: string; value: string }> = [];
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          spendable_cents: 1200,
+          reserved_cents: 0,
+          expiring_cents: 1200,
+          non_expiring_cents: 0,
+          next_expiring_cents: 1200,
+          next_expires_at: "2026-04-15T20:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
 
     getSupabaseAdminMock.mockReturnValue({
+      rpc,
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -314,26 +340,6 @@ describe("GET /api/credits/snapshot", () => {
           };
         }
 
-        if (table === "ai_credit_reservations") {
-          const chain: {
-            eq: (column: string, value: string) => typeof chain;
-            order: ReturnType<typeof vi.fn>;
-          } = {
-            eq: vi.fn((column: string, value: string) => {
-              userFilters.push({ table, column, value });
-              return chain;
-            }),
-            order: vi.fn(
-              async () =>
-                ({
-                  data: [{ amount_cents: 25, updated_at: "2026-02-15T20:00:10.000Z" }],
-                  error: null,
-                }) as SelectResult
-            ),
-          };
-          return { select: () => chain };
-        }
-
         throw new Error(`Unexpected table: ${table}`);
       },
     });
@@ -348,10 +354,8 @@ describe("GET /api/credits/snapshot", () => {
       column: "user_id",
       value: "user-1",
     });
-    expect(userFilters).toContainEqual({
-      table: "ai_credit_reservations",
-      column: "user_id",
-      value: "user-1",
+    expect(rpc).toHaveBeenCalledWith("get_credit_grant_summary", {
+      p_user_id: "user-1",
     });
   });
 });

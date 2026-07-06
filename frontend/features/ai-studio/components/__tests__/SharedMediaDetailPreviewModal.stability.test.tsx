@@ -149,6 +149,21 @@ describe("SharedMediaDetailPreviewModal image stability", () => {
 });
 
 describe("SharedMediaDetailPreviewModal layout contract", () => {
+  it("keeps video frame-shot controls in a toolbar above the media instead of overlaying the preview", () => {
+    const imageVesselRule = extractCssRule(".art-image-vessel");
+    const stageToolbarRule = extractCssRule(".art-stage-toolbar");
+    const stageMediaFrameRule = extractCssRule(".art-stage-media-frame");
+    const snapshotControlRule = extractCssRule(".art-stage-snapshot-control");
+
+    expect(imageVesselRule).toContain("flex-direction: column");
+    expect(stageToolbarRule).toContain("justify-content: flex-end");
+    expect(stageMediaFrameRule).toContain("flex: 1 1 auto");
+    expect(stageMediaFrameRule).toContain("min-height: 0");
+    expect(snapshotControlRule).not.toContain("position: absolute");
+    expect(snapshotControlRule).not.toContain("top:");
+    expect(snapshotControlRule).not.toContain("right:");
+  });
+
   it("bounds the prompt blade textarea so long prompts scroll inside the side panel", () => {
     const promptBladeRule = extractCssRule(".art-prompt-blade");
     const promptScrollFrameRule = extractCssRule(".art-blade-scroll-frame");

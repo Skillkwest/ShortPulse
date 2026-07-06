@@ -45,6 +45,7 @@ export function PricingStorageAddonsSection({
             className={`${styles.pricingCatalogHead} ${styles.pricingStorageCatalogGrid} ${styles.adminTableHead}`}
           >
             <span>Add-on</span>
+            <span>Active accounts</span>
             <span>Monthly price</span>
             <span>Storage</span>
           </div>
@@ -65,6 +66,7 @@ export function PricingStorageAddonsSection({
                         : "Inactive"}
                   </small>
                 </span>
+                <span>{addon.activeAccountCount.toLocaleString()}</span>
                 <span>
                   {addon.offerId ? formatCurrencyFromCents(addon.recurringPriceCents) : "—"}
                 </span>

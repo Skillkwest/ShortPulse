@@ -280,8 +280,7 @@ export const AdminStorageEconomicsPanel = ({
             <div
               className={styles.adminTableHead}
               style={{
-                gridTemplateColumns:
-                  "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                gridTemplateColumns: "minmax(0, 1.3fr) 0.7fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr",
               }}
             >
               <span>Plan</span>
@@ -291,12 +290,6 @@ export const AdminStorageEconomicsPanel = ({
               <span>Catalog Price</span>
               <span>Contract MRR</span>
               <span>Tracked</span>
-              <span>P90</span>
-              <span>Total Limit</span>
-              <span>Over 80%</span>
-              <span>Over</span>
-              <span>Baseline</span>
-              <span>Growth</span>
             </div>
             {byPlan.length ? (
               byPlan.map((row) => (
@@ -304,42 +297,16 @@ export const AdminStorageEconomicsPanel = ({
                   key={row.planId}
                   className={styles.adminTableRow}
                   style={{
-                    gridTemplateColumns:
-                      "minmax(0, 1.2fr) 0.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr",
+                    gridTemplateColumns: "minmax(0, 1.3fr) 0.7fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr",
                   }}
                 >
-                  <span className={styles.adminMonoCell}>
-                    {row.displayName}
-                    <small className={styles.adminInlineMeta}>
-                      ID: {row.planId} • {row.visibilityLabel}
-                    </small>
-                  </span>
+                  <span className={styles.adminMonoCell}>{row.displayName}</span>
                   <span>{formatCount(row.accountCount)}</span>
                   <span>{formatCount(row.usersWithMedia)}</span>
                   <span>{formatBytes(row.catalogStorageLimitBytes)}</span>
-                  <span>
-                    {formatMoney(row.catalogRecurringPriceCents)}
-                    <small className={styles.adminInlineMeta}>
-                      {row.catalogAcquisitionEnabled ? "available" : "closed"}
-                    </small>
-                  </span>
-                  <span>
-                    {formatMoney(row.contractMrrCents)}
-                    <small className={styles.adminInlineMeta}>
-                      {formatCount(row.activeStripeContracts)} Stripe
-                    </small>
-                  </span>
+                  <span>{formatMoney(row.catalogRecurringPriceCents)}</span>
+                  <span>{formatMoney(row.contractMrrCents)}</span>
                   <span>{formatBytes(row.totalTrackedBytes)}</span>
-                  <span>{formatBytes(row.p90TrackedBytes)}</span>
-                  <span>{formatBytes(row.baseLimitBytes + row.addonLimitBytes)}</span>
-                  <span>{formatCount(row.accountsOver80Pct)}</span>
-                  <span>{formatCount(row.accountsOverQuota)}</span>
-                  <span>{formatCount(row.baselineStorageUsers)}</span>
-                  <span>
-                    {row.monthlyStorageGrowthBytes === null
-                      ? "—"
-                      : formatBytes(row.monthlyStorageGrowthBytes)}
-                  </span>
                 </div>
               ))
             ) : (
@@ -384,19 +351,8 @@ export const AdminStorageEconomicsPanel = ({
                     gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr",
                   }}
                 >
-                  <span className={styles.adminMonoCell}>
-                    {row.displayName}
-                    <small className={styles.adminInlineMeta}>
-                      ID: {row.storageAddonId} • {row.isActive ? "active" : "inactive"}
-                    </small>
-                  </span>
-                  <span>
-                    {formatBytes(row.catalogStorageLimitBytes)}
-                    <small className={styles.adminInlineMeta}>
-                      {formatMoney(row.catalogRecurringPriceCents)} •{" "}
-                      {row.acquisitionEnabled ? "available" : "closed"}
-                    </small>
-                  </span>
+                  <span className={styles.adminMonoCell}>{row.displayName}</span>
+                  <span>{formatBytes(row.catalogStorageLimitBytes)}</span>
                   <span>{formatCount(row.activeSubscribers)}</span>
                   <span>{formatCount(row.activeQuantity)}</span>
                   <span>{formatMoney(row.mrrCents)}</span>
@@ -446,7 +402,7 @@ export const AdminStorageEconomicsPanel = ({
                       "minmax(0, 1.2fr) 0.7fr 0.8fr 0.8fr 0.6fr minmax(0, 1.8fr)",
                   }}
                 >
-                  <span className={styles.adminMonoCell}>{row.userId}</span>
+                  <span className={styles.adminMonoCell}>{row.userEmail ?? row.userId}</span>
                   <span>{row.planId}</span>
                   <span>
                     {formatBytes(row.trackedBytes)}

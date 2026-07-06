@@ -12,7 +12,7 @@ import {
   isUniqueViolationError,
 } from "../../../../../lib/server/api/billingContracts";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../../lib/billing/planConcurrency";
-import { insertCreditLedgerEntry } from "../../../../../lib/server/api/creditLedger";
+import { grantAccountCredits } from "../../../../../lib/server/api/creditLedger";
 import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 
 type ContractAction = "grant_internal_comp" | "revoke_internal_comp";
@@ -60,6 +60,10 @@ type BillingOfferRow = {
 };
 
 const DEFAULT_GRANT_REASON = "Admin internal comp override";
+const SUBSCRIPTION_CREDIT_LIFESPAN_DAYS = 60;
+
+const resolveSubscriptionCreditExpiresAt = () =>
+  new Date(Date.now() + SUBSCRIPTION_CREDIT_LIFESPAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
 const asSingleString = (value: unknown): string => {
   if (typeof value === "string") return value;
@@ -355,15 +359,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (creditsGrantedCents > 0) {
-      const ledgerResult = await insertCreditLedgerEntry({
+      const ledgerResult = await grantAccountCredits({
         userId: normalizedUserId,
-        changeCents: creditsGrantedCents,
+        amountCents: creditsGrantedCents,
         reason:
           grantKind === "change"
             ? `Payment-exempt plan changed to ${effectivePlanId}`
             : `Payment-exempt access granted for ${effectivePlanId}`,
         source: grantSource,
         sourceRef: grantSourceRef,
+        creditKind: "subscription_allocation",
+        expiresAt: resolveSubscriptionCreditExpiresAt(),
         metadata: {
           admin_user_id: adminUser.id,
           admin_email: adminUser.email ?? null,

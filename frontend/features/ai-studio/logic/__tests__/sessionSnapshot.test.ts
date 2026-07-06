@@ -12,6 +12,7 @@ import { buildGenerationReplayConfigV2 } from "../generationReplay";
 import type { AiStudioSessionSnapshotV2 } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import { prepareAiStudioSessionAutosaveSnapshot } from "../sessionAutosaveSerialization";
+import { PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES } from "../../../../lib/ai-studio-session/projectWorkspaceLimits";
 import type { StudioOutput } from "../../types";
 import {
   AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
@@ -2187,6 +2188,8 @@ describe("sessionSnapshot", () => {
       "without_canvas",
       "without_archived_outputs",
       "without_canvas_and_archived_outputs",
+      "lightweight_checkpoint",
+      "without_canvas_lightweight_checkpoint",
     ]);
     expect(combinedCandidate?.snapshot.schemaVersion).toBe(2);
     expect(
@@ -3055,6 +3058,60 @@ describe("sessionSnapshot", () => {
       savedMediaIds: ["media-1"],
     });
     expect(preparedSnapshot.bytes).toBeLessThanOrEqual(AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES);
+  });
+
+  it("falls back to a lightweight checkpoint for rich 145-row project autosaves", () => {
+    const outputs = Array.from({ length: 145 }, (_value, index) =>
+      createOutput({
+        id: `rich-output-${index}`,
+        mediaSource: "library",
+        savedMediaIds: [`media-${index}`],
+        prompt: `rich prompt ${index} ` + "x".repeat(10_000),
+        previewText: `preview ${index} ` + "y".repeat(10_000),
+        previewUrl: `https://cdn.example.com/rich-output-${index}.png`,
+        resultUrls: [`https://cdn.example.com/rich-output-${index}.png`],
+        previewStoragePath: `user-1/projects/rich-output-${index}.png`,
+      })
+    );
+    const snapshot = buildAiStudioSessionSnapshot({
+      ...createSnapshotInput({
+        sessionId: "project-rich-145-autosave-session",
+        outputs,
+        activeOutputId: "rich-output-0",
+        curatedReferenceIds: outputs.map((output) => output.id),
+      }),
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot, {
+      trimGeneratedOutputText: false,
+      trimOutputTextSummaries: false,
+    });
+    const fullPreparedSnapshot = prepareAiStudioSessionAutosaveSnapshot(projectSnapshot);
+    const selectedCandidate = createAiStudioProjectWorkspaceAutosaveCandidates(
+      projectSnapshot
+    ).find(
+      (candidate) =>
+        prepareAiStudioSessionAutosaveSnapshot(candidate.snapshot).bytes <=
+        PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
+    );
+
+    expect(fullPreparedSnapshot.bytes).toBeGreaterThan(
+      PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES
+    );
+    expect(selectedCandidate?.kind).toBe("lightweight_checkpoint");
+    expect(selectedCandidate?.snapshot.outputs.active).toHaveLength(145);
+    expect(selectedCandidate?.snapshot.outputs.active[0]).toMatchObject({
+      id: "rich-output-0",
+      mode: "image",
+      mediaSource: "library",
+      savedMediaIds: ["media-0"],
+    });
+    expect(selectedCandidate?.snapshot.outputs.active[0]).not.toHaveProperty("prompt");
+    expect(selectedCandidate?.snapshot.outputs.active[0]).not.toHaveProperty("previewUrl");
+    expect(selectedCandidate?.snapshot.outputs.active[0]).not.toHaveProperty("previewStoragePath");
+    expect(
+      prepareAiStudioSessionAutosaveSnapshot(selectedCandidate!.snapshot).bytes
+    ).toBeLessThanOrEqual(PROJECT_WORKSPACE_AUTOSAVE_MAX_SNAPSHOT_BYTES);
   });
 
   it("keeps project autosave snapshots under the byte cap for accumulated pending generations and prompt refs", () => {

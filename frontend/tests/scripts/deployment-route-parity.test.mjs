@@ -28,6 +28,7 @@ describe("deployment route parity launch gate", () => {
 
     expect(args.forbiddenRoutes).toEqual(DEFAULT_FORBIDDEN_ROUTES);
     expect(args.requiredRoutes).toContain("/api/internal/billing-contract-renewals/run");
+    expect(args.requiredRoutes).toContain("/api/internal/credit-expirations/run");
     expect(args.forbiddenRoutes).toContain("/performance");
     expect(args.forbiddenRoutes).toContain("/performance-soon");
     expect(args.forbiddenRoutes).toContain("/onboarding");

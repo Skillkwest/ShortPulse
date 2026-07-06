@@ -6,7 +6,7 @@ const logApiRouteExceptionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const verifyStripeWebhookSignatureMock = vi.fn();
-const insertCreditLedgerEntryMock = vi.fn();
+const grantAccountCreditsMock = vi.fn();
 const readVerifiedStripeCustomerForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
@@ -23,7 +23,7 @@ vi.mock("../../lib/server/api/stripe", () => ({
 }));
 
 vi.mock("../../lib/server/api/creditLedger", () => ({
-  insertCreditLedgerEntry: (...args: unknown[]) => insertCreditLedgerEntryMock(...args),
+  grantAccountCredits: (...args: unknown[]) => grantAccountCreditsMock(...args),
 }));
 
 vi.mock("../../lib/server/api/stripeCustomer", () => ({
@@ -236,7 +236,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     vi.useRealTimers();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_WEBHOOK_SECRET = "stripe_webhook_test_secret";
-    insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
+    grantAccountCreditsMock.mockResolvedValue({ error: null });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
     readVerifiedStripeCustomerForUserMock.mockResolvedValue({
       id: "cus_verified",
@@ -295,7 +295,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true, duplicate: true });
     expect(readVerifiedStripeCustomerForUserMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 and skips side effects when event claim fails", async () => {
@@ -315,7 +315,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Webhook processing failed.",
     });
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("applies checkout side effects once after successful event claim", async () => {
@@ -350,13 +350,15 @@ describe("POST /api/billing/stripe/webhook", () => {
       userId: "user_123",
       stripeCustomerId: "cus_123",
     });
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledTimes(1);
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
-        changeCents: 1500,
+        amountCents: 1500,
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_test_1",
+        creditKind: "paid_topup",
+        expiresAt: null,
         metadata: expect.objectContaining({
           credit_package_display_name: "100 credits",
           credit_package_price_cents: 500,
@@ -401,7 +403,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("grants top-up credits when delayed checkout payment later succeeds", async () => {
@@ -435,11 +437,13 @@ describe("POST /api/billing/stripe/webhook", () => {
       userId: "user_123",
       stripeCustomerId: "cus_123",
     });
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_async_1",
+        creditKind: "paid_topup",
+        expiresAt: null,
         metadata: expect.objectContaining({
           credit_package_display_name: "100 credits",
           credit_package_price_cents: 500,
@@ -451,7 +455,7 @@ describe("POST /api/billing/stripe/webhook", () => {
   it("treats duplicate ledger source_ref writes as idempotent success", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
-    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+    grantAccountCreditsMock.mockResolvedValueOnce({
       error: {
         code: "23505",
         message: "duplicate key value violates unique constraint ux_ai_credit_ledger_source_ref",
@@ -489,7 +493,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         onEventClaimDelete: (eventId) => releasedEventIds.push(eventId),
       })
     );
-    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+    grantAccountCreditsMock.mockResolvedValueOnce({
       error: {
         code: "57014",
         message: "statement timeout",
@@ -538,7 +542,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         eventClaimDeleteThrows: new Error("network dropped during claim release"),
       })
     );
-    insertCreditLedgerEntryMock.mockResolvedValueOnce({
+    grantAccountCreditsMock.mockResolvedValueOnce({
       error: {
         code: "57014",
         message: "statement timeout",
@@ -618,7 +622,7 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("grants monthly subscription credits only for subscription-cycle invoices", async () => {
@@ -659,12 +663,14 @@ describe("POST /api/billing/stripe/webhook", () => {
       userId: "user_123",
       stripeCustomerId: "cus_123",
     });
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
-        changeCents: 3000,
+        amountCents: 3000,
         source: "subscription_renewal",
         sourceRef: "invoice:in_cycle_1:monthly_allocation",
+        creditKind: "subscription_allocation",
+        expiresAt: expect.any(String),
         metadata: expect.objectContaining({
           billing_reason: "subscription_cycle",
           plan_id: "studio",
@@ -705,7 +711,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("fails closed on monthly credit grants when a paid profile has no current contract", async () => {
@@ -736,7 +742,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("fails closed on subscription-cycle credits when the Stripe customer does not belong to the resolved local user", async () => {
@@ -777,7 +783,7 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
   it("grants first-cycle subscription credits from invoice lines before the contract exists", async () => {
@@ -835,12 +841,14 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
-        changeCents: 350,
+        amountCents: 350,
         source: "subscription_renewal",
         sourceRef: "invoice:in_create_1:monthly_allocation",
+        creditKind: "subscription_allocation",
+        expiresAt: expect.any(String),
         metadata: expect.objectContaining({
           billing_reason: "subscription_create",
           plan_id: "starter",

@@ -54,6 +54,28 @@ Non-negotiable fail conditions triggered:
 - Apply the persona-fidelity cap rules from `self-score-ledger.md` before choosing final scores.
 - Add one row to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md` after completing this audit.
 
+## Report Intelligence Check
+
+Persona report:
+
+- Customer journey snapshot included: `<yes / no>`
+- Product decision signal included: `<yes / no>`
+- Customer service simulation included: `<yes / no>`
+- What Maya would do next included: `<yes / no>`
+- Issue tags included when useful: `<yes / no / not needed>`
+
+Engineering handoff:
+
+- Decision impact included: `<yes / no>`
+- Agent fix packet included for primary issue: `<yes / no / not needed>`
+- Acceptance criteria included: `<yes / no / not needed>`
+- Validation steps included: `<yes / no / not needed>`
+- Protected behavior included: `<yes / no / not needed>`
+- Repeat findings linked to prior reports: `<yes / no / not repeated>`
+- Validation boundary stated: `<yes / no>`
+
+If any required item is `no`, Report usefulness cannot score above `7` unless the report explains why the section did not apply.
+
 ## What I Did Well
 
 -

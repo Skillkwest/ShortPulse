@@ -8,6 +8,10 @@ import {
   hasProjectRecoverableRuntimeIdentity,
   isProjectGeneratedWorkspaceOutput,
 } from "../ai-studio-session/projectWorkspaceSnapshot";
+import {
+  isLightweightProjectWorkspaceCheckpointSnapshot,
+  readProjectOutputDisplayChecksum,
+} from "../ai-studio-session/projectWorkspaceCheckpoint";
 import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import {
   extractTrustedSupabaseSignedMediaStoragePath,
@@ -260,9 +264,6 @@ const maybeLogProjectWorkspaceReferenceGridCapNormalization = ({
   }).catch(() => undefined);
 };
 
-const readProjectOutputDisplayChecksum = (snapshot: Record<string, unknown>): string | null =>
-  normalizeOptionalString(asRecord(snapshot.meta).outputDisplayChecksum);
-
 const sanitizeProjectWorkspaceSnapshot = (
   snapshot: Record<string, unknown>,
   options: {
@@ -279,6 +280,23 @@ const sanitizeProjectWorkspaceSnapshot = (
     },
     options
   ) as unknown as Record<string, unknown>;
+
+const preserveProjectOutputDisplayChecksum = ({
+  snapshot,
+  outputDisplayChecksum,
+}: {
+  snapshot: Record<string, unknown>;
+  outputDisplayChecksum: string | null;
+}): Record<string, unknown> => {
+  if (!outputDisplayChecksum) return snapshot;
+  return {
+    ...snapshot,
+    meta: {
+      ...asRecord(snapshot.meta),
+      outputDisplayChecksum,
+    },
+  };
+};
 
 const normalizeOwnedCanvasStoragePath = ({
   value,
@@ -1221,13 +1239,18 @@ export const upsertProjectWorkspaceStateForUser = async ({
     userId,
     snapshot: parsedSnapshot,
   });
-  const displayAuthoritySnapshot = sanitizeProjectWorkspaceSnapshot(
-    canvasStorageAuthoritySnapshot,
-    {
+  const incomingLightweightDisplayChecksum = isLightweightProjectWorkspaceCheckpointSnapshot(
+    canvasStorageAuthoritySnapshot
+  )
+    ? readProjectOutputDisplayChecksum(canvasStorageAuthoritySnapshot)
+    : null;
+  const displayAuthoritySnapshot = preserveProjectOutputDisplayChecksum({
+    snapshot: sanitizeProjectWorkspaceSnapshot(canvasStorageAuthoritySnapshot, {
       trimGeneratedOutputText: false,
       trimOutputTextSummaries: false,
-    }
-  );
+    }),
+    outputDisplayChecksum: incomingLightweightDisplayChecksum,
+  });
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(canvasStorageAuthoritySnapshot);
   maybeLogProjectWorkspaceReferenceGridCapNormalization({
     userId,
@@ -1320,13 +1343,13 @@ export const upsertProjectWorkspaceStateForUser = async ({
     userId,
     snapshot: displayAuthoritySnapshot,
   });
-  const preparedDisplayAuthoritySnapshot = sanitizeProjectWorkspaceSnapshot(
-    preparedSnapshot.snapshot,
-    {
+  const preparedDisplayAuthoritySnapshot = preserveProjectOutputDisplayChecksum({
+    snapshot: sanitizeProjectWorkspaceSnapshot(preparedSnapshot.snapshot, {
       trimGeneratedOutputText: false,
       trimOutputTextSummaries: false,
-    }
-  );
+    }),
+    outputDisplayChecksum: incomingLightweightDisplayChecksum,
+  });
 
   const existingCheckpointRevision = existingRow?.checkpoint_revision ?? 0;
   const nextCheckpointRevision = existingCheckpointRevision + 1;
@@ -1357,6 +1380,10 @@ export const upsertProjectWorkspaceStateForUser = async ({
     );
   const outputDisplayChanged =
     !existingRow || existingOutputDisplayChecksum !== incomingOutputDisplayChecksum;
+  const receivedLightweightDisplayCheckpoint =
+    isLightweightProjectWorkspaceCheckpointSnapshot(preparedDisplayAuthoritySnapshot) &&
+    readProjectOutputDisplayChecksum(preparedDisplayAuthoritySnapshot) !== null;
+  const shouldPreserveExistingOutputDisplayRows = receivedLightweightDisplayCheckpoint;
   const hasOwnedProjectAssetAssociationAuthority =
     preparedSnapshot.ownedMediaFileIds.length > 0 ||
     preparedSnapshot.ownedPromptIds.length > 0 ||
@@ -1532,7 +1559,17 @@ export const upsertProjectWorkspaceStateForUser = async ({
     ReturnType<typeof syncProjectOutputDisplayItemsForSnapshot>
   > | null = null;
   try {
-    if (!checkpointStructureChanged && !outputDisplayChanged) {
+    if (
+      (!checkpointStructureChanged && !outputDisplayChanged) ||
+      shouldPreserveExistingOutputDisplayRows
+    ) {
+      if (receivedLightweightDisplayCheckpoint && outputDisplayChanged) {
+        addRepairPending({
+          stage: "project_output_display_sync",
+          message:
+            "Project workspace received a lightweight checkpoint without rich output display payload; existing display records were preserved.",
+        });
+      }
       displaySyncResult = {
         outputCount: 0,
         upsertedCount: 0,

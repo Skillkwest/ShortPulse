@@ -37,6 +37,19 @@ describe("loadAdminHealthSnapshot", () => {
     });
 
     getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            spendable_cents: 500,
+            reserved_cents: 0,
+            expiring_cents: 500,
+            non_expiring_cents: 0,
+            next_expiring_cents: 500,
+            next_expires_at: "2026-05-16T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      }),
       from: (table: string) => {
         if (table === "ai_credit_balance") {
           return buildQuery({
@@ -152,5 +165,86 @@ describe("loadAdminHealthSnapshot", () => {
       expect.arrayContaining([expect.objectContaining({ code: "HEALTHY_BASELINE" })])
     );
     expect(result.compatibility.warnings).toEqual([]);
+  });
+
+  it("uses credit grant summary spendability when grant lots are available", async () => {
+    const baseClient = getSupabaseAdminMock();
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          spendable_cents: 300,
+          reserved_cents: 50,
+          expiring_cents: 300,
+          non_expiring_cents: 0,
+          next_expiring_cents: 300,
+          next_expires_at: "2026-05-16T12:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      ...baseClient,
+      rpc,
+      from: (table: string) => {
+        if (table === "ai_credit_reservations") {
+          return buildQuery({
+            data: [
+              {
+                id: "reservation-1",
+                status: "reserved",
+                source_ref: "source-ref-1",
+                provider_request_id: null,
+                model_id: "model-1",
+                amount_cents: 400,
+                metadata: null,
+                created_at: "2026-03-17T11:00:00.000Z",
+                released_at: null,
+                captured_at: null,
+              },
+            ],
+            error: null,
+          });
+        }
+        return baseClient.from(table);
+      },
+    });
+
+    const result = await loadAdminHealthSnapshot({
+      lookup: "user@example.com",
+      lookupMode: "email",
+      lookbackDays: 30,
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.credits).toEqual(
+      expect.objectContaining({
+        availableCents: 500,
+        reservedCents: 50,
+        spendableCents: 300,
+      })
+    );
+    expect(rpc).toHaveBeenCalledWith("get_credit_grant_summary", {
+      p_user_id: "user-1",
+    });
+  });
+
+  it("fails closed when the grant summary RPC returns no row for the requested user", async () => {
+    const baseClient = getSupabaseAdminMock();
+    getSupabaseAdminMock.mockReturnValue({
+      ...baseClient,
+      rpc: vi.fn().mockResolvedValue({
+        data: [],
+        error: null,
+      }),
+    });
+
+    await expect(
+      loadAdminHealthSnapshot({
+        lookup: "user@example.com",
+        lookupMode: "email",
+        lookbackDays: 30,
+        nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+      })
+    ).rejects.toThrow("Credit grant summary missing for requested user.");
   });
 });

@@ -11,6 +11,7 @@ const INTERNAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "internal")
 const EXPECTED_INTERNAL_ROUTE_FILES = [
   "admin-user-health-fleet/run.ts",
   "billing-contract-renewals/run.ts",
+  "credit-expirations/run.ts",
   "generation-recovery/run.ts",
   "media-storage-lifecycle/run.ts",
   "media-derivatives/run.ts",

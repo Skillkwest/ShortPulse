@@ -289,51 +289,55 @@ export function SharedMediaDetailPreviewModal({
         stageClassName={stageClassName}
         stage={
           <>
-            <SharedMediaDetailPreviewMedia
-              mediaUrl={activePreviewUrl}
-              mediaKind={previewMediaKind}
-              altText={title}
-              isLoading={isLoading}
-              loadingMessage={loadingMessage}
-              unavailableMessage={mediaUnavailableMessage}
-              placeholderClassName={placeholderClassName}
-              imageClassName={imageClassName}
-              videoClassName={videoClassName}
-              audioClassName={audioClassName}
-              imageStyle={mediaAspectStyle}
-              videoStyle={mediaAspectStyle}
-              audioId={item.media.id}
-              audioSourceMode={item.media.audioSourceMode ?? null}
-              audioMusicMode={item.media.musicMode ?? null}
-              audioLyricsText={item.media.lyricsText ?? null}
-              audioDurationMs={item.media.durationMs ?? null}
-              audioWaveformPeaks={item.media.waveformPeaks ?? null}
-              audioBackgroundImageUrl={item.media.companionArtUrl ?? null}
-              videoPosterUrl={item.media.previewPosterUrl ?? null}
-              videoRef={videoRef}
-              audioRef={audioRef}
-              deferImagePromotion={false}
-              onImageError={handlePreviewError}
-              onVideoPlay={videoPlayback.handlePlay}
-              onVideoPause={videoPlayback.handlePause}
-              onVideoEnded={videoPlayback.handleEnded}
-              onVideoError={handleVideoPreviewError}
-              onVideoVolumeChange={videoPlayback.handleVolumeChange}
-              onAudioPlay={audioPlayback.handlePlay}
-              onAudioRequestPlayback={audioPlayback.requestPlayback}
-              onAudioPause={audioPlayback.handlePause}
-              onAudioEnded={audioPlayback.handleEnded}
-              onAudioError={handleAudioPreviewError}
-              onAudioVolumeChange={audioPlayback.handleVolumeChange}
-            />
             {shouldRenderSnapshotControl ? (
-              <SharedMediaDetailVideoSnapshotControl
-                videoRef={videoRef}
-                filenameHint={item.media.filename ?? title}
-                onSnapshotVideoFrame={onSnapshotVideoFrame}
-                onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-              />
+              <div className="art-stage-toolbar" aria-label="Video frame actions">
+                <SharedMediaDetailVideoSnapshotControl
+                  videoRef={videoRef}
+                  filenameHint={item.media.filename ?? title}
+                  onSnapshotVideoFrame={onSnapshotVideoFrame}
+                  onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+                />
+              </div>
             ) : null}
+            <div className="art-stage-media-frame">
+              <SharedMediaDetailPreviewMedia
+                mediaUrl={activePreviewUrl}
+                mediaKind={previewMediaKind}
+                altText={title}
+                isLoading={isLoading}
+                loadingMessage={loadingMessage}
+                unavailableMessage={mediaUnavailableMessage}
+                placeholderClassName={placeholderClassName}
+                imageClassName={imageClassName}
+                videoClassName={videoClassName}
+                audioClassName={audioClassName}
+                imageStyle={mediaAspectStyle}
+                videoStyle={mediaAspectStyle}
+                audioId={item.media.id}
+                audioSourceMode={item.media.audioSourceMode ?? null}
+                audioMusicMode={item.media.musicMode ?? null}
+                audioLyricsText={item.media.lyricsText ?? null}
+                audioDurationMs={item.media.durationMs ?? null}
+                audioWaveformPeaks={item.media.waveformPeaks ?? null}
+                audioBackgroundImageUrl={item.media.companionArtUrl ?? null}
+                videoPosterUrl={item.media.previewPosterUrl ?? null}
+                videoRef={videoRef}
+                audioRef={audioRef}
+                deferImagePromotion={false}
+                onImageError={handlePreviewError}
+                onVideoPlay={videoPlayback.handlePlay}
+                onVideoPause={videoPlayback.handlePause}
+                onVideoEnded={videoPlayback.handleEnded}
+                onVideoError={handleVideoPreviewError}
+                onVideoVolumeChange={videoPlayback.handleVolumeChange}
+                onAudioPlay={audioPlayback.handlePlay}
+                onAudioRequestPlayback={audioPlayback.requestPlayback}
+                onAudioPause={audioPlayback.handlePause}
+                onAudioEnded={audioPlayback.handleEnded}
+                onAudioError={handleAudioPreviewError}
+                onAudioVolumeChange={audioPlayback.handleVolumeChange}
+              />
+            </div>
           </>
         }
         sidePanel={

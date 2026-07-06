@@ -204,6 +204,7 @@ const buildStorageEconomicsState = () => ({
     riskQueue: [
       {
         userId: "user-1",
+        userEmail: "starter@example.com",
         planId: "starter",
         trackedBytes: 10737418240,
         totalLimitBytes: 64424509440,
@@ -264,19 +265,25 @@ describe("Admin storage page", () => {
     expect(screen.getByText("Contract MRR")).toBeInTheDocument();
     const planSection = screen.getByRole("heading", { name: "Storage by plan" }).closest("section");
     expect(planSection).toBeTruthy();
+    expect(within(planSection as HTMLElement).queryByText("P90")).not.toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("Total Limit")).not.toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("Over 80%")).not.toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("Over")).not.toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("Baseline")).not.toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("Growth")).not.toBeInTheDocument();
     expect(within(planSection as HTMLElement).getByText("Starter")).toBeInTheDocument();
     expect(
-      within(planSection as HTMLElement).getByText("ID: starter • active")
-    ).toBeInTheDocument();
+      within(planSection as HTMLElement).queryByText("ID: starter • active")
+    ).not.toBeInTheDocument();
     expect(
       within(planSection as HTMLElement).getByText("Payment exempt testers")
     ).toBeInTheDocument();
     expect(
-      within(planSection as HTMLElement).getByText("ID: payment_exempt • hidden/admin only")
-    ).toBeInTheDocument();
+      within(planSection as HTMLElement).queryByText("ID: payment_exempt • hidden/admin only")
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Starterstarter/)).not.toBeInTheDocument();
     expect(screen.getAllByText("$19")[0]).toBeInTheDocument();
-    expect(screen.getByText("1 Stripe")).toBeInTheDocument();
+    expect(screen.queryByText("1 Stripe")).not.toBeInTheDocument();
     const addOnsSection = screen
       .getByRole("heading", { name: "Recurring storage packages" })
       .closest("section");
@@ -284,11 +291,20 @@ describe("Admin storage page", () => {
     expect(within(addOnsSection as HTMLElement).getByText("Catalog")).toBeInTheDocument();
     expect(within(addOnsSection as HTMLElement).getByText("50 GB")).toBeInTheDocument();
     expect(
-      within(addOnsSection as HTMLElement).getByText("ID: storage_50gb • active")
-    ).toBeInTheDocument();
+      within(addOnsSection as HTMLElement).queryByText("ID: storage_50gb • active")
+    ).not.toBeInTheDocument();
+    expect(
+      within(addOnsSection as HTMLElement).queryByText("$9 • available")
+    ).not.toBeInTheDocument();
     expect(within(addOnsSection as HTMLElement).queryByText("Cost 2x")).not.toBeInTheDocument();
     expect(within(addOnsSection as HTMLElement).queryByText("Margin 1x")).not.toBeInTheDocument();
     expect(screen.queryByText(/50 GBstorage_50gb/)).not.toBeInTheDocument();
+    const riskSection = screen
+      .getByRole("heading", { name: "Storage risk queue" })
+      .closest("section");
+    expect(riskSection).toBeTruthy();
+    expect(within(riskSection as HTMLElement).getByText("starter@example.com")).toBeInTheDocument();
+    expect(within(riskSection as HTMLElement).queryByText("user-1")).not.toBeInTheDocument();
   });
 
   it("does not render missing Supabase provider evidence as zero usage", () => {

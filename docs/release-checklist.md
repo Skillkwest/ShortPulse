@@ -58,7 +58,8 @@ launch-readiness claims.
 - Verify command output reports `PASS` and includes resolved deployment URL + creation timestamp.
 - Run against each target environment URL (`staging` and `production`) before updating cron/scheduler endpoints or running drain/recovery operations.
 - `node scripts/verify_internal_route_runtime.mjs --base-url https://<target-alias-or-url>`
-- Verify command output reports `PASS` for both unauthenticated `401` posture and authenticated `200` operator runtime on each internal worker route.
+- Verify command output reports `PASS` for unauthenticated `401` posture and for authenticated `200` operator runtime on non-mutating internal worker routes.
+- Mutating billing workers such as `billing_renewals` and `credit_expirations` are skipped by the default authenticated probe. Prove those only with an explicit, mutation-aware route selection such as `--route credit_expirations --allow-mutating-auth`, plus the relevant ledger/RPC side-effect review.
 - Run against each target environment URL (`staging` and `production`) before scheduler/worker signoff or secret-rotation closeout.
 
 ## Documentation (when behavior changes)

@@ -4,6 +4,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { fetchCreditGrantSummaries } from "../../../lib/server/api/creditGrantSummary";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 const DEFAULT_PER_PAGE = 100;
@@ -49,11 +50,6 @@ type BillingSubscriptionContractRow = {
 type CreditBalanceRow = {
   user_id: string;
   balance_cents: number | string | null;
-};
-
-type CreditReservationRow = {
-  user_id: string;
-  amount_cents: number | string | null;
 };
 
 type AuthUser = {
@@ -209,30 +205,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const [balancesResult, contractsResult, profilesResult, reservationsResult] = await Promise.all(
-      [
-        supabaseAdmin
-          .from("ai_credit_balance")
-          .select("user_id, balance_cents")
-          .in("user_id", userIds),
-        supabaseAdmin
-          .from("billing_subscription_contracts")
-          .select(
-            "user_id, plan_id, offer_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, status"
-          )
-          .in("user_id", userIds)
-          .is("ended_at", null),
-        supabaseAdmin
-          .from("billing_profiles")
-          .select("user_id, plan_id, subscription_status")
-          .in("user_id", userIds),
-        supabaseAdmin
-          .from("ai_credit_reservations")
-          .select("user_id, amount_cents")
-          .in("user_id", userIds)
-          .eq("status", "reserved"),
-      ]
-    );
+    const [balancesResult, contractsResult, profilesResult] = await Promise.all([
+      supabaseAdmin
+        .from("ai_credit_balance")
+        .select("user_id, balance_cents")
+        .in("user_id", userIds),
+      supabaseAdmin
+        .from("billing_subscription_contracts")
+        .select(
+          "user_id, plan_id, offer_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, status"
+        )
+        .in("user_id", userIds)
+        .is("ended_at", null),
+      supabaseAdmin
+        .from("billing_profiles")
+        .select("user_id, plan_id, subscription_status")
+        .in("user_id", userIds),
+    ]);
     const contractsCompatibilityError =
       contractsResult.error?.message && isSchemaCompatibilityError(contractsResult.error.message);
     if (
@@ -255,14 +244,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? []
       : ((contractsResult.data ?? []) as BillingSubscriptionContractRow[]);
     const profiles = (profilesResult.data ?? []) as BillingProfileRow[];
-    const reservationError = reservationsResult.error?.message ?? null;
-    const reservationsSupported = !reservationError;
-    if (reservationError && !isSchemaCompatibilityError(reservationError)) {
-      return res.status(500).json({ error: reservationError || "Failed to load reservations." });
+    const grantSummariesResult = await fetchCreditGrantSummaries(userIds);
+    if (grantSummariesResult.error) {
+      return res.status(500).json({
+        error: grantSummariesResult.error.message || "Failed to load credit grant summaries.",
+      });
     }
-    const reservations = reservationError
-      ? []
-      : ((reservationsResult.data ?? []) as CreditReservationRow[]);
 
     const balanceByUser = new Map<string, number>(
       balances.map((row) => [row.user_id, Number(row.balance_cents ?? 0)])
@@ -273,18 +260,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const profileByUser = new Map<string, BillingProfileRow>(
       profiles.map((row) => [row.user_id, row])
     );
-    const reservedByUser = new Map<string, number>();
-    for (const row of reservations) {
-      const existing = reservedByUser.get(row.user_id) ?? 0;
-      reservedByUser.set(row.user_id, existing + Math.abs(Number(row.amount_cents ?? 0)));
-    }
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
       const contract = contractByUser.get(user.id);
       const profile = profileByUser.get(user.id);
       const availableCredits = balanceByUser.get(user.id) ?? 0;
-      const reservedCredits = reservedByUser.get(user.id) ?? 0;
-      const spendableCredits = Math.max(0, availableCredits - reservedCredits);
+      const grantSummary = grantSummariesResult.summariesByUserId.get(user.id);
+      if (!grantSummary) {
+        throw new Error(`Credit grant summary missing for admin user ${user.id}.`);
+      }
+      const reservedCredits = grantSummary.reservedCents;
+      const spendableCredits = grantSummary.spendableCents;
       return {
         id: user.id,
         email: user.email ?? null,
@@ -326,7 +312,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         value: search || null,
         limited: searchLimited,
       },
-      reservationsSupported,
+      reservationsSupported: true,
     });
   } catch (error) {
     await logApiRouteException({

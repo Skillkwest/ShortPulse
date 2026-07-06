@@ -33,6 +33,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 - `docs/planning/ai-studio-generation-admission-rollout-plan.md`
+- `docs/planning/credit-grant-lot-expiration-buildout-plan-2026-07-06.md`
 - `docs/planning/kie-gpt-image-2-image-to-image-implementation-plan-2026-06-04.md`
 - `docs/planning/plan-based-per-user-concurrency-execution-plan-2026-06-04.md`
 - `docs/planning/billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`

@@ -27,12 +27,21 @@ import {
   AiStudioPickerSection,
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
+import { SharedMediaDetailPreviewModal } from "../../ai-studio/components/detail-modal/SharedMediaDetailPreviewModal";
+import { resolveSharedMediaDetailMediaActionItems } from "../../ai-studio/components/detail-modal/sharedMediaDetailActions";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
+import {
+  createSlotReferenceDetailModalItem,
+  downloadSlotReferenceDetailItem,
+  type SlotReferenceDetailModalItem,
+} from "../../ai-studio/logic/slotReferenceDetailModal";
+import { refreshSupabaseSignedUrlIfNeeded } from "../../ai-studio/utils/imageUpload";
 import { hasDroppedImageReferenceTransfer } from "../../character-manager/logic/characterDropPayload";
+import { parseInternalMediaRefFromSupabaseSignedUrl } from "../../../lib/media/internalMediaRefs";
 import { buildElementProfileImageBackgroundStyle } from "../logic/elementProfileImageTransform";
 import { swapElementImageReferenceSlots } from "../logic/elementReferenceSlots";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
@@ -143,6 +152,9 @@ export function ElementsManagerShell({
     null
   );
   const [focusedReferenceCardIndex, setFocusedReferenceCardIndex] = React.useState<number | null>(
+    null
+  );
+  const [slotDetailItem, setSlotDetailItem] = React.useState<SlotReferenceDetailModalItem | null>(
     null
   );
   const [referenceSlotTargetRevision, setReferenceSlotTargetRevision] = React.useState(0);
@@ -728,6 +740,48 @@ export function ElementsManagerShell({
     ]
   );
 
+  const openImageReferenceSlotDetail = React.useCallback(
+    async (slotLabel: string, slotIndex: number) => {
+      if (draft.assetType !== "image" || isReferenceSlotPending(slotIndex)) return;
+      const slotValue = draft.imageReferenceUrls[slotIndex]?.trim() ?? "";
+      if (!slotValue) return;
+      const internalRef = parseInternalMediaRefFromSupabaseSignedUrl(slotValue);
+      let resolvedUrl = slotValue;
+      try {
+        resolvedUrl = await refreshSupabaseSignedUrlIfNeeded(slotValue);
+      } catch {
+        resolvedUrl = slotValue;
+      }
+      const nextItem = createSlotReferenceDetailModalItem({
+        surface: "elements-media-panel",
+        slotId: `element-reference:${slotIndex}`,
+        title: `${slotLabel} reference`,
+        url: resolvedUrl,
+        previewUrl: resolvedUrl,
+        fullUrl: resolvedUrl,
+        previewStoragePath: internalRef?.storagePath ?? null,
+        fullStoragePath: internalRef?.storagePath ?? null,
+      });
+      if (nextItem) {
+        setSlotDetailItem(nextItem);
+      }
+    },
+    [draft.assetType, draft.imageReferenceUrls, isReferenceSlotPending]
+  );
+
+  const slotDetailActionItems = React.useMemo(
+    () =>
+      resolveSharedMediaDetailMediaActionItems({
+        canDownload: Boolean(slotDetailItem),
+        onDownload: slotDetailItem
+          ? () => {
+              void downloadSlotReferenceDetailItem(slotDetailItem);
+            }
+          : null,
+      }),
+    [slotDetailItem]
+  );
+
   const handleReferenceSlotDragEnd = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     const dragNode = event.currentTarget as HTMLElement;
     dragNode.classList.remove("is-dragging");
@@ -1074,6 +1128,9 @@ export function ElementsManagerShell({
                                 }
                                 onDragStart={handleReferenceSlotDragStart(index)}
                                 onDragEnd={handleReferenceSlotDragEnd}
+                                onDoubleClick={() => {
+                                  void openImageReferenceSlotDetail(slotLabel, index);
+                                }}
                                 onMouseEnter={() => setHoveredReferenceCardIndex(index)}
                                 onMouseLeave={() =>
                                   setHoveredReferenceCardIndex((current) =>
@@ -1126,6 +1183,10 @@ export function ElementsManagerShell({
                                           return;
                                         }
                                         clearActiveImageReferenceAtIndex(index);
+                                      }}
+                                      onDoubleClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
                                       }}
                                     >
                                       <Trash size={12} weight="bold" />
@@ -1358,6 +1419,19 @@ export function ElementsManagerShell({
           />
         </AiStudioModalLayer>
       ) : null}
+      <SharedMediaDetailPreviewModal
+        item={slotDetailItem}
+        isLoading={false}
+        error={null}
+        onClose={() => setSlotDetailItem(null)}
+        topBarActionItems={slotDetailActionItems}
+        modalActivityId="elements-slot-reference-detail-modal"
+        backdropClassName="reference-modal-backdrop media-library-panel-preview-backdrop"
+        closeLabel="Close element reference detail"
+        stageClassName="art-image-vessel media-library-panel-preview-body"
+        placeholderClassName="art-text-placeholder media-library-panel-preview-placeholder"
+        imageClassName="art-hero-image media-library-panel-preview-media"
+      />
     </div>
   );
 }

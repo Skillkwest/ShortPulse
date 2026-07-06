@@ -116,7 +116,7 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
       setUiNotice("Credit top-up was canceled.");
     } else {
       setUiNotice("Payment received. Refreshing credits...");
-      void refreshBalance({ preferLedger: true }).then((balance) => {
+      void refreshBalance({ silent: true }).then((balance) => {
         setUiNotice(
           typeof balance === "number"
             ? "Credits refreshed. You can continue generating."

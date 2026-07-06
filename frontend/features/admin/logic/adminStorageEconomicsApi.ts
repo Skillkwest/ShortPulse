@@ -357,6 +357,7 @@ const normalizeRiskRows = (value: unknown): AdminStorageEconomicsRiskRow[] => {
       : [];
     return {
       userId: toText(row.userId, "unknown"),
+      userEmail: toTextOrNull(row.userEmail),
       planId: toText(row.planId, "unknown"),
       trackedBytes: toCount(row.trackedBytes),
       totalLimitBytes: toCount(row.totalLimitBytes),

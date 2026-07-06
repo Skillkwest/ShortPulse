@@ -653,6 +653,7 @@ const buildRiskQueue = (accounts: AccountStorageState[]): AdminStorageEconomicsR
 
       return {
         userId: account.userId,
+        userEmail: null,
         planId: account.planId,
         trackedBytes: account.trackedBytes,
         totalLimitBytes: limitBytes,
@@ -801,6 +802,26 @@ const buildDataGaps = (
   return gaps;
 };
 
+const loadRiskQueueUserEmails = async (
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  userIds: string[]
+): Promise<Map<string, string>> => {
+  const uniqueUserIds = [...new Set(userIds.filter((userId) => userId.trim().length > 0))];
+  const entries = await Promise.all(
+    uniqueUserIds.map(async (userId) => {
+      try {
+        const userResult = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (userResult.error) return null;
+        const email = userResult.data.user?.email?.trim();
+        return email ? ([userId, email] as const) : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry)));
+};
+
 const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   const supabaseAdmin = getSupabaseAdmin();
   const [
@@ -918,6 +939,11 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     usageByUser,
   });
   const funnel = buildFunnel(telemetryEvents);
+  const riskQueue = buildRiskQueue(accounts);
+  const riskQueueUserEmails = await loadRiskQueueUserEmails(
+    supabaseAdmin,
+    riskQueue.map((row) => row.userId)
+  );
 
   return {
     assumptions: ASSUMPTIONS,
@@ -926,7 +952,10 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     byPlan: buildPlanRows(accounts, plans, planOffers),
     addonPackages,
     funnel,
-    riskQueue: buildRiskQueue(accounts),
+    riskQueue: riskQueue.map((row) => ({
+      ...row,
+      userEmail: riskQueueUserEmails.get(row.userId) ?? null,
+    })),
     dataGaps: buildDataGaps(funnel, providerUsage),
     health: {
       degraded: false,

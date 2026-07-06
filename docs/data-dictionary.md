@@ -1132,6 +1132,41 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: users can read own entries; users can only insert negative entries for themselves; positive credits require privileged context.
 - Trigger guards: disallow zero deltas, prevent balance underflow, keep `ai_credit_balance` synchronized.
 
+### ai_credit_grants
+
+- `id` (uuid, pk): One positive credit grant lot.
+- `user_id` (uuid, fk -> `auth.users.id`): Grant owner.
+- `ledger_id` (uuid, nullable fk -> `ai_credit_ledger.id`): Positive ledger row that created this grant when available.
+- `credit_kind` (text): `subscription_allocation` | `paid_topup` | `admin_adjustment` | `legacy_balance`.
+- `granted_cents` (int): Original positive grant amount.
+- `remaining_cents` (int): Unreserved, spendable remainder.
+- `reserved_cents` (int): Amount currently held by active generation reservations.
+- `reason` (text): Human-readable grant reason.
+- `source` / `source_ref` (text): Grant source and idempotency reference.
+- `expires_at` (timestamptz, nullable): Required 60-day expiration for subscription/monthly allocations; `null` for paid top-ups, admin adjustments, and legacy backfill lots.
+- `expired_at` (timestamptz, nullable): Timestamp when the lot has no remaining/reserved value after expiration processing.
+- `metadata` (jsonb): Source-specific audit context.
+- `created_by` (uuid, nullable): Actor ID where available.
+- `created_at` / `updated_at` (timestamptz)
+- Constraints/indexes: `remaining_cents + reserved_cents <= granted_cents`; `subscription_allocation` lots require `expires_at = created_at + interval '60 days'`, while `paid_topup`, `admin_adjustment`, and `legacy_balance` lots require `expires_at = null`; unique `ledger_id` when present; unique `user_id + source + source_ref` when `source_ref` is present; spend-order indexes prefer soonest non-expired `expires_at`.
+- RLS: users can read own grant lots; writes are service-role-only through grant/debit/reservation/expiration RPCs.
+- Provisioned by: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
+
+### ai_credit_grant_allocations
+
+- `id` (uuid, pk): Audit row for one grant-lot allocation.
+- `user_id` (uuid, fk -> `auth.users.id`): Allocation owner.
+- `grant_id` (uuid, fk -> `ai_credit_grants.id`): Grant lot used by the allocation.
+- `reservation_id` (uuid, nullable fk -> `ai_credit_reservations.id`): Reservation associated with reserved/captured/released allocations.
+- `ledger_id` (uuid, nullable fk -> `ai_credit_ledger.id`): Ledger row associated with captured, debited, or expired allocations.
+- `amount_cents` (int): Positive allocated amount.
+- `allocation_status` (text): `reserved` | `captured` | `released` | `debited` | `expired`.
+- `allocation_source` (text): Source path that created the allocation.
+- `metadata` (jsonb): Allocation audit context.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: service-role-only. Customer-facing summaries must come through trusted API routes/RPCs, not direct allocation reads.
+- Provisioned by: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
+
 ### ai_credit_reservations
 
 - `id` (uuid, pk): Reservation row.
@@ -1156,8 +1191,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### Reservation lifecycle RPCs
 
-- `reserve_generation_credits(...)`: creates or idempotently confirms a reservation if funds are available.
-- `admit_and_reserve_generation_credits(...)`: flagged atomic admission+reservation path that can return `admission_limited` with snapshot counters before insert.
+- `reserve_generation_credits(...)`: retired pre-grant-lot aggregate reservation RPC; after migration `200`, it must not remain executable.
+- `admit_and_reserve_generation_credits(...)`: canonical atomic admission+reservation path that can return `admission_limited` with snapshot counters before insert and must allocate holds against grant lots.
 - `mark_generation_reservation_submitted(...)`: attaches provider request id to a reserved row.
 - `capture_generation_reservation_by_provider_request(...)`: writes ledger debit + marks reservation captured.
 - `release_generation_reservation_by_source_ref(...)`: releases reservation by source reference.
@@ -1297,8 +1332,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `build_id` / `client_release` / `client_environment` (text, nullable): Build/runtime identifiers sent by the authenticated client when available.
 - `user_agent` / `host` / `vercel_id` (text, nullable): Trusted server request metadata captured at ingest.
 - `metadata` (jsonb): Allowlisted browser/session evidence only, including connection, memory pressure, lifecycle, stall, and Reporting API crash-report keys. Do not store prompts, DOM text, signed URLs, raw storage paths, provider payloads, or arbitrary browser data here.
-- `review_status` (text): Operator triage state: `open` | `resolved` | `ignored`. This clears rows from the active admin review queue without deleting evidence or changing the crash evidence `status`.
-- `reviewed_at` / `reviewed_by` / `reviewed_by_email` / `review_note`: Optional admin review audit fields for the last crash-session review state change.
+- `review_status` (text): Operator triage state: `open` | `resolved` | `ignored`. Product UI presents `resolved` as Reviewed; reviewed or ignored rows leave the active admin review queue without deleting evidence or changing the crash evidence `status`.
+- `reviewed_at` / `reviewed_by` / `reviewed_by_email` / `review_note`: Optional admin review audit fields for the last crash-session review state change and historical operator context.
 - `started_at` / `last_seen_at` / `ended_at` / `suspected_at` (timestamptz): Session timeline. Hard browser exits are inferred from stale `last_seen_at` and `previous_session_abandoned` reports on the next authenticated page load because the browser may not send a final event.
 - `created_at` / `updated_at`
 - RLS: enabled with no client policies by default; table access is service-role-only.

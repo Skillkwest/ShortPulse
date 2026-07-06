@@ -892,6 +892,7 @@ describe("DetailModal", () => {
 
     const snapshotButton = screen.getByRole("button", { name: "Frame-shot" });
     expect(snapshotButton.closest(".art-stage-snapshot-control")).not.toBeNull();
+    expect(snapshotButton.closest(".art-stage-toolbar")).not.toBeNull();
     expect(snapshotButton.closest(".art-modal-action-row")).toBeNull();
     await act(async () => {
       fireEvent.click(snapshotButton);
@@ -899,6 +900,7 @@ describe("DetailModal", () => {
 
     const video = baseElement.querySelector("video.art-hero-image") as HTMLVideoElement | null;
     expect(video).not.toBeNull();
+    expect(video?.closest(".art-stage-media-frame")).not.toBeNull();
     expect(onSnapshotVideoFrame).toHaveBeenCalledWith(video, baseOutput.prompt);
     expect(await screen.findByText("Frame saved.")).toBeInTheDocument();
 

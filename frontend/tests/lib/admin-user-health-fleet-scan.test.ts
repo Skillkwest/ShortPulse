@@ -27,6 +27,27 @@ const baseFlags = {
   warningCostWithoutSuccessThresholdCents: 2000,
 };
 
+const createGrantSummaryRpcMock = (spendableByUser: Record<string, number> = {}) =>
+  vi.fn(async (functionName: string, params?: { p_user_id?: string }) => {
+    if (functionName === "get_credit_grant_summary") {
+      const spendableCents = spendableByUser[params?.p_user_id ?? ""] ?? 100;
+      return {
+        data: [
+          {
+            spendable_cents: spendableCents,
+            reserved_cents: 0,
+            expiring_cents: spendableCents,
+            non_expiring_cents: 0,
+            next_expiring_cents: spendableCents,
+            next_expires_at: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      };
+    }
+    return { data: null, error: null };
+  });
+
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
@@ -111,7 +132,7 @@ describe("runAdminUserHealthFleetScan", () => {
       },
     ]);
 
-    const rpcMock = vi.fn(async () => ({ error: null }));
+    const rpcMock = createGrantSummaryRpcMock();
     const buildQuery = (table: string) => {
       const filters = new Map<string, unknown[]>();
       const chain: Record<string, unknown> = {};
@@ -199,7 +220,7 @@ describe("runAdminUserHealthFleetScan", () => {
       },
     ]);
 
-    const rpcMock = vi.fn(async () => ({ error: null }));
+    const rpcMock = createGrantSummaryRpcMock();
     const buildQuery = (table: string) => {
       const chain: Record<string, unknown> = {};
       chain.select = vi.fn(() => chain);
@@ -261,6 +282,130 @@ describe("runAdminUserHealthFleetScan", () => {
     );
   });
 
+  it("uses credit grant summary spendability for fleet snapshots", async () => {
+    loadFleetTargetUsersMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "user@example.com",
+      },
+    ]);
+
+    const rpcMock = createGrantSummaryRpcMock({
+      "user-1": 25,
+    });
+    rpcMock.mockImplementation(async (functionName: string) => {
+      if (functionName === "get_credit_grant_summary") {
+        return {
+          data: [
+            {
+              spendable_cents: 25,
+              reserved_cents: 10,
+              expiring_cents: 25,
+              non_expiring_cents: 0,
+              next_expiring_cents: 25,
+              next_expires_at: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
+    const buildQuery = (table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.in = vi.fn(() => chain);
+      chain.gte = vi.fn(() => chain);
+      chain.lte = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.then = (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) => {
+        let data: unknown[] = [];
+        if (table === "ai_credit_balance") {
+          data = [{ user_id: "user-1", balance_cents: 100 }];
+        } else if (table === "ai_credit_reservations") {
+          data = [
+            {
+              user_id: "user-1",
+              status: "reserved",
+              source_ref: "source-ref-1",
+              provider_request_id: null,
+              amount_cents: 90,
+              created_at: "2026-06-03T10:00:00.000Z",
+            },
+          ];
+        } else if (table === "ai_credit_ledger") {
+          data = [];
+        }
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
+      };
+      return chain;
+    };
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => buildQuery(table),
+      rpc: rpcMock,
+    });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("completed");
+    const persistedDrafts = persistFleetSnapshotBatchMock.mock.calls[0]?.[0]?.drafts ?? [];
+    expect(persistedDrafts[0]).toEqual(
+      expect.objectContaining({
+        spendableCents: 25,
+        reservedCents: 10,
+      })
+    );
+    expect(rpcMock).toHaveBeenCalledWith("get_credit_grant_summary", {
+      p_user_id: "user-1",
+    });
+  });
+
+  it("fails the target chunk when a fleet user's grant summary is missing", async () => {
+    loadFleetTargetUsersMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "user@example.com",
+      },
+    ]);
+
+    const rpcMock = vi.fn(async (functionName: string) => {
+      if (functionName === "get_credit_grant_summary") {
+        return { data: [], error: null };
+      }
+      if (functionName === "prune_admin_user_health_history") {
+        return { error: null };
+      }
+      return { data: null, error: null };
+    });
+    const buildQuery = () => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.in = vi.fn(() => chain);
+      chain.gte = vi.fn(() => chain);
+      chain.lte = vi.fn(() => chain);
+      chain.lt = vi.fn(() => chain);
+      chain.order = vi.fn(() => chain);
+      chain.then = (resolve: (value: unknown) => void, reject?: (reason?: unknown) => void) =>
+        Promise.resolve({ data: [], error: null }).then(resolve, reject);
+      return chain;
+    };
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => buildQuery(),
+      rpc: rpcMock,
+    });
+
+    const result = await runAdminUserHealthFleetScan({
+      triggerSource: "scheduled",
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.errors).toEqual(["Credit grant summary missing for fleet user user-1."]);
+    expect(persistFleetSnapshotBatchMock).not.toHaveBeenCalled();
+  });
+
   it("keeps fleet projection lineage scoped to the owning user", async () => {
     loadFleetTargetUsersMock.mockResolvedValue([
       {
@@ -273,7 +418,10 @@ describe("runAdminUserHealthFleetScan", () => {
       },
     ]);
 
-    const rpcMock = vi.fn(async () => ({ error: null }));
+    const rpcMock = createGrantSummaryRpcMock({
+      "user-1": 100,
+      "user-2": 100,
+    });
     const buildQuery = (table: string) => {
       const filters = new Map<string, unknown[]>();
       const chain: Record<string, unknown> = {};

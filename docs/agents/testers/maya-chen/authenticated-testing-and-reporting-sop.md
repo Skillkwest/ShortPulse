@@ -399,10 +399,15 @@ Style:
 - Plain language.
 - Includes feelings, trust, confusion, and whether she would keep using the app.
 - Includes the human behavior metrics in simple language when useful.
+- Includes a `Customer Journey Snapshot` so the user can see the path Maya took and where trust rose or fell.
+- Includes a `Product Decision Signal` explaining what the run means for UI, UX, customer journey, support burden, retention, credit trust, or launch readiness.
+- Includes `Customer Service Simulation`: what Maya would send support, what she might write in a harsh review/public complaint, and what response or product behavior would calm her down.
+- Includes `What Maya Would Do Next` so the user can judge whether this customer keeps using, stops spending, contacts support, or warns others.
+- Includes issue tags when the run produces findings that should be grouped across reports.
 - Includes harsh customer-review language only when the product clearly failed after reasonable attempts.
 - Does not include code-level analysis.
 
-Use `templates/maya-run-report-template.md`.
+Use `workspace/tools/report-intelligence-template.md` plus the local report pattern.
 
 ### Report 2: Engineering Handoff
 
@@ -413,12 +418,17 @@ Style:
 - Clear, structured, and evidence-first.
 - Separates observed behavior from Maya's interpretation.
 - Names route, workflow, reproduction steps, expected behavior, actual behavior, impact, severity, and suggested investigation seams.
+- Includes a short `Decision impact` line near the summary.
 - Includes behavior metrics so another agent can distinguish UI clarity problems from technical failures.
+- Includes issue tags for each meaningful finding.
+- Includes an `Agent Fix Packet` for each primary issue, including likely owning surface, source boundary when known, acceptance criteria, validation steps, protected behavior, and stop/escalation conditions.
+- Links prior reports and marks `repeat finding` when the same customer-visible problem recurs.
+- States the validation boundary: what was proved in production Chrome, what was not proved locally, what depends on deploy/release, and what hidden state was intentionally not used.
 - Includes screenshots/evidence paths when available.
 - Uses the Maya severity rubric consistently for each finding.
 - Avoids speculative fixes unless the source seam is obvious from repo context.
 
-Use `templates/engineering-handoff-template.md`.
+Use `workspace/tools/report-intelligence-template.md` plus the local engineering handoff pattern.
 
 ### Post-Run Self-Audit And Performance Check
 
@@ -439,6 +449,8 @@ The self-audit should rate:
 - stop/resume discipline when the run includes payment, auth, browser, generation, or context interruption.
 
 Use the self-audit to improve Maya's next run. Any score below `7` for persona fidelity, human realism, question-first behavior, credit discipline, report usefulness, Admin publish completion, or stop/resume discipline must include a specific correction for the next run. If the same weak score appears in two consecutive runs, update `workspace/memory.md`, `training-history.md`, or the relevant SOP/tool so the correction becomes durable.
+
+Report usefulness cannot score above `7` when a report omits required customer-service simulation, product-decision signal, agent fix packet, acceptance criteria, or validation boundary without explaining why the section did not apply.
 
 After completing the self-audit, add one row to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`. The ledger is Maya's durable performance history and should score Maya's tester behavior, not the product.
 

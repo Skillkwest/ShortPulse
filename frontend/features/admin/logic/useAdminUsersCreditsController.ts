@@ -17,6 +17,13 @@ export const ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT = 20;
 export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [100, 500, 1000, -100, -500, -1000] as const;
 const SEARCH_DEBOUNCE_MS = 250;
 
+const createCreditAdjustmentIntentKey = (): string => {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return "";
+};
+
 const sanitizeSignedIntegerInput = (rawValue: string): string => {
   const compact = rawValue.replace(/\s+/g, "");
   if (!compact.length) return "";
@@ -113,6 +120,9 @@ export const useAdminUsersCreditsController = ({
   const [usersError, setUsersError] = React.useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = React.useState<string>("");
   const [adjustment, setAdjustment] = React.useState<string>("");
+  const [adjustmentIntentKey, setAdjustmentIntentKey] = React.useState<string>(
+    createCreditAdjustmentIntentKey
+  );
   const [adjustSubmitting, setAdjustSubmitting] = React.useState(false);
   const [adjustResult, setAdjustResult] = React.useState<string | null>(null);
   const [internalCompPlan, setInternalCompPlan] = React.useState<string>("business");
@@ -331,6 +341,7 @@ export const useAdminUsersCreditsController = ({
     setBillingPortalResult(null);
     setBillingCustomerSyncResult(null);
     setAllowStripeTakeover(false);
+    setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
   }, [selectedUserId]);
 
   React.useEffect(() => {
@@ -363,12 +374,16 @@ export const useAdminUsersCreditsController = ({
     setAdjustSubmitting(true);
     setAdjustResult(null);
     try {
+      if (!adjustmentIntentKey) {
+        throw new Error("Credit adjustment intent could not be created.");
+      }
       const response = await fetchWithAuth("/api/admin/credits/adjust", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: selectedUserId,
           changeCents: normalized,
+          idempotencyKey: adjustmentIntentKey,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -377,6 +392,7 @@ export const useAdminUsersCreditsController = ({
       }
 
       setAdjustment("");
+      setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
       setAdjustResult("Credit adjustment applied.");
       await Promise.all([loadUsers(), loadCreditLedger()]);
     } catch (error) {
@@ -384,7 +400,7 @@ export const useAdminUsersCreditsController = ({
     } finally {
       setAdjustSubmitting(false);
     }
-  }, [adjustment, loadCreditLedger, loadUsers, selectedUserId]);
+  }, [adjustment, adjustmentIntentKey, loadCreditLedger, loadUsers, selectedUserId]);
 
   const handleGrantInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
@@ -602,6 +618,7 @@ export const useAdminUsersCreditsController = ({
         if (selectedUserId === userId) {
           setSelectedUserId("");
           setAdjustment("");
+          setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
           setAdjustResult(null);
           setCreditLedgerRows([]);
           setCreditLedgerError(null);
@@ -631,6 +648,7 @@ export const useAdminUsersCreditsController = ({
       const base = parsed ?? 0;
       return String(base + delta);
     });
+    setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
   }, []);
 
   const handleUserSearchChange = React.useCallback((value: string) => {
@@ -648,6 +666,7 @@ export const useAdminUsersCreditsController = ({
 
   const handleAdjustmentChange = React.useCallback((value: string) => {
     setAdjustment(sanitizeSignedIntegerInput(value));
+    setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
     setAdjustResult(null);
   }, []);
 

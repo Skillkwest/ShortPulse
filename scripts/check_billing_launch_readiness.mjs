@@ -487,11 +487,12 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
   );
 };
 
-const checkBillingRenewalFailClosed = async (args, reporter) => {
-  const url = new URL(
-    "/api/internal/billing-contract-renewals/run",
-    `${args.baseUrl}/`,
-  );
+const checkInternalWorkerFailClosed = async (
+  args,
+  reporter,
+  { path, checkName, label },
+) => {
+  const url = new URL(path, `${args.baseUrl}/`);
   const response = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -500,17 +501,31 @@ const checkBillingRenewalFailClosed = async (args, reporter) => {
   const body = await response.text();
   if (response.status !== 401) {
     reporter.fail(
-      "billing_renewal_worker_fail_closed",
-      "Billing renewal worker did not fail closed with 401 for unauthenticated POST.",
+      checkName,
+      `${label} did not fail closed with 401 for unauthenticated POST.`,
       { status: response.status, body: body.slice(0, 240) },
     );
     return;
   }
   reporter.pass(
-    "billing_renewal_worker_fail_closed",
-    "Billing renewal worker is deployed, enabled, and protected from unauthenticated execution.",
+    checkName,
+    `${label} is deployed and protected from unauthenticated execution.`,
   );
 };
+
+const checkBillingRenewalFailClosed = async (args, reporter) =>
+  checkInternalWorkerFailClosed(args, reporter, {
+    path: "/api/internal/billing-contract-renewals/run",
+    checkName: "billing_renewal_worker_fail_closed",
+    label: "Billing renewal worker",
+  });
+
+const checkCreditExpirationFailClosed = async (args, reporter) =>
+  checkInternalWorkerFailClosed(args, reporter, {
+    path: "/api/internal/credit-expirations/run",
+    checkName: "credit_expiration_worker_fail_closed",
+    label: "Credit expiration worker",
+  });
 
 const checkStripeWebhookEndpoint = async (args, reporter) => {
   if (args.skipStripe) {
@@ -639,6 +654,10 @@ const main = async () => {
     [
       "billing_renewal_worker_fail_closed",
       () => checkBillingRenewalFailClosed(args, reporter),
+    ],
+    [
+      "credit_expiration_worker_fail_closed",
+      () => checkCreditExpirationFailClosed(args, reporter),
     ],
     [
       "stripe_webhook_endpoint",

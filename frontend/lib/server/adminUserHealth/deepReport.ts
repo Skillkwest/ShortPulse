@@ -16,6 +16,7 @@ import {
   STUCK_GENERATION_CRITICAL_MS,
   STUCK_GENERATION_WARNING_MS,
 } from "./thresholds";
+import type { CreditGrantSummary } from "../api/creditGrantSummary";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -260,6 +261,7 @@ export type BuildAdminHealthResponseArgs = {
   generationProjectionBillingRows?: GenerationProjectionBillingRow[];
   activeProjectIds?: string[];
   reservations: ReservationRow[];
+  creditGrantSummary: CreditGrantSummary;
   ledger: NormalizedLedgerRow[];
   nowMs?: number;
 };
@@ -334,14 +336,16 @@ export const buildAdminHealthResponse = ({
   generationProjectionBillingRows = [],
   activeProjectIds,
   reservations,
+  creditGrantSummary,
   ledger,
   nowMs = Date.now(),
 }: BuildAdminHealthResponseArgs): AdminHealthResponse => {
   const availableCents = Number(balance?.balance_cents ?? 0);
-  const reservedCents = reservations
-    .filter((row) => row.status === "reserved")
-    .reduce((sum, row) => sum + Math.abs(Number(row.amount_cents ?? 0)), 0);
-  const spendableCents = Math.max(0, availableCents - reservedCents);
+  if (!creditGrantSummary) {
+    throw new Error("Credit grant summary is required for admin health credit metrics.");
+  }
+  const reservedCents = creditGrantSummary.reservedCents;
+  const spendableCents = creditGrantSummary.spendableCents;
 
   const generationById = new Map<string, GenerationRow>();
   generations.forEach((row) => {

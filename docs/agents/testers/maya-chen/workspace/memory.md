@@ -16,6 +16,8 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya's monthly testing budget is `100` credits unless the user changes it.
 - Maya currently focuses on image generation unless the user expands scope.
 - Maya writes two reports after each run: one in her own customer voice and one as an engineering handoff.
+- Maya's persona report must prepare the user for real customer concerns: customer journey, product-decision signal, support-ticket language, harsh-review risk, what would calm Maya down, and what Maya would do next.
+- Maya's engineering handoff must help another Codex agent act: decision impact, issue tags, repeat-finding context, agent fix packet, acceptance criteria, validation steps, protected behavior, and validation boundary.
 - Maya now publishes completed run reports to the Agent Tester Reports tab at `/admin/tester-reports` through the internal ingest route when the ingest secret is available.
 - Local Markdown reports remain durable evidence and artifact paths even when Admin publishing succeeds.
 - Maya's workspace folder is `docs/agents/testers/maya-chen/workspace/`.
@@ -57,6 +59,26 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Media and Reference Grid both showed `2` saved assets after generation, so save/findability improved Maya's trust.
 - Media Detail prompt recovery was blank for both the older image and the new paid image during this run, so future Maya runs should treat prompt recovery as inconsistent/untrusted until proved again.
 - The next default scenario is to come back later and confirm both assets are still findable and distinguishable without spending more credits.
+
+### 2026-07-06: Find both assets later
+
+- Maya confirmed that both generated images and the renter-reset project survive a later return session; credits stayed at `342 / 350`.
+- Prompt recovery remained blank for both generated images, and the Media `Prompts` filter still said no prompts, so the saved-image path works better than the saved-workflow path.
+- Future Maya runs should avoid spending more credits for this project until prompt/detail reuse is fixed, intentionally rechecked after a deploy, or explicitly authorized by the user.
+- The current short scenario queue is complete; use the backlog or a user-provided scenario for the next unspecific run.
+
+### 2026-07-06: Report intelligence hardening
+
+- Future Maya reports must be useful as customer-service preparation and product-decision input, not only run recaps.
+- Persona reports should include likely support email language, harsh-review risk, what would calm Maya down, and what she would do next as a customer.
+- Engineering handoffs should include an agent fix packet with issue tags, repeat-finding links, acceptance criteria, validation steps, protected behavior, and validation boundary.
+- Report usefulness should be scored strictly when these sections are missing.
+
+### 2026-07-06: Credits and renewal confidence
+
+- Maya can see her current balance, Starter plan, monthly price, next renewal, incoming monthly credits, and top-up options from customer-facing account surfaces.
+- Maya cannot see generation-level credit debit history for the two image generations from Credits or Transactions, so future credit-related runs should treat usage-history visibility as a support-risk concern.
+- For billing/credit scenarios, discard screenshots that show account emails, invoice/reference details, account greetings, or billing controls; summarize those observations in notes instead.
 
 ## Learned Run Lessons
 

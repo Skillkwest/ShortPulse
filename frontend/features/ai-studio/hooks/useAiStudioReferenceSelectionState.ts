@@ -88,6 +88,7 @@ const stripRuntimeDetailSelectionSnapshot = (
   target: SharedMediaDetailSelectionTarget | null | undefined
 ): SharedMediaDetailSelectionTarget | null => {
   if (!target) return null;
+  if (target.kind === "slot-reference") return null;
   if (target.kind !== "studio-output") return target;
   return {
     kind: "studio-output",

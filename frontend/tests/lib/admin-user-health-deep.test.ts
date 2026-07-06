@@ -67,6 +67,14 @@ describe("admin user-health deep parsing", () => {
           captured_at: "2026-04-30T00:00:05.000Z",
         },
       ],
+      creditGrantSummary: {
+        spendableCents: 95,
+        reservedCents: 0,
+        expiringCents: 95,
+        nonExpiringCents: 0,
+        nextExpiringCents: 95,
+        nextExpiresAt: null,
+      },
       ledger: [
         {
           id: "ledger-1",

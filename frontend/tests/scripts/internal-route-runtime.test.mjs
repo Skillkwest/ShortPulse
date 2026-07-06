@@ -11,11 +11,22 @@ describe("internal route runtime launch gate", () => {
   it("skips mutating billing auth probes in the default route sweep", () => {
     const args = parseArgs(["--base-url", "https://www.shortpulse.ai"]);
     const billingRoute = DEFAULT_ROUTE_CONFIGS.find((route) => route.id === "billing_renewals");
+    const expirationRoute = DEFAULT_ROUTE_CONFIGS.find(
+      (route) => route.id === "credit_expirations"
+    );
 
     expect(billingRoute).toBeTruthy();
     expect(
       shouldSkipAuthenticatedProbe({
         route: billingRoute,
+        args,
+        explicitRouteSelection: false,
+      })
+    ).toBe(true);
+    expect(expirationRoute).toBeTruthy();
+    expect(
+      shouldSkipAuthenticatedProbe({
+        route: expirationRoute,
         args,
         explicitRouteSelection: false,
       })
@@ -28,11 +39,13 @@ describe("internal route runtime launch gate", () => {
       "https://www.shortpulse.ai",
       "--route",
       "billing_renewals",
+      "--route",
+      "credit_expirations",
     ]);
     const routes = resolveRoutes(args.routeIds);
 
     expect(() => assertAllowedProbePlan({ routes, args, explicitRouteSelection: true })).toThrow(
-      /can mutate data/
+      /billing_renewals, credit_expirations/
     );
   });
 
@@ -42,6 +55,8 @@ describe("internal route runtime launch gate", () => {
       "https://www.shortpulse.ai",
       "--route",
       "billing_renewals",
+      "--route",
+      "credit_expirations",
       "--allow-mutating-auth",
     ]);
     const routes = resolveRoutes(args.routeIds);

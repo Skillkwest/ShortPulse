@@ -1068,12 +1068,12 @@ export default function ProfilePage() {
           >
             <p>
               {isInternalCompContract
-                ? "Ending paid access changes the workspace immediately. Unused credits stay available."
+                ? "Ending paid access changes the workspace immediately. Paid top-up credits stay available; subscription allocation credits still expire on their normal 60-day schedule."
                 : `Your paid subscription ends after ${formatDateLabel(
                     billingContract?.current_period_end ??
                       billingProfile?.current_period_end ??
                       null
-                  )}. Unused credits stay available until then.`}
+                  )}. Paid top-up credits stay available; subscription allocation credits still expire on their normal 60-day schedule.`}
             </p>
           </ProfileConfirmModal>
         ) : null}

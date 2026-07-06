@@ -29,6 +29,7 @@ export type ProjectSnapshotByteBreakdown = {
   outputsArchivedBytes: number | null;
   standardRuntimeBytes: number | null;
   pulseRuntimeBytes: number | null;
+  pulseChatsBytes: number | null;
   canvasBytes: number | null;
   expertEditBytes: number | null;
 };
@@ -73,6 +74,7 @@ export const flattenProjectSnapshotByteBreakdown = (
     out_archived_b: breakdown.outputsArchivedBytes,
     rt_std_b: breakdown.standardRuntimeBytes,
     rt_pulse_b: breakdown.pulseRuntimeBytes,
+    pulse_chats_b: breakdown.pulseChatsBytes,
     canvas_b: breakdown.canvasBytes,
     expert_b: breakdown.expertEditBytes,
   } as const;
@@ -130,6 +132,7 @@ export const resolveProjectSnapshotByteBreakdown = (
       outputsArchivedBytes: null,
       standardRuntimeBytes: null,
       pulseRuntimeBytes: null,
+      pulseChatsBytes: null,
       canvasBytes: null,
       expertEditBytes: null,
     };
@@ -156,6 +159,11 @@ export const resolveProjectSnapshotByteBreakdown = (
               agentRuntimes?: { standard?: unknown; pulse?: unknown } | null;
             }
           ).agentRuntimes?.pulse ?? null)
+        : null
+    ),
+    pulseChatsBytes: measureSerializedBytes(
+      "pulseChats" in snapshot
+        ? (snapshot as AiStudioSessionSnapshot & { pulseChats?: unknown }).pulseChats
         : null
     ),
     canvasBytes: measureSerializedBytes(
@@ -362,6 +370,9 @@ export const areStringListsEqual = (left: readonly string[], right: readonly str
 export const resolveReducedWorkspaceNotice = (
   fallbackKind: Exclude<AiStudioProjectWorkspaceAutosaveCandidateKind, "full">
 ): string => {
+  if (fallbackKind.includes("lightweight_checkpoint")) {
+    return "Project autosave saved a lightweight workspace checkpoint to stay within size limits.";
+  }
   if (fallbackKind.includes("canvas") && fallbackKind.includes("archived_outputs")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore, and canvas layout or edit overlays may need to be rebuilt.";
   }

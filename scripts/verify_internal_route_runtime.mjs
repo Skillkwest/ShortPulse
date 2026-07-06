@@ -2,8 +2,9 @@
 
 /**
  * Verifies that protected internal worker routes are both present and operational.
- * The script probes each route twice: unauthenticated (must fail closed with 401)
- * and authenticated with the configured cron secret (must succeed with 200).
+ * The script probes each route unauthenticated (must fail closed with 401) and
+ * probes non-mutating routes with the configured cron secret (must succeed with
+ * 200). Authenticated probes for mutating workers require explicit approval.
  */
 
 import fs from "node:fs";
@@ -33,6 +34,12 @@ export const DEFAULT_ROUTE_CONFIGS = [
     secretEnv: "SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET",
     mutatesOnAuthProbe: true,
   },
+  {
+    id: "credit_expirations",
+    path: "/api/internal/credit-expirations/run",
+    secretEnv: "SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET",
+    mutatesOnAuthProbe: true,
+  },
 ];
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -53,7 +60,7 @@ Options:
   --skip-unauth             Skip the unauthenticated 401 protection check.
   --skip-auth               Skip the authenticated 200 runtime check.
   --allow-mutating-auth     Allow authenticated probes for routes that can mutate data.
-                            Explicitly required for billing_renewals auth probes.
+                            Explicitly required for billing_renewals and credit_expirations auth probes.
   --env-file <path>         Optional env file path (repeatable). Parsed by shared loader.
   --help                    Show this message.
 `);

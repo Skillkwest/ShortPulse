@@ -1096,8 +1096,8 @@ Fix:
 
 Notes:
 
-- The API now falls back to legacy direct-debit billing when reservation RPCs are stale/missing so generation can proceed.
-- Applying `013` + `014` is still the durable fix to restore full reservation/capture/release behavior.
+- Runtime billing must fail closed when reservation RPCs are stale or missing. Do not reintroduce direct-debit or aggregate-balance fallback billing.
+- Applying `013` + `014` restores the historical reservation/capture/release behavior needed before the grant-lot migration. After `sql/migrations/200_add_credit_grant_lot_expiration.sql`, the retired aggregate `reserve_generation_credits(...)` RPC must not remain executable.
 
 ## AI Studio generation fails with `Preparation timed out before generation started. Please retry.`
 

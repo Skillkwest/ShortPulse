@@ -827,6 +827,7 @@ export type AdminStorageEconomicsRiskType =
 
 export type AdminStorageEconomicsRiskRow = {
   userId: string;
+  userEmail: string | null;
   planId: string;
   trackedBytes: number;
   totalLimitBytes: number;
@@ -1015,6 +1016,7 @@ export type AdminPricingCreditPackageRow = {
   displayName: string;
   creditAmountCents: number;
   priceCents: number;
+  totalTimesPurchased: number;
   stripePriceId: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -1024,6 +1026,7 @@ export type AdminPricingStorageAddonRow = {
   storageAddonId: string;
   displayName: string;
   offerId: string | null;
+  activeAccountCount: number;
   storageLimitBytes: number;
   recurringPriceCents: number;
   stripePriceId: string | null;

@@ -30,7 +30,7 @@ export function ProfileTransactionsSection({
     <>
       <ProfilePanel
         eyebrow="Billing overview"
-        title="Recent transactions"
+        title="Payment history"
         icon={CreditCard}
         className="profile-panel-stack"
       >

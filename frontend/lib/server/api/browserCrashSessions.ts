@@ -48,7 +48,7 @@ export type BrowserCrashSessionListFilters = {
   page: number;
   limit: number;
   status: BrowserCrashSessionStatus | "all" | "needs_review";
-  reviewStatus: BrowserCrashSessionReviewStatus | "all";
+  reviewStatus: BrowserCrashSessionReviewStatus | "reviewed" | "all";
   search: string;
 };
 
@@ -533,7 +533,9 @@ export const fetchBrowserCrashSessions = async (
   } else if (filters.status !== "all") {
     query = query.eq("status", filters.status);
   }
-  if (filters.reviewStatus !== "all") {
+  if (filters.reviewStatus === "reviewed") {
+    query = query.in("review_status", ["resolved", "ignored"]);
+  } else if (filters.reviewStatus !== "all") {
     query = query.eq("review_status", filters.reviewStatus);
   }
   if (filters.search.trim()) {

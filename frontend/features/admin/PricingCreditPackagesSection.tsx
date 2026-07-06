@@ -59,6 +59,7 @@ export function PricingCreditPackagesSection({
             className={`${styles.pricingCatalogHead} ${styles.pricingCreditCatalogGrid} ${styles.adminTableHead}`}
           >
             <span>Package</span>
+            <span>Total purchased</span>
             <span>Price</span>
             <span>Credits</span>
             <span>Price per credit</span>
@@ -71,6 +72,7 @@ export function PricingCreditPackagesSection({
               <span className={styles.pricingPrimaryCell}>
                 <strong>{formatCreditPackageLabel(pkg.creditAmountCents)}</strong>
               </span>
+              <span>{pkg.totalTimesPurchased.toLocaleString()}</span>
               <span>{formatCurrencyFromCents(pkg.priceCents)}</span>
               <span>{formatCredits(pkg.creditAmountCents)}</span>
               <span>

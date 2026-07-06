@@ -79,12 +79,11 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   >;
   refreshBalance: (options?: {
     silent?: boolean;
-    preferLedger?: boolean;
     beforeCommit?: (snapshot: {
       cents: number;
       updatedAt: string | null;
       reservedCents?: number | null;
-      source?: "snapshot" | "fallback";
+      source?: "snapshot";
     }) => void;
   }) => Promise<number | null>;
   resolveDefaultPromptForTool: (tool: ToolId | null) => string;

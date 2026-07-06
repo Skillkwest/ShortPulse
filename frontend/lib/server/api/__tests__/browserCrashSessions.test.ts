@@ -292,6 +292,52 @@ describe("browserCrashSessions", () => {
     });
   });
 
+  it("maps the reviewed history filter to resolved and ignored review rows", async () => {
+    const inMock = vi.fn();
+    const rangeMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "row-1",
+          status: "probable_freeze_or_crash",
+          confidence: "medium",
+          review_status: "resolved",
+          last_seen_at: "2026-07-05T12:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+    const query = {
+      select: vi.fn(),
+      order: vi.fn(),
+      in: inMock,
+      eq: vi.fn(),
+      or: vi.fn(),
+      range: rangeMock,
+    };
+    query.select.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.or.mockReturnValue(query);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => query),
+    });
+
+    await fetchBrowserCrashSessions({
+      page: 1,
+      limit: 50,
+      status: "needs_review",
+      reviewStatus: "reviewed",
+      search: "",
+    });
+
+    expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
+    expect(inMock).toHaveBeenCalledWith("review_status", ["resolved", "ignored"]);
+    expect(query.eq).not.toHaveBeenCalledWith("review_status", "reviewed");
+    expect(rangeMock).toHaveBeenCalledWith(0, 49);
+  });
+
   it("updates crash-session review state without changing crash evidence status", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue(supabase.client);
@@ -301,6 +347,7 @@ describe("browserCrashSessions", () => {
       payload: {
         sessionId: "crash-1",
         status: "resolved",
+        note: "Monitoring only.",
       },
     });
 
@@ -313,6 +360,7 @@ describe("browserCrashSessions", () => {
       review_status: "resolved",
       reviewed_by: "admin-1",
       reviewed_by_email: "admin@example.com",
+      review_note: "Monitoring only.",
     });
     expect(supabase.updatePayloads[0]).not.toHaveProperty("status");
     expect(supabase.eqMock).toHaveBeenCalledWith("id", "crash-1");

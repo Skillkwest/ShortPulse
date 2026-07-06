@@ -25,10 +25,12 @@ export default function AdminCrashesPage() {
     loading: crashSessionsLoading,
     error: crashSessionsError,
     pagination,
+    viewMode,
     statusFilter,
     reviewStatusFilter,
     search,
     updatingReviewSessionId,
+    handleViewModeChange,
     handleStatusFilterChange,
     handleReviewStatusFilterChange,
     handleSearchChange,
@@ -61,15 +63,17 @@ export default function AdminCrashesPage() {
         loading={crashSessionsLoading}
         error={crashSessionsError}
         pagination={pagination}
+        viewMode={viewMode}
         statusFilter={statusFilter}
         reviewStatusFilter={reviewStatusFilter}
         search={search}
         updatingReviewSessionId={updatingReviewSessionId}
+        onViewModeChange={handleViewModeChange}
         onStatusFilterChange={handleStatusFilterChange}
         onReviewStatusFilterChange={handleReviewStatusFilterChange}
         onSearchChange={handleSearchChange}
-        onUpdateReviewStatus={(sessionId, status) => {
-          void handleUpdateReviewStatus(sessionId, status);
+        onUpdateReviewStatus={(sessionId, status, note) => {
+          void handleUpdateReviewStatus(sessionId, status, note);
         }}
         onPrevPage={handlePrevPage}
         onNextPage={handleNextPage}

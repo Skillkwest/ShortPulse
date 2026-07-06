@@ -87,6 +87,7 @@ Examples that belong in `.env.agent.local`, not `frontend/.env.local`:
 - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
 - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
 - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
+- `SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET`
 - Vercel operator/protection-bypass tokens
 
 If you are validating hosted worker routes with `node scripts/verify_internal_route_runtime.mjs`, prefer an explicit env file that contains the live hosted secrets for that target. Use `--env-file <path>` to layer a pulled Vercel env file or a temporary Vault-derived probe file ahead of `.env.agent.local` when the hosted secrets differ from your local defaults.

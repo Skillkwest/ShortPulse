@@ -21,12 +21,11 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
   setOptimisticDebitEntries: Dispatch<SetStateAction<OptimisticDebitEntry[]>>;
   refreshBalance: (options?: {
     silent?: boolean;
-    preferLedger?: boolean;
     beforeCommit?: (snapshot: {
       cents: number;
       updatedAt: string | null;
       reservedCents?: number | null;
-      source?: "snapshot" | "fallback";
+      source?: "snapshot";
     }) => void;
   }) => Promise<number | null>;
   setDetailOutputId: (value: string | null) => void;

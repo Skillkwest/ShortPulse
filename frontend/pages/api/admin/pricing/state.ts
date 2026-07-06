@@ -39,6 +39,10 @@ import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerMod
 import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
 import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
+import {
+  isCurrentBillableStorageAddonStatus,
+  isSelfServeStorageAddon,
+} from "../../../../lib/billing/storageAddonEligibility";
 import { compactAdminPricingCustomRowsDocument } from "../../../../lib/model-runtime/adminPricingCustomRows";
 import {
   getModelPricingPolicySnapshot,
@@ -104,6 +108,10 @@ type BillingCreditPackageRow = {
   is_active: boolean;
 };
 
+type CreditPackagePurchaseLedgerRow = {
+  metadata: Record<string, unknown> | null;
+};
+
 const RETIRED_LEGACY_CREDIT_PACKAGE_IDS = new Set([
   "starter_500",
   "growth_2000",
@@ -133,6 +141,12 @@ type BillingStorageAddonOfferRow = {
   is_active: boolean;
   effective_start_at: string | null;
   created_at: string;
+};
+
+type BillingSubscriptionStorageAddonCountRow = {
+  user_id: string | null;
+  storage_addon_id: string | null;
+  status: string | null;
 };
 
 const isSchemaDriftError = (error: { message?: string; code?: string } | null | undefined) => {
@@ -243,18 +257,9 @@ const buildPaymentExemptPlanRow = (
   accountCount: contracts.length,
   status: "payment_exempt",
   recurringPriceCents: 0,
-  monthlyCreditsCents: contracts.reduce(
-    (sum, contract) => sum + Number(contract.monthly_credits_cents ?? 0),
-    0
-  ),
-  storageLimitBytes: contracts.reduce(
-    (sum, contract) => sum + Number(contract.storage_limit_bytes ?? 0),
-    0
-  ),
-  maxConcurrentGenerations: contracts.reduce(
-    (sum, contract) => sum + Number(contract.max_concurrent_generations ?? 0),
-    0
-  ),
+  monthlyCreditsCents: 0,
+  storageLimitBytes: 0,
+  maxConcurrentGenerations: 0,
   stripeProductId: null,
   stripePriceId: null,
   acquisitionEnabled: false,
@@ -475,7 +480,9 @@ const buildHealthSummary = ({
   const creditPackagesMissingStripePriceIds = creditPackages.filter(
     (row) => row.isActive && !row.stripePriceId
   ).length;
-  const storageAddonsMissingCurrentOffer = storageAddons.filter((row) => !row.offerId).length;
+  const storageAddonsMissingCurrentOffer = storageAddons.filter(
+    (row) => isSelfServeStorageAddon(row.storageAddonId) && !row.offerId
+  ).length;
   const storageOffersMissingStripePriceIds = storageAddons.filter(
     (row) => Boolean(row.offerId) && row.recurringPriceCents > 0 && !row.stripePriceId
   ).length;
@@ -543,8 +550,10 @@ export default async function handler(
       planMetadataRows,
       planOffersResult,
       creditPackagesResult,
+      creditPackagePurchaseLedgerResult,
       storageMetadataResult,
       storageOffersResult,
+      currentStorageAddonsResult,
       currentContractsResult,
       billingProfilesResult,
     ] = await Promise.all([
@@ -563,6 +572,11 @@ export default async function handler(
         )
         .order("sort_order", { ascending: true }),
       supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("metadata")
+        .eq("source", "stripe_checkout")
+        .gt("change_cents", 0),
+      supabaseAdmin
         .from("billing_storage_addons")
         .select("id, display_name, sort_order, is_active")
         .eq("is_active", true),
@@ -577,6 +591,10 @@ export default async function handler(
         .order("effective_start_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
       supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .select("user_id, storage_addon_id, status")
+        .is("ended_at", null),
+      supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
           "user_id, plan_id, offer_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, created_at"
@@ -588,16 +606,20 @@ export default async function handler(
     if (
       planOffersResult.error ||
       creditPackagesResult.error ||
+      creditPackagePurchaseLedgerResult.error ||
       storageMetadataResult.error ||
       storageOffersResult.error ||
+      currentStorageAddonsResult.error ||
       currentContractsResult.error ||
       billingProfilesResult.error
     ) {
       const detail = [
         planOffersResult.error?.message,
         creditPackagesResult.error?.message,
+        creditPackagePurchaseLedgerResult.error?.message,
         storageMetadataResult.error?.message,
         storageOffersResult.error?.message,
+        currentStorageAddonsResult.error?.message,
         currentContractsResult.error?.message,
         billingProfilesResult.error?.message,
       ]
@@ -758,6 +780,14 @@ export default async function handler(
       return a.sortOrder - b.sortOrder;
     });
 
+    const purchaseCountByPackageId = new Map<string, number>();
+    for (const ledgerRow of (creditPackagePurchaseLedgerResult.data ??
+      []) as CreditPackagePurchaseLedgerRow[]) {
+      const packageId = ledgerRow.metadata?.credit_package_id;
+      if (typeof packageId !== "string" || !packageId.trim()) continue;
+      purchaseCountByPackageId.set(packageId, (purchaseCountByPackageId.get(packageId) ?? 0) + 1);
+    }
+
     const creditPackages: AdminPricingCreditPackageRow[] = (
       (creditPackagesResult.data ?? []) as BillingCreditPackageRow[]
     )
@@ -767,6 +797,7 @@ export default async function handler(
         displayName: row.display_name,
         creditAmountCents: Number(row.credit_amount_cents ?? 0),
         priceCents: Number(row.price_cents ?? 0),
+        totalTimesPurchased: purchaseCountByPackageId.get(row.id) ?? 0,
         stripePriceId: row.stripe_price_id,
         sortOrder: Number(row.sort_order ?? 0),
         isActive: Boolean(row.is_active),
@@ -786,6 +817,15 @@ export default async function handler(
         latestStorageOfferByAddonId.set(offer.storage_addon_id, offer);
       }
     }
+    const activeAccountIdsByStorageAddonId = new Map<string, Set<string>>();
+    for (const addon of (currentStorageAddonsResult.data ??
+      []) as BillingSubscriptionStorageAddonCountRow[]) {
+      if (!addon.storage_addon_id || !addon.user_id) continue;
+      if (!isCurrentBillableStorageAddonStatus(addon.status)) continue;
+      const accountIds = activeAccountIdsByStorageAddonId.get(addon.storage_addon_id) ?? new Set();
+      accountIds.add(addon.user_id);
+      activeAccountIdsByStorageAddonId.set(addon.storage_addon_id, accountIds);
+    }
 
     const storageAddons: AdminPricingStorageAddonRow[] = [...storageMetadata.values()]
       .map((metadata) => {
@@ -794,6 +834,7 @@ export default async function handler(
           storageAddonId: metadata.id,
           displayName: metadata.display_name,
           offerId: offer?.id ?? null,
+          activeAccountCount: activeAccountIdsByStorageAddonId.get(metadata.id)?.size ?? 0,
           storageLimitBytes: Number(offer?.storage_limit_bytes ?? 0),
           recurringPriceCents: Number(offer?.recurring_price_cents ?? 0),
           stripePriceId: offer?.stripe_price_id ?? null,

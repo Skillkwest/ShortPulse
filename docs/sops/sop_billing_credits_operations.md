@@ -37,6 +37,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Provider status polling helper: `frontend/lib/server/api/falStatusProxy.ts`.
 - Unified settlement service: `frontend/lib/server/api/generationBilling/settlementService.ts` (`settleGenerationOutcome`).
 - Ledger insert helper: `frontend/lib/server/api/creditLedger.ts`.
+- Credit grant-lot migration: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
+- Credit expiration scheduler: `sql/configure_credit_expiration_scheduler_supabase.sql`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 - Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
@@ -78,6 +80,19 @@ Expected v2 columns on `ai_credit_ledger`:
 
 Legacy `ref_id`-only ledger deployments are not supported by generation or admin adjustment writes. Run the migration below before enabling paid workflows.
 
+## Credit grant-lot contract
+
+- `ai_credit_ledger` remains the append-only audit trail and `ai_credit_balance` remains the aggregate projection.
+- `ai_credit_grants` is the canonical spendability authority for new positive grants.
+- `ai_credit_grant_allocations` records which grants were reserved, captured, released, debited, or expired.
+- Subscription allocations, annual monthly allocations, and internal-comp monthly allocations use `credit_kind = 'subscription_allocation'` and expire exactly 60 days after the database grant write. The grant RPC rejects missing, past, or non-60-day requested expirations, then persists the database-owned 60-day expiry.
+- Paid Stripe credit top-ups use `credit_kind = 'paid_topup'` and must keep `expires_at = null`; the grant RPC and table constraint reject expiring top-up lots.
+- Manual positive admin adjustments use `credit_kind = 'admin_adjustment'` and are non-expiring unless a future approved UI/API explicitly collects an expiry policy.
+- Existing pre-migration balances are backfilled as `legacy_balance` and are non-expiring unless a separate reviewed retroactive-expiration plan is approved.
+- Reservation and debit RPCs spend expiring grants first, ordered by soonest `expires_at`, then non-expiring grants.
+- Reserved credits are protected from the expiration worker while in flight. If a reservation is released after its grant expiry, the released amount expires instead of becoming spendable again.
+- After `sql/migrations/200_add_credit_grant_lot_expiration.sql`, the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC is retired and must not remain executable. Runtime reservations must use `admit_and_reserve_generation_credits(...)` so every hold has `ai_credit_grant_allocations` rows.
+
 ## Migration runbook (required)
 
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
@@ -91,9 +106,12 @@ Legacy `ref_id`-only ledger deployments are not supported by generation or admin
 9. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-10. Verify admin credit adjustment in `/admin` succeeds.
-11. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-12. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+10. Run `sql/migrations/200_add_credit_grant_lot_expiration.sql` before enabling subscription rollover/expiration behavior.
+11. Confirm `sql/check_runtime_sql_security_audit.sql` reports the retired `reserve_generation_credits(...)` RPC absent and the grant-aware RPC executable only by `service_role`.
+12. Apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after the migration is present and the target Vault URL points at `/api/internal/credit-expirations/run`.
+13. Run `sql/audit_billing_credit_rls.sql` and confirm no failing billing/credit integrity rows.
+14. Verify admin credit adjustment in `/admin` succeeds.
+15. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
 
 - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
 
@@ -258,9 +276,10 @@ Recommended operator sequence:
 ## User-facing balance snapshot
 
 - `/api/credits/snapshot` returns authenticated, server-authoritative credit state for UI reassurance:
-  - `availableCents`: current balance from `ai_credit_balance` (or ledger fallback).
-  - `reservedCents`: sum of active `ai_credit_reservations` holds (`status='reserved'`).
-  - `spendableCents`: `max(0, availableCents - reservedCents)`.
+  - `availableCents`: current aggregate balance from `ai_credit_balance`.
+  - `reservedCents` and `spendableCents`: grant-lot state from `get_credit_grant_summary(uuid)`.
+  - `expiringCents`, `nonExpiringCents`, `nextExpiringCents`, and `nextExpiresAt` summarize unused grant lots without making the browser a credit authority.
+- The route fails closed when either `ai_credit_balance` or `get_credit_grant_summary(uuid)` is unavailable. Do not reintroduce ledger-derived, reservation-derived, or browser-derived spendability fallbacks.
 - Use this endpoint for customer-facing credit displays when generation reservations are in flight.
 - AI Studio credit displays that act as account navigation should route to `/profile?section=credits`, the canonical customer top-up section.
 - AI Studio insufficient-credit generation attempts should use the in-studio credit top-up modal. The modal posts to `/api/billing/stripe/checkout` with an allowlisted `/ai-studio` return path so success/cancel returns can refresh `/api/credits/snapshot` without making the browser a credit-grant authority.
@@ -281,6 +300,9 @@ Recommended operator sequence:
 - AI Studio Checkout returns with `checkout=credits_success` or `checkout=credits_cancel` are UI status markers only. The paid Checkout Session, Stripe webhook, ledger grant, and subsequent `/api/credits/snapshot` refresh remain the source of truth for the purchased credit balance.
 - Delayed-payment Checkout methods must settle on `checkout.session.async_payment_succeeded`; do not grant credits from `checkout.session.completed` when `payment_status != 'paid'`.
 - Subscription monthly credits are granted only for invoice payment events that represent a new billing allocation window (`billing_reason in ('subscription_create', 'subscription_cycle')`).
+- Subscription monthly credits expire 60 days after the grant write.
+- Paid Stripe top-up credits do not expire.
+- Runtime spending consumes expiring credits first by soonest expiration, then non-expiring paid top-up/admin/legacy credits.
 - Subscription change/proration invoices (`subscription_update` and other non-allocation invoice reasons) must not mint an extra monthly credit grant.
 - Stripe event IDs are persisted in `stripe_event_log` to prevent duplicate grants.
 - Grant idempotency should use stable business object references where available (`checkout_session.id`, `invoice.id`) rather than relying only on Stripe event ids.
@@ -340,6 +362,7 @@ Recommended operator sequence:
 - Internal comp contracts use hidden `billing_plan_offers` rows such as `business__internal_comp` and store `contract_source = 'internal_comp'`.
 - Granting internal comp access seeds the current period allocation immediately.
 - Monthly renewals for internal comp contracts are owned by `/api/internal/billing-contract-renewals/run`, not by the Stripe webhook.
+- Expiration of unused subscription credit lots is owned by `/api/internal/credit-expirations/run`, not by customer routes, admin adjustment routes, or Stripe webhooks.
 - Renewal idempotency uses deterministic period references per contract; duplicate runs must be safe.
 - Revoking internal comp access returns the account to the baseline runtime state unless a different trusted operator path is intentionally used.
 
@@ -384,6 +407,46 @@ limit 20;
 
 6. Manual replay path for investigation or catch-up:
    - `curl -X POST "$APP_BASE_URL/api/internal/billing-contract-renewals/run" -H "Authorization: Bearer $SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET" -H "Content-Type: application/json" -d '{}'`
+
+## Credit expiration scheduler setup
+
+1. Set runtime env on the target deployment:
+   - `SHORTPULSE_CREDIT_EXPIRATIONS_ENABLED=true`
+   - `SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET=<strong-secret>`
+2. Store matching Vault secrets in the target Supabase project:
+   - `shortpulse_credit_expirations_run_url`
+   - `shortpulse_credit_expirations_cron_secret`
+3. Apply `sql/configure_credit_expiration_scheduler_supabase.sql`.
+4. Confirm the Supabase Cron job exists and is active:
+
+```sql
+select jobid, jobname, schedule, active
+from cron.job
+where jobname = 'shortpulse_credit_expirations_hourly';
+```
+
+5. Confirm recent executions and inspect the latest return messages:
+
+```sql
+select jobid, status, start_time, end_time, return_message
+from cron.job_run_details
+where jobid = (
+  select jobid from cron.job where jobname = 'shortpulse_credit_expirations_hourly'
+)
+order by start_time desc
+limit 20;
+```
+
+6. Run `sql/check_control_plane_scheduler_health.sql` and confirm the
+   `shortpulse_credit_expirations_hourly` registration, recent-run, stalled-run,
+   last-run, and `invoke_credit_expirations_scheduler()` contract rows are
+   healthy. Also confirm the credit-expiration pg_net HTTP response rows show
+   recent `ok` responses or identify the exact missing request-id/response
+   proof. Job registration alone is not sufficient proof that expired credits
+   are being removed.
+
+7. Manual replay path for investigation:
+   - `curl -X POST "$APP_BASE_URL/api/internal/credit-expirations/run" -H "Authorization: Bearer $SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET" -H "Content-Type: application/json" -d '{}'`
 
 ## Stripe webhook replay runbook (failed-first recovery)
 

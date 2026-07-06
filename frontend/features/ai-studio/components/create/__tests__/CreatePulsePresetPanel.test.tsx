@@ -247,9 +247,9 @@ describe("CreatePulsePresetPanel", () => {
             createdAt: null,
           },
           {
-            presetId: "prompt_modifier",
-            label: "Prompt Modifier",
-            description: "Retired prompt modifier pulse.",
+            presetId: "legacy_prompt_modifier",
+            label: "Legacy Prompt Modifier",
+            description: "Retired legacy prompt modifier pulse.",
             systemInstructions: "Rewrite a pasted prompt.",
             runtimeMode: "workflow_gpt",
             activationMode: "activate_and_start",
@@ -267,7 +267,7 @@ describe("CreatePulsePresetPanel", () => {
 
     expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Prompt Modifier preset" })
+      screen.queryByRole("button", { name: "Legacy Prompt Modifier preset" })
     ).not.toBeInTheDocument();
   });
 

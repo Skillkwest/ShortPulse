@@ -17,6 +17,7 @@ const execFileAsync = promisify(execFile);
 export const DEFAULT_REQUIRED_ROUTES = [
   "/api/internal/admin-user-health-fleet/run",
   "/api/internal/billing-contract-renewals/run",
+  "/api/internal/credit-expirations/run",
   "/api/internal/generation-recovery/run",
   "/api/internal/media-derivatives/run",
 ];

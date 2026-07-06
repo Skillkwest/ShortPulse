@@ -4,7 +4,7 @@ import handler from "../../pages/api/admin/billing/contracts/update";
 const requireAdminUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
-const insertCreditLedgerEntryMock = vi.fn();
+const grantAccountCreditsMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -19,7 +19,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../lib/server/api/creditLedger", () => ({
-  insertCreditLedgerEntry: (...args: unknown[]) => insertCreditLedgerEntryMock(...args),
+  grantAccountCredits: (...args: unknown[]) => grantAccountCreditsMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -34,7 +34,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-15T12:00:00.000Z"));
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
-    insertCreditLedgerEntryMock.mockResolvedValue({ error: null, mode: "rich" });
+    grantAccountCreditsMock.mockResolvedValue({ error: null, mode: "rich" });
   });
 
   afterEach(() => {
@@ -56,7 +56,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
     await handler(req as never, res as never);
 
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
       req,
       error: expect.any(Error),
@@ -170,11 +170,13 @@ describe("POST /api/admin/billing/contracts/update", () => {
         storage_limit_bytes: 536870912000,
       })
     );
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        changeCents: 12000,
+        amountCents: 12000,
         source: "internal_contract_initial",
+        creditKind: "subscription_allocation",
+        expiresAt: "2026-06-14T12:00:00.000Z",
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
@@ -272,7 +274,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -400,7 +402,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
         storage_limit_bytes: 536870912000,
       })
     );
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -491,7 +493,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

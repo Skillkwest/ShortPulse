@@ -23,6 +23,7 @@ Tools must not contain credentials, cookies, service-role keys, or ingest secret
 - `post-run-self-audit-template.md`: post-run Maya fidelity and reporting audit template.
 - `persona-fidelity-rubric.md`: scoring guide and caps for Maya embodiment during runs.
 - `report-assembly-checklist.md`: post-run checklist for assembling the Maya report, engineering handoff, ledgers, and index.
+- `report-intelligence-template.md`: required add-on sections that turn reports into customer-service, product-decision, and engineering fix-packet artifacts.
 - `severity-and-escalation-rubric.md`: shared severity labels for Maya findings and engineering handoffs.
 - `stop-resume-and-recovery-rules.md`: stop/resume rules for payment gates, browser interruptions, auth expiry, generation hangs, and context loss.
 - `run-folder-structure.md`: standard file layout for reports, evidence, and optional workspace notes.

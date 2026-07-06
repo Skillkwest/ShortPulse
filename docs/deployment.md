@@ -257,6 +257,7 @@ Default required routes:
 
 - `/api/internal/admin-user-health-fleet/run`
 - `/api/internal/billing-contract-renewals/run`
+- `/api/internal/credit-expirations/run`
 - `/api/internal/generation-recovery/run`
 - `/api/internal/media-derivatives/run`
 
@@ -272,6 +273,7 @@ node scripts/verify_deployment_route_parity.mjs \
   --base-url https://<staging-or-prod-alias> \
   --required-route /api/internal/admin-user-health-fleet/run \
   --required-route /api/internal/billing-contract-renewals/run \
+  --required-route /api/internal/credit-expirations/run \
   --required-route /api/internal/generation-recovery/run \
   --required-route /api/internal/media-derivatives/run
 ```
@@ -323,7 +325,7 @@ node scripts/verify_internal_route_runtime.mjs \
   --base-url https://<staging-or-prod-alias>
 ```
 
-The default sweep skips authenticated billing-renewal execution because that worker can advance contracts and insert credit grants. To intentionally prove that route with operator auth, run it explicitly with `--route billing_renewals --allow-mutating-auth` after confirming the target environment and data-mutation risk.
+The default sweep skips authenticated billing-renewal and credit-expiration execution because those workers can mutate billing/credit state. To intentionally prove either route with operator auth, run it explicitly with `--route billing_renewals --allow-mutating-auth` or `--route credit_expirations --allow-mutating-auth` after confirming the target environment and data-mutation risk.
 
 Optional narrower probe:
 
@@ -340,12 +342,13 @@ Secret env requirements:
 - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
 - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
 - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
+- `SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET`
 - optional `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`
 
 Behavior:
 
 - Hard-fails if a route returns anything other than `401` unauthenticated.
-- Hard-fails if a route returns anything other than `200` with operator auth.
+- Hard-fails if a non-mutating route returns anything other than `200` with operator auth. Mutating routes are skipped by default and require explicit `--route <id> --allow-mutating-auth` approval for authenticated `200` proof.
 - Catches enabled-flag drift, cron-secret drift, deployment-staleness drift, and route-level runtime failures that build-output parity alone cannot see.
 
 ## Vercel setup

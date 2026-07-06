@@ -13,11 +13,6 @@ type BillingContractAccessRow = {
   status: string | null;
 };
 
-type BillingProfileAccessRow = {
-  plan_id: string | null;
-  subscription_status: string | null;
-};
-
 export class MediaLibraryPaidAccessError extends Error {
   status = 402;
 
@@ -40,37 +35,21 @@ const hasCurrentSubscriptionStatus = (status: string | null | undefined): boolea
  */
 export const hasPaidMediaLibraryAccess = async (userId: string): Promise<boolean> => {
   const supabaseAdmin = getSupabaseAdmin();
-  const [contractResult, profileResult] = await Promise.all([
-    supabaseAdmin
-      .from("billing_subscription_contracts")
-      .select("plan_id,status")
-      .eq("user_id", userId)
-      .is("ended_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("billing_profiles")
-      .select("plan_id,subscription_status")
-      .eq("user_id", userId)
-      .maybeSingle(),
-  ]);
+  const contractResult = await supabaseAdmin
+    .from("billing_subscription_contracts")
+    .select("plan_id,status")
+    .eq("user_id", userId)
+    .is("ended_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (contractResult.error) {
     throw new Error(contractResult.error.message || "Unable to verify media-library access.");
   }
-  if (profileResult.error) {
-    throw new Error(profileResult.error.message || "Unable to verify media-library access.");
-  }
 
   const contract = (contractResult.data as BillingContractAccessRow | null) ?? null;
-  if (isPaidPlanId(contract?.plan_id) && hasCurrentSubscriptionStatus(contract?.status))
-    return true;
-
-  const profile = (profileResult.data as BillingProfileAccessRow | null) ?? null;
-  return (
-    isPaidPlanId(profile?.plan_id) && hasCurrentSubscriptionStatus(profile?.subscription_status)
-  );
+  return isPaidPlanId(contract?.plan_id) && hasCurrentSubscriptionStatus(contract?.status);
 };
 
 /**

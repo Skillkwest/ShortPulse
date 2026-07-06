@@ -28,6 +28,7 @@ with expected_jobs as (
       ('shortpulse_media_derivatives_every_minute'::text, '* * * * *'::text, 600::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, '0 * * * *'::text, 3600::integer),
       ('shortpulse_internal_billing_renewals_hourly'::text, '15 * * * *'::text, 3600::integer),
+      ('shortpulse_credit_expirations_hourly'::text, '35 * * * *'::text, 3600::integer),
       ('shortpulse_prune_cron_job_run_details_daily'::text, '5 3 * * *'::text, 3600::integer),
       ('shortpulse_prune_worker_runs_daily'::text, '15 3 * * *'::text, 3600::integer)
   ) as t(jobname, expected_schedule, max_runtime_seconds)
@@ -58,6 +59,7 @@ with expected_jobs as (
       ('shortpulse_media_derivatives_every_minute'::text, 3::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, 1::integer),
       ('shortpulse_internal_billing_renewals_hourly'::text, 1::integer),
+      ('shortpulse_credit_expirations_hourly'::text, 1::integer),
       ('shortpulse_prune_cron_job_run_details_daily'::text, 0::integer),
       ('shortpulse_prune_worker_runs_daily'::text, 0::integer)
   ) as t(jobname, minimum_sample_runs)
@@ -113,6 +115,7 @@ with expected_jobs as (
       ('shortpulse_media_derivatives_every_minute'::text, 600::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, 3600::integer),
       ('shortpulse_internal_billing_renewals_hourly'::text, 3600::integer),
+      ('shortpulse_credit_expirations_hourly'::text, 3600::integer),
       ('shortpulse_prune_cron_job_run_details_daily'::text, 3600::integer),
       ('shortpulse_prune_worker_runs_daily'::text, 3600::integer)
   ) as t(jobname, max_runtime_seconds)
@@ -140,6 +143,7 @@ with expected_jobs as (
       ('shortpulse_media_derivatives_every_minute'::text),
       ('shortpulse_admin_user_health_fleet_hourly'::text),
       ('shortpulse_internal_billing_renewals_hourly'::text),
+      ('shortpulse_credit_expirations_hourly'::text),
       ('shortpulse_prune_cron_job_run_details_daily'::text),
       ('shortpulse_prune_worker_runs_daily'::text)
   ) as t(jobname)
@@ -196,6 +200,12 @@ with expected_contract as (
         'shortpulse_vercel_protection_bypass_token'::text,
         'x-vercel-protection-bypass'::text,
         'timeout_milliseconds := 60000'::text
+      ),
+      (
+        'public.invoke_credit_expirations_scheduler()'::text,
+        'shortpulse_vercel_protection_bypass_token'::text,
+        'x-vercel-protection-bypass'::text,
+        'timeout_milliseconds := 60000'::text
       )
   ) as t(function_signature, required_secret_snippet, required_header_snippet, required_timeout_snippet)
 ),
@@ -243,3 +253,43 @@ select
   end as contract_status
 from definitions
 order by function_signature;
+
+-- 7) Credit expiration scheduler HTTP response proof (pg_net).
+-- Cron success only proves the request was enqueued. This ties recent credit
+-- expiration cron runs to pg_net response rows when the scheduler notice
+-- exposes the request id, without printing URLs, headers, or response bodies.
+with recent_credit_expiration_runs as (
+  select
+    d.runid,
+    d.status as cron_status,
+    d.start_time,
+    d.end_time,
+    substring(
+      coalesce(d.return_message, '')
+      from 'request_id=([0-9]+)'
+    )::bigint as pg_net_request_id
+  from cron.job j
+  join cron.job_run_details d on d.jobid = j.jobid
+  where j.jobname = 'shortpulse_credit_expirations_hourly'
+    and d.start_time > now() - interval '6 hours'
+  order by d.start_time desc
+  limit 20
+)
+select
+  r.runid,
+  r.cron_status,
+  r.start_time,
+  r.end_time,
+  r.pg_net_request_id,
+  n.created as http_response_created_at,
+  n.status_code as http_status_code,
+  (coalesce(n.error_msg, '') <> '') as has_http_error,
+  case
+    when r.pg_net_request_id is null then 'missing_pg_net_request_id'
+    when n.id is null then 'missing_pg_net_response'
+    when n.status_code between 200 and 299 then 'ok'
+    else 'http_failure'
+  end as http_response_status
+from recent_credit_expiration_runs r
+left join net._http_response n on n.id = r.pg_net_request_id
+order by r.start_time desc;

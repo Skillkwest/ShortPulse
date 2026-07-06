@@ -21,6 +21,9 @@ const clearCharacterSheetAssignmentMock = vi.fn();
 const handleCharacterSheetInternalReferenceDropMock = vi.fn();
 const deleteCharacterSheetPresetMock = vi.fn();
 const createCharacterDraftMock = vi.fn();
+const { getSignedMediaUrlMock } = vi.hoisted(() => ({
+  getSignedMediaUrlMock: vi.fn(),
+}));
 
 const createDraftState = () => ({
   characters: [
@@ -123,6 +126,10 @@ vi.mock("../../hooks/useCharacterCardPreviewUrls", () => ({
   }),
 }));
 
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: getSignedMediaUrlMock,
+}));
+
 vi.mock("../../../../components/ConfirmationModal", () => ({
   ConfirmationModal: ({
     title,
@@ -195,6 +202,10 @@ describe("CharacterPanelWorkspace", () => {
     deleteCharacterSheetPresetMock.mockResolvedValue(true);
     createCharacterDraftMock.mockReset();
     createCharacterDraftMock.mockResolvedValue(undefined);
+    getSignedMediaUrlMock.mockReset();
+    getSignedMediaUrlMock.mockImplementation(
+      async ({ storagePath }: { storagePath: string }) => `https://signed.example/${storagePath}`
+    );
   });
 
   afterEach(() => {
@@ -706,6 +717,58 @@ describe("CharacterPanelWorkspace", () => {
     await waitFor(() => {
       expect(clearCharacterSheetAssignmentMock).toHaveBeenCalledWith("portrait");
     });
+  });
+
+  it("opens assigned slots in the shared detail modal on double click", async () => {
+    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    currentDraftState = {
+      ...createDraftState(),
+      characterSheetPresetAssignments: {
+        portrait: {
+          characterMediaId: "media-portrait",
+          storagePath: "path/portrait.png",
+          previewStoragePath: "path/portrait-thumb.png",
+          previewUrl: "https://example.com/portrait.png",
+        },
+        close_up: null,
+        front_shot: null,
+      },
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    const portraitCard = screen.getByAltText("Portrait reference").closest("article");
+    expect(portraitCard).not.toBeNull();
+    fireEvent.doubleClick(portraitCard!);
+
+    const dialog = await screen.findByRole("dialog", { name: "Preview Portrait reference" });
+    expect(within(dialog).getByRole("heading", { name: "Portrait reference" })).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Download")).toBeInTheDocument();
+    expect(windowOpenSpy).not.toHaveBeenCalled();
+    windowOpenSpy.mockRestore();
+  });
+
+  it("does not open the slot detail modal when double clicking the clear action", () => {
+    currentDraftState = {
+      ...createDraftState(),
+      characterSheetPresetAssignments: {
+        portrait: {
+          characterMediaId: "media-portrait",
+          storagePath: "path/portrait.png",
+          previewStoragePath: "path/portrait-thumb.png",
+          previewUrl: "https://example.com/portrait.png",
+        },
+        close_up: null,
+        front_shot: null,
+      },
+    };
+
+    render(<CharacterPanelWorkspace />);
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Clear Portrait reference" }));
+
+    expect(getSignedMediaUrlMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Preview Portrait reference" })).toBeNull();
   });
 
   it("acknowledges external uploads after handled failures like full slots", async () => {

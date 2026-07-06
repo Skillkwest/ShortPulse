@@ -154,6 +154,48 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
+  it("allows an admin-authored Prompt Modifier built-in with a safe prompt_modifier id", async () => {
+    const promptModifierDefinition: CreatePulseBuiltInPresetDefinition = {
+      presetId: "prompt_modifier",
+      label: "Prompt Modifier",
+      description: "Modify prompts.",
+      starterAssistantMessage: "Paste the prompt you want to modify.",
+      workflowStageHints: ["Paste prompt"],
+      artifactTarget: "video_prompt",
+      systemInstructions: "Ask for a source prompt, then return a cleaner version.",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      schemaVersion: 2,
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [promptModifierDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [promptModifierDefinition],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [promptModifierDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("rejects saves that omit the expected updatedAt token", async () => {
     const req = {
       method: "PUT",
@@ -192,6 +234,30 @@ describe("admin pulse built-ins API", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: expect.stringContaining("must not contain spaces or colons"),
+    });
+  });
+
+  it("rejects retired built-in Pulse ids before normalization can drop them", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+            presetId: "legacy_prompt_modifier",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        'Pulse preset id "legacy_prompt_modifier" is retired. Choose a new safe preset id for this built-in Pulse.',
     });
   });
 

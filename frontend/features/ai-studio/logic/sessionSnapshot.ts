@@ -38,6 +38,10 @@ import {
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
 import { createAiStudioProjectWorkspaceSnapshot as createProjectWorkspaceSnapshot } from "../../../lib/ai-studio-session/projectWorkspaceSnapshot";
+import {
+  createLightweightProjectWorkspaceCheckpointSnapshot,
+  projectWorkspaceCheckpointNeedsCompaction,
+} from "../../../lib/ai-studio-session/projectWorkspaceCheckpoint";
 import type { InternalMediaRef } from "../../../lib/media/internalMediaRefs";
 import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
 import { resolveInternalMediaRefsForUrls } from "./referenceInputInternalMediaRegistry";
@@ -271,7 +275,9 @@ export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
   | "without_canvas"
   | "without_archived_outputs"
-  | "without_canvas_and_archived_outputs";
+  | "without_canvas_and_archived_outputs"
+  | "lightweight_checkpoint"
+  | "without_canvas_lightweight_checkpoint";
 export type AiStudioProjectWorkspaceAutosaveCandidate = {
   kind: AiStudioProjectWorkspaceAutosaveCandidateKind;
   snapshot: AiStudioSessionSnapshot;
@@ -1151,6 +1157,17 @@ const stripCanvasFromSnapshot = (
   return rebuildV2SnapshotMeta(baseSnapshot);
 };
 
+const createLightweightCheckpointAutosaveSnapshot = (
+  snapshot: AiStudioSessionSnapshot
+): AiStudioSessionSnapshot =>
+  createLightweightProjectWorkspaceCheckpointSnapshot({
+    snapshot: snapshot as unknown as Record<string, unknown>,
+    checkpointRevision: 0,
+  }) as unknown as AiStudioSessionSnapshot;
+
+const snapshotNeedsLightweightAutosaveCheckpoint = (snapshot: AiStudioSessionSnapshot): boolean =>
+  projectWorkspaceCheckpointNeedsCompaction(snapshot as unknown as Record<string, unknown>);
+
 export const createAiStudioProjectWorkspaceAutosaveCandidates = (
   snapshot: AiStudioSessionSnapshot
 ): AiStudioProjectWorkspaceAutosaveCandidate[] =>
@@ -1202,6 +1219,23 @@ export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
     if (shouldYieldCandidate(withoutCanvasAndArchivedOutputsCandidate)) {
       yield withoutCanvasAndArchivedOutputsCandidate;
     }
+    if (!snapshotNeedsLightweightAutosaveCheckpoint(v2Snapshot)) {
+      return;
+    }
+    const lightweightCheckpointCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+      kind: "lightweight_checkpoint",
+      snapshot: createLightweightCheckpointAutosaveSnapshot(v2Snapshot),
+    };
+    if (shouldYieldCandidate(lightweightCheckpointCandidate)) {
+      yield lightweightCheckpointCandidate;
+    }
+    const withoutCanvasLightweightCheckpointCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+      kind: "without_canvas_lightweight_checkpoint",
+      snapshot: createLightweightCheckpointAutosaveSnapshot(withoutCanvas),
+    };
+    if (shouldYieldCandidate(withoutCanvasLightweightCheckpointCandidate)) {
+      yield withoutCanvasLightweightCheckpointCandidate;
+    }
     return;
   }
 
@@ -1211,6 +1245,16 @@ export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
   };
   if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
     yield withoutArchivedOutputsCandidate;
+  }
+  if (!snapshotNeedsLightweightAutosaveCheckpoint(snapshot)) {
+    return;
+  }
+  const lightweightCheckpointCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
+    kind: "lightweight_checkpoint",
+    snapshot: createLightweightCheckpointAutosaveSnapshot(snapshot),
+  };
+  if (shouldYieldCandidate(lightweightCheckpointCandidate)) {
+    yield lightweightCheckpointCandidate;
   }
 }
 

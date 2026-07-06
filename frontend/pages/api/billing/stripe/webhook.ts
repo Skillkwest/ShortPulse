@@ -11,7 +11,7 @@ import {
 } from "../../../../lib/server/api/billingContracts";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
-import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
+import { grantAccountCredits } from "../../../../lib/server/api/creditLedger";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
 import { readVerifiedStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 import {
@@ -91,6 +91,7 @@ const SUBSCRIPTION_CREDIT_GRANT_BILLING_REASONS = new Set([
   "subscription_create",
   "subscription_cycle",
 ]);
+const SUBSCRIPTION_CREDIT_LIFESPAN_DAYS = 60;
 
 export const config = {
   api: {
@@ -148,6 +149,9 @@ const isDuplicateLedgerSourceRefError = (error: { message?: string; code?: strin
   const message = String(error.message ?? "");
   return /duplicate key value violates unique constraint/i.test(message);
 };
+
+const resolveSubscriptionCreditExpiresAt = () =>
+  new Date(Date.now() + SUBSCRIPTION_CREDIT_LIFESPAN_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
 const isIgnorableSchemaDriftError = (error: { message?: string; code?: string } | null) => {
   if (!error) return false;
@@ -861,14 +865,18 @@ const applyCredit = async (params: {
   source: string;
   sourceRef: string;
   reason: string;
+  creditKind: "paid_topup" | "subscription_allocation";
+  expiresAt?: string | null;
   metadata?: Record<string, unknown>;
 }) => {
-  const { error } = await insertCreditLedgerEntry({
+  const { error } = await grantAccountCredits({
     userId: params.userId,
-    changeCents: params.changeCents,
+    amountCents: params.changeCents,
     source: params.source,
     sourceRef: params.sourceRef,
     reason: params.reason,
+    creditKind: params.creditKind,
+    expiresAt: params.expiresAt ?? null,
     metadata: params.metadata ?? {},
   });
   if (isDuplicateLedgerSourceRefError(error)) {
@@ -913,6 +921,8 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
     source: "stripe_checkout",
     sourceRef: buildCheckoutGrantSourceRef(session, eventId),
     reason: packageId ? `Credit purchase (${packageId})` : "Credit purchase",
+    creditKind: "paid_topup",
+    expiresAt: null,
     metadata: {
       checkout_session_id: session.id ?? null,
       stripe_customer_id: stripeCustomerId,
@@ -1099,6 +1109,8 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
     source: "subscription_renewal",
     sourceRef: buildSubscriptionGrantSourceRef(invoice, eventId),
     reason: "Monthly plan credit allocation",
+    creditKind: "subscription_allocation",
+    expiresAt: resolveSubscriptionCreditExpiresAt(),
     metadata: {
       invoice_id: invoice.id ?? null,
       billing_reason: billingReason,

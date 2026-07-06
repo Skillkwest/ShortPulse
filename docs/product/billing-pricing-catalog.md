@@ -5,6 +5,9 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 ## Credit accounting policy
 
 - Catalog tables define how many credits a plan or top-up grants to a user account.
+- Subscription/monthly allocation credits expire 60 days after the grant write when represented in `ai_credit_grants`.
+- Paid top-up credits do not expire.
+- Runtime credit spending consumes expiring credits first by soonest expiration, then non-expiring paid top-up/admin/legacy credit lots.
 - The current default AI model debit scale is `1 credit = $0.01`, but that runtime conversion is no longer fixed in code; it lives in the shared model-pricing control plane documented in `docs/product/ai-studio-pricing.md`.
 - Changes to model markup, row-specific round-nearest values, or credit conversion affect future generation debits only.
 - Changes to this billing catalog affect product/package pricing and granted-credit quantities only.
@@ -33,6 +36,9 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 - Subscriber-specific recurring terms are stored separately in:
   - `billing_subscription_contracts`
   - `billing_subscription_contracts.max_concurrent_generations` snapshots the active generation slot entitlement for that subscriber
+- Runtime credit grant lots and allocation state are stored separately in:
+  - `ai_credit_grants`
+  - `ai_credit_grant_allocations`
 - Subscriber-specific recurring storage add-ons are stored separately in:
   - `billing_subscription_storage_addons`
 - `billing_profiles` is a runtime projection only. It must not be treated as the authoritative source for paid recurring entitlements when an open contract row is missing.

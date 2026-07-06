@@ -1,7 +1,6 @@
 import React from "react";
 import { AppMessage } from "../../components/AppMessage";
 import { formatStorageBytes } from "../billing/storage";
-import { getPlanStatusClassName, getPlanStatusLabel } from "./PricingPageChrome";
 import type { AdminPricingStateResponse } from "./types";
 import {
   buildEmptyPlanCreateDraft,
@@ -72,37 +71,36 @@ export function PricingPlansSection({
           <div className={`${styles.pricingPlanCatalogHead} ${styles.adminTableHead}`}>
             <span>Plan</span>
             <span>Accounts</span>
-            <span>Status</span>
             <span>Monthly</span>
             <span>Annual</span>
             <span>Credits</span>
             <span>Storage</span>
             <span>Max active</span>
           </div>
-          {pricingState.plans.map((plan) => (
-            <div key={plan.offerId} className={styles.pricingPlanCatalogRow}>
-              <span className={styles.pricingPrimaryCell}>
-                <strong>{plan.displayName}</strong>
-              </span>
-              <span>{formatCredits(plan.accountCount)}</span>
-              <span className={getPlanStatusClassName(plan.status)}>
-                {getPlanStatusLabel(plan.status)}
-              </span>
-              <span>
-                {formatCurrencyFromCents(
-                  plan.monthlyOffer?.recurringPriceCents ?? plan.recurringPriceCents
-                )}
-              </span>
-              <span>
-                {plan.annualOffer
-                  ? formatCurrencyFromCents(plan.annualOffer.recurringPriceCents)
-                  : "—"}
-              </span>
-              <span>{formatCredits(plan.monthlyCreditsCents)}</span>
-              <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
-              <span>{plan.maxConcurrentGenerations}</span>
-            </div>
-          ))}
+          {pricingState.plans.map((plan) => {
+            const isPaymentExempt = plan.status === "payment_exempt";
+            return (
+              <div key={plan.offerId} className={styles.pricingPlanCatalogRow}>
+                <span className={styles.pricingPrimaryCell}>
+                  <strong>{plan.displayName}</strong>
+                </span>
+                <span>{formatCredits(plan.accountCount)}</span>
+                <span>
+                  {formatCurrencyFromCents(
+                    plan.monthlyOffer?.recurringPriceCents ?? plan.recurringPriceCents
+                  )}
+                </span>
+                <span>
+                  {plan.annualOffer
+                    ? formatCurrencyFromCents(plan.annualOffer.recurringPriceCents)
+                    : "—"}
+                </span>
+                <span>{isPaymentExempt ? "—" : formatCredits(plan.monthlyCreditsCents)}</span>
+                <span>{isPaymentExempt ? "—" : formatStorageBytes(plan.storageLimitBytes)}</span>
+                <span>{isPaymentExempt ? "—" : plan.maxConcurrentGenerations}</span>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 

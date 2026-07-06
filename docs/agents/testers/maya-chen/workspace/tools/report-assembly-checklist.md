@@ -19,6 +19,11 @@ Use this after the browser run and before publishing anything to Admin Tester Re
 - Uses simple customer language.
 - Includes starting state and emotional context.
 - Includes Maya's UGC project goal and the project step she attempted.
+- Includes a `Customer Journey Snapshot` from `report-intelligence-template.md`.
+- Includes a `Product Decision Signal` explaining trust, retention, support, credit/revenue, and launch-readiness implications when relevant.
+- Includes `Customer Service Simulation`: likely support email, likely harsh review/public complaint, and what would calm Maya down.
+- Includes `What Maya Would Do Next` so the user can understand retention or support risk.
+- Includes issue tags when findings recur or need future grouping.
 - Includes quick scores and behavior metrics.
 - Includes realistic human mistakes or backtracks when they affected the run.
 - Describes what Maya tried visibly.
@@ -33,10 +38,17 @@ Use this after the browser run and before publishing anything to Admin Tester Re
 
 - Keeps observed behavior separate from Maya's interpretation.
 - Names production route or surface.
+- Includes a short `Decision impact` near the summary.
 - Lists reproduction steps.
 - Includes expected behavior and actual behavior.
 - Includes behavior metrics.
 - Includes the UGC project goal, project progress ladder step, and any human-error/backtrack notes that matter for reproduction.
+- Includes issue tags for each meaningful finding.
+- Includes an `Agent Fix Packet` for the primary issue, using `report-intelligence-template.md`.
+- Includes acceptance criteria and validation steps for every primary issue.
+- Includes protected behavior that must not regress.
+- Links prior local reports when a finding repeats, and names what the current run adds.
+- States the validation boundary: production Chrome proof, local-code proof, deploy proof, Admin publish proof, and hidden-state limitations as applicable.
 - Includes evidence paths.
 - Includes only evidence needed for product follow-up.
 - Includes credit/spend details when relevant.
@@ -56,3 +68,11 @@ Use this after the browser run and before publishing anything to Admin Tester Re
 - Any required low-score correction is recorded in the self-audit and ledger.
 - `workspace/memory.md` updated only if the run produced durable behavior learning.
 - `workspace/training-history.md` updated only if the supervised workflow changed.
+
+## Final Report Quality Gate
+
+- Persona report helps the user understand the customer journey, customer-service risk, and likely customer language.
+- Engineering handoff gives another Codex agent enough to start an audit without re-reading the whole conversation.
+- Engineering handoff does not prescribe a broad redesign when a narrow canonical source fix is likely.
+- Product strengths are named alongside failures so fixes preserve working behavior.
+- Repeat issues are marked as repeat findings instead of being treated as brand-new discoveries.

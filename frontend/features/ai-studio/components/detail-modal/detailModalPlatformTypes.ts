@@ -36,6 +36,11 @@ export type SharedMediaDetailSelectionTarget =
       itemId: string;
       surface: SharedMediaDetailSurface;
       instanceId?: CanvasWorkspaceInstanceId;
+    }
+  | {
+      kind: "slot-reference";
+      slotId: string;
+      surface: SharedMediaDetailSurface;
     };
 
 export type SharedMediaDetailSelection = SharedMediaDetailSelectionTarget | null;

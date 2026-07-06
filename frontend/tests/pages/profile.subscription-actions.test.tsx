@@ -508,6 +508,8 @@ describe("Profile subscription actions", () => {
     expect(
       await screen.findByRole("heading", { name: "Manage your downgrade?" })
     ).toBeInTheDocument();
+    expect(screen.getByText(/Paid top-up credits stay available/)).toBeInTheDocument();
+    expect(screen.getByText(/normal 60-day schedule/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 

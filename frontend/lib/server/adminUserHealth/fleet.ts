@@ -3,6 +3,7 @@
  * Uses compact set-based table scans for active users without calling deep per-user diagnostics in bulk.
  */
 import { writeAppErrorLog } from "../api/appErrorLogs";
+import { fetchCreditGrantSummaries } from "../api/creditGrantSummary";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
   finishFleetScanRun,
@@ -28,11 +29,6 @@ import {
 import type { FleetSnapshotDraft, FleetTargetUser, FleetUserMetricInput } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-type BalanceRow = {
-  user_id: string;
-  balance_cents: number | string | null;
-};
 
 type ReservationRow = {
   user_id: string;
@@ -69,14 +65,6 @@ type RichLedgerRow = {
   change_cents: number | string | null;
   source: string | null;
   source_ref: string | null;
-  reason: string | null;
-  created_at: string | null;
-};
-
-type LegacyLedgerRow = {
-  user_id: string;
-  change_cents: number | string | null;
-  ref_id: string | null;
   reason: string | null;
   created_at: string | null;
 };
@@ -251,105 +239,67 @@ const loadChunkMetrics = async ({
   const userIdSet = new Set(userIds);
   const compatibilityWarnings = new Set<string>();
 
-  const [balanceResult, reservationResult, generationResult, stuckGenerationResult, ledgerResult] =
-    await Promise.all([
-      supabaseAdmin
-        .from("ai_credit_balance")
-        .select("user_id,balance_cents")
-        .in("user_id", userIds),
-      supabaseAdmin
-        .from("ai_credit_reservations")
-        .select("user_id,status,source_ref,provider_request_id,amount_cents,created_at")
+  const [
+    reservationResult,
+    generationResult,
+    stuckGenerationResult,
+    ledgerResult,
+    creditGrantSummariesResult,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("ai_credit_reservations")
+      .select("user_id,status,source_ref,provider_request_id,amount_cents,created_at")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("ai_generations")
+      .select(
+        "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
+      )
+      .in("user_id", userIds)
+      .gte("created_at", lookbackStartIso)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("ai_generations")
+      .select(
+        "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
+      )
+      .in("user_id", userIds)
+      .in("status", ["pending", "submitted", "running", "fail"])
+      .in("recovery_state", ["queued", "recovering"])
+      .lte("created_at", new Date(nowMs - STUCK_GENERATION_CRITICAL_MS).toISOString()),
+    (async () => {
+      const rich = await supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("user_id,change_cents,source,source_ref,reason,created_at")
         .in("user_id", userIds)
-        .order("created_at", { ascending: false }),
-      supabaseAdmin
-        .from("ai_generations")
-        .select(
-          "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
-        )
-        .in("user_id", userIds)
+        .lt("change_cents", 0)
         .gte("created_at", lookbackStartIso)
-        .order("created_at", { ascending: false }),
-      supabaseAdmin
-        .from("ai_generations")
-        .select(
-          "user_id,status,recovery_state,request_id,created_at,source_ref:metadata->>source_ref"
-        )
-        .in("user_id", userIds)
-        .in("status", ["pending", "submitted", "running", "fail"])
-        .in("recovery_state", ["queued", "recovering"])
-        .lte("created_at", new Date(nowMs - STUCK_GENERATION_CRITICAL_MS).toISOString()),
-      (async () => {
-        const rich = await supabaseAdmin
-          .from("ai_credit_ledger")
-          .select("user_id,change_cents,source,source_ref,reason,created_at")
-          .in("user_id", userIds)
-          .lt("change_cents", 0)
-          .gte("created_at", lookbackStartIso)
-          .order("created_at", { ascending: false });
-        if (!rich.error) {
-          const rows = Array.isArray(rich.data)
-            ? rich.data.map((row) => ({
-                user_id: String((row as RichLedgerRow).user_id),
-                change_cents: toNumber((row as RichLedgerRow).change_cents),
-                source: (row as RichLedgerRow).source ?? "system",
-                source_ref: (row as RichLedgerRow).source_ref ?? null,
-                reason: (row as RichLedgerRow).reason ?? "",
-                created_at: (row as RichLedgerRow).created_at ?? null,
-              }))
-            : [];
-          return { rows, warning: null };
-        }
-
-        const richError = normalizeQueryError(rich.error);
-        if (!isSchemaCompatibilityError(richError)) {
-          throw new Error(richError?.message || "Failed to load ai_credit_ledger.");
-        }
-
-        const legacy = await supabaseAdmin
-          .from("ai_credit_ledger")
-          .select("user_id,change_cents,ref_id,reason,created_at")
-          .in("user_id", userIds)
-          .lt("change_cents", 0)
-          .gte("created_at", lookbackStartIso)
-          .order("created_at", { ascending: false });
-        if (legacy.error) {
-          throw new Error(legacy.error.message || "Failed to load ai_credit_ledger.");
-        }
-        const rows = Array.isArray(legacy.data)
-          ? legacy.data.map((row) => ({
-              user_id: String((row as LegacyLedgerRow).user_id),
-              change_cents: toNumber((row as LegacyLedgerRow).change_cents),
-              source: "legacy",
-              source_ref: (row as LegacyLedgerRow).ref_id ?? null,
-              reason: (row as LegacyLedgerRow).reason ?? "",
-              created_at: (row as LegacyLedgerRow).created_at ?? null,
+        .order("created_at", { ascending: false });
+      if (!rich.error) {
+        const rows = Array.isArray(rich.data)
+          ? rich.data.map((row) => ({
+              user_id: String((row as RichLedgerRow).user_id),
+              change_cents: toNumber((row as RichLedgerRow).change_cents),
+              source: (row as RichLedgerRow).source ?? "system",
+              source_ref: (row as RichLedgerRow).source_ref ?? null,
+              reason: (row as RichLedgerRow).reason ?? "",
+              created_at: (row as RichLedgerRow).created_at ?? null,
             }))
           : [];
+        return { rows, warning: null };
+      }
 
-        return {
-          rows,
-          warning:
-            "ai_credit_ledger is using a legacy schema in this environment; cost-without-success detection may be partial.",
-        };
-      })(),
-    ]);
-
-  const balanceError = normalizeQueryError(balanceResult.error);
-  if (balanceError) {
-    throw new Error(balanceError.message || "Failed to load ai_credit_balance.");
-  }
+      const richError = normalizeQueryError(rich.error);
+      throw new Error(richError?.message || "Failed to load ai_credit_ledger.");
+    })(),
+    fetchCreditGrantSummaries(userIds),
+  ]);
 
   const reservationError = normalizeQueryError(reservationResult.error);
   const reservationRows: ReservationRow[] = [];
   if (reservationError) {
-    if (isSchemaCompatibilityError(reservationError)) {
-      compatibilityWarnings.add(
-        "ai_credit_reservations is unavailable or schema-incompatible; reservation and linkage metrics are partial."
-      );
-    } else {
-      throw new Error(reservationError.message || "Failed to load ai_credit_reservations.");
-    }
+    throw new Error(reservationError.message || "Failed to load ai_credit_reservations.");
   } else if (Array.isArray(reservationResult.data)) {
     reservationRows.push(...(reservationResult.data as ReservationRow[]));
   }
@@ -384,6 +334,11 @@ const loadChunkMetrics = async ({
 
   if (ledgerResult.warning) {
     compatibilityWarnings.add(ledgerResult.warning);
+  }
+  if (creditGrantSummariesResult.error) {
+    throw new Error(
+      creditGrantSummariesResult.error.message || "Failed to load credit grant summaries."
+    );
   }
 
   const ledgerRows = ledgerResult.rows;
@@ -441,12 +396,6 @@ const loadChunkMetrics = async ({
       break;
     }
     throw new Error(error.message || "Failed to load generation_projection billing rows.");
-  }
-
-  const balanceByUser = new Map<string, number>();
-  for (const row of (balanceResult.data ?? []) as BalanceRow[]) {
-    if (!row || !userIdSet.has(String(row.user_id))) continue;
-    balanceByUser.set(String(row.user_id), Math.max(0, Math.trunc(toNumber(row.balance_cents))));
   }
 
   const reservedByUser = new Map<string, number>();
@@ -542,9 +491,12 @@ const loadChunkMetrics = async ({
   }
 
   const drafts: FleetSnapshotDraft[] = targets.map((target) => {
-    const availableCents = balanceByUser.get(target.userId) ?? 0;
-    const reservedCents = reservedByUser.get(target.userId) ?? 0;
-    const spendableCents = Math.max(0, availableCents - reservedCents);
+    const creditGrantSummary = creditGrantSummariesResult.summariesByUserId.get(target.userId);
+    if (!creditGrantSummary) {
+      throw new Error(`Credit grant summary missing for fleet user ${target.userId}.`);
+    }
+    const reservedCents = creditGrantSummary.reservedCents;
+    const spendableCents = creditGrantSummary.spendableCents;
 
     const failCount24h = failCount24hByUser.get(target.userId) ?? 0;
     const totalCount24h = totalCount24hByUser.get(target.userId) ?? 0;

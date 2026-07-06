@@ -48,9 +48,16 @@ import {
   AiStudioPickerSection,
 } from "../../ai-studio/components/picker/AiStudioPickerPrimitives";
 import { AiStudioModalLayer } from "../../ai-studio/components/modal-layer/AiStudioModalLayer";
+import { SharedMediaDetailPreviewModal } from "../../ai-studio/components/detail-modal/SharedMediaDetailPreviewModal";
+import { resolveSharedMediaDetailMediaActionItems } from "../../ai-studio/components/detail-modal/sharedMediaDetailActions";
 import type { CanvasTearOutComposerTargetRegistry } from "../../ai-studio/hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../ai-studio/logic/agentComposerDirectDropPayload";
 import type { GenerationAccessCta } from "../../ai-studio/logic/generationAccessCta";
+import {
+  createSlotReferenceDetailModalItem,
+  downloadSlotReferenceDetailItem,
+  type SlotReferenceDetailModalItem,
+} from "../../ai-studio/logic/slotReferenceDetailModal";
 
 type CharacterPanelWorkspaceProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -448,6 +455,9 @@ export function CharacterPanelWorkspace({
   const [pendingCharacterSheetUploadCounts, setPendingCharacterSheetUploadCounts] = React.useState<
     Record<CharacterSheetDropZoneKey, number>
   >(createCharacterSheetSlotPendingCounts);
+  const [slotDetailItem, setSlotDetailItem] = React.useState<SlotReferenceDetailModalItem | null>(
+    null
+  );
   const [isCharacterLibraryModalOpen, setIsCharacterLibraryModalOpen] = React.useState(false);
   const [deleteTargetCharacter, setDeleteTargetCharacter] = React.useState<{
     characterId: string;
@@ -1220,22 +1230,61 @@ export function CharacterPanelWorkspace({
     }
   }, [deleteCharacterSheetPreset, deleteTargetCharacterSheetPresetId]);
 
-  const openSlotPreview = React.useCallback(
+  const openSlotDetail = React.useCallback(
     async (slotKey: CharacterSheetDropZoneKey) => {
       const assignedReference = resolvedCharacterSheetPresetAssignments[slotKey];
-      const storagePath =
-        assignedReference?.previewStoragePath ?? assignedReference?.storagePath ?? null;
-      if (!storagePath) return;
-      const signedUrl = await getSignedMediaUrl({
-        bucket: MEDIA_BUCKET,
-        storagePath,
-        expiresInSeconds: 3600,
-        forceRefresh: false,
+      if (!assignedReference) return;
+      const dropZone = CHARACTER_SHEET_DROP_ZONES.find((candidate) => candidate.key === slotKey);
+      const title = `${dropZone?.label ?? "Character"} reference`;
+      const previewStoragePath =
+        assignedReference.previewStoragePath ?? assignedReference.storagePath;
+      const fullStoragePath = assignedReference.storagePath;
+      const [signedPreviewUrl, signedFullUrl] = await Promise.all([
+        previewStoragePath
+          ? getSignedMediaUrl({
+              bucket: MEDIA_BUCKET,
+              storagePath: previewStoragePath,
+              expiresInSeconds: 3600,
+              forceRefresh: false,
+            })
+          : Promise.resolve(null),
+        fullStoragePath
+          ? getSignedMediaUrl({
+              bucket: MEDIA_BUCKET,
+              storagePath: fullStoragePath,
+              expiresInSeconds: 3600,
+              forceRefresh: false,
+            })
+          : Promise.resolve(null),
+      ]);
+      const nextItem = createSlotReferenceDetailModalItem({
+        surface: "character-media-panel",
+        slotId: `character-sheet:${slotKey}:${assignedReference.characterMediaId}`,
+        title,
+        url: signedFullUrl ?? signedPreviewUrl ?? assignedReference.previewUrl,
+        previewUrl: signedPreviewUrl ?? assignedReference.previewUrl,
+        fullUrl: signedFullUrl ?? signedPreviewUrl ?? assignedReference.previewUrl,
+        previewStoragePath,
+        fullStoragePath,
       });
-      if (!signedUrl) return;
-      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      if (nextItem) {
+        setSlotDetailItem(nextItem);
+      }
     },
     [resolvedCharacterSheetPresetAssignments]
+  );
+
+  const slotDetailActionItems = React.useMemo(
+    () =>
+      resolveSharedMediaDetailMediaActionItems({
+        canDownload: Boolean(slotDetailItem),
+        onDownload: slotDetailItem
+          ? () => {
+              void downloadSlotReferenceDetailItem(slotDetailItem);
+            }
+          : null,
+      }),
+    [slotDetailItem]
   );
 
   return (
@@ -1557,7 +1606,7 @@ export function CharacterPanelWorkspace({
                                     }
                                     onClick={handleCharacterSheetCardClick(dropZone.key)}
                                     onDoubleClick={() => {
-                                      void openSlotPreview(dropZone.key);
+                                      void openSlotDetail(dropZone.key);
                                     }}
                                     onDragStart={handleCharacterSheetDragStart(dropZone.key)}
                                     onDragEnd={handleReferenceDragEnd}
@@ -1613,6 +1662,10 @@ export function CharacterPanelWorkspace({
                                             event.preventDefault();
                                             event.stopPropagation();
                                             void clearCharacterSheetAssignment(dropZone.key);
+                                          }}
+                                          onDoubleClick={(event) => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
                                           }}
                                           disabled={slotMutationBusy}
                                         >
@@ -1938,6 +1991,19 @@ export function CharacterPanelWorkspace({
         accept="image/*"
         onChange={handleCharacterSheetFileSelection}
         hidden
+      />
+      <SharedMediaDetailPreviewModal
+        item={slotDetailItem}
+        isLoading={false}
+        error={null}
+        onClose={() => setSlotDetailItem(null)}
+        topBarActionItems={slotDetailActionItems}
+        modalActivityId="character-slot-reference-detail-modal"
+        backdropClassName="reference-modal-backdrop media-library-panel-preview-backdrop"
+        closeLabel="Close character reference detail"
+        stageClassName="art-image-vessel media-library-panel-preview-body"
+        placeholderClassName="art-text-placeholder media-library-panel-preview-placeholder"
+        imageClassName="art-hero-image media-library-panel-preview-media"
       />
     </div>
   );

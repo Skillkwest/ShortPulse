@@ -96,6 +96,7 @@ describe("adminStorageEconomicsApi", () => {
       riskQueue: [
         {
           userId: "user-1",
+          userEmail: "starter@example.com",
           planId: "starter",
           trackedBytes: 900,
           totalLimitBytes: 1000,
@@ -153,6 +154,7 @@ describe("adminStorageEconomicsApi", () => {
     );
     expect(normalized.funnel.addRequests.total).toBe(4);
     expect(normalized.funnel.source).toBe("app_error_events");
+    expect(normalized.riskQueue[0]?.userEmail).toBe("starter@example.com");
     expect(normalized.riskQueue[0]?.riskTypes).toEqual(["near_quota"]);
     expect(normalized.dataGaps).toEqual(["invoice proof unavailable"]);
     expect(normalized.health.storageSource).toBe("live_query");
@@ -196,6 +198,7 @@ describe("adminStorageEconomicsApi", () => {
     expect(normalized.riskQueue[0]).toEqual(
       expect.objectContaining({
         userId: "unknown",
+        userEmail: null,
         riskTypes: ["over_quota"],
       })
     );

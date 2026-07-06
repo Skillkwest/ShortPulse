@@ -125,7 +125,6 @@ const CREATE_PULSE_RETIRED_PRESET_IDS = [
   "custom_1",
   "custom_2",
   "custom_3",
-  "prompt_modifier",
   "legacy_prompt_modifier",
   "single_shot",
   "ad_hook",

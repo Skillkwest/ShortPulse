@@ -330,6 +330,7 @@ describe("Admin pricing page", () => {
         displayName: "100",
         creditAmountCents: 100,
         priceCents: 500,
+        totalTimesPurchased: 0,
         stripePriceId: null,
         sortOrder: 30,
         isActive: false,
@@ -340,6 +341,7 @@ describe("Admin pricing page", () => {
         storageAddonId: "storage_100gb",
         displayName: "Extra 100 GB",
         offerId: null,
+        activeAccountCount: 0,
         storageLimitBytes: 0,
         recurringPriceCents: 0,
         stripePriceId: null,
@@ -379,7 +381,7 @@ describe("Admin pricing page", () => {
     expect(screen.queryByRole("button", { name: "Add simulator plan" })).not.toBeInTheDocument();
   });
 
-  it("renders the baseline-access sentinel with its real catalog status", () => {
+  it("renders the baseline-access sentinel without a public status column", () => {
     const state = buildPricingState();
     state.plans = [
       {
@@ -413,7 +415,7 @@ describe("Admin pricing page", () => {
     render(<AdminCatalogPage />);
 
     expect(screen.getByText("Baseline access")).toBeInTheDocument();
-    expect(screen.getByText("baseline access")).toBeInTheDocument();
+    expect(screen.queryByText("baseline access")).not.toBeInTheDocument();
     expect(screen.queryByText("legacy")).not.toBeInTheDocument();
     expect(screen.queryByText("Baseline fallback")).not.toBeInTheDocument();
   });
@@ -454,12 +456,13 @@ describe("Admin pricing page", () => {
 
     const planSection = screen.getByRole("heading", { name: "Public plans" }).closest("section");
     expect(planSection).toBeTruthy();
+    expect(within(planSection as HTMLElement).queryByText("Status")).not.toBeInTheDocument();
     expect(
       within(planSection as HTMLElement).getByText("Payment exempt testers")
     ).toBeInTheDocument();
-    expect(within(planSection as HTMLElement).getByText("payment exempt")).toBeInTheDocument();
     expect(within(planSection as HTMLElement).getByText("3")).toBeInTheDocument();
     expect(within(planSection as HTMLElement).getByText("$0.00")).toBeInTheDocument();
+    expect(within(planSection as HTMLElement).queryByText("450 GB")).not.toBeInTheDocument();
   });
 
   it("omits Stripe and action columns from the public plans catalog", () => {
@@ -495,6 +498,7 @@ describe("Admin pricing page", () => {
         displayName: "100 credits",
         creditAmountCents: 100,
         priceCents: 500,
+        totalTimesPurchased: 7,
         stripePriceId: "price_100",
         sortOrder: 10,
         isActive: true,
@@ -504,6 +508,7 @@ describe("Admin pricing page", () => {
         displayName: "1200",
         creditAmountCents: 1200,
         priceCents: 4900,
+        totalTimesPurchased: 23,
         stripePriceId: "price_1200",
         sortOrder: 40,
         isActive: true,
@@ -528,6 +533,9 @@ describe("Admin pricing page", () => {
     expect(creditPackages.getByText("100 credits")).toBeInTheDocument();
     expect(creditPackages.getByText("1,200 credits")).toBeInTheDocument();
     expect(creditPackages.queryByText("1200")).not.toBeInTheDocument();
+    expect(creditPackages.getByText("Total purchased")).toBeInTheDocument();
+    expect(creditPackages.getByText("7")).toBeInTheDocument();
+    expect(creditPackages.getByText("23")).toBeInTheDocument();
     expect(creditPackages.getByText("Price per credit")).toBeInTheDocument();
     expect(creditPackages.queryByText("Unit economics")).not.toBeInTheDocument();
     expect(creditPackages.getByText("$0.0500")).toBeInTheDocument();
@@ -546,6 +554,7 @@ describe("Admin pricing page", () => {
         storageAddonId: "storage_10gb",
         displayName: "Extra 10 GB",
         offerId: "storage_10gb__month__stripe_20260701",
+        activeAccountCount: 12,
         storageLimitBytes: 10737418240,
         recurringPriceCents: 700,
         stripePriceId: "price_storage_10",
@@ -572,6 +581,8 @@ describe("Admin pricing page", () => {
     const storageAddons = within(storageSection as HTMLElement);
 
     expect(storageAddons.getByText("Extra 10 GB")).toBeInTheDocument();
+    expect(storageAddons.getByText("Active accounts")).toBeInTheDocument();
+    expect(storageAddons.getByText("12")).toBeInTheDocument();
     expect(storageAddons.getByText("$7.00")).toBeInTheDocument();
     expect(storageAddons.getByText("10 GB")).toBeInTheDocument();
     expect(storageAddons.queryByText("Offer id")).not.toBeInTheDocument();

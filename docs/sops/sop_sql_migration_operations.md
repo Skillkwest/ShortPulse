@@ -35,6 +35,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/configure_media_derivative_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/media-derivatives/run`.
 - `sql/configure_admin_user_health_fleet_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/admin-user-health-fleet/run`.
 - `sql/configure_internal_billing_renewal_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/billing-contract-renewals/run`.
+- `sql/configure_credit_expiration_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/credit-expirations/run`.
 - `sql/configure_control_plane_scheduler_bypass_secret_supabase.sql`: set/update optional Vault bypass token (`shortpulse_vercel_protection_bypass_token`) for Vercel-protected scheduler targets.
 - `sql/configure_cron_job_run_details_retention_supabase.sql`: prune old ended `cron.job_run_details` rows, compact the pruned table, and schedule daily run-history retention for Supabase Cron Disk I/O control.
 - `sql/migrations/172_schedule_worker_runs_retention.sql`: schedule daily hosted pg_cron retention for completed `ok` rows in `public.worker_runs` after 30 days while preserving incomplete/running rows and error rows.
@@ -62,7 +63,9 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/196_add_browser_crash_sessions.sql`: add service-role-only authenticated browser freeze/crash session evidence for `/admin/crashes`.
 - `sql/migrations/197_add_browser_crash_session_review_status.sql`: add operator review state so `/admin/crashes` rows can be resolved or ignored without deleting evidence.
 - `sql/migrations/198_allow_equal_timestamp_project_workspace_updates.sql`: allow same-timestamp project workspace saves to persist structural checkpoint changes while older autosaves still no-op.
-- `sql/migrations/199_repair_create_pulse_builtin_catalog.sql`: repair the admin-owned Create Pulse built-in catalog to the three canonical built-ins while preserving hidden system instructions.
+- `sql/migrations/199_repair_create_pulse_builtin_catalog.sql`: repair legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions.
+- `sql/migrations/200_add_credit_grant_lot_expiration.sql`: add canonical credit grant lots, grant allocation tracking, expiring-first debit/reservation RPCs, and the service-role credit expiration RPC.
+- `sql/migrations/201_harden_paid_media_library_access_contract_authority.sql`: keep Media Library and Reference Grid insert authority on current non-free billing contracts instead of billing profile projection drift.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -294,6 +297,8 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `197_add_browser_crash_session_review_status.sql`
 - `198_allow_equal_timestamp_project_workspace_updates.sql`
 - `199_repair_create_pulse_builtin_catalog.sql`
+- `200_add_credit_grant_lot_expiration.sql`
+- `201_harden_paid_media_library_access_contract_authority.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

@@ -29,10 +29,17 @@ Use this rubric when turning Maya's customer observations into engineering hando
 For each engineering handoff finding, include:
 
 - severity,
+- issue tags,
+- repeat-finding status,
 - route or surface,
 - Maya's customer question,
 - visible steps tried,
 - expected customer outcome,
 - actual visible outcome,
 - evidence path if kept,
+- customer-service risk,
+- product decision impact,
+- acceptance criteria,
+- validation steps,
+- protected behavior,
 - next investigation boundary.

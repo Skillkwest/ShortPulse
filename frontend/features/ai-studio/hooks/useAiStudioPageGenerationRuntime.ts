@@ -85,12 +85,11 @@ type UseAiStudioPageGenerationRuntimeParams = {
   referenceImageUrl: string | null;
   refreshBalance: (options?: {
     silent?: boolean;
-    preferLedger?: boolean;
     beforeCommit?: (snapshot: {
       cents: number;
       updatedAt: string | null;
       reservedCents?: number | null;
-      source?: "snapshot" | "fallback";
+      source?: "snapshot";
     }) => void;
   }) => Promise<number | null>;
   refreshCharacterModeInjectionBundleForSubmission: (

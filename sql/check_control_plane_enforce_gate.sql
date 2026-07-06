@@ -84,7 +84,6 @@ runtime_sql as (
         ('public.archive_admin_kanban_item(uuid,uuid,text)'),
         ('public.activate_billing_plan_offer(text,text,text,text,integer,integer,bigint,integer,text,text,boolean)'),
         ('public.activate_billing_storage_addon_offer(text,text,text,bigint,integer,text,text,boolean)'),
-        ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)'),
         ('public.mark_generation_reservation_submitted(uuid,text,text,jsonb)'),
         ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'),
         ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)'),
@@ -167,6 +166,10 @@ runtime_sql as (
       else not has_function_privilege('anon', r.regproc, 'EXECUTE')
     end as pass
     from resolved r
+
+    union all
+
+    select to_regprocedure('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)') is null as pass
   )
   select count(*) filter (where not pass)::integer as failing_checks
   from checks

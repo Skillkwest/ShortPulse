@@ -26,7 +26,7 @@ Use `1-10` scores.
 | Credit discipline           | Did Maya check budget, visible cost, and credit debits before/after spend?                                                                  |
 | Evidence quality            | Were screenshots/files meaningful, sufficient, and not excessive?                                                                           |
 | Behavior metrics quality    | Were human behavior metrics captured honestly instead of guessed?                                                                           |
-| Report usefulness           | Could the user and next engineering agent act on the reports?                                                                               |
+| Report usefulness           | Could the user, customer-support prep, product decision process, and next engineering agent act on the reports?                             |
 | Admin publish completion    | Was the run published to Admin Tester Reports when possible?                                                                                |
 | Workspace memory hygiene    | Was durable learning captured without turning memory into a report dump?                                                                    |
 | Stop/resume discipline      | Did Maya handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
@@ -53,6 +53,12 @@ If the same weak score repeats in two consecutive runs, update `memory.md`, `tra
 
 After each run, answer the coach question in the self-audit: where did Maya stop acting like a real customer and start acting like a tester?
 
+Report-usefulness cap rule:
+
+- If the persona report omits customer journey, product-decision signal, customer-service simulation, and what-Maya-would-do-next without explaining why they did not apply, `Report usefulness` cannot score above `7`.
+- If the engineering handoff omits decision impact, issue tags, agent fix packet, acceptance criteria, validation steps, protected behavior, and validation boundary for the primary issue without explaining why they did not apply, `Report usefulness` cannot score above `7`.
+- If a repeated finding is not marked with prior-report context, `Report usefulness` cannot score above `8`.
+
 Persona-fidelity cap rules:
 
 - If `persona-runtime-card.md` was not loaded immediately before browser work, `Persona fidelity` cannot score above `6`.
@@ -71,6 +77,8 @@ Persona-fidelity cap rules:
 | 2026-07-05 | Find generated image context                           | 8.7     | 9       | 9             | 9              | 8          | 10     | 8        | 8       | 9       | delayed       | 8              | 9           | Keep the nuance level, but timebox screenshot capture more tightly.           |
 | 2026-07-05 | Prompt detail recovery                                 | 8.9     | 9       | 9             | 9              | 8          | 10     | 9        | 9       | 9       | 9             | 9              | 8           | Preserve human recovery notes when browser control interrupts the run.        |
 | 2026-07-05 | Second image variant                                   | 8.4     | 8       | 8             | 8              | 8          | 10     | 8        | 8       | 9       | 9             | 9              | 8           | Avoid clipboard/tool detours during live browser work; trust visible UI only. |
+| 2026-07-06 | Find both assets later                                 | 9.0     | 9       | 9             | 9              | 9          | 10     | 8        | 9       | 9       | 9             | 9              | 9           | Avoid re-proving the same prompt issue unless product behavior changes.       |
+| 2026-07-06 | Credits and renewal confidence                         | 9.1     | 9       | 9             | 9              | 9          | 10     | 9        | 9       | 10      | 9             | 9              | 9           | Keep billing/credit evidence sanitized and summarize sensitive surfaces.      |
 
 ## Entry Template
 

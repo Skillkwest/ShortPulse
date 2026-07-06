@@ -374,6 +374,25 @@ describe("GET /api/admin/pricing/state", () => {
           };
         }
 
+        if (table === "ai_credit_ledger") {
+          return {
+            select: () => ({
+              eq: () => ({
+                gt: async () => ({
+                  data: [
+                    { metadata: { credit_package_id: "1200", credit_kind: "paid_topup" } },
+                    { metadata: { credit_package_id: "1200", credit_kind: "paid_topup" } },
+                    { metadata: { credit_package_id: "100", credit_kind: "paid_topup" } },
+                    { metadata: { credit_package_id: "starter_500", credit_kind: "paid_topup" } },
+                    { metadata: { credit_package_id: null, credit_kind: "paid_topup" } },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
         if (table === "billing_storage_addons") {
           return {
             select: () => ({
@@ -389,6 +408,12 @@ describe("GET /api/admin/pricing/state", () => {
                     id: "storage_100gb",
                     display_name: "Extra 100 GB",
                     sort_order: 20,
+                    is_active: true,
+                  },
+                  {
+                    id: "storage_500gb",
+                    display_name: "Extra 500 GB",
+                    sort_order: 30,
                     is_active: true,
                   },
                 ],
@@ -424,6 +449,38 @@ describe("GET /api/admin/pricing/state", () => {
                     }),
                   }),
                 }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: () => ({
+              is: async () => ({
+                data: [
+                  {
+                    user_id: "user-active-1",
+                    storage_addon_id: "storage_25gb",
+                    status: "active",
+                  },
+                  {
+                    user_id: "user-active-2",
+                    storage_addon_id: "storage_25gb",
+                    status: "past_due",
+                  },
+                  {
+                    user_id: "user-active-2",
+                    storage_addon_id: "storage_25gb",
+                    status: "past_due",
+                  },
+                  {
+                    user_id: "user-inactive",
+                    storage_addon_id: "storage_25gb",
+                    status: "canceled",
+                  },
+                ],
+                error: null,
               }),
             }),
           };
@@ -536,9 +593,9 @@ describe("GET /api/admin/pricing/state", () => {
             accountCount: 1,
             status: "payment_exempt",
             recurringPriceCents: 0,
-            monthlyCreditsCents: 7500,
-            storageLimitBytes: 161061273600,
-            maxConcurrentGenerations: 8,
+            monthlyCreditsCents: 0,
+            storageLimitBytes: 0,
+            maxConcurrentGenerations: 0,
             acquisitionEnabled: false,
           }),
         ],
@@ -546,21 +603,31 @@ describe("GET /api/admin/pricing/state", () => {
           expect.objectContaining({
             id: "1200",
             stripePriceId: null,
+            totalTimesPurchased: 2,
           }),
           expect.objectContaining({
             id: "100",
             isActive: false,
+            totalTimesPurchased: 1,
           }),
         ],
         storageAddons: [
           expect.objectContaining({
             storageAddonId: "storage_25gb",
             stripePriceId: "price_storage_25",
+            activeAccountCount: 2,
           }),
           expect.objectContaining({
             storageAddonId: "storage_100gb",
             offerId: null,
             stripePriceId: null,
+            activeAccountCount: 0,
+          }),
+          expect.objectContaining({
+            storageAddonId: "storage_500gb",
+            offerId: null,
+            stripePriceId: null,
+            activeAccountCount: 0,
           }),
         ],
         health: expect.objectContaining({

@@ -32,6 +32,15 @@ describe("adminPulseDraftValidation", () => {
     expect(resolvePulseDraftValidationIssue(draft)).toContain("must not contain spaces or colons");
   });
 
+  it("rejects retired preset ids before admin save", () => {
+    const draft = buildDraft({ presetId: "legacy_prompt_modifier" });
+
+    expect(isPulseDraftPersistable(draft)).toBe(false);
+    expect(resolvePulseDraftValidationIssue(draft)).toBe(
+      "This preset id is retired. Choose a new safe preset id for this built-in Pulse."
+    );
+  });
+
   it("requires starter messages so kickoff has a deterministic visible prompt", () => {
     const draft = buildDraft({ starterAssistantMessage: "   " });
 

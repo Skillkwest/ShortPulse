@@ -130,12 +130,27 @@ describe("GET /api/admin/users", () => {
       }),
     };
 
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          spendable_cents: 75,
+          reserved_cents: 25,
+          expiring_cents: 75,
+          non_expiring_cents: 0,
+          next_expiring_cents: 75,
+          next_expires_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
     getSupabaseAdminMock.mockReturnValue({
       auth: {
         admin: {
           listUsers,
         },
       },
+      rpc,
       from: vi.fn((table: string) => {
         if (table === "ai_credit_balance") {
           return {
@@ -187,14 +202,17 @@ describe("GET /api/admin/users", () => {
             monthlyCreditsCents: 4000,
             billingSource: "subscription_contract",
             subscriptionStatus: "active",
-            credits: 6,
-            spendableCredits: 6,
+            credits: 75,
+            spendableCredits: 75,
             availableCredits: 106,
-            reservedCredits: 100,
+            reservedCredits: 25,
           }),
         ],
         reservationsSupported: true,
       })
     );
+    expect(rpc).toHaveBeenCalledWith("get_credit_grant_summary", {
+      p_user_id: "user-1",
+    });
   });
 });

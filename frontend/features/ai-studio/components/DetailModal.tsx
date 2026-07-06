@@ -1298,61 +1298,65 @@ function DetailModalContent({
             onStagePointerCancel={isImageOutput ? handleImagePointerUp : undefined}
             stage={
               <>
-                <SharedMediaDetailPreviewMedia
-                  mediaUrl={displayPreviewUrl}
-                  mediaKind={detailPreviewKind}
-                  altText={displayPromptText}
-                  isLoading={isDetailPreviewLoading}
-                  imageClassName="art-hero-image"
-                  videoClassName="art-hero-image"
-                  audioClassName="art-hero-audio"
-                  audioId={detailModalItem.media.id}
-                  audioAssetKey={detailAudioAssetKey}
-                  audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
-                  audioMusicMode={detailModalItem.media.musicMode ?? null}
-                  audioLyricsText={detailModalItem.media.lyricsText ?? null}
-                  audioDurationMs={detailModalItem.media.durationMs ?? null}
-                  audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
-                  audioBackgroundImageUrl={audioBackgroundImageUrl}
-                  videoPosterUrl={detailVideoPosterUrl}
-                  imageStyle={imageStyle}
-                  videoStyle={aspectStyle}
-                  videoRef={videoPreviewRef}
-                  audioRef={audioPreviewRef}
-                  videoLoop
-                  videoMuted
-                  imageIdentityKey={outputId}
-                  onImageDragStart={(event) => event.preventDefault()}
-                  onImageLoad={handleImageLoad}
-                  onImageError={handleDetailImageError}
-                  onImageCandidateError={handleDetailImageError}
-                  onDisplayedImageUrlChange={handleDisplayedImageUrlChange}
-                  onVideoLoadedMetadata={(event) => {
-                    handlePreviewAspectLoad(
-                      event.currentTarget.videoWidth,
-                      event.currentTarget.videoHeight
-                    );
-                  }}
-                  onVideoPlay={videoPreviewPlayback.handlePlay}
-                  onVideoPause={videoPreviewPlayback.handlePause}
-                  onVideoEnded={videoPreviewPlayback.handleEnded}
-                  onVideoError={handleDetailVideoError}
-                  onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
-                  onAudioPlay={audioPreviewPlayback.handlePlay}
-                  onAudioRequestPlayback={audioPreviewPlayback.requestPlayback}
-                  onAudioPause={audioPreviewPlayback.handlePause}
-                  onAudioEnded={audioPreviewPlayback.handleEnded}
-                  onAudioError={handleDetailAudioError}
-                  onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
-                />
                 {detailPreviewKind === "video" ? (
-                  <SharedMediaDetailVideoSnapshotControl
-                    videoRef={videoPreviewRef}
-                    filenameHint={displayPromptText || output.id}
-                    onSnapshotVideoFrame={onSnapshotVideoFrame}
-                    onSnapshotVideoFrameError={onSnapshotVideoFrameError}
-                  />
+                  <div className="art-stage-toolbar" aria-label="Video frame actions">
+                    <SharedMediaDetailVideoSnapshotControl
+                      videoRef={videoPreviewRef}
+                      filenameHint={displayPromptText || output.id}
+                      onSnapshotVideoFrame={onSnapshotVideoFrame}
+                      onSnapshotVideoFrameError={onSnapshotVideoFrameError}
+                    />
+                  </div>
                 ) : null}
+                <div className="art-stage-media-frame">
+                  <SharedMediaDetailPreviewMedia
+                    mediaUrl={displayPreviewUrl}
+                    mediaKind={detailPreviewKind}
+                    altText={displayPromptText}
+                    isLoading={isDetailPreviewLoading}
+                    imageClassName="art-hero-image"
+                    videoClassName="art-hero-image"
+                    audioClassName="art-hero-audio"
+                    audioId={detailModalItem.media.id}
+                    audioAssetKey={detailAudioAssetKey}
+                    audioSourceMode={detailModalItem.media.audioSourceMode ?? null}
+                    audioMusicMode={detailModalItem.media.musicMode ?? null}
+                    audioLyricsText={detailModalItem.media.lyricsText ?? null}
+                    audioDurationMs={detailModalItem.media.durationMs ?? null}
+                    audioWaveformPeaks={detailModalItem.media.waveformPeaks ?? null}
+                    audioBackgroundImageUrl={audioBackgroundImageUrl}
+                    videoPosterUrl={detailVideoPosterUrl}
+                    imageStyle={imageStyle}
+                    videoStyle={aspectStyle}
+                    videoRef={videoPreviewRef}
+                    audioRef={audioPreviewRef}
+                    videoLoop
+                    videoMuted
+                    imageIdentityKey={outputId}
+                    onImageDragStart={(event) => event.preventDefault()}
+                    onImageLoad={handleImageLoad}
+                    onImageError={handleDetailImageError}
+                    onImageCandidateError={handleDetailImageError}
+                    onDisplayedImageUrlChange={handleDisplayedImageUrlChange}
+                    onVideoLoadedMetadata={(event) => {
+                      handlePreviewAspectLoad(
+                        event.currentTarget.videoWidth,
+                        event.currentTarget.videoHeight
+                      );
+                    }}
+                    onVideoPlay={videoPreviewPlayback.handlePlay}
+                    onVideoPause={videoPreviewPlayback.handlePause}
+                    onVideoEnded={videoPreviewPlayback.handleEnded}
+                    onVideoError={handleDetailVideoError}
+                    onVideoVolumeChange={videoPreviewPlayback.handleVolumeChange}
+                    onAudioPlay={audioPreviewPlayback.handlePlay}
+                    onAudioRequestPlayback={audioPreviewPlayback.requestPlayback}
+                    onAudioPause={audioPreviewPlayback.handlePause}
+                    onAudioEnded={audioPreviewPlayback.handleEnded}
+                    onAudioError={handleDetailAudioError}
+                    onAudioVolumeChange={audioPreviewPlayback.handleVolumeChange}
+                  />
+                </div>
               </>
             }
             sidePanel={

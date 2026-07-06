@@ -23,6 +23,7 @@ export const REQUIRED_ROUTE_PATHS = [
   "/api/billing/subscription/change",
   "/api/billing/stripe/webhook",
   "/api/internal/billing-contract-renewals/run",
+  "/api/internal/credit-expirations/run",
 ];
 
 const readArgValue = (argv, index, label) => {
@@ -44,7 +45,10 @@ export const parseArgs = (argv) => {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--base-url") {
-      parsed.baseUrl = readArgValue(argv, index, "--base-url").replace(/\/+$/, "");
+      parsed.baseUrl = readArgValue(argv, index, "--base-url").replace(
+        /\/+$/,
+        "",
+      );
       index += 1;
       continue;
     }
@@ -105,17 +109,24 @@ export const createReporter = () => {
   };
   return {
     checks,
-    pass: (id, summary, detail = null) => record({ status: "pass", id, summary, detail }),
-    warn: (id, summary, detail = null) => record({ status: "warn", id, summary, detail }),
-    fail: (id, summary, detail = null) => record({ status: "fail", id, summary, detail }),
+    pass: (id, summary, detail = null) =>
+      record({ status: "pass", id, summary, detail }),
+    warn: (id, summary, detail = null) =>
+      record({ status: "warn", id, summary, detail }),
+    fail: (id, summary, detail = null) =>
+      record({ status: "fail", id, summary, detail }),
   };
 };
 
 export const runNodeScript = async (scriptPath, args) => {
-  const { stdout, stderr } = await execFileAsync(process.execPath, [scriptPath, ...args], {
-    cwd: process.cwd(),
-    maxBuffer: 20 * 1024 * 1024,
-  });
+  const { stdout, stderr } = await execFileAsync(
+    process.execPath,
+    [scriptPath, ...args],
+    {
+      cwd: process.cwd(),
+      maxBuffer: 20 * 1024 * 1024,
+    },
+  );
   return `${stdout}${stderr ? `\n${stderr}` : ""}`.trim();
 };
 
@@ -123,7 +134,9 @@ export const fetchText = async (url, options = {}) => {
   const response = await fetch(url, options);
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(`${url} returned ${response.status}: ${body.slice(0, 240)}`);
+    throw new Error(
+      `${url} returned ${response.status}: ${body.slice(0, 240)}`,
+    );
   }
   return { response, body };
 };

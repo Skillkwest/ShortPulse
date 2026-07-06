@@ -4,9 +4,33 @@
 import { describe, expect, it } from "vitest";
 import { buildAdminHealthResponse } from "../../lib/server/adminUserHealth/deepReport";
 
+type BuildAdminHealthResponseArgs = Parameters<typeof buildAdminHealthResponse>[0];
+type BuildResponseArgs = Omit<BuildAdminHealthResponseArgs, "creditGrantSummary"> &
+  Partial<Pick<BuildAdminHealthResponseArgs, "creditGrantSummary">>;
+
+const buildResponse = (args: BuildResponseArgs) => {
+  const reservedCents =
+    args.creditGrantSummary?.reservedCents ??
+    args.reservations
+      .filter((row) => row.status === "reserved")
+      .reduce((sum, row) => sum + Math.abs(Number(row.amount_cents ?? 0)), 0);
+  const availableCents = Number(args.balance?.balance_cents ?? 0);
+  return buildAdminHealthResponse({
+    ...args,
+    creditGrantSummary: args.creditGrantSummary ?? {
+      spendableCents: Math.max(0, availableCents - reservedCents),
+      reservedCents,
+      expiringCents: Math.max(0, availableCents - reservedCents),
+      nonExpiringCents: 0,
+      nextExpiringCents: Math.max(0, availableCents - reservedCents),
+      nextExpiresAt: null,
+    },
+  });
+};
+
 describe("buildAdminHealthResponse", () => {
   it("returns healthy baseline when no risk signals are present", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user@example.com",
       lookupMode: "email",
       lookbackDays: 30,
@@ -48,7 +72,7 @@ describe("buildAdminHealthResponse", () => {
 
   it("surfaces linked failure, aged holds, stuck generations, and compatibility warnings", () => {
     const nowMs = Date.parse("2026-03-17T12:00:00.000Z");
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -137,7 +161,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("surfaces delayed generations before they cross the critical stuck threshold", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -180,7 +204,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("uses attempt linkage and canonical outputs to reduce false missing-linkage diagnosis", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -264,7 +288,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("does not classify user-abandoned no-refund captures as billing leakage", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -336,7 +360,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("nets generation refunds and direct projection success before flagging charge leakage", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -412,7 +436,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("uses projection request lineage when charge source_ref differs from projection source_ref", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -479,7 +503,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("uses ai_generations metadata source_ref lineage before flagging charge leakage", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -544,7 +568,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("surfaces generation output, project association, and terminal hold invariants", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -646,7 +670,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("uses projection provider lineage before missing terminal reserved holds", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user-1",
       lookupMode: "user_id",
       lookbackDays: 30,
@@ -720,7 +744,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("ignores project association drift for metadata that points at deleted projects", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user@example.com",
       lookupMode: "email",
       lookbackDays: 30,
@@ -779,7 +803,7 @@ describe("buildAdminHealthResponse", () => {
   });
 
   it("does not flag missing project_generation_items when projection owns project visibility", () => {
-    const result = buildAdminHealthResponse({
+    const result = buildResponse({
       lookup: "user@example.com",
       lookupMode: "email",
       lookbackDays: 30,

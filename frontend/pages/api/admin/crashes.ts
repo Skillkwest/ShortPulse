@@ -15,7 +15,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 type BrowserCrashSessionStatusFilter = BrowserCrashSessionStatus | "all" | "needs_review";
-type BrowserCrashSessionReviewStatusFilter = BrowserCrashSessionReviewStatus | "all";
+type BrowserCrashSessionReviewStatusFilter = BrowserCrashSessionReviewStatus | "reviewed" | "all";
 
 const STATUS_VALUES = new Set<BrowserCrashSessionStatusFilter>([
   "all",
@@ -30,6 +30,7 @@ const REVIEW_STATUS_VALUES = new Set<BrowserCrashSessionReviewStatusFilter>([
   "open",
   "resolved",
   "ignored",
+  "reviewed",
   "all",
 ]);
 

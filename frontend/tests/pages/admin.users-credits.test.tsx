@@ -397,6 +397,11 @@ describe("Admin users and credits overview", () => {
       }
       if (path === "/api/admin/credits/adjust") {
         expect(options?.method).toBe("POST");
+        const body =
+          typeof options?.body === "string"
+            ? (JSON.parse(options.body) as Record<string, unknown>)
+            : {};
+        expect(body.idempotencyKey).toEqual(expect.any(String));
         return jsonResponse({ ok: true });
       }
       if (path === "/api/admin/billing/contracts/update") {
@@ -693,16 +698,19 @@ describe("Admin users and credits overview", () => {
 
     await waitFor(() => expect(screen.getByText("Credit adjustment applied.")).toBeInTheDocument());
 
-    expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/admin/credits/adjust",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          userId: USER_2_ID,
-          changeCents: 500,
-        }),
-      })
+    const adjustmentCall = fetchWithAuthMock.mock.calls.find(
+      ([path]) => path === "/api/admin/credits/adjust"
     );
+    expect(adjustmentCall?.[1]).toEqual(expect.objectContaining({ method: "POST" }));
+    const adjustmentBody =
+      typeof adjustmentCall?.[1]?.body === "string"
+        ? (JSON.parse(adjustmentCall[1].body) as Record<string, unknown>)
+        : {};
+    expect(adjustmentBody).toEqual({
+      userId: USER_2_ID,
+      changeCents: 500,
+      idempotencyKey: expect.any(String),
+    });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=20`,
       expect.objectContaining({ method: "GET" })

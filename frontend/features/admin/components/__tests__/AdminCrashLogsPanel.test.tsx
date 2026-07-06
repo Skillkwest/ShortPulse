@@ -70,10 +70,12 @@ describe("AdminCrashLogsPanel", () => {
           hasNextPage: false,
           hasPrevPage: false,
         }}
+        viewMode="needs_review"
         statusFilter="all"
         reviewStatusFilter="open"
         search=""
         updatingReviewSessionId={null}
+        onViewModeChange={vi.fn()}
         onStatusFilterChange={vi.fn()}
         onReviewStatusFilterChange={vi.fn()}
         onSearchChange={vi.fn()}
@@ -86,6 +88,7 @@ describe("AdminCrashLogsPanel", () => {
 
     expect(screen.getByText("Probable freeze")).toBeInTheDocument();
     expect(screen.getByText("medium confidence")).toBeInTheDocument();
+    expect(screen.getAllByText("Open review").length).toBeGreaterThan(0);
     expect(screen.getByText("Previous session ended without clean close")).toBeInTheDocument();
     expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
     expect(screen.getByText("Chrome · production")).toBeInTheDocument();
@@ -103,8 +106,72 @@ describe("AdminCrashLogsPanel", () => {
 
     expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("browser_crash_session");
     expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("alpha@example.com");
+    expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain('"reviewStatus": "open"');
 
-    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
-    expect(onUpdateReviewStatus).toHaveBeenCalledWith("crash-1", "resolved");
+    fireEvent.click(screen.getByRole("button", { name: "Mark reviewed" }));
+    fireEvent.change(screen.getByPlaceholderText("Add a short review note for history"), {
+      target: { value: "Monitoring only; no product fix yet." },
+    });
+    const reviewButtons = screen.getAllByRole("button", { name: "Mark reviewed" });
+    const confirmReviewButton = reviewButtons[reviewButtons.length - 1];
+    expect(confirmReviewButton).toBeDefined();
+    fireEvent.click(confirmReviewButton as HTMLElement);
+    expect(onUpdateReviewStatus).toHaveBeenCalledWith(
+      "crash-1",
+      "resolved",
+      "Monitoring only; no product fix yet."
+    );
+  });
+
+  it("routes view modes and reopens reviewed crash sessions", () => {
+    const onViewModeChange = vi.fn();
+    const onUpdateReviewStatus = vi.fn();
+    render(
+      <AdminCrashLogsPanel
+        sessions={[
+          {
+            ...crashSession,
+            reviewStatus: "resolved",
+            reviewedAt: "2026-07-05T01:04:00.000Z",
+            reviewedByEmail: "admin@example.com",
+            reviewNote: "Monitoring only.",
+          },
+        ]}
+        loading={false}
+        error={null}
+        pagination={{
+          page: 1,
+          perPage: 50,
+          totalCount: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        }}
+        viewMode="history"
+        statusFilter="needs_review"
+        reviewStatusFilter="reviewed"
+        search=""
+        updatingReviewSessionId={null}
+        onViewModeChange={onViewModeChange}
+        onStatusFilterChange={vi.fn()}
+        onReviewStatusFilterChange={vi.fn()}
+        onSearchChange={vi.fn()}
+        onUpdateReviewStatus={onUpdateReviewStatus}
+        onPrevPage={vi.fn()}
+        onNextPage={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "All Evidence" }));
+    expect(onViewModeChange).toHaveBeenCalledWith("all_evidence");
+
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText("Review Reviewed")).toBeInTheDocument();
+    expect(screen.getByText("Reviewer admin@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Review note Monitoring only.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reopen" }));
+    expect(onUpdateReviewStatus).toHaveBeenCalledWith("crash-1", "open");
   });
 });

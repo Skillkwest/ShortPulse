@@ -16,7 +16,6 @@ with expected_functions as (
             ('public.archive_admin_kanban_item(uuid,uuid,text)', null),
             ('public.activate_billing_plan_offer(text,text,text,text,integer,integer,bigint,integer,text,text,boolean)', null),
             ('public.activate_billing_storage_addon_offer(text,text,text,bigint,integer,text,text,boolean)', null),
-            ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)', null),
             ('public.mark_generation_reservation_submitted(uuid,text,text,jsonb)', null),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)', null),
             ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)', null),
@@ -63,7 +62,12 @@ with expected_functions as (
                 'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)',
                 'public.apply_model_pricing_policy(jsonb,text,text,uuid,text,text)'
             ),
-            ('public.rollback_model_pricing_policy(text,uuid,text,text)', null)
+            ('public.rollback_model_pricing_policy(text,uuid,text,text)', null),
+            ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),
+            ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)', null),
+            ('public.get_credit_grant_summary(uuid)', null),
+            ('public.expire_credit_grants(integer)', null),
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -246,6 +250,13 @@ expected_table_grants as (
             ('public'::text, 'ai_credit_balance'::text, 'service_role'::text, 'UPDATE'::text),
             ('public'::text, 'ai_credit_ledger'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'ai_credit_ledger'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'authenticated'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'UPDATE'::text),
             ('public'::text, 'admin_user_health_scan_runs'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'admin_user_health_scan_runs'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'SELECT'::text),
@@ -283,6 +294,21 @@ sequence_checks(signature, check_name, check_pass, detail) as (
         format('%s must have %s on sequence %s.%s', e.grantee, e.privilege_type, e.schema_name, e.sequence_name) as detail
     from expected_sequence_grants e
 ),
+forbidden_runtime_functions as (
+    select *
+    from (
+        values
+            ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)'::text)
+    ) as f(signature)
+),
+forbidden_function_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'retired_runtime_function_absent'::text as check_name,
+        (to_regprocedure(f.signature) is null) as check_pass,
+        'retired aggregate-balance reservation RPC must not exist'::text as detail
+    from forbidden_runtime_functions f
+),
 all_checks as (
     select * from function_checks
     union all
@@ -291,6 +317,8 @@ all_checks as (
     select * from table_checks
     union all
     select * from sequence_checks
+    union all
+    select * from forbidden_function_checks
 )
 select
     signature,
@@ -311,7 +339,6 @@ with expected_functions as (
             ('public.archive_admin_kanban_item(uuid,uuid,text)', null),
             ('public.activate_billing_plan_offer(text,text,text,text,integer,integer,bigint,integer,text,text,boolean)', null),
             ('public.activate_billing_storage_addon_offer(text,text,text,bigint,integer,text,text,boolean)', null),
-            ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)', null),
             ('public.mark_generation_reservation_submitted(uuid,text,text,jsonb)', null),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)', null),
             ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)', null),
@@ -358,7 +385,12 @@ with expected_functions as (
                 'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)',
                 'public.apply_model_pricing_policy(jsonb,text,text,uuid,text,text)'
             ),
-            ('public.rollback_model_pricing_policy(text,uuid,text,text)', null)
+            ('public.rollback_model_pricing_policy(text,uuid,text,text)', null),
+            ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),
+            ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)', null),
+            ('public.get_credit_grant_summary(uuid)', null),
+            ('public.expire_credit_grants(integer)', null),
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -541,6 +573,13 @@ expected_table_grants as (
             ('public'::text, 'ai_credit_balance'::text, 'service_role'::text, 'UPDATE'::text),
             ('public'::text, 'ai_credit_ledger'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'ai_credit_ledger'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'authenticated'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grants'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'ai_credit_grant_allocations'::text, 'service_role'::text, 'UPDATE'::text),
             ('public'::text, 'admin_user_health_scan_runs'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'admin_user_health_scan_runs'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'SELECT'::text),
@@ -578,6 +617,21 @@ sequence_checks(signature, check_name, check_pass, detail) as (
         format('%s must have %s on sequence %s.%s', e.grantee, e.privilege_type, e.schema_name, e.sequence_name) as detail
     from expected_sequence_grants e
 ),
+forbidden_runtime_functions as (
+    select *
+    from (
+        values
+            ('public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)'::text)
+    ) as f(signature)
+),
+forbidden_function_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'retired_runtime_function_absent'::text as check_name,
+        (to_regprocedure(f.signature) is null) as check_pass,
+        'retired aggregate-balance reservation RPC must not exist'::text as detail
+    from forbidden_runtime_functions f
+),
 all_checks as (
     select * from function_checks
     union all
@@ -586,6 +640,8 @@ all_checks as (
     select * from table_checks
     union all
     select * from sequence_checks
+    union all
+    select * from forbidden_function_checks
 )
 select
     count(*)::integer as total_checks,

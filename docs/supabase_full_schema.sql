@@ -1159,13 +1159,6 @@ as $$
                 and c.ended_at is null
                 and lower(coalesce(c.plan_id, 'free')) <> 'free'
                 and lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')
-        )
-        or exists (
-            select 1
-            from public.billing_profiles p
-            where p.user_id = target_user_id
-                and lower(coalesce(p.plan_id, 'free')) <> 'free'
-                and lower(coalesce(p.subscription_status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')
         );
 $$;
 
@@ -1515,17 +1508,6 @@ begin
         return greatest(v_limit, 0);
     end if;
 
-    select plan.storage_limit_bytes
-    into v_limit
-    from billing_profiles profile
-    join billing_plans plan on plan.id = profile.plan_id
-    where profile.user_id = p_user_id
-    limit 1;
-
-    if v_limit is not null then
-        return greatest(v_limit, 0);
-    end if;
-
     select storage_limit_bytes
     into v_limit
     from billing_plans
@@ -1780,6 +1762,114 @@ create policy insert_ai_credit_ledger_user_debits on ai_credit_ledger
         and change_cents < 0
         and coalesce(created_by, auth.uid()) = auth.uid()
     );
+
+-- Credit grant lots are the expiration-aware spend authority for new credit
+-- debits. ai_credit_ledger and ai_credit_balance remain audit/projection
+-- surfaces. Runtime grant/debit/reservation/expiration RPCs are owned by
+-- sql/migrations/200_add_credit_grant_lot_expiration.sql; apply that migration
+-- before enabling grant-lot billing runtime from a fresh bootstrap.
+create table if not exists ai_credit_grants (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    ledger_id uuid references ai_credit_ledger(id) on delete set null,
+    credit_kind text not null check (
+        credit_kind in (
+            'subscription_allocation',
+            'paid_topup',
+            'admin_adjustment',
+            'legacy_balance'
+        )
+    ),
+    granted_cents integer not null check (granted_cents > 0),
+    remaining_cents integer not null default 0 check (remaining_cents >= 0),
+    reserved_cents integer not null default 0 check (reserved_cents >= 0),
+    reason text not null,
+    source text not null,
+    source_ref text,
+    expires_at timestamptz,
+    expired_at timestamptz,
+    metadata jsonb not null default '{}'::jsonb,
+    created_by uuid references auth.users(id),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint ai_credit_grants_capacity_check
+        check (remaining_cents + reserved_cents <= granted_cents),
+    constraint ai_credit_grants_expiration_kind_check
+        check (
+            (
+                credit_kind = 'subscription_allocation'
+                and expires_at is not null
+                and expires_at = created_at + interval '60 days'
+            )
+            or (
+                credit_kind in ('paid_topup', 'admin_adjustment', 'legacy_balance')
+                and expires_at is null
+            )
+        )
+);
+
+create unique index if not exists ux_ai_credit_grants_ledger_id
+    on ai_credit_grants (ledger_id)
+    where ledger_id is not null;
+create unique index if not exists ux_ai_credit_grants_source_ref
+    on ai_credit_grants (user_id, source, source_ref)
+    where source_ref is not null;
+create index if not exists ix_ai_credit_grants_user_spend_order
+    on ai_credit_grants (user_id, expires_at, created_at)
+    where remaining_cents > 0 and expired_at is null;
+create index if not exists ix_ai_credit_grants_user_expiration
+    on ai_credit_grants (user_id, expires_at)
+    where expires_at is not null and expired_at is null;
+
+alter table ai_credit_grants enable row level security;
+drop policy if exists select_ai_credit_grants_isolation on ai_credit_grants;
+create policy select_ai_credit_grants_isolation on ai_credit_grants
+    for select using (user_id = auth.uid());
+drop policy if exists service_role_manage_ai_credit_grants on ai_credit_grants;
+create policy service_role_manage_ai_credit_grants on ai_credit_grants
+    for all to service_role
+    using (true)
+    with check (true);
+
+create table if not exists ai_credit_grant_allocations (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    grant_id uuid not null references ai_credit_grants(id) on delete cascade,
+    reservation_id uuid references ai_credit_reservations(id) on delete set null,
+    ledger_id uuid references ai_credit_ledger(id) on delete set null,
+    amount_cents integer not null check (amount_cents > 0),
+    allocation_status text not null check (
+        allocation_status in ('reserved', 'captured', 'released', 'debited', 'expired')
+    ),
+    allocation_source text not null,
+    metadata jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists ix_ai_credit_grant_allocations_user_created
+    on ai_credit_grant_allocations (user_id, created_at desc);
+create index if not exists ix_ai_credit_grant_allocations_reservation
+    on ai_credit_grant_allocations (reservation_id, allocation_status)
+    where reservation_id is not null;
+create index if not exists ix_ai_credit_grant_allocations_grant
+    on ai_credit_grant_allocations (grant_id, allocation_status);
+
+alter table ai_credit_grant_allocations enable row level security;
+drop policy if exists service_role_manage_ai_credit_grant_allocations
+    on ai_credit_grant_allocations;
+create policy service_role_manage_ai_credit_grant_allocations
+    on ai_credit_grant_allocations
+    for all to service_role
+    using (true)
+    with check (true);
+
+revoke all on table ai_credit_grants from public, anon, authenticated;
+grant select on table ai_credit_grants to authenticated;
+grant all on table ai_credit_grants to service_role;
+
+revoke all on table ai_credit_grant_allocations from public, anon, authenticated;
+grant all on table ai_credit_grant_allocations to service_role;
 
 create or replace function enforce_credit_ledger_insert()
 returns trigger

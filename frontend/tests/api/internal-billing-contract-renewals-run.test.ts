@@ -3,7 +3,7 @@ import handler from "../../pages/api/internal/billing-contract-renewals/run";
 
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
-const insertCreditLedgerEntryMock = vi.fn();
+const grantAccountCreditsMock = vi.fn();
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
@@ -14,7 +14,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 }));
 
 vi.mock("../../lib/server/api/creditLedger", () => ({
-  insertCreditLedgerEntry: (...args: unknown[]) => insertCreditLedgerEntryMock(...args),
+  grantAccountCredits: (...args: unknown[]) => grantAccountCreditsMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -30,7 +30,7 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     vi.setSystemTime(new Date("2026-04-02T00:00:00.000Z"));
     process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED = "true";
     process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET = "secret";
-    insertCreditLedgerEntryMock.mockResolvedValue({ error: null, mode: "rich" });
+    grantAccountCreditsMock.mockResolvedValue({ error: null, mode: "rich" });
   });
 
   afterEach(() => {
@@ -71,7 +71,7 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     await handler(req as never, res as never);
 
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
   });
@@ -151,11 +151,13 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        changeCents: 12000,
+        amountCents: 12000,
         source: "internal_contract_renewal",
+        creditKind: "subscription_allocation",
+        expiresAt: "2026-06-01T00:00:00.000Z",
       })
     );
     expect(contractUpdate).toHaveBeenCalled();
@@ -172,9 +174,10 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
   });
 
   it("treats duplicate renewal grants as safe and still advances the period", async () => {
-    insertCreditLedgerEntryMock.mockResolvedValue({
-      error: { code: "23505", message: "duplicate key value violates unique constraint" },
+    grantAccountCreditsMock.mockResolvedValue({
+      error: null,
       mode: "rich",
+      status: "duplicate",
     });
 
     const contractUpdate = vi.fn();
@@ -256,6 +259,7 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
       expect.objectContaining({
         ok: true,
         duplicateGrants: 1,
+        grantsInserted: 0,
         advancedContracts: 1,
       })
     );
@@ -341,11 +345,13 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-annual",
-        changeCents: 3000,
+        amountCents: 3000,
         source: "annual_contract_monthly_allocation",
+        creditKind: "subscription_allocation",
+        expiresAt: "2026-06-01T00:00:00.000Z",
       })
     );
     expect(contractUpdate).toHaveBeenCalledWith(

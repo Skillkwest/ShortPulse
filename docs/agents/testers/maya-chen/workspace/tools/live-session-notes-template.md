@@ -114,6 +114,12 @@ Frustration trigger:
 
 Point where Maya would naturally stop:
 
+Likely support-ticket sentence:
+
+Likely harsh-review sentence:
+
+What would calm Maya down:
+
 ## End State
 
 Finished at:
@@ -123,6 +129,10 @@ Final credit anxiety (1-5):
 Final spend readiness (1-5):
 Final save confidence (1-5):
 Review risk:
+Customer support risk:
+Retention risk:
+Product decision signal:
+Repeat finding:
 
 ## Post-Run Coach Question
 

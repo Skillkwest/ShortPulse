@@ -242,39 +242,28 @@ describe("useCredits", () => {
     expect(result.current.balanceReservedCents).toBe(30);
   });
 
-  it("uses the explicit legacy fallback only when preferLedger is requested", async () => {
-    let ledgerQueryCount = 0;
+  it("keeps browser credit refreshes on the authenticated snapshot route even when spendable drops", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          spendableCents: 980,
+          reservedCents: 20,
+          updatedAt: "2026-02-15T20:00:00.000Z",
+        }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          spendableCents: 0,
+          reservedCents: 640,
+          updatedAt: "2026-02-15T20:30:00.000Z",
+        }),
+      } as unknown as Response);
 
-    fetchWithAuthMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        spendableCents: 980,
-        reservedCents: 20,
-        updatedAt: "2026-02-15T20:00:00.000Z",
-      }),
-    } as unknown as Response);
-
-    ensureSupabaseQueryClientMock.mockReturnValue({
-      from: (table: string) => {
-        if (table !== "ai_credit_ledger") {
-          throw new Error(`Unexpected table query: ${table}`);
-        }
-
-        return {
-          select: () => ({
-            eq: () => ({
-              order: async () => {
-                ledgerQueryCount += 1;
-                return {
-                  data: [{ change_cents: 640, created_at: "2026-02-15T20:30:00.000Z" }],
-                  error: null,
-                };
-              },
-            }),
-          }),
-        };
-      },
-    } as never);
+    ensureSupabaseQueryClientMock.mockImplementation(() => {
+      throw new Error("Browser credit table reads are not allowed.");
+    });
 
     const { result } = renderHook(() => useCredits());
 
@@ -283,23 +272,21 @@ describe("useCredits", () => {
     });
     expect(result.current.balanceCents).toBe(980);
     expect(result.current.balanceReservedCents).toBe(20);
-    const snapshotCallCountBeforePreferLedgerRefresh = fetchWithAuthMock.mock.calls.length;
 
     await act(async () => {
       const refreshed = await result.current.refreshBalance({
         silent: true,
-        preferLedger: true,
         beforeCommit: (snapshot) => {
-          expect(snapshot.source).toBe("fallback");
+          expect(snapshot.source).toBe("snapshot");
         },
       });
-      expect(refreshed).toBe(640);
+      expect(refreshed).toBe(0);
     });
 
-    expect(ledgerQueryCount).toBe(1);
-    expect(result.current.balanceCents).toBe(640);
-    expect(result.current.balanceReservedCents).toBeNull();
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(snapshotCallCountBeforePreferLedgerRefresh);
+    expect(result.current.balanceCents).toBe(0);
+    expect(result.current.balanceReservedCents).toBe(640);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
   });
 
   it("dedupes overlapping credit snapshot refreshes into one authenticated request", async () => {

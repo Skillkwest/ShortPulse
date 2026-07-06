@@ -43,7 +43,6 @@ const {
       balanceCents: 10_000,
       balanceReservedCents: null as number | null,
       balanceLoading: false,
-      refreshSource: "fallback" as "snapshot" | "fallback",
     };
     const refreshBalanceMock = vi.fn(
       async (options?: {
@@ -51,7 +50,7 @@ const {
           cents: number;
           updatedAt: string | null;
           reservedCents?: number | null;
-          source?: "snapshot" | "fallback";
+          source?: "snapshot";
         }) => void;
       }) => {
         const cents = creditsStateMock.balanceCents;
@@ -59,7 +58,7 @@ const {
           cents: cents ?? 0,
           updatedAt: null,
           reservedCents: creditsStateMock.balanceReservedCents,
-          source: creditsStateMock.refreshSource,
+          source: "snapshot",
         });
         return cents;
       }
@@ -748,7 +747,6 @@ describe("ai-studio page character mode model picker", () => {
     creditsStateMock.balanceCents = 10_000;
     creditsStateMock.balanceReservedCents = null;
     creditsStateMock.balanceLoading = false;
-    creditsStateMock.refreshSource = "fallback";
     aiStudioPageContentCapture.lastProps = null;
     aiStudioStateMock.outputs = [];
     aiStudioStateMock.openModelModal.mockClear();

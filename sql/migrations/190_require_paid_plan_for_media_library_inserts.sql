@@ -16,13 +16,6 @@ as $$
         and c.ended_at is null
         and lower(coalesce(c.plan_id, 'free')) <> 'free'
         and lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')
-    )
-    or exists (
-      select 1
-      from public.billing_profiles p
-      where p.user_id = target_user_id
-        and lower(coalesce(p.plan_id, 'free')) <> 'free'
-        and lower(coalesce(p.subscription_status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')
     );
 $$;
 

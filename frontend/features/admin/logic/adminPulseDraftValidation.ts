@@ -3,6 +3,7 @@
  */
 import {
   CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT,
+  isCreatePulseRetiredPresetId,
   isValidCreatePulseBuiltInPresetId,
 } from "../../../lib/model-runtime/createPulseBuiltIns";
 
@@ -28,6 +29,7 @@ export const isPulseDraftBlank = (draft: PulseDraftValidationInput): boolean =>
 export const isPulseDraftPersistable = (draft: PulseDraftValidationInput): boolean =>
   draft.presetId.trim().length > 0 &&
   isValidCreatePulseBuiltInPresetId(draft.presetId) &&
+  !isCreatePulseRetiredPresetId(draft.presetId.trim()) &&
   draft.label.trim().length > 0 &&
   draft.description.trim().length > 0 &&
   draft.starterAssistantMessage.trim().length > 0 &&
@@ -40,6 +42,9 @@ export const resolvePulseDraftValidationIssue = (
   if (!draft.presetId.trim()) return "Preset ID is required.";
   if (!isValidCreatePulseBuiltInPresetId(draft.presetId)) {
     return CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT;
+  }
+  if (isCreatePulseRetiredPresetId(draft.presetId.trim())) {
+    return "This preset id is retired. Choose a new safe preset id for this built-in Pulse.";
   }
   if (!draft.label.trim()) return "Pulse name is required.";
   if (!draft.description.trim()) return "Description is required.";

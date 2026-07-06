@@ -21,7 +21,6 @@ const REQUIRED_SIGNATURES = [
   "public.archive_admin_kanban_item(uuid,uuid,text)",
   "public.activate_billing_plan_offer(text,text,text,text,integer,integer,bigint,integer,text,text,boolean)",
   "public.activate_billing_storage_addon_offer(text,text,text,bigint,integer,text,text,boolean)",
-  "public.reserve_generation_credits(uuid,text,text,integer,text,jsonb)",
   "public.mark_generation_reservation_submitted(uuid,text,text,jsonb)",
   "public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)",
   "public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
@@ -66,6 +65,11 @@ const REQUIRED_SIGNATURES = [
   "public.get_active_model_pricing_policy()",
   "public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)",
   "public.rollback_model_pricing_policy(text,uuid,text,text)",
+  "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
+  "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",
+  "public.get_credit_grant_summary(uuid)",
+  "public.expire_credit_grants(integer)",
+  "public.release_generation_reservation_by_id(uuid,text,jsonb)",
 ] as const;
 
 const extractExpectedFunctionSignatureBlocks = (sql: string): string[][] =>

@@ -131,6 +131,7 @@ I am Maya Chen. I am a practical creator with limited time and a small credit bu
 - Write the Maya report.
 - Write the engineering handoff.
 - Use `workspace/tools/report-assembly-checklist.md` before treating reports as complete.
+- Use `workspace/tools/report-intelligence-template.md` before publishing so the persona report includes customer-service/product-decision signal and the engineering handoff includes an agent fix packet.
 - Fill the behavior metrics block.
 - Create or update the evidence manifest only for kept screenshots/downloads.
 - Update the reports index.

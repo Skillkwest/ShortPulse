@@ -32,6 +32,46 @@ describe("createPulsePresets", () => {
     );
   });
 
+  it("lets an admin-owned prompt_modifier built-in override stale user rows", () => {
+    const catalog = resolveCreatePulsePresetCatalog(
+      [
+        {
+          presetId: "prompt_modifier",
+          label: "User Prompt Modifier",
+          description: null,
+          systemInstructions: "Stale user override.",
+          createdAt: "2026-07-05T00:00:00.000Z",
+        },
+      ],
+      [
+        {
+          presetId: "prompt_modifier",
+          label: "Prompt Modifier",
+          description: "Modify prompts.",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          starterAssistantMessage: "Paste the prompt you want to modify.",
+          workflowStageHints: ["Paste prompt"],
+          outputMode: "chat_reply",
+          artifactTarget: "video_prompt",
+          memoryPolicy: "session",
+          schemaVersion: 2,
+        },
+      ]
+    );
+
+    expect(catalog).toHaveLength(1);
+    expect(catalog[0]).toEqual(
+      expect.objectContaining({
+        presetId: "prompt_modifier",
+        label: "Prompt Modifier",
+        isBuiltIn: true,
+        hasUserOverride: false,
+      })
+    );
+  });
+
   it("resolves explicit built-in artifact targets and strips legacy custom artifact metadata", () => {
     const catalog = resolveCreatePulsePresetCatalog([
       {

@@ -3,6 +3,7 @@
  * Used by the admin route and the operator CLI so the same read path stays canonical.
  */
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { fetchCreditGrantSummaries } from "../api/creditGrantSummary";
 import {
   DEFAULT_DEEP_LOOKBACK_DAYS,
   isSchemaCompatibilityError,
@@ -41,15 +42,6 @@ type RichLedgerRow = {
   source: string | null;
   source_ref: string | null;
   metadata: Record<string, unknown> | null;
-  created_at: string | null;
-};
-
-type LegacyLedgerRow = {
-  id: string;
-  user_id: string;
-  change_cents: number | string | null;
-  reason: string | null;
-  ref_id: string | null;
   created_at: string | null;
 };
 
@@ -189,7 +181,13 @@ export const loadAdminHealthSnapshot = async ({
 
   const userId = authUser.id;
 
-  const [balanceResult, generationsResult, reservationsResult, ledgerResult] = await Promise.all([
+  const [
+    balanceResult,
+    generationsResult,
+    reservationsResult,
+    ledgerResult,
+    creditGrantSummariesResult,
+  ] = await Promise.all([
     supabaseAdmin
       .from("ai_credit_balance")
       .select("user_id, balance_cents, updated_at")
@@ -255,15 +253,6 @@ export const loadAdminHealthSnapshot = async ({
           rows: rowsResult.rows,
         };
       }
-      if (isSchemaCompatibilityError(rowsResult.error)) {
-        compatibilityWarnings.push(
-          "ai_credit_reservations is unavailable or legacy in this environment; hold diagnostics are partial."
-        );
-        return {
-          supported: false,
-          rows: [] as ReservationRow[],
-        };
-      }
       throw new Error(rowsResult.error.message || "Failed to load ai_credit_reservations.");
     })(),
     (async () => {
@@ -295,42 +284,9 @@ export const loadAdminHealthSnapshot = async ({
         return { legacySchema: false, rows: normalizedRows };
       }
 
-      if (!isSchemaCompatibilityError(richRows.error)) {
-        throw new Error(richRows.error.message || "Failed to load ai_credit_ledger.");
-      }
-
-      const legacySelect = "id,user_id,change_cents,reason,ref_id,created_at";
-      const legacyRows = await fetchAllRowsForSelect<LegacyLedgerRow>(async (from, to) => {
-        const query = supabaseAdmin
-          .from("ai_credit_ledger")
-          .select(legacySelect)
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .range(from, to);
-        const { data, error } = await query;
-        return {
-          data: (data as LegacyLedgerRow[] | null) ?? null,
-          error: normalizeQueryError(error),
-        };
-      });
-      if (legacyRows.error) {
-        throw new Error(legacyRows.error.message || "Failed to load ai_credit_ledger.");
-      }
-      compatibilityWarnings.push(
-        "ai_credit_ledger is using a legacy schema (ref_id fallback); some attribution is reduced."
-      );
-      const normalizedRows: NormalizedLedgerRow[] = legacyRows.rows.map((row) => ({
-        id: String(row.id),
-        user_id: String(row.user_id),
-        change_cents: Number(row.change_cents ?? 0),
-        reason: row.reason ?? "",
-        source: "legacy",
-        source_ref: row.ref_id ?? null,
-        metadata: null,
-        created_at: row.created_at ?? null,
-      }));
-      return { legacySchema: true, rows: normalizedRows };
+      throw new Error(richRows.error.message || "Failed to load ai_credit_ledger.");
     })(),
+    fetchCreditGrantSummaries([userId]),
   ]);
 
   if (!generationsResult.supported) {
@@ -338,10 +294,19 @@ export const loadAdminHealthSnapshot = async ({
       "ai_generations schema is incompatible with expected diagnostics fields; generation analysis is partial."
     );
   }
+  if (creditGrantSummariesResult.error) {
+    throw new Error(
+      creditGrantSummariesResult.error.message || "Failed to load credit grant summaries."
+    );
+  }
 
   const balanceError = normalizeQueryError(balanceResult.error);
   if (balanceError) {
     throw new Error(balanceError.message || "Failed to load ai_credit_balance.");
+  }
+  const creditGrantSummary = creditGrantSummariesResult.summariesByUserId.get(userId);
+  if (!creditGrantSummary) {
+    throw new Error("Credit grant summary missing for requested user.");
   }
   const balanceRows = (balanceResult.data ?? []) as BalanceRow[];
   const generationIds = generationsResult.rows.map((row) => row.id).filter(Boolean);
@@ -628,6 +593,7 @@ export const loadAdminHealthSnapshot = async ({
     generationProjectionBillingRows,
     activeProjectIds: activeProjectIdsResult.error ? undefined : activeProjectIdsResult.rows,
     reservations: reservationsResult.rows,
+    creditGrantSummary,
     ledger: ledgerResult.rows,
     nowMs,
   });

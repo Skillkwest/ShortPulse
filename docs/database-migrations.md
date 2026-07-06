@@ -217,6 +217,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 86. `sql/migrations/086_add_internal_comp_billing_contract_support.sql`
 87. `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`
 88. `sql/migrations/088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`
+
+Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expiration.sql` after the ordered baseline set when enabling 60-day expiring subscription credit lots, non-expiring paid top-up lots, and grant-aware reservation/debit allocation. Scheduler enablement remains separate: apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after migration 200 is present, the Vault URL targets `/api/internal/credit-expirations/run`, and `sql/audit_billing_credit_rls.sql` plus `sql/check_control_plane_scheduler_health.sql` produce clean target-environment proof.
+
 89. `sql/migrations/089_add_projects_foundation.sql`
 90. `sql/migrations/090_add_user_preferences_ai_studio_style_panel_ids.sql`
 91. `sql/migrations/091_add_project_workspace_states.sql`
@@ -327,6 +330,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 196.  `sql/migrations/197_add_browser_crash_session_review_status.sql`
 197.  `sql/migrations/198_allow_equal_timestamp_project_workspace_updates.sql`
 198.  `sql/migrations/199_repair_create_pulse_builtin_catalog.sql`
+199.  `sql/migrations/200_add_credit_grant_lot_expiration.sql`
+200.  `sql/migrations/201_harden_paid_media_library_access_contract_authority.sql`
       Rollback files:
 
 
@@ -438,6 +443,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/197_add_browser_crash_session_review_status_rollback.sql`
     - `sql/migrations/rollback/198_allow_equal_timestamp_project_workspace_updates_rollback.sql`
     - `sql/migrations/rollback/199_repair_create_pulse_builtin_catalog_rollback.sql`
+    - `sql/migrations/rollback/200_add_credit_grant_lot_expiration_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -568,7 +574,9 @@ Billing safety note:
 - Migration `196_add_browser_crash_sessions.sql` adds the service-role-only `browser_crash_sessions` table for authenticated browser freeze/crash session evidence, including stale-heartbeat/admin-list indexes and an explicit rollback. Hosted apply remains a separate approved Supabase operation.
 - Migration `197_add_browser_crash_session_review_status.sql` adds operator review state to `browser_crash_sessions` so `/admin/crashes` rows can be resolved or ignored without deleting evidence or changing browser-crash classification. Hosted apply remains a separate approved Supabase operation.
 - Migration `198_allow_equal_timestamp_project_workspace_updates.sql` changes the project workspace freshness trigger to reject only strictly older `snapshot_updated_at` writes, so same-timestamp structural checkpoint updates can persist while out-of-order older autosaves still no-op. Hosted apply remains a separate approved Supabase operation.
-- Migration `199_repair_create_pulse_builtin_catalog.sql` repairs the admin-owned Create Pulse built-in catalog to the three canonical built-ins while preserving hidden system instructions and removing retired built-in entries. Hosted apply remains a separate approved Supabase operation.
+- Migration `199_repair_create_pulse_builtin_catalog.sql` repairs legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions. Hosted apply remains a separate approved Supabase operation.
+- Migration `200_add_credit_grant_lot_expiration.sql` adds grant-lot credit accounting, expiration-aware reservation/debit allocation, 60-day subscription credit expiration, non-expiring paid top-up lots, and the service-role expiration RPC. It also retires the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC so runtime reservations must use `admit_and_reserve_generation_credits(...)` with grant allocations. Hosted apply and scheduler enablement remain separate approved Supabase operations.
+- Migration `201_harden_paid_media_library_access_contract_authority.sql` hardens `user_has_paid_media_library_access(uuid)` so Media Library and Reference Grid inserts trust only a current non-free `billing_subscription_contracts` row; `billing_profiles` remains a projection and profile-only paid state is drift to repair. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

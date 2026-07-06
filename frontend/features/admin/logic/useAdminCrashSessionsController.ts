@@ -8,6 +8,7 @@ import {
   CRASH_SESSIONS_PER_PAGE,
   fetchAdminCrashSessions,
   updateAdminCrashSessionReviewStatus,
+  type AdminCrashSessionsViewMode,
   type AdminCrashSessionReviewStatusFilter,
   type AdminCrashSessionStatusFilter,
 } from "./adminCrashSessionsApi";
@@ -15,6 +16,15 @@ import type { AdminCrashSessionReviewStatus } from "../types";
 
 const SEARCH_DEBOUNCE_MS = 250;
 const REFRESH_INTERVAL_MS = 30_000;
+
+const resolveViewMode = (
+  statusFilter: AdminCrashSessionStatusFilter,
+  reviewStatusFilter: AdminCrashSessionReviewStatusFilter
+): AdminCrashSessionsViewMode => {
+  if (statusFilter === "needs_review" && reviewStatusFilter === "open") return "needs_review";
+  if (statusFilter === "needs_review" && reviewStatusFilter === "reviewed") return "history";
+  return "all_evidence";
+};
 
 type UseAdminCrashSessionsControllerParams = {
   enabled: boolean;
@@ -28,14 +38,17 @@ type UseAdminCrashSessionsControllerResult = {
   pagination: AdminPagination;
   statusFilter: AdminCrashSessionStatusFilter;
   reviewStatusFilter: AdminCrashSessionReviewStatusFilter;
+  viewMode: AdminCrashSessionsViewMode;
   search: string;
   updatingReviewSessionId: string | null;
+  handleViewModeChange: (value: AdminCrashSessionsViewMode) => void;
   handleStatusFilterChange: (value: AdminCrashSessionStatusFilter) => void;
   handleReviewStatusFilterChange: (value: AdminCrashSessionReviewStatusFilter) => void;
   handleSearchChange: (value: string) => void;
   handleUpdateReviewStatus: (
     sessionId: string,
-    status: AdminCrashSessionReviewStatus
+    status: AdminCrashSessionReviewStatus,
+    note?: string
   ) => Promise<void>;
   handlePrevPage: () => void;
   handleNextPage: () => void;
@@ -126,12 +139,26 @@ export const useAdminCrashSessionsController = ({
     setPage(1);
   }, []);
 
+  const handleViewModeChange = React.useCallback((value: AdminCrashSessionsViewMode) => {
+    if (value === "needs_review") {
+      setStatusFilter("needs_review");
+      setReviewStatusFilter("open");
+    } else if (value === "history") {
+      setStatusFilter("needs_review");
+      setReviewStatusFilter("reviewed");
+    } else {
+      setStatusFilter("all");
+      setReviewStatusFilter("all");
+    }
+    setPage(1);
+  }, []);
+
   const handleUpdateReviewStatus = React.useCallback(
-    async (sessionId: string, status: AdminCrashSessionReviewStatus) => {
+    async (sessionId: string, status: AdminCrashSessionReviewStatus, note?: string) => {
       setUpdatingReviewSessionId(sessionId);
       setError(null);
       try {
-        await updateAdminCrashSessionReviewStatus({ sessionId, status });
+        await updateAdminCrashSessionReviewStatus({ sessionId, status, note });
         await loadCrashSessions(page);
       } catch (updateError) {
         setError(
@@ -169,8 +196,10 @@ export const useAdminCrashSessionsController = ({
     pagination,
     statusFilter,
     reviewStatusFilter,
+    viewMode: resolveViewMode(statusFilter, reviewStatusFilter),
     search,
     updatingReviewSessionId,
+    handleViewModeChange,
     handleStatusFilterChange,
     handleReviewStatusFilterChange,
     handleSearchChange,

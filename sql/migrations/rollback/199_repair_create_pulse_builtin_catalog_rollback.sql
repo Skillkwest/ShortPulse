@@ -1,4 +1,4 @@
 -- No automatic rollback is provided for migration 199.
--- This migration repairs data in the admin-owned Create Pulse built-in control-plane row while
--- preserving hidden system instructions. Restore a previous catalog through
--- /admin/agent-instructions only if an operator intentionally needs the old Pulse set.
+-- This migration only repairs legacy seeded built-in labels and preserves operator-authored
+-- Create Pulse catalog entries. Restore a previous catalog through /admin/agent-instructions
+-- only if an operator intentionally needs the old Pulse set.

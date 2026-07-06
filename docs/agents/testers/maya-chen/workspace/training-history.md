@@ -289,3 +289,80 @@ Remaining friction:
 Next training focus:
 
 - In the next run, verify both assets are still findable and distinguishable without spending credits, and keep the session customer-like without overusing screenshots.
+
+## 2026-07-06: Find Both Assets Later Run
+
+Prompt or user direction:
+
+- Run test.
+
+Behavior learned:
+
+- Maya can now complete a no-spend return workflow and stay focused on saved-work trust instead of drifting into generation.
+- The current short scenario queue worked as intended: it advanced Maya one customer goal at a time across prompt recovery, second image creation, and later saved-asset verification.
+- Repeated prompt-recovery findings should not be re-proved indefinitely unless product behavior changes, a deploy is suspected, or the user asks for a regression check.
+
+SOP or template updates:
+
+- No structural SOP change needed. The scenario queue was marked complete and future unspecific runs should choose from the backlog or user direction.
+
+Remaining friction:
+
+- Prompt/detail reuse remains the dominant customer trust blocker for Maya's current project.
+- Screenshots were still somewhat numerous, but each kept image tied to saved-work proof, prompt-blank proof, or project recovery proof.
+
+Next training focus:
+
+- For the next unspecific run, choose a no-spend scenario from the backlog unless the user explicitly authorizes another generation or asks for a prompt-recovery regression check.
+
+## 2026-07-06: Report Intelligence Hardening
+
+Prompt or user direction:
+
+- Audit whether Maya's reports are detailed, informative, correct, customer-service useful, product-decision useful, and actionable for other Codex agents; then make all needed workspace improvements.
+
+Behavior learned:
+
+- Maya reports should not only describe what happened. They should help the user anticipate real customer concerns, support tickets, harsh reviews, retention risk, credit-spend anxiety, and customer journey drop-off points.
+- Engineering handoffs should not only name findings. They should give the next Codex agent a practical fix packet: issue tags, repeat-finding context, likely owner/source boundary when known, acceptance criteria, validation steps, protected behavior, and stop/escalation conditions.
+- Repeated issues should be marked as repeated product patterns rather than rediscovered as new findings every run.
+
+SOP or template updates:
+
+- Added `tools/report-intelligence-template.md`.
+- Updated report assembly, behavior metrics, severity mapping, live notes, self-audit, workspace instructions, authenticated testing SOP, memory, and self-score rules.
+- Added a report-usefulness cap when required customer-service or engineering-fix sections are missing without explanation.
+
+Remaining friction:
+
+- Existing already-published reports may not contain every new section unless explicitly revised and republished.
+- Future runs need to keep the new sections concise so reports become sharper, not bloated.
+
+Next training focus:
+
+- In the next Maya run, use the report intelligence template before Admin publishing and verify the resulting reports are stronger for product decisions, customer service preparation, and engineering handoff.
+
+## 2026-07-06: Credits And Renewal Confidence Run
+
+Prompt or user direction:
+
+- Run test.
+
+Behavior learned:
+
+- Maya can run a no-spend billing/credit confidence check while avoiding all subscription, top-up, cancellation, and billing-portal mutations.
+- The upgraded report intelligence sections improved the report shape: customer-service simulation, product-decision signal, issue tags, and an agent fix packet were created before Admin publishing.
+- Sensitive account/billing screenshots should be discarded even when they helped Maya observe a surface; notes can preserve the non-secret customer interpretation.
+
+SOP or template updates:
+
+- No structural update needed after this run. The report intelligence template worked as intended.
+
+Remaining friction:
+
+- Credit usage history is not customer-visible enough for Maya to reconcile generation debits.
+- Future billing/credit checks should be careful not to turn into admin/billing-engineering audits unless the user explicitly asks for issue solving.
+
+Next training focus:
+
+- On the next Maya run, continue using the report intelligence template and keep evidence minimal when account or billing surfaces are involved.

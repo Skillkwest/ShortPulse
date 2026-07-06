@@ -49,7 +49,7 @@ Stop condition:
 
 ### 3. Find Both Assets Later
 
-Status: next default scenario.
+Status: completed on 2026-07-06.
 
 Customer goal: Maya comes back later and checks whether both assets are findable, distinguishable, and reusable.
 
@@ -62,3 +62,5 @@ Stop condition:
 ## Next-Run Bias
 
 When the user says `run test` with no scenario, choose the first uncompleted scenario in this queue unless the visible product state makes that unsafe or the user gives a different direction.
+
+Current queue status: all scenarios in this short queue are complete. For the next unspecific `run test`, choose a no-spend scenario from `tools/scenario-backlog.md` unless the user gives a specific direction or the product state makes a prompt-recovery recheck useful.

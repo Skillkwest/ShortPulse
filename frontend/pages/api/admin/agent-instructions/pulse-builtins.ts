@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/server/api/createPulseBuiltInControlPlane";
 import {
   CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT,
+  isCreatePulseRetiredPresetId,
   isValidCreatePulseBuiltInPresetId,
   normalizeCreatePulseBuiltInPresetDefinitions,
 } from "../../../../lib/model-runtime/createPulseBuiltIns";
@@ -37,6 +38,9 @@ const resolveBuiltInDefinitionPayloadIssue = (
   if (!presetId) return `Pulse slot ${index + 1} is missing a preset id.`;
   if (!isValidCreatePulseBuiltInPresetId(presetId)) {
     return `${CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT} Invalid preset id: ${presetId}`;
+  }
+  if (isCreatePulseRetiredPresetId(presetId)) {
+    return `Pulse preset id "${presetId}" is retired. Choose a new safe preset id for this built-in Pulse.`;
   }
   if (seenPresetIds.has(presetId)) {
     return `Pulse preset id "${presetId}" is duplicated.`;

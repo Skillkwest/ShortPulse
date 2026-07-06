@@ -6869,6 +6869,139 @@ describe("projectWorkspaceStatesService", () => {
     });
   });
 
+  it("does not downgrade rich display rows when autosave sends a lightweight checkpoint", async () => {
+    const richSnapshot = {
+      schemaVersion: 2,
+      sessionId: "session-lightweight-display-preserve",
+      updatedAt: "2026-06-03T12:00:00.000Z",
+      workspace: {
+        selectedTool: "create",
+      },
+      outputs: {
+        active: [
+          {
+            id: "display-lightweight-preserve-1",
+            mode: "image",
+            mediaSource: "library",
+            prompt: "Existing rich prompt",
+            previewText: "Existing rich prompt",
+            previewUrl: "https://cdn.example.com/existing.png",
+            resultUrls: ["https://cdn.example.com/existing.png"],
+            savedMediaIds: [MEDIA_ID_1],
+          },
+        ],
+        archived: [],
+        activeOutputId: "display-lightweight-preserve-1",
+        curatedReferenceIds: ["display-lightweight-preserve-1"],
+        removedFromAllRefsIds: [],
+      },
+      agent: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: false,
+        pulseWorkflowSession: null,
+      },
+    };
+    const existingCheckpointSnapshot = withProjectAssetAssociationChecksum(
+      createLightweightProjectWorkspaceCheckpointSnapshot({
+        snapshot: createAiStudioProjectWorkspaceSnapshot(
+          richSnapshot as Record<string, unknown> & {
+            schemaVersion: number;
+            updatedAt: string;
+          },
+          {
+            trimGeneratedOutputText: false,
+            trimOutputTextSummaries: false,
+          }
+        ) as unknown as Record<string, unknown>,
+        checkpointRevision: 1,
+      }),
+      createProjectAssetAssociationChecksum({
+        mediaFileIds: [MEDIA_ID_1],
+      })
+    );
+    const incomingLightweightSnapshot = createLightweightProjectWorkspaceCheckpointSnapshot({
+      snapshot: createAiStudioProjectWorkspaceSnapshot(
+        richSnapshot as Record<string, unknown> & {
+          schemaVersion: number;
+          updatedAt: string;
+        },
+        {
+          trimGeneratedOutputText: false,
+          trimOutputTextSummaries: false,
+        }
+      ) as unknown as Record<string, unknown>,
+      checkpointRevision: 0,
+    });
+    const { outputDisplayUpsert, getOutputDisplayRows } = createSupabaseMock({
+      workspaceSnapshot: existingCheckpointSnapshot,
+      outputDisplayRows: [
+        {
+          project_id: "project-1",
+          user_id: "user-1",
+          output_id: "display-lightweight-preserve-1",
+          version: 4,
+          source_snapshot_updated_at: "2026-06-03T12:00:00.000Z",
+          mode: "image",
+          media_source: "library",
+          created_at: null,
+          generation_id: null,
+          prompt_id: null,
+          task_id: null,
+          source_ref: null,
+          generation_trace_id: null,
+          preview_text: "Existing rich prompt",
+          display_prompt_summary: "Existing rich prompt",
+          mime_type: null,
+          width: null,
+          height: null,
+          duration_ms: null,
+          preview_storage_path: null,
+          full_storage_path: null,
+          preview_poster_storage_path: null,
+          companion_art_storage_path: null,
+          preview_url_fallback: "https://cdn.example.com/existing.png",
+          preview_poster_url_fallback: null,
+          companion_art_url_fallback: null,
+          result_urls_fallback: ["https://cdn.example.com/existing.png"],
+          saved_media_ids: [MEDIA_ID_1],
+          task_state: null,
+          queue_state: null,
+          save_state: null,
+          status: null,
+          error_message_short: null,
+          hidden_in_reference_grid: false,
+          updated_at: "2026-06-03T12:00:01.000Z",
+        },
+      ],
+      associatedSnapshotGenerationIds: [],
+      recentGenerationIds: [],
+      projectionRows: [],
+    });
+
+    const result = await upsertProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      includeSnapshotInResponse: false,
+      snapshot: {
+        ...incomingLightweightSnapshot,
+        updatedAt: "2026-06-03T12:05:00.000Z",
+      },
+    });
+
+    expect(result.saveOutcome).toEqual({ status: "saved" });
+    expect(outputDisplayUpsert).not.toHaveBeenCalled();
+    expect(getOutputDisplayRows()[0]).toMatchObject({
+      output_id: "display-lightweight-preserve-1",
+      display_prompt_summary: "Existing rich prompt",
+      preview_url_fallback: "https://cdn.example.com/existing.png",
+      version: 4,
+    });
+  });
+
   it("rejects older structural saves after a newer display-only freshness touch", async () => {
     const existingCheckpointSnapshot = createCanonicalCheckpointSnapshot({
       schemaVersion: 2,

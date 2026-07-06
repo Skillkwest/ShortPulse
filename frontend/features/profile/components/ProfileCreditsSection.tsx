@@ -1,6 +1,6 @@
 /**
  * Credits section for the profile workspace.
- * Separates one-time credit purchasing and credit activity from account billing management.
+ * Separates one-time credit purchasing and billing history from account billing management.
  */
 import { Receipt } from "phosphor-react";
 import type { BillingLedgerEvent } from "../profilePageModel";
@@ -153,18 +153,20 @@ export function ProfileCreditsSection({
         </ProfilePanel>
 
         <ProfilePanel
-          eyebrow="Credit activity"
-          title="Recent credit activity"
+          eyebrow="Billing history"
+          title="Recent billing history"
           icon={Receipt}
           className="profile-panel-stack"
         >
           <div className={profileClass("profile-receipts")}>
             <div className={profileClass("profile-receipts-header")}>
-              <h3 className={profileClass("profile-subsection-title")}>Recent credit activity</h3>
+              <h3 className={profileClass("profile-subsection-title")}>Credit purchases</h3>
               <Receipt size={16} />
             </div>
 
-            {billingActivityLoading ? <p className="tiny subdued">Loading activity…</p> : null}
+            {billingActivityLoading ? (
+              <p className="tiny subdued">Loading billing history…</p>
+            ) : null}
             {!billingActivityLoading && billingActivity.length === 0 ? (
               <p className="tiny subdued">No recent billing events yet.</p>
             ) : null}

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ElementsManagerShell } from "../ElementsManagerShell";
 
@@ -39,6 +39,7 @@ const createDataTransfer = () => {
 
 const renderShell = (overrides: Record<string, unknown> = {}) => {
   const updateDraftField = vi.fn();
+  const clearActiveImageReferenceAtIndex = vi.fn();
   useElementsManagerViewStateMock.mockReturnValue({
     elements: [],
     selectedElementId: null,
@@ -64,7 +65,7 @@ const renderShell = (overrides: Record<string, unknown> = {}) => {
     isSavingElement: false,
     updateDraftField,
     assignActiveVideoReference: vi.fn(),
-    clearActiveImageReferenceAtIndex: vi.fn(),
+    clearActiveImageReferenceAtIndex,
     clearActiveVideoReference: vi.fn(),
     onHandleImageReferenceTransferAtIndex: vi.fn(),
     onCreateElement: vi.fn(),
@@ -77,7 +78,7 @@ const renderShell = (overrides: Record<string, unknown> = {}) => {
   });
 
   render(<ElementsManagerShell />);
-  return { updateDraftField };
+  return { updateDraftField, clearActiveImageReferenceAtIndex };
 };
 
 const getReferenceCard = (altText: string): HTMLElement => {
@@ -140,6 +141,29 @@ describe("ElementsManagerShell reference reordering", () => {
       "https://example.com/secondary.png",
       "https://example.com/primary.png",
     ]);
+  });
+
+  it("opens a populated image reference slot in the shared detail modal on double click", async () => {
+    renderShell();
+
+    fireEvent.doubleClick(getReferenceCard("Primary View reference"));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Preview Primary View reference",
+    });
+    expect(
+      within(dialog).getByRole("heading", { name: "Primary View reference" })
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Download")).toBeInTheDocument();
+  });
+
+  it("does not open the slot detail modal when double clicking the clear action", () => {
+    const { clearActiveImageReferenceAtIndex } = renderShell();
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Clear Primary View reference" }));
+
+    expect(clearActiveImageReferenceAtIndex).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Preview Primary View reference" })).toBeNull();
   });
 
   it("reveals a filled reference clear button when keyboard focus enters the card", () => {

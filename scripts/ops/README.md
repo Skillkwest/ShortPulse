@@ -52,14 +52,16 @@ Purpose: keep shared ShortPulse operations scripts and agent-specific helper aud
 - `bash scripts/ops/secret_rotation_validate.sh`
   - Runs the standard post-rotation validation sequence for development/preview/production env contract, preview+production route parity, homepage reachability, and authenticated preview+production internal worker-route runtime probes.
 - `node scripts/verify_internal_route_runtime.mjs --base-url <url>`
-  - Probes the protected internal worker routes twice per target deployment:
+  - Probes the protected internal worker routes per target deployment:
     - unauthenticated request must fail closed with `401`
-    - authenticated operator request using the configured cron secrets must succeed with `200`
+    - authenticated operator request using the configured cron secrets must succeed with `200` for non-mutating routes
+    - mutating billing routes such as `billing_renewals` and `credit_expirations` require explicit route selection plus `--allow-mutating-auth`; default authenticated sweeps skip them to avoid accidental credit/contract mutations
   - Uses local env fallbacks for:
     - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
     - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET`
     - `SHORTPULSE_USER_HEALTH_FLEET_CRON_SECRET`
     - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET`
+    - `SHORTPULSE_CREDIT_EXPIRATIONS_CRON_SECRET`
     - optional `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`
   - If the hosted target uses different secrets than your local defaults, pass one or more `--env-file <path>` arguments so the probe loads the target-specific Vercel or Vault-derived secret set first.
 - `node scripts/ops/supabase_seed_single_user_staging_to_dev.mjs --email <user@example.com> --apply`

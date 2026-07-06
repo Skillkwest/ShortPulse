@@ -33,7 +33,7 @@ Stop condition:
 
 ### 2. Second Image Variant
 
-Status: next default scenario.
+Status: completed on 2026-07-05.
 
 Customer goal: Maya wants one alternate image for the `Tiny Apartment Reset Kit`, using the first image as inspiration if she can understand how to reuse it safely.
 
@@ -48,6 +48,8 @@ Stop condition:
 - Stop after one generation attempt or before generation if cost/context is unclear enough that Maya would hesitate.
 
 ### 3. Find Both Assets Later
+
+Status: next default scenario.
 
 Customer goal: Maya comes back later and checks whether both assets are findable, distinguishable, and reusable.
 

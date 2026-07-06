@@ -11,10 +11,10 @@ Purpose: track Maya Chen's ShortPulse testing credit spend so she stays within t
 
 ## Monthly Summary
 
-| Month   | Budget | Spent | Remaining | Notes                                                                   |
-| ------- | ------ | ----- | --------- | ----------------------------------------------------------------------- |
-| 2026-06 | 100    | 0     | 100       | Initial ledger created before first Maya run.                           |
-| 2026-07 | 100    | 4     | 96        | Starter account purchased; first paid image generation spent 4 credits. |
+| Month   | Budget | Spent | Remaining | Notes                                                                       |
+| ------- | ------ | ----- | --------- | --------------------------------------------------------------------------- |
+| 2026-06 | 100    | 0     | 100       | Initial ledger created before first Maya run.                               |
+| 2026-07 | 100    | 8     | 92        | Starter account purchased; two paid image generations spent 4 credits each. |
 
 ## Run Entries
 
@@ -24,3 +24,4 @@ Purpose: track Maya Chen's ShortPulse testing credit spend so she stays within t
 | 2026-07-04 | [Fresh signup, payment, first image](reports/2026-07-04-fresh-signup-payment-image-generation-maya-report.md) | Fresh email signup, Starter purchase, one image generation, Media check, download     | 4             | Exact              | 96                  | UI showed `350 / 350` before generation and `346 / 350` after generation. |
 | 2026-07-05 | [Find generated image context](reports/2026-07-05-find-generated-image-context-maya-report.md)                | Reopened project, recovered saved image, checked prompt recovery and Quick Slot reuse | 0             | Exact              | 96                  | No generation; visible account balance stayed `346 / 350`.                |
 | 2026-07-05 | [Prompt detail recovery](reports/2026-07-05-prompt-detail-recovery-maya-report.md)                            | Recovered original prompt/model/details through Media Detail without generation       | 0             | Exact              | 96                  | No generation; visible account balance stayed `346 / 350`.                |
+| 2026-07-05 | [Second image variant](reports/2026-07-05-second-image-variant-maya-report.md)                                | Generated one alternate image for Tiny Apartment Reset Kit                            | 4             | Exact              | 92                  | UI showed `346 / 350` before generation and `342 / 350` after generation. |

@@ -51,6 +51,13 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Future Maya runs may use this recovered prompt for one tightly capped second image variant, but should not assume new customers know the double-click detail path.
 - The Media `Prompts` filter still says no prompts for the folder, so Maya should treat it as a separate expectation/confusion risk.
 
+### 2026-07-05: Second image variant
+
+- Maya generated one alternate image for `Tiny Apartment Reset Kit`; visible cost and debit matched at `4` credits, moving the account from `346 / 350` to `342 / 350`.
+- Media and Reference Grid both showed `2` saved assets after generation, so save/findability improved Maya's trust.
+- Media Detail prompt recovery was blank for both the older image and the new paid image during this run, so future Maya runs should treat prompt recovery as inconsistent/untrusted until proved again.
+- The next default scenario is to come back later and confirm both assets are still findable and distinguishable without spending more credits.
+
 ## Learned Run Lessons
 
 ### 2026-07-04: Signup, payment, and first image generation

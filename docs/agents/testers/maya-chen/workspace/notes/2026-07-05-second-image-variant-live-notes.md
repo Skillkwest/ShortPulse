@@ -63,3 +63,43 @@ Starting scores:
 ## Live Timeline
 
 - Started run setup from the scenario queue and monthly credit ledger.
+- Opened a fresh visible Chrome profile and signed in as Maya.
+- AI Studio restored the project `5-minute renter reset tests`.
+- Starting visible state: credits `346 / 350`, Generate showed `4`, Reference Grid showed `Media: 1/500`.
+- Double-clicked the existing image to inspect detail before spending. Media Detail opened, but the `PROMPT` area showed only the label and no prompt text. I felt less confident because I had expected the recovered prompt to be visible again.
+- Entered one imperfect but intentional variant prompt for a second renter-reset image.
+- Before spending, Generate was enabled and still showed `Generate` / `4`.
+- Clicked Generate once.
+- Credits changed from `346 / 350` to `342 / 350`.
+- Reference Grid changed from `Media: 1/500` to `Media: 2/500`.
+- Generation finished after a short wait and two thumbnails were visible in the Reference Grid.
+- Opened Media. It showed `2` saved items and `Loaded 2 media items (all loaded).`
+- Double-clicked the newer Media item. Media Detail opened, but the `PROMPT` area was blank again.
+- Stopped after one generation attempt.
+
+## Post-Run Read
+
+Final scores:
+
+- Spend readiness: 5/10 after the run; I can create a variant, but I do not trust prompt recovery.
+- Credit anxiety: 3/10; the debit matched the visible cost exactly, but it happened immediately while the job was still generating.
+- Save confidence: 7/10; both images were findable in Media and the Reference Grid.
+- Prompt recovery confidence: 2/10; both old and new Media Detail prompt sections were blank in this run.
+
+Human questions I asked before spending:
+
+- Am I still in the right project?
+- Do I still have my first image/reference?
+- Is the cost visible before I click?
+- Will I be able to find the second image after it finishes?
+- Can I recover the prompt later if I like this variant?
+
+Where I felt most like a real customer:
+
+- I was tempted to generate because the visible cost was low and the first image was still nearby.
+- I still hesitated because I do not want to spend my tiny budget on something I cannot reuse later.
+- I accepted a slightly imperfect prompt because real creators do not always write a perfect second prompt; they try a reasonable version and see what happens.
+
+Where I became too tester-like:
+
+- I captured several proof screenshots around generation state. I removed the redundant intermediate ones afterward and kept only evidence that proves cost, save state, or blank prompt detail.

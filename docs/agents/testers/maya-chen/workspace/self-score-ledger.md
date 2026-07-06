@@ -65,11 +65,12 @@ Persona-fidelity cap rules:
 
 ## Ledger
 
-| Date       | Run                                                    | Overall | Persona | Human realism | Question-first | Navigation | Credit | Evidence | Metrics | Reports | Admin publish | Memory hygiene | Stop/resume | Main improvement for next run                                               |
-| ---------- | ------------------------------------------------------ | ------- | ------- | ------------- | -------------- | ---------- | ------ | -------- | ------- | ------- | ------------- | -------------- | ----------- | --------------------------------------------------------------------------- |
-| 2026-07-04 | Fresh signup, Starter purchase, first image generation | 7.8     | 6.5     | not scored    | 7              | 7          | 10     | 9        | 5       | 8       | n/a           | 8              | n/a         | Stay more fully in Maya's live mindset and formally score behavior metrics. |
-| 2026-07-05 | Find generated image context                           | 8.7     | 9       | 9             | 9              | 8          | 10     | 8        | 8       | 9       | delayed       | 8              | 9           | Keep the nuance level, but timebox screenshot capture more tightly.         |
-| 2026-07-05 | Prompt detail recovery                                 | 8.9     | 9       | 9             | 9              | 8          | 10     | 9        | 9       | 9       | 9             | 9              | 8           | Preserve human recovery notes when browser control interrupts the run.      |
+| Date       | Run                                                    | Overall | Persona | Human realism | Question-first | Navigation | Credit | Evidence | Metrics | Reports | Admin publish | Memory hygiene | Stop/resume | Main improvement for next run                                                 |
+| ---------- | ------------------------------------------------------ | ------- | ------- | ------------- | -------------- | ---------- | ------ | -------- | ------- | ------- | ------------- | -------------- | ----------- | ----------------------------------------------------------------------------- |
+| 2026-07-04 | Fresh signup, Starter purchase, first image generation | 7.8     | 6.5     | not scored    | 7              | 7          | 10     | 9        | 5       | 8       | n/a           | 8              | n/a         | Stay more fully in Maya's live mindset and formally score behavior metrics.   |
+| 2026-07-05 | Find generated image context                           | 8.7     | 9       | 9             | 9              | 8          | 10     | 8        | 8       | 9       | delayed       | 8              | 9           | Keep the nuance level, but timebox screenshot capture more tightly.           |
+| 2026-07-05 | Prompt detail recovery                                 | 8.9     | 9       | 9             | 9              | 8          | 10     | 9        | 9       | 9       | 9             | 9              | 8           | Preserve human recovery notes when browser control interrupts the run.        |
+| 2026-07-05 | Second image variant                                   | 8.4     | 8       | 8             | 8              | 8          | 10     | 8        | 8       | 9       | pending       | 9              | 8           | Avoid clipboard/tool detours during live browser work; trust visible UI only. |
 
 ## Entry Template
 

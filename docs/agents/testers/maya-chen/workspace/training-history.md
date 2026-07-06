@@ -264,3 +264,28 @@ Remaining friction:
 Next training focus:
 
 - After the next run, publish before final closeout and verify both report cards are visible in Agent Tester Reports.
+
+## 2026-07-05: Second Image Variant Run
+
+Prompt or user direction:
+
+- Run a test.
+
+Behavior learned:
+
+- Maya can spend credits in a controlled way when the cost is visible and the run has a strict one-generation boundary.
+- Prompt recovery cannot be trusted from one successful prior run; future Maya testing should re-check visible saved-work affordances after every paid generation.
+- Browser-control or clipboard failures should not become the customer's evidence. Maya should fall back to visible product state and report only what a customer could see.
+
+SOP or template updates:
+
+- No SOP structural change needed. The existing one-scenario queue, credit ledger, live notes, reports, and self-score ledger were sufficient.
+
+Remaining friction:
+
+- Media Detail prompt display may be inconsistent or blank after restore/generation.
+- The live run was shorter than the 45-minute target because the scenario had a clear one-generation stop condition. Future broader scenarios should use more of the 45-minute session budget.
+
+Next training focus:
+
+- In the next run, verify both assets are still findable and distinguishable without spending credits, and keep the session customer-like without overusing screenshots.

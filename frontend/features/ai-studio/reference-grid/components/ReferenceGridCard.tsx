@@ -259,7 +259,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     shouldShowRerollInBottomActionRow || shouldShowWorkflowReloadInBottomActionRow
   );
   const bottomActionRowClassName = "reference-card-bottom-actions";
-  const shouldSignalMediaHover = Boolean(isImagePreview || isVideoPreview || isAudioPreview);
+  const shouldSignalMediaHover = Boolean(
+    isImagePreview || isVideoPreview || isAudioPreview || isPromptOnly || item.previewText
+  );
   const shouldShowCuratedActionRow = Boolean(
     showCuratedRemoveAction && onRemoveCuratedReference && isSelected
   );

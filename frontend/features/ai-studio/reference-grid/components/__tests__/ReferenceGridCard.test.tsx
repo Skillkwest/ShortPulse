@@ -117,6 +117,26 @@ describe("ReferenceGridCard", () => {
     expect(onMediaHoverChange).toHaveBeenNthCalledWith(2, false);
   });
 
+  it("notifies when text-reference hover starts and stops", () => {
+    const onMediaHoverChange = vi.fn();
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ taskState: "success", previewText: "Prompt reference" }),
+          isPromptOnly: true,
+          onMediaHoverChange,
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    fireEvent.pointerEnter(card);
+    fireEvent.pointerLeave(card);
+
+    expect(onMediaHoverChange).toHaveBeenNthCalledWith(1, true);
+    expect(onMediaHoverChange).toHaveBeenNthCalledWith(2, false);
+  });
+
   it("does not render retry status controls on selected failed cards", () => {
     render(
       <ReferenceGridCard

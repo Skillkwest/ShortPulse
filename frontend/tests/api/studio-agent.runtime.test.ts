@@ -1871,6 +1871,251 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
+  it("starts an admin-added built-in Pulse from its configured starter without provider dependency", async () => {
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [
+        createRuntimeBuiltInDefinition({
+          presetId: "prompt_modifier",
+          label: "Prompt Modifier",
+          description: "Modify prompts",
+          starterAssistantMessage: "paste the prompt you want to modify",
+          workflowStageHints: ["paste the prompt you want to modify"],
+          artifactTarget: "video_prompt",
+          systemInstructions: "SERVER PROMPT MODIFIER INSTRUCTIONS",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          pulseKind: "guided_workflow",
+        }),
+      ],
+      source: "control_plane",
+      updatedAt: "2026-07-06T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      degraded: false,
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(
+          "ai-studio:session-runtime-test::pulse:prompt_modifier:pulse-session-test"
+        ),
+        messages: [
+          {
+            role: "user",
+            content:
+              'Pulse "Prompt Modifier" was just activated.\n\nStart the workflow now.\n\nYour first assistant reply must be exactly this:\npaste the prompt you want to modify',
+          },
+        ],
+        context: {
+          pulse: {
+            presetId: "prompt_modifier",
+            label: "Prompt Modifier",
+            instructions: "CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      bypassCache: true,
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: "paste the prompt you want to modify",
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+        workflowSession: {
+          presetId: "prompt_modifier",
+          status: "awaiting_input",
+          currentStepIndex: 1,
+          currentStepLabel: "paste the prompt you want to modify",
+          currentStepPrompt: "paste the prompt you want to modify",
+          collectedInputs: [],
+          lastArtifact: null,
+          finalArtifactSource: null,
+        },
+      })
+    );
+  });
+
+  it("continues an admin-added built-in Pulse with server catalog instructions", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "ready",
+                message: "Modified prompt: cinematic sunrise over chrome towers.",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [
+        createRuntimeBuiltInDefinition({
+          presetId: "prompt_modifier",
+          label: "Prompt Modifier",
+          description: "Modify prompts",
+          starterAssistantMessage: "paste the prompt you want to modify",
+          workflowStageHints: ["paste the prompt you want to modify"],
+          artifactTarget: "video_prompt",
+          systemInstructions: "SERVER PROMPT MODIFIER INSTRUCTIONS",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          pulseKind: "guided_workflow",
+        }),
+      ],
+      source: "control_plane",
+      updatedAt: "2026-07-06T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      degraded: false,
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(
+          "ai-studio:session-runtime-test::pulse:prompt_modifier:pulse-session-test"
+        ),
+        messages: [
+          {
+            role: "assistant",
+            content: "paste the prompt you want to modify",
+          },
+          {
+            role: "user",
+            content: "Make this more cinematic: sunrise over chrome towers.",
+          },
+        ],
+        context: {
+          pulse: {
+            presetId: "prompt_modifier",
+            label: "Prompt Modifier",
+            instructions: "CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+            workflowSession: {
+              presetId: "prompt_modifier",
+              status: "awaiting_input",
+              currentStepIndex: 1,
+              currentStepLabel: "paste the prompt you want to modify",
+              currentStepPrompt: "paste the prompt you want to modify",
+              collectedInputs: [],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const serializedRequest = requestInit?.body ?? "";
+    expect(serializedRequest).toContain("SERVER PROMPT MODIFIER INSTRUCTIONS");
+    expect(serializedRequest).not.toContain("CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: "Modified prompt: cinematic sunrise over chrome towers.",
+        workflowSession: expect.objectContaining({
+          presetId: "prompt_modifier",
+          status: "completed",
+          lastArtifact: "Modified prompt: cinematic sunrise over chrome towers.",
+          finalArtifactSource: "chat_reply",
+        }),
+      })
+    );
+  });
+
+  it("continues an image-satisfied built-in Pulse activation through the provider", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "needs_input",
+                message: "Step 2 — Camera Motion: What motion should the camera use?",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        messages: [
+          {
+            role: "user",
+            content:
+              'Pulse "DFY Story Builder" was just activated.\n\nA required intake asset is already attached to this activation turn.\n\nContinue from the active workflow_session_state and ask the next required workflow question.\n\nDo not repeat the starter upload message.',
+          },
+        ],
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            workflowSession: {
+              presetId: "story_builder",
+              status: "running",
+              currentStepIndex: 2,
+              currentStepLabel: "Plot Seed",
+              currentStepPrompt: null,
+              collectedInputs: ["Uploaded image attached"],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: "Step 2 — Camera Motion: What motion should the camera use?",
+        workflowSession: expect.objectContaining({
+          presetId: "story_builder",
+          status: "awaiting_input",
+        }),
+      })
+    );
+  });
+
   it("overrides built-in Pulse instructions from the server control plane", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

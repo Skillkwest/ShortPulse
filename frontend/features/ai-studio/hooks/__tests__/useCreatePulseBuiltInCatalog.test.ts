@@ -128,6 +128,105 @@ describe("useCreatePulseBuiltInCatalog", () => {
     expect(result.current.error).toBe("network down");
   });
 
+  it("keeps an authoritative catalog while a later refresh is loading", async () => {
+    let resolveRefreshResponse: (value: Response | PromiseLike<Response>) => void = () => {
+      throw new Error("Expected the refresh response resolver to be assigned.");
+    };
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            source: "control_plane",
+            degraded: false,
+            builtInDefinitions: [
+              {
+                presetId: "catalog_test",
+                label: "Catalog Test",
+                description: "Server catalog entry.",
+                systemInstructions: "Use the control-plane catalog.",
+                runtimeMode: "workflow_gpt",
+                activationMode: "activate_and_start",
+                outputMode: "chat_reply",
+                memoryPolicy: "session",
+                starterAssistantMessage: null,
+                workflowStageHints: null,
+                artifactTarget: "image_prompt",
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
+      )
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveRefreshResponse = resolve;
+        })
+      );
+
+    const { result } = renderHook(() => useCreatePulseBuiltInCatalog());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.isAuthoritative).toBe(true);
+
+    let refreshPromise: ReturnType<typeof result.current.refresh> | null = null;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.isAuthoritative).toBe(true);
+    expect(result.current.builtInDefinitions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          presetId: "catalog_test",
+        }),
+      ])
+    );
+
+    resolveRefreshResponse(
+      new Response(
+        JSON.stringify({
+          source: "control_plane",
+          degraded: false,
+          builtInDefinitions: [
+            {
+              presetId: "catalog_test",
+              label: "Catalog Test",
+              description: "Server catalog entry.",
+              systemInstructions: "Use the refreshed control-plane catalog.",
+              runtimeMode: "workflow_gpt",
+              activationMode: "activate_and_start",
+              outputMode: "chat_reply",
+              memoryPolicy: "session",
+              starterAssistantMessage: null,
+              workflowStageHints: null,
+              artifactTarget: "image_prompt",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await act(async () => {
+      await refreshPromise;
+    });
+    expect(result.current.loading).toBe(false);
+    expect(result.current.isAuthoritative).toBe(true);
+  });
+
   it("reports degraded seed fallback explicitly when the runtime route fails soft", async () => {
     vi.mocked(fetchWithAuth).mockResolvedValue(
       new Response(

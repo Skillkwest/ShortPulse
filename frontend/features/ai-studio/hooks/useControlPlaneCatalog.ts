@@ -105,7 +105,7 @@ export const useControlPlaneCatalog = <T>({
     error,
     source,
     degraded,
-    isAuthoritative: !loading && error == null && !degraded && source === "control_plane",
+    isAuthoritative: error == null && !degraded && source === "control_plane",
     refresh,
   };
 };

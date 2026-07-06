@@ -6,6 +6,7 @@ export type UserPreferenceSyncState = "loading" | "ready" | "saving" | "error";
 type UseUserPreferenceSyncParams<TValue> = {
   enabled?: boolean;
   readLocalBeforeUserResolution?: boolean;
+  applyLocalValueBeforeRemoteLoad?: boolean;
   defaultValue: TValue;
   normalizeValue: (value: TValue) => TValue;
   readLocal: (userId?: string | null) => TValue;
@@ -46,6 +47,7 @@ const resolveErrorMessage = (error: unknown, fallback: string): string =>
 export const useUserPreferenceSync = <TValue>({
   enabled = true,
   readLocalBeforeUserResolution = false,
+  applyLocalValueBeforeRemoteLoad = true,
   defaultValue,
   normalizeValue,
   readLocal,
@@ -144,7 +146,7 @@ export const useUserPreferenceSync = <TValue>({
         if (!active) return;
         userIdRef.current = resolvedUserId;
         const localValue = readLocal(resolvedUserId);
-        if (!hasLocalOverrideRef.current) {
+        if (!hasLocalOverrideRef.current && applyLocalValueBeforeRemoteLoad) {
           setValue(localValue, {
             storageUserId: resolvedUserId,
             persistLocal: false,
@@ -155,6 +157,11 @@ export const useUserPreferenceSync = <TValue>({
         if (!active) return;
         if (!hasLocalOverrideRef.current && remoteValue.hasRemoteValue) {
           setValue(remoteValue.value, {
+            storageUserId: resolvedUserId,
+            persistLocal: false,
+          });
+        } else if (!hasLocalOverrideRef.current && !applyLocalValueBeforeRemoteLoad) {
+          setValue(localValue, {
             storageUserId: resolvedUserId,
             persistLocal: false,
           });
@@ -196,6 +203,7 @@ export const useUserPreferenceSync = <TValue>({
     normalizedDefaultValue,
     persistRemote,
     readLocalBeforeUserResolution,
+    applyLocalValueBeforeRemoteLoad,
     readLocal,
     setValue,
     writeLocal,

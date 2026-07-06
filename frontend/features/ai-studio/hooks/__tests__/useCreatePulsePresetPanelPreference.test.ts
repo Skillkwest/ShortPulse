@@ -92,7 +92,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(readSupabaseUserId).not.toHaveBeenCalled();
   });
 
-  it("hydrates local Pulse preferences before auth resolution completes", async () => {
+  it("does not show stale local Pulse preferences before auth resolution completes", async () => {
     const userIdDeferred = createDeferred<string | null>();
     window.localStorage.setItem(
       CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
@@ -112,21 +112,94 @@ describe("useCreatePulsePresetPanelPreference", () => {
     const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
 
     await waitFor(() => {
-      expect(result.current.savedPresets).toEqual([
-        buildExpectedSavedPulse({
-          presetId: "pulse_custom",
-          label: "Local Pulse",
-          systemInstructions: "Use local fallback immediately.",
-          createdAt: null,
-        }),
-      ]);
+      expect(result.current.loading).toBe(true);
     });
 
+    expect(result.current.savedPresets).toEqual([]);
     expect(result.current.loading).toBe(true);
     userIdDeferred.resolve(null);
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
+    expect(result.current.savedPresets).toEqual([
+      buildExpectedSavedPulse({
+        presetId: "pulse_custom",
+        label: "Local Pulse",
+        systemInstructions: "Use local fallback immediately.",
+        createdAt: null,
+      }),
+    ]);
+  });
+
+  it("does not show stale signed-in local custom Pulses while remote preferences load", async () => {
+    const remotePreferenceDeferred = createDeferred<{
+      data: {
+        ai_studio_create_pulse_panel_ids: string[];
+        ai_studio_saved_pulses: unknown[];
+        ai_studio_deleted_builtin_pulse_ids: unknown[];
+      };
+      error: null;
+    }>();
+    window.localStorage.setItem(
+      scopedCreatePulsePresetPanelIdsStorageKey("user-remote-authority"),
+      JSON.stringify(["image", "pulse_stale"])
+    );
+    window.localStorage.setItem(
+      scopedCreatePulseSavedPresetsStorageKey("user-remote-authority"),
+      JSON.stringify([
+        {
+          presetId: "pulse_stale",
+          label: "Deleted Local Pulse",
+          systemInstructions: "This stale local Pulse should not flash in the rail.",
+          createdAt: null,
+        },
+      ])
+    );
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-remote-authority");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(() => remotePreferenceDeferred.promise),
+            })),
+          })),
+          upsert: vi.fn(),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+      expect(result.current.savedPresets).toEqual([]);
+    });
+    expect(result.current.presetPanelIds).toEqual(["image", "multi_shot", "story_builder"]);
+
+    await act(async () => {
+      remotePreferenceDeferred.resolve({
+        data: {
+          ai_studio_create_pulse_panel_ids: ["image", "multi_shot", "story_builder"],
+          ai_studio_saved_pulses: [],
+          ai_studio_deleted_builtin_pulse_ids: [],
+        },
+        error: null,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.savedPresets).toEqual([]);
+    expect(result.current.presetPanelIds).toEqual(["image", "multi_shot", "story_builder"]);
+    expect(
+      window.localStorage.getItem(scopedCreatePulseSavedPresetsStorageKey("user-remote-authority"))
+    ).toBe("[]");
   });
 
   it("keeps Pulse preference loading out of the page root and inside Pulse surfaces", () => {

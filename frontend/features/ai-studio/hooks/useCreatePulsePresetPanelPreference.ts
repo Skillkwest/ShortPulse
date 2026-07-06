@@ -444,6 +444,11 @@ export const useCreatePulsePresetPanelPreference = ({
           storedPreference.ai_studio_saved_pulses != null ||
           storedPreference.ai_studio_deleted_builtin_pulse_ids != null);
       if (hasRemoteValue) {
+        writeLocalCreatePulsePresetPreferenceValue(
+          normalizedRemoteValue,
+          builtInDefinitions,
+          userId
+        );
         return {
           value: normalizedRemoteValue,
           hasRemoteValue: true,
@@ -510,7 +515,8 @@ export const useCreatePulsePresetPanelPreference = ({
     persistValue,
   } = useUserPreferenceSync<CreatePulsePresetPreferenceStorageValue>({
     enabled,
-    readLocalBeforeUserResolution: true,
+    readLocalBeforeUserResolution: false,
+    applyLocalValueBeforeRemoteLoad: false,
     defaultValue: DEFAULT_CREATE_PULSE_PRESET_PREFERENCE_STORAGE_VALUE,
     normalizeValue: normalizePreferenceValue,
     readLocal: readLocalPreferenceValue,

@@ -1,7 +1,15 @@
 /**
  * Shared customer-support contact dialog with mail-app and copy fallback actions.
  */
-import { useCallback, useId, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { CUSTOMER_SUPPORT_EMAIL, CUSTOMER_SUPPORT_MAILTO_HREF } from "../lib/customerSupport";
 import { useGuardedBackdropDismiss } from "./useGuardedBackdropDismiss";
 
@@ -11,6 +19,8 @@ type CustomerSupportDialogControls = {
   customerSupportDialog: ReactNode;
   openCustomerSupportDialog: (event?: MouseEvent<HTMLElement>) => void;
 };
+
+const MAILTO_FALLBACK_DELAY_MS = 500;
 
 const openEmailApp = () => {
   if (typeof document === "undefined") return;
@@ -53,6 +63,14 @@ export function useCustomerSupportDialog(): CustomerSupportDialogControls {
   const titleId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const fallbackTimerRef = useRef<number | null>(null);
+  const mailAttemptBlurredRef = useRef(false);
+
+  const clearFallbackTimer = useCallback(() => {
+    if (fallbackTimerRef.current === null || typeof window === "undefined") return;
+    window.clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = null;
+  }, []);
 
   const closeDialog = useCallback(() => {
     setIsOpen(false);
@@ -61,11 +79,39 @@ export function useCustomerSupportDialog(): CustomerSupportDialogControls {
 
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeDialog);
 
-  const openCustomerSupportDialog = useCallback((event?: MouseEvent<HTMLElement>) => {
-    event?.preventDefault();
-    setIsOpen(true);
-    setCopyState("idle");
-  }, []);
+  const openCustomerSupportDialog = useCallback(
+    (event?: MouseEvent<HTMLElement>) => {
+      event?.preventDefault();
+      clearFallbackTimer();
+      setCopyState("idle");
+      setIsOpen(false);
+
+      mailAttemptBlurredRef.current = false;
+      const handleWindowBlur = () => {
+        mailAttemptBlurredRef.current = true;
+      };
+
+      if (typeof window !== "undefined") {
+        window.addEventListener("blur", handleWindowBlur, { once: true });
+        fallbackTimerRef.current = window.setTimeout(() => {
+          window.removeEventListener("blur", handleWindowBlur);
+          fallbackTimerRef.current = null;
+          const documentIsHidden =
+            typeof document !== "undefined" && document.visibilityState === "hidden";
+          if (!mailAttemptBlurredRef.current && !documentIsHidden) {
+            setIsOpen(true);
+          }
+        }, MAILTO_FALLBACK_DELAY_MS);
+      } else {
+        setIsOpen(true);
+      }
+
+      openEmailApp();
+    },
+    [clearFallbackTimer]
+  );
+
+  useEffect(() => clearFallbackTimer, [clearFallbackTimer]);
 
   const handleCopyEmail = useCallback(async () => {
     try {
@@ -74,11 +120,6 @@ export function useCustomerSupportDialog(): CustomerSupportDialogControls {
     } catch {
       setCopyState("failed");
     }
-  }, []);
-
-  const handleOpenEmailAppAgain = useCallback(() => {
-    setCopyState("idle");
-    openEmailApp();
   }, []);
 
   const customerSupportDialog = isOpen ? (
@@ -128,13 +169,6 @@ export function useCustomerSupportDialog(): CustomerSupportDialogControls {
             onClick={handleCopyEmail}
           >
             {copyState === "copied" ? "Copied" : "Copy email"}
-          </button>
-          <button
-            type="button"
-            className="confirm-modal__button confirm-modal__button--primary"
-            onClick={handleOpenEmailAppAgain}
-          >
-            Open email app
           </button>
         </div>
       </div>

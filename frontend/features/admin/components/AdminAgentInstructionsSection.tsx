@@ -1326,23 +1326,6 @@ export function AdminAgentInstructionsSection() {
     [editSystemPresetDrafts, editSystemPresetUpdatedAt, hydrateEditSystemPresetCatalog]
   );
 
-  const handleResetPulseDraft = React.useCallback(
-    (localId: string) => {
-      const stored = storedPulseDraftsById[localId];
-      setPulseDrafts((current) =>
-        current.map((draft) => {
-          if (draft.localId !== localId) return draft;
-          return stored
-            ? { ...stored }
-            : buildEmptyPulseDraft(Number(localId.replace("draft-", "")) || 0);
-        })
-      );
-      setPulseSaveState("idle");
-      setPulseSaveIssue(null);
-    },
-    [storedPulseDraftsById]
-  );
-
   const handleRemovePulseDraft = React.useCallback((localId: string) => {
     setPulseDrafts((current) => current.filter((draft) => draft.localId !== localId));
     setPulseCardCollapsed((current) => {
@@ -2179,7 +2162,6 @@ export function AdminAgentInstructionsSection() {
               const isDirty = stored
                 ? !arePulseDraftsEqual(draft, stored)
                 : !isPulseDraftBlank(draft);
-              const feedbackKey = `pulse:${draft.localId}`;
               const cardTitle =
                 draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
               const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
@@ -2199,13 +2181,6 @@ export function AdminAgentInstructionsSection() {
                 !isPulseSaveBlockedByDegradedCatalog &&
                 isDirty &&
                 isPulseDraftPersistable(draft);
-              const copyValue = [
-                `Title: ${draft.label}`,
-                `Publication: ${publicationLabel}`,
-                "",
-                "Prompt:",
-                draft.systemInstructions,
-              ].join("\n");
 
               return (
                 <article key={draft.localId} className={styles.agentInstructionCard}>
@@ -2269,21 +2244,6 @@ export function AdminAgentInstructionsSection() {
                       <button
                         type="button"
                         className="ghost-btn mini"
-                        onClick={() => void handleCopy(feedbackKey, copyValue)}
-                      >
-                        Copy
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => handleResetPulseDraft(draft.localId)}
-                        disabled={!isDirty}
-                      >
-                        {stored ? "Reset to stored" : "Clear slot"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
                         onClick={() => void handleSavePulseDraft(draft.localId)}
                         disabled={!canSaveCard}
                       >
@@ -2338,7 +2298,7 @@ export function AdminAgentInstructionsSection() {
                       id={`admin-pulse-card-note-${draft.localId}`}
                       className={styles.agentInstructionNote}
                     >
-                      {copyFeedback[feedbackKey] ?? validationIssue ?? note}
+                      {validationIssue ?? note}
                     </p>
                   </div>
                   {isCollapsed ? (

@@ -180,7 +180,7 @@ describe("Admin agent instructions page", () => {
     expect(screen.getByText("Style Extraction System Prompt")).toBeInTheDocument();
   });
 
-  it("edits, adds, removes, resets, and saves built-in Pulse slots", async () => {
+  it("edits, adds, removes, and saves built-in Pulse slots", async () => {
     const updatedDefinitions = [
       {
         ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
@@ -248,6 +248,10 @@ describe("Admin agent instructions page", () => {
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
+    expect(within(pulseCard).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+    expect(
+      within(pulseCard).queryByRole("button", { name: "Reset to stored" })
+    ).not.toBeInTheDocument();
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
 
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
@@ -305,14 +309,6 @@ describe("Admin agent instructions page", () => {
 
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
     expect(within(pulseCard).getByText("Stored")).toBeInTheDocument();
-
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
-      target: { value: "Temporary name" },
-    });
-    fireEvent.click(within(pulseCard).getByRole("button", { name: "Reset to stored" }));
-    expect(within(pulseCard).getByRole("textbox", { name: "Title" })).toHaveValue(
-      "Global Prompt Director"
-    );
   }, 10_000);
 
   it("creates a built-in Pulse from the simple authoring fields", async () => {

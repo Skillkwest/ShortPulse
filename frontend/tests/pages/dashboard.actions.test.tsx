@@ -565,6 +565,7 @@ describe("Dashboard actions", () => {
       await screen.findByRole("dialog", { name: "Contact Customer Support" })
     ).toHaveTextContent("Use the email below");
     expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open email app" })).not.toBeInTheDocument();
   });
 
   it("opens and closes the logout confirmation modal", async () => {

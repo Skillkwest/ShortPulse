@@ -269,6 +269,7 @@ describe("Dashboard guest route", () => {
       await screen.findByRole("dialog", { name: "Contact Customer Support" })
     ).toHaveTextContent("Use the email below");
     expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open email app" })).not.toBeInTheDocument();
     expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
       "href",
       SHORTPULSE_COMMUNITY_URL

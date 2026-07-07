@@ -345,6 +345,7 @@ describe("AiStudioToolbar current mode", () => {
       await screen.findByRole("dialog", { name: "Contact Customer Support" })
     ).toHaveTextContent("Use the email below");
     expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open email app" })).not.toBeInTheDocument();
   });
 
   it("falls back to email when account metadata is not a usable display name", async () => {

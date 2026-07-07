@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCustomerSupportDialog } from "../../../components/CustomerSupportDialog";
 import { CUSTOMER_SUPPORT_LABEL } from "../../../lib/customerSupport";
+import { SHORTPULSE_COMMUNITY_LINK_REL, SHORTPULSE_COMMUNITY_LINK_TARGET } from "../communityLinks";
 
 type PublicHomeFooterProps = {
   createProjectHref: string;
@@ -90,7 +91,13 @@ export function PublicHomeFooter({
 
         <div className="public-home-footer-cta">
           <span>Join the community</span>
-          <Link href={communityHref} className="public-home-footer-button" prefetch={false}>
+          <Link
+            href={communityHref}
+            className="public-home-footer-button"
+            prefetch={false}
+            target={SHORTPULSE_COMMUNITY_LINK_TARGET}
+            rel={SHORTPULSE_COMMUNITY_LINK_REL}
+          >
             {communityCtaLabel}
           </Link>
         </div>

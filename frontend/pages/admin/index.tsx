@@ -53,8 +53,6 @@ export default function AdminDashboardPage() {
     billingPortalResult,
     billingCustomerSyncSubmitting,
     billingCustomerSyncResult,
-    deleteSubmitting,
-    deleteResult,
     creditLedgerRows,
     creditLedgerLoading,
     creditLedgerError,
@@ -79,8 +77,6 @@ export default function AdminDashboardPage() {
     handleRevokeInternalComp,
     handleOpenSelectedUserBilling,
     handleSyncSelectedUserBillingCustomer,
-    handleDeleteUser,
-    clearDeleteResult,
   } = useAdminUsersCreditsController({
     enabled: Boolean(user && adminEnabled),
     currentAdminUserId: user?.id ?? "",
@@ -127,8 +123,6 @@ export default function AdminDashboardPage() {
         billingPortalResult={billingPortalResult}
         billingCustomerSyncSubmitting={billingCustomerSyncSubmitting}
         billingCustomerSyncResult={billingCustomerSyncResult}
-        deleteSubmitting={deleteSubmitting}
-        deleteResult={deleteResult}
         creditLedgerRows={creditLedgerRows}
         creditLedgerLoading={creditLedgerLoading}
         creditLedgerError={creditLedgerError}
@@ -153,8 +147,6 @@ export default function AdminDashboardPage() {
         handleRevokeInternalComp={handleRevokeInternalComp}
         handleOpenSelectedUserBilling={handleOpenSelectedUserBilling}
         handleSyncSelectedUserBillingCustomer={handleSyncSelectedUserBillingCustomer}
-        handleDeleteUser={handleDeleteUser}
-        clearDeleteResult={clearDeleteResult}
         planLabel={planLabel}
         formatCreditDelta={formatCreditDelta}
         formatUsd={formatUsd}

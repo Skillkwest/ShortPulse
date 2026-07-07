@@ -3,6 +3,7 @@
  * Standardizes user-facing banners, inline alerts, notices, and toast-style messages.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { X as XIcon } from "phosphor-react";
 
 export type AppMessageTone = "error" | "warning" | "info" | "success";
 export type AppMessageMode = "banner" | "inline" | "toast" | "compact";
@@ -126,7 +127,7 @@ export function AppMessage({
               aria-label="Dismiss message"
               onClick={onDismiss}
             >
-              <span aria-hidden="true">&times;</span>
+              <XIcon size={16} weight="bold" aria-hidden />
             </button>
           ) : null}
         </div>

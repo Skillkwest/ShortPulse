@@ -57,12 +57,12 @@ export const readGenerationAdmissionErrorMessage = (
   }
   if (admissionScope === "per_user") {
     if (retryAfterSeconds === null) {
-      return "You already have too many active generations. Please retry shortly.";
+      return "You've reached your max active generations. Wait for one to finish, then try again.";
     }
-    return `You already have too many active generations. Please retry in ${retryAfterSeconds} seconds.`;
+    return `You've reached your max active generations. Wait for one to finish, or try again in ${retryAfterSeconds} seconds.`;
   }
   if (retryAfterSeconds === null) {
-    return "Too many active generations. Please retry shortly.";
+    return "Max active generations reached. Please retry shortly.";
   }
-  return `Too many active generations. Please retry in ${retryAfterSeconds} seconds.`;
+  return `Max active generations reached. Please retry in ${retryAfterSeconds} seconds.`;
 };

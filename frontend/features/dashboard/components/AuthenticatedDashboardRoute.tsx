@@ -32,7 +32,11 @@ import {
   toChunkLoadErrorMessage,
 } from "../../../lib/chunkLoadErrors";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
-import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
+import {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../communityLinks";
 
 const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
@@ -380,6 +384,8 @@ export function AuthenticatedDashboardRoute({
       label: "Creator hub",
       value: "Community",
       href: SHORTPULSE_COMMUNITY_URL,
+      target: SHORTPULSE_COMMUNITY_LINK_TARGET,
+      rel: SHORTPULSE_COMMUNITY_LINK_REL,
       iconSrc: "/Community.svg",
     },
     {

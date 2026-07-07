@@ -408,8 +408,18 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const groupedFailures = React.useMemo(
     () =>
       groupVisibleFailuresForAlertStack(
+        visibleFailures.filter((item) => {
+          const category = resolveAiStudioErrorPresentation(item).category;
+          return category !== "insufficient_credits" && category !== "admission_limit";
+        })
+      ),
+    [visibleFailures]
+  );
+  const admissionLimitWarnings = React.useMemo(
+    () =>
+      groupVisibleFailuresForAlertStack(
         visibleFailures.filter(
-          (item) => resolveAiStudioErrorPresentation(item).category !== "insufficient_credits"
+          (item) => resolveAiStudioErrorPresentation(item).category === "admission_limit"
         )
       ),
     [visibleFailures]
@@ -422,13 +432,31 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
         .join("|"),
     [groupedFailures]
   );
+  const admissionLimitWarningIdsKey = React.useMemo(
+    () =>
+      admissionLimitWarnings
+        .flatMap((group) => group.ids)
+        .sort()
+        .join("|"),
+    [admissionLimitWarnings]
+  );
   const dismissGroupedFailures = React.useCallback(() => {
     groupedFailures.forEach((group) => {
       group.ids.forEach((id) => onDismissFailure(id));
     });
   }, [groupedFailures, onDismissFailure]);
+  const dismissAdmissionLimitWarnings = React.useCallback(() => {
+    admissionLimitWarnings.forEach((group) => {
+      group.ids.forEach((id) => onDismissFailure(id));
+    });
+  }, [admissionLimitWarnings, onDismissFailure]);
   const hasVisibleAlerts = Boolean(
-    mediaPlanNotice || workflowPlanNotice || effectiveUiError || uiNotice || groupedFailures.length
+    mediaPlanNotice ||
+    workflowPlanNotice ||
+    effectiveUiError ||
+    uiNotice ||
+    admissionLimitWarnings.length ||
+    groupedFailures.length
   );
   const dismissUiErrorRef = React.useRef(onDismissUiError);
   const dismissUiNoticeRef = React.useRef(onDismissUiNotice);
@@ -467,6 +495,17 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     }, resolveAiStudioAlertAutoDismissMs(groupedFailureText));
     return () => window.clearTimeout(timeoutId);
   }, [dismissGroupedFailures, groupedFailureIdsKey, groupedFailures]);
+
+  React.useEffect(() => {
+    if (!admissionLimitWarningIdsKey) return undefined;
+    const warningText = admissionLimitWarnings
+      .map((group) => `${group.modelLabel} ${group.failureMessage}`)
+      .join(" ");
+    const timeoutId = window.setTimeout(() => {
+      dismissAdmissionLimitWarnings();
+    }, resolveAiStudioAlertAutoDismissMs(warningText));
+    return () => window.clearTimeout(timeoutId);
+  }, [admissionLimitWarningIdsKey, admissionLimitWarnings, dismissAdmissionLimitWarnings]);
 
   if (!hasVisibleAlerts) return null;
 
@@ -514,6 +553,31 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           onDismiss={onDismissUiNotice}
         />
       ) : null}
+      {admissionLimitWarnings.length ? (
+        <AppMessage
+          className="ai-warning-stack"
+          tone="warning"
+          mode="banner"
+          role="status"
+          ariaLive="polite"
+          onDismiss={dismissAdmissionLimitWarnings}
+        >
+          <ul className="ai-alert-list">
+            {admissionLimitWarnings.map((group) => {
+              const title =
+                group.count > 1 ? `${group.modelLabel} (${group.count})` : group.modelLabel;
+              return (
+                <li key={`${group.modelLabel}:${group.failureMessage}`} className="ai-alert-row">
+                  <div className="ai-alert-row-copy">
+                    <p className="ai-alert-row-title">{title}</p>
+                    <p className="ai-alert-row-message">{group.failureMessage}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </AppMessage>
+      ) : null}
       {groupedFailures.length ? (
         <AppMessage
           className="ai-error-stack"
@@ -523,15 +587,20 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           ariaLive="polite"
           onDismiss={dismissGroupedFailures}
         >
-          <ul className="ai-error-list">
+          <ul className="ai-alert-list ai-error-list">
             {groupedFailures.map((group) => {
               const title =
                 group.count > 1 ? `${group.modelLabel} (${group.count})` : group.modelLabel;
               return (
-                <li key={`${group.modelLabel}:${group.failureMessage}`} className="ai-error-row">
-                  <div className="ai-error-row-copy">
-                    <p className="ai-error-row-title">{title}</p>
-                    <p className="ai-error-row-message">{group.failureMessage}</p>
+                <li
+                  key={`${group.modelLabel}:${group.failureMessage}`}
+                  className="ai-alert-row ai-error-row"
+                >
+                  <div className="ai-alert-row-copy ai-error-row-copy">
+                    <p className="ai-alert-row-title ai-error-row-title">{title}</p>
+                    <p className="ai-alert-row-message ai-error-row-message">
+                      {group.failureMessage}
+                    </p>
                   </div>
                 </li>
               );

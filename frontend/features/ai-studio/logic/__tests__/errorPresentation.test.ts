@@ -79,6 +79,22 @@ describe("resolveAiStudioErrorPresentation", () => {
     expect(presentation.bannerMessage).toContain("explicit or unsafe content");
   });
 
+  it("classifies max active generation messages as admission-limit warnings", () => {
+    const message =
+      "You've reached your max active generations. Wait for one to finish, then try again.";
+    const presentation = resolveAiStudioErrorPresentation(
+      createFailedOutput({
+        errorMessage: message,
+        errorMessageShort: message,
+        errorDetail: message,
+      })
+    );
+
+    expect(presentation.category).toBe("admission_limit");
+    expect(presentation.compactMessage).toBe("Max active generations reached.");
+    expect(presentation.bannerMessage).toBe(message);
+  });
+
   it("uses short neutral card copy for provider API key failures", () => {
     const presentation = resolveAiStudioErrorPresentation(
       createFailedOutput({

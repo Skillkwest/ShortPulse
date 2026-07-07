@@ -9,6 +9,11 @@ import {
   soundChildTools,
   workflowToolList,
 } from "../../constants";
+import {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../../../../lib/communityLinks";
 import type { ToolId } from "../../types";
 
 const WORKFLOW_PLAN_CTA = {
@@ -222,6 +227,30 @@ describe("AiStudioToolbar current mode", () => {
 
     expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(2);
     expect(onSelectTool).not.toHaveBeenCalled();
+  });
+
+  it("opens Community as an external community link", () => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        onOpenProjects={vi.fn()}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+      />
+    );
+
+    const communityLink = screen.getByRole("link", { name: "Community" });
+
+    expect(communityLink).toHaveAttribute("href", SHORTPULSE_COMMUNITY_URL);
+    expect(communityLink).toHaveAttribute("target", SHORTPULSE_COMMUNITY_LINK_TARGET);
+    expect(communityLink).toHaveAttribute("rel", SHORTPULSE_COMMUNITY_LINK_REL);
+    expect(screen.queryByRole("button", { name: "Community" })).toBeNull();
+    expect(onSelectTool).not.toHaveBeenCalled();
+    expect(onToggleCreateTools).not.toHaveBeenCalled();
   });
 
   it.each(leftRailRepeatClickCases)(

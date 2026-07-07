@@ -22,6 +22,31 @@ const createMockResponse = () => ({
   json: vi.fn().mockReturnThis(),
 });
 
+type ChainableQuery = {
+  in: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  gt: ReturnType<typeof vi.fn>;
+  lt: ReturnType<typeof vi.fn>;
+  gte: ReturnType<typeof vi.fn>;
+  is: ReturnType<typeof vi.fn>;
+  then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => Promise<unknown>;
+};
+
+const createChainableQuery = (rows: unknown[]) => {
+  const query = {} as ChainableQuery;
+  Object.assign(query, {
+    in: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    gt: vi.fn(() => query),
+    lt: vi.fn(() => query),
+    gte: vi.fn(() => query),
+    is: vi.fn(() => query),
+    then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+      Promise.resolve({ data: rows, error: null }).then(resolve),
+  });
+  return query;
+};
+
 describe("GET /api/admin/users", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,6 +140,8 @@ describe("GET /api/admin/users", () => {
               recurring_price_cents: 1000,
               monthly_credits_cents: 4000,
               status: "active",
+              current_period_start: "2026-02-01T00:00:00.000Z",
+              current_period_end: "2026-03-01T00:00:00.000Z",
             },
           ],
           error: null,
@@ -122,14 +149,36 @@ describe("GET /api/admin/users", () => {
       }),
     };
 
-    const reservationsQuery = {
-      in: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [{ user_id: "user-1", amount_cents: 100 }],
-          error: null,
-        }),
-      }),
-    };
+    const cycleSpendQuery = createChainableQuery([
+      {
+        user_id: "user-1",
+        change_cents: -31,
+        created_at: "2026-01-31T23:59:59.000Z",
+      },
+      {
+        user_id: "user-1",
+        change_cents: -42,
+        created_at: "2026-02-10T00:00:00.000Z",
+      },
+      {
+        user_id: "user-1",
+        change_cents: -7,
+        created_at: "2026-03-01T00:00:00.000Z",
+      },
+    ]);
+    const topUpsQuery = createChainableQuery([
+      { user_id: "user-1", change_cents: 2000 },
+      { user_id: "user-1", change_cents: 500 },
+    ]);
+    const storageAddonsQuery = createChainableQuery([
+      {
+        user_id: "user-1",
+        storage_limit_bytes: 10737418240,
+        quantity: 1,
+        recurring_price_cents: 500,
+      },
+    ]);
+    let ledgerQueryCount = 0;
 
     const rpc = vi.fn().mockResolvedValue({
       data: [
@@ -167,18 +216,29 @@ describe("GET /api/admin/users", () => {
         }
         if (table === "billing_profiles") {
           return {
-            select: vi
-              .fn()
-              .mockReturnValue(
-                createInQuery([
-                  { user_id: "user-1", plan_id: "free", subscription_status: "active" },
-                ])
-              ),
+            select: vi.fn().mockReturnValue(
+              createInQuery([
+                {
+                  user_id: "user-1",
+                  plan_id: "free",
+                  subscription_status: "active",
+                  current_period_end: "2026-04-01T00:00:00.000Z",
+                },
+              ])
+            ),
           };
         }
-        if (table === "ai_credit_reservations") {
+        if (table === "ai_credit_ledger") {
           return {
-            select: vi.fn().mockReturnValue(reservationsQuery),
+            select: vi.fn(() => {
+              ledgerQueryCount += 1;
+              return ledgerQueryCount === 1 ? topUpsQuery : cycleSpendQuery;
+            }),
+          };
+        }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue(storageAddonsQuery),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -204,10 +264,16 @@ describe("GET /api/admin/users", () => {
             monthlyCreditsCents: 4000,
             billingSource: "subscription_contract",
             subscriptionStatus: "active",
+            planRenewalAt: "2026-03-01T00:00:00.000Z",
             credits: 75,
             spendableCredits: 75,
             availableCredits: 106,
             reservedCredits: 25,
+            currentCycleSpentCredits: 42,
+            topUpPurchaseCount: 2,
+            topUpCreditsPurchased: 2500,
+            recurringStorageAddonBytes: 10737418240,
+            recurringStorageAddonPriceCents: 500,
           }),
         ],
         reservationsSupported: true,
@@ -240,6 +306,38 @@ describe("GET /api/admin/users", () => {
       ],
       error: null,
     });
+    const topUpsQuery = createChainableQuery([
+      { user_id: "user-1", change_cents: 1000 },
+      { user_id: "user-2", change_cents: 2000 },
+      { user_id: "user-2", change_cents: 3000 },
+    ]);
+    const cycleSpendQuery = createChainableQuery([
+      {
+        user_id: "user-1",
+        change_cents: -33,
+        created_at: "2026-02-05T00:00:00.000Z",
+      },
+      {
+        user_id: "user-2",
+        change_cents: -44,
+        created_at: "2026-02-16T00:00:00.000Z",
+      },
+    ]);
+    const storageAddonsQuery = createChainableQuery([
+      {
+        user_id: "user-1",
+        storage_limit_bytes: 53687091200,
+        quantity: 1,
+        recurring_price_cents: 1500,
+      },
+      {
+        user_id: "user-2",
+        storage_limit_bytes: 107374182400,
+        quantity: 1,
+        recurring_price_cents: 2500,
+      },
+    ]);
+    let ledgerQueryCount = 0;
 
     getSupabaseAdminMock.mockReturnValue({
       auth: { admin: { listUsers } },
@@ -258,9 +356,39 @@ describe("GET /api/admin/users", () => {
         if (table === "billing_subscription_contracts") {
           return {
             select: vi.fn().mockReturnValue({
-              in: vi
-                .fn()
-                .mockReturnValue({ is: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+              in: vi.fn().mockReturnValue({
+                is: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      user_id: "user-1",
+                      plan_id: "studio",
+                      offer_id: null,
+                      stripe_price_id: null,
+                      contract_source: "stripe",
+                      billing_interval: "month",
+                      recurring_price_cents: 3000,
+                      monthly_credits_cents: 6000,
+                      status: "active",
+                      current_period_start: "2026-02-01T00:00:00.000Z",
+                      current_period_end: "2026-03-01T00:00:00.000Z",
+                    },
+                    {
+                      user_id: "user-2",
+                      plan_id: "business",
+                      offer_id: null,
+                      stripe_price_id: null,
+                      contract_source: "stripe",
+                      billing_interval: "month",
+                      recurring_price_cents: 3000,
+                      monthly_credits_cents: 10000,
+                      status: "active",
+                      current_period_start: "2026-02-15T00:00:00.000Z",
+                      current_period_end: "2026-03-15T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
             }),
           };
         }
@@ -268,10 +396,33 @@ describe("GET /api/admin/users", () => {
           return {
             select: vi.fn().mockReturnValue(
               createInQuery([
-                { user_id: "user-1", plan_id: "studio", subscription_status: "active" },
-                { user_id: "user-2", plan_id: "business", subscription_status: "active" },
+                {
+                  user_id: "user-1",
+                  plan_id: "studio",
+                  subscription_status: "active",
+                  current_period_end: "2026-04-01T00:00:00.000Z",
+                },
+                {
+                  user_id: "user-2",
+                  plan_id: "business",
+                  subscription_status: "active",
+                  current_period_end: "2026-04-15T00:00:00.000Z",
+                },
               ])
             ),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn(() => {
+              ledgerQueryCount += 1;
+              return ledgerQueryCount === 1 ? topUpsQuery : cycleSpendQuery;
+            }),
+          };
+        }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue(storageAddonsQuery),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -290,8 +441,28 @@ describe("GET /api/admin/users", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         users: [
-          expect.objectContaining({ id: "user-1", spendableCredits: 75, reservedCredits: 25 }),
-          expect.objectContaining({ id: "user-2", spendableCredits: 120, reservedCredits: 0 }),
+          expect.objectContaining({
+            id: "user-1",
+            spendableCredits: 75,
+            reservedCredits: 25,
+            currentCycleSpentCredits: 33,
+            planRenewalAt: "2026-03-01T00:00:00.000Z",
+            topUpPurchaseCount: 1,
+            topUpCreditsPurchased: 1000,
+            recurringStorageAddonBytes: 53687091200,
+            recurringStorageAddonPriceCents: 1500,
+          }),
+          expect.objectContaining({
+            id: "user-2",
+            spendableCredits: 120,
+            reservedCredits: 0,
+            currentCycleSpentCredits: 44,
+            planRenewalAt: "2026-03-15T00:00:00.000Z",
+            topUpPurchaseCount: 2,
+            topUpCreditsPurchased: 5000,
+            recurringStorageAddonBytes: 107374182400,
+            recurringStorageAddonPriceCents: 2500,
+          }),
         ],
       })
     );

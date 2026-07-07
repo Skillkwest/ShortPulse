@@ -102,9 +102,13 @@ describe("ProfileStorageSection", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Add 50 GB" })).toBeEnabled();
+    const addStorageButton = screen.getByRole("button", { name: "Add 50 GB" });
+    expect(addStorageButton).toBeEnabled();
+    expect(addStorageButton).toHaveClass("primary-btn");
     expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
     expect(screen.getByText("Available on Media plan and above")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Requires Media plan" })).toBeDisabled();
+    const requiresMediaButton = screen.getByRole("button", { name: "Requires Media plan" });
+    expect(requiresMediaButton).toBeDisabled();
+    expect(requiresMediaButton).toHaveClass("ghost-btn");
   });
 });

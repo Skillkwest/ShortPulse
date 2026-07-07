@@ -19,6 +19,12 @@ export type AdminUserRow = {
   monthlyCreditsCents: number | null;
   billingSource: "billing_profile" | "subscription_contract";
   subscriptionStatus: string | null;
+  planRenewalAt: string | null;
+  currentCycleSpentCredits: number;
+  topUpPurchaseCount: number;
+  topUpCreditsPurchased: number;
+  recurringStorageAddonBytes: number;
+  recurringStorageAddonPriceCents: number;
   credits: number;
   availableCredits: number;
   reservedCredits: number;

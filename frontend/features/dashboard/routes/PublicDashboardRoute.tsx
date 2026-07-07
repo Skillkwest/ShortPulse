@@ -18,7 +18,11 @@ import { loadGrowthTelemetry } from "../../../lib/growthTelemetryLoader";
 import type { PublicDashboardStaticProps } from "./publicDashboardData";
 import { readDashboardTutorialsFromPublicEndpoint } from "../logic/dashboardTutorialEndpointClient";
 import { asDashboardTutorials } from "../logic/dashboardTutorialPayload";
-import { SHORTPULSE_COMMUNITY_URL } from "../communityLinks";
+import {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../communityLinks";
 
 type PublicDashboardRouteProps = Partial<PublicDashboardStaticProps>;
 type PublicDashboardRouteInternalProps = PublicDashboardRouteProps & {
@@ -140,6 +144,8 @@ export function PublicDashboardRoute({
                   href={SHORTPULSE_COMMUNITY_URL}
                   className="public-dashboard-action public-dashboard-community"
                   prefetch={false}
+                  target={SHORTPULSE_COMMUNITY_LINK_TARGET}
+                  rel={SHORTPULSE_COMMUNITY_LINK_REL}
                 >
                   Community
                 </Link>

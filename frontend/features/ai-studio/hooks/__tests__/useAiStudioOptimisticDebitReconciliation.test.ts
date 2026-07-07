@@ -211,6 +211,26 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     expect(result.current.visibleFailures).toEqual([]);
   });
 
+  it("keeps hidden active-generation limit warnings visible to the alert stack", () => {
+    const { result } = renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [
+          makeOutput("out-limit", "fail", {
+            errorMessage:
+              "You've reached your max active generations. Wait for one to finish, then try again.",
+            hiddenInReferenceGrid: true,
+          }),
+        ],
+        optimisticDebitEntries: [],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
+        refreshBalance: vi.fn(async () => 10),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    expect(result.current.visibleFailures.map((item) => item.id)).toEqual(["out-limit"]);
+  });
+
   it("excludes explicitly suppressed failed outputs from visible failures", () => {
     const { result } = renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({

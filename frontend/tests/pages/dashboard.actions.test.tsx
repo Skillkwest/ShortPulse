@@ -5,7 +5,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthenticatedDashboardView } from "../../features/dashboard/components/AuthenticatedDashboardView";
-import { SHORTPULSE_COMMUNITY_URL } from "../../features/dashboard/communityLinks";
+import {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../../features/dashboard/communityLinks";
 import { DashboardAppBar } from "../../features/dashboard/components/DashboardAppBar";
 import { resetBillingAccountSummaryClientStateForTests } from "../../features/billing/accountSummary";
 import DashboardPage from "../../pages/dashboard";
@@ -426,10 +430,10 @@ describe("Dashboard actions", () => {
   it("links signed-in dashboard account summary cards to profile account sections", async () => {
     render(<DashboardPage />);
 
-    expect(await screen.findByRole("link", { name: /^Creator hub:/i })).toHaveAttribute(
-      "href",
-      SHORTPULSE_COMMUNITY_URL
-    );
+    const creatorHubLink = await screen.findByRole("link", { name: /^Creator hub:/i });
+    expect(creatorHubLink).toHaveAttribute("href", SHORTPULSE_COMMUNITY_URL);
+    expect(creatorHubLink).toHaveAttribute("target", SHORTPULSE_COMMUNITY_LINK_TARGET);
+    expect(creatorHubLink).toHaveAttribute("rel", SHORTPULSE_COMMUNITY_LINK_REL);
     expect(
       await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500 GB" })
     ).toHaveAttribute("href", "/profile?section=storage");
@@ -474,10 +478,10 @@ describe("Dashboard actions", () => {
       footerNavLabels.indexOf("Terms of Service")
     );
     expect(within(footer).queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
-    expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
-      "href",
-      SHORTPULSE_COMMUNITY_URL
-    );
+    const footerCommunityLink = within(footer).getByRole("link", { name: "Join Free" });
+    expect(footerCommunityLink).toHaveAttribute("href", SHORTPULSE_COMMUNITY_URL);
+    expect(footerCommunityLink).toHaveAttribute("target", SHORTPULSE_COMMUNITY_LINK_TARGET);
+    expect(footerCommunityLink).toHaveAttribute("rel", SHORTPULSE_COMMUNITY_LINK_REL);
     expect(within(footer).getByRole("button", { name: "Open AI Studio" })).toBeInTheDocument();
     expect(within(footer).queryByRole("link", { name: "Open AI Studio" })).not.toBeInTheDocument();
 

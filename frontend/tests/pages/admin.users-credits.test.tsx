@@ -2,7 +2,7 @@
  * Admin support page tests for users and credits workflows.
  * Locks explicit selection, lazy ledger loading, manual adjustments, and destructive user deletion.
  */
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminDashboardPage from "../../pages/admin";
@@ -51,6 +51,7 @@ let openedPortalWindow: {
   close: ReturnType<typeof vi.fn>;
   location: { href: string };
 };
+let scrollIntoViewMock: ReturnType<typeof vi.fn>;
 
 const jsonResponse = (body: unknown, ok = true) => ({
   ok,
@@ -78,6 +79,11 @@ describe("Admin users and credits overview", () => {
     windowOpenMock.mockReset();
     windowOpenMock.mockReturnValue(openedPortalWindow);
     vi.stubGlobal("open", windowOpenMock);
+    scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -110,7 +116,13 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 120,
               availableCredits: 150,
               reservedCredits: 30,
+              currentCycleSpentCredits: 88,
               subscriptionStatus: "active",
+              planRenewalAt: "2026-04-30T12:00:00.000Z",
+              topUpPurchaseCount: 2,
+              topUpCreditsPurchased: 2500,
+              recurringStorageAddonBytes: 10737418240,
+              recurringStorageAddonPriceCents: 500,
               createdAt: "2026-03-01T00:00:00.000Z",
             },
             {
@@ -127,7 +139,13 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 0,
               availableCredits: 0,
               reservedCredits: 0,
+              currentCycleSpentCredits: 10400,
               subscriptionStatus: "inactive",
+              planRenewalAt: "2026-05-15T12:00:00.000Z",
+              topUpPurchaseCount: 0,
+              topUpCreditsPurchased: 0,
+              recurringStorageAddonBytes: 0,
+              recurringStorageAddonPriceCents: 0,
               createdAt: "2026-03-02T12:00:00.000Z",
             },
             {
@@ -144,7 +162,13 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 5000,
               availableCredits: 5000,
               reservedCredits: 0,
+              currentCycleSpentCredits: 1200,
               subscriptionStatus: "active",
+              planRenewalAt: "2026-04-30T12:00:00.000Z",
+              topUpPurchaseCount: 1,
+              topUpCreditsPurchased: 10000,
+              recurringStorageAddonBytes: 53687091200,
+              recurringStorageAddonPriceCents: 1500,
               createdAt: "2026-03-02T12:00:00.000Z",
             },
           ],
@@ -419,10 +443,6 @@ describe("Admin users and credits overview", () => {
         expect(options?.method).toBe("POST");
         return jsonResponse({ portalUrl: "https://stripe.test/admin-portal-session" });
       }
-      if (path === `/api/admin/users/${encodeURIComponent(USER_2_ID)}`) {
-        expect(options?.method).toBe("DELETE");
-        return jsonResponse({ ok: true, userId: USER_2_ID, email: "beta@example.com" });
-      }
       if (path.startsWith("/api/admin/errors?")) {
         return jsonResponse({
           errors: [],
@@ -542,7 +562,13 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 120,
             availableCredits: 150,
             reservedCredits: 30,
+            currentCycleSpentCredits: 88,
             subscriptionStatus: "active",
+            planRenewalAt: "2026-04-30T12:00:00.000Z",
+            topUpPurchaseCount: 2,
+            topUpCreditsPurchased: 2500,
+            recurringStorageAddonBytes: 10737418240,
+            recurringStorageAddonPriceCents: 500,
             createdAt: "2026-03-01T00:00:00.000Z",
           },
           {
@@ -559,7 +585,13 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 0,
             availableCredits: 0,
             reservedCredits: 0,
+            currentCycleSpentCredits: 10400,
             subscriptionStatus: "inactive",
+            planRenewalAt: "2026-05-15T12:00:00.000Z",
+            topUpPurchaseCount: 0,
+            topUpCreditsPurchased: 0,
+            recurringStorageAddonBytes: 0,
+            recurringStorageAddonPriceCents: 0,
             createdAt: "2026-03-02T12:00:00.000Z",
           },
           {
@@ -576,7 +608,13 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 5000,
             availableCredits: 5000,
             reservedCredits: 0,
+            currentCycleSpentCredits: 1200,
             subscriptionStatus: "active",
+            planRenewalAt: "2026-04-30T12:00:00.000Z",
+            topUpPurchaseCount: 1,
+            topUpCreditsPurchased: 10000,
+            recurringStorageAddonBytes: 53687091200,
+            recurringStorageAddonPriceCents: 1500,
             createdAt: "2026-03-02T12:00:00.000Z",
           },
         ],
@@ -603,6 +641,21 @@ describe("Admin users and credits overview", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
     );
+
+    expect(screen.getAllByText("Plan").length).toBeGreaterThan(0);
+    expect(screen.getByText("Cycle spent")).toBeInTheDocument();
+    expect(screen.getByText("Top-ups")).toBeInTheDocument();
+    expect(screen.getByText("Renews")).toBeInTheDocument();
+    expect(screen.getAllByText("Storage").length).toBeGreaterThan(0);
+    const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
+    expect(alphaRow).toHaveTextContent("Studio");
+    expect(alphaRow).toHaveTextContent("88");
+    expect(alphaRow).toHaveTextContent("120");
+    expect(alphaRow).toHaveTextContent("2,500");
+    expect(alphaRow).toHaveTextContent("2 purchases");
+    expect(alphaRow).toHaveTextContent("Apr 30, 2026");
+    expect(alphaRow).toHaveTextContent("10 GB");
+    expect(alphaRow).toHaveTextContent("$5.00/mo");
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
     expect(selectButtons[0]).toHaveAttribute("aria-label", "Select admin@example.com");
@@ -632,6 +685,14 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    await waitFor(() =>
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          block: "start",
+          inline: "nearest",
+        })
+      )
+    );
     fireEvent.click(screen.getByRole("button", { name: "Open full credit log" }));
 
     await waitFor(() =>
@@ -782,44 +843,14 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByText("Opened Stripe billing in a new tab.")).toBeInTheDocument();
   });
 
-  it("requires typed confirmation before deleting a user", async () => {
+  it("does not expose row delete actions from the support user list", async () => {
     render(<AdminDashboardPage />);
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Delete beta@example.com" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Select beta@example.com" })).toBeInTheDocument()
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete beta@example.com" }));
-
-    const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByText("Permanently delete this ShortPulse account?")
-    ).toBeInTheDocument();
-
-    const confirmButton = within(dialog).getByRole("button", { name: "Delete user permanently" });
-    expect(confirmButton).toBeDisabled();
-
-    fireEvent.change(within(dialog).getByPlaceholderText("beta@example.com"), {
-      target: { value: "wrong@example.com" },
-    });
-    expect(confirmButton).toBeDisabled();
-
-    fireEvent.change(within(dialog).getByPlaceholderText("beta@example.com"), {
-      target: { value: "beta@example.com" },
-    });
-    expect(confirmButton).not.toBeDisabled();
-
-    fireEvent.click(confirmButton);
-
-    await waitFor(() => expect(screen.getByText("User deleted permanently.")).toBeInTheDocument());
-    expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      `/api/admin/users/${encodeURIComponent(USER_2_ID)}`,
-      expect.objectContaining({
-        method: "DELETE",
-        body: JSON.stringify({
-          confirmationText: "beta@example.com",
-        }),
-      })
-    );
+    expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete / })).not.toBeInTheDocument();
   });
 });

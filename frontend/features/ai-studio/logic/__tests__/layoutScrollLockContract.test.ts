@@ -173,15 +173,21 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(alertBannerRule).toContain("border-radius: 999px;");
     expect(alertBannerRule).toContain("border: 1px solid transparent;");
     expect(alertActionsRule).toContain("flex: 0 0 auto;");
-    expect(alertDismissRule).toContain("flex: 0 0 28px;");
-    expect(alertDismissRule).toContain("width: 28px;");
+    expect(alertDismissRule).toContain("flex: 0 0 30px;");
+    expect(alertDismissRule).toContain("width: 30px;");
+    expect(alertDismissRule).toContain("border-radius: 999px;");
+    expect(alertDismissRule).toContain("background: rgba(18, 22, 32, 0.9);");
     expect(sharedErrorMessageRule).toContain("--app-message-bg: #36191f;");
-    expect(alertErrorBannerRule).toContain("background: #461818;");
-    expect(alertErrorBannerRule).not.toContain("border-color:");
+    expect(alertErrorBannerRule).toContain("--app-message-bg: var(--color-panel);");
+    expect(alertErrorBannerRule).toContain("--app-message-text: #ff8b96;");
+    expect(alertErrorBannerRule).toContain("border-color: var(--app-message-border);");
+    expect(alertErrorBannerRule).toContain("background: var(--app-message-bg);");
     expect(alertWarningBannerRule).not.toContain("border-color:");
-    expect(groupedFailureRule).toContain("background: linear-gradient(180deg, #5f1414, #3e0e0e);");
+    expect(groupedFailureRule).toContain("--app-message-bg: var(--color-panel);");
+    expect(groupedFailureRule).toContain("--app-message-text: #ff8b96;");
+    expect(groupedFailureRule).toContain("background: var(--app-message-bg);");
     expect(groupedFailureRule).toContain("border-radius: 999px;");
-    expect(groupedFailureRule).toContain("border: 1px solid transparent;");
+    expect(groupedFailureRule).toContain("border: 1px solid var(--app-message-border);");
     expect(viewportMessageRule).toContain("margin: 0;");
     expect(css).toContain("@media (max-width: 1100px)");
     expect(css).toMatch(

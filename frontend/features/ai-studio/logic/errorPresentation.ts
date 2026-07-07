@@ -23,6 +23,7 @@ import { createShortErrorMessage } from "../hooks/taskPolling/providerStatusPoli
 import type { StudioOutput } from "../types";
 
 export type AiStudioErrorCategory =
+  | "admission_limit"
   | "insufficient_credits"
   | "content_policy"
   | "provider_error"
@@ -107,6 +108,8 @@ const resolveCategoryCompactMessage = (
   switch (category) {
     case "insufficient_credits":
       return INSUFFICIENT_CREDITS_TITLE;
+    case "admission_limit":
+      return "Max active generations reached.";
     case "provider_error":
       return "Service issue.";
     case "preflight_timeout":
@@ -149,6 +152,8 @@ const resolveCustomerDetailMessage = ({
     return "A reference image could not be used. Re-add the reference and try again.";
   }
   switch (category) {
+    case "admission_limit":
+      return normalizedMessage;
     case "insufficient_credits":
       return INSUFFICIENT_CREDITS_MESSAGE;
     case "provider_error":
@@ -200,6 +205,14 @@ const resolveCategory = (...values: Array<unknown>): AiStudioErrorCategory => {
 
   if (isExplicitContentFailureMessage(text)) return "content_policy";
   if (isInsufficientCreditsLike(text)) return "insufficient_credits";
+  if (
+    text.includes("max active generations") ||
+    text.includes("too many active generations") ||
+    text.includes("shared generation capacity") ||
+    text.includes("generation admission")
+  ) {
+    return "admission_limit";
+  }
   if (text.includes("content policy") || text.includes("safety system")) return "content_policy";
   if (text.includes("timed out") || text.includes("timeout")) return "preflight_timeout";
   if (text.includes("upload") || text.includes("413") || text.includes("file too large")) {

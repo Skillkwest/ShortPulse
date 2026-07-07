@@ -28,6 +28,11 @@ import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import { AiStudioToolbarAccountMenu } from "./AiStudioToolbarAccountMenu";
 import {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../../../lib/communityLinks";
+import {
   AI_STUDIO_TOOLBAR_LOGO_SRC,
   creationsToolList,
   librariesToolList,
@@ -323,6 +328,23 @@ function AiStudioToolbarComponent({
           {creationsToolList.map((tool) => {
             const IconComponent = toolIcons[tool.id];
             const isActive = selectedTool === tool.id;
+            if (tool.id === "community") {
+              return (
+                <a
+                  key={tool.id}
+                  href={SHORTPULSE_COMMUNITY_URL}
+                  className="toolbar-item toolbar-item-secondary"
+                  data-tool-id={tool.id}
+                  target={SHORTPULSE_COMMUNITY_LINK_TARGET}
+                  rel={SHORTPULSE_COMMUNITY_LINK_REL}
+                >
+                  {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                  <div className="toolbar-copy">
+                    <span className="toolbar-label">{tool.label}</span>
+                  </div>
+                </a>
+              );
+            }
             return (
               <button
                 key={tool.id}

@@ -225,6 +225,8 @@ export function ProfileStorageSection({
                   const isLoading = storageAddonChangeLoadingId === addon.id;
                   const isBusy = storageAddonChangeLoadingId !== null;
                   const minimumPlanLabel = resolveStorageAddonMinimumPlanLabel(addon.id);
+                  const usesPrimaryActionStyle =
+                    isStorageAddonManagementAvailable && !isActive && !blocksPlanEligibility;
                   let actionLabel = "Subscription syncing";
                   if (isLoading) {
                     actionLabel = "Updating…";
@@ -261,7 +263,10 @@ export function ProfileStorageSection({
                       <div className={profileClass("profile-actions")}>
                         <button
                           type="button"
-                          className={profileClass("profile-button", "ghost-btn")}
+                          className={profileClass(
+                            "profile-button",
+                            usesPrimaryActionStyle ? "primary-btn" : "ghost-btn"
+                          )}
                           onClick={() =>
                             onStorageAddonChange({
                               storageAddonId: addon.id,

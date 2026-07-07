@@ -1460,25 +1460,37 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  --admin-support-user-col: minmax(0, 1.9fr);
+  --admin-support-user-col: minmax(170px, 0.95fr);
   --admin-support-copy-col: 36px;
-  --admin-support-flags-col: minmax(72px, 0.7fr);
-  --admin-support-spendable-col: minmax(96px, 0.78fr);
-  --admin-support-billing-col: minmax(140px, 0.9fr);
-  --admin-support-actions-col: max-content;
+  --admin-support-plan-col: minmax(76px, 0.5fr);
+  --admin-support-flags-col: minmax(96px, 0.6fr);
+  --admin-support-spent-col: minmax(84px, 0.48fr);
+  --admin-support-spendable-col: minmax(86px, 0.52fr);
+  --admin-support-topups-col: minmax(112px, 0.7fr);
+  --admin-support-billing-col: minmax(112px, 0.64fr);
+  --admin-support-renews-col: minmax(104px, 0.6fr);
+  --admin-support-storage-col: minmax(104px, 0.64fr);
   --admin-support-col-gap: 10px;
   grid-template-columns:
     var(--admin-support-user-col)
     var(--admin-support-copy-col)
+    var(--admin-support-plan-col)
     var(--admin-support-flags-col)
+    var(--admin-support-spent-col)
     var(--admin-support-spendable-col)
+    var(--admin-support-topups-col)
     var(--admin-support-billing-col)
-    var(--admin-support-actions-col);
+    var(--admin-support-renews-col)
+    var(--admin-support-storage-col);
   gap: var(--admin-support-col-gap);
 }
 
 .adminSupportQueueRow {
   position: relative;
+}
+
+.adminSupportDetailsSection {
+  scroll-margin-top: 18px;
 }
 
 .adminTableRow {
@@ -1544,7 +1556,7 @@
 }
 
 .adminSupportQueueSelectButton {
-  grid-column: 1 / 6;
+  grid-column: 1 / -1;
   grid-row: 1;
   align-self: stretch;
   width: 100%;
@@ -1568,10 +1580,15 @@
   grid-template-columns:
     var(--admin-support-user-col)
     var(--admin-support-copy-col)
+    var(--admin-support-plan-col)
     var(--admin-support-flags-col)
+    var(--admin-support-spent-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-billing-col);
-  grid-column: 1 / 6;
+    var(--admin-support-topups-col)
+    var(--admin-support-billing-col)
+    var(--admin-support-renews-col)
+    var(--admin-support-storage-col);
+  grid-column: 1 / -1;
   grid-row: 1;
   align-items: center;
   gap: var(--admin-support-col-gap);
@@ -1651,17 +1668,6 @@
   color: var(--admin-text);
 }
 
-.adminSupportQueueActions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-width: max-content;
-  position: relative;
-  z-index: 2;
-}
-
 .adminSupportQueueSignalList {
   display: flex;
   flex-wrap: wrap;
@@ -1672,57 +1678,6 @@
   min-width: 0;
   padding: 4px 8px;
   font-size: 11px;
-}
-
-.adminDangerButton {
-  border-color: rgba(241, 84, 84, 0.4);
-  color: #ffd7d7;
-}
-
-.adminDangerButton:hover:not(:disabled) {
-  border-color: rgba(248, 78, 78, 0.72);
-  color: #fff4f4;
-}
-
-.adminDangerConfirmButton {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(248, 78, 78, 0.72);
-  background: rgba(117, 24, 24, 0.96);
-  color: #fff5f5;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    border-color 0.12s ease,
-    opacity 0.12s ease;
-}
-
-.adminDangerConfirmButton:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: rgba(255, 122, 122, 0.9);
-}
-
-.adminDangerConfirmButton:disabled,
-.adminDangerButton:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.adminDeleteWarning {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(241, 84, 84, 0.34);
-  background: rgba(49, 16, 16, 0.9);
-}
-
-.adminDeleteWarningTitle {
-  margin: 0;
-  color: #fff2f2;
-  font-weight: 700;
 }
 
 .adminLedgerHead,
@@ -5059,10 +5014,6 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--admin-text-faint);
-  }
-
-  .adminSupportQueueActions {
-    justify-content: flex-start;
   }
 
   .adminErrorsRow {

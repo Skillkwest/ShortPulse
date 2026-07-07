@@ -1,5 +1,9 @@
+/**
+ * Homepage community CTA section shared by signed-out and signed-in dashboard surfaces.
+ */
 import Link from "next/link";
 import { type Ref } from "react";
+import { SHORTPULSE_COMMUNITY_LINK_REL, SHORTPULSE_COMMUNITY_LINK_TARGET } from "../communityLinks";
 
 type PublicHomeCommunitySectionProps = {
   communityHref: string;
@@ -31,7 +35,13 @@ export function PublicHomeCommunitySection({
           <span>JOIN THE</span>
           <span>COMMUNITY</span>
         </div>
-        <Link href={communityHref} className="public-home-community-button" prefetch={false}>
+        <Link
+          href={communityHref}
+          className="public-home-community-button"
+          prefetch={false}
+          target={SHORTPULSE_COMMUNITY_LINK_TARGET}
+          rel={SHORTPULSE_COMMUNITY_LINK_REL}
+        >
           Join Free
         </Link>
       </div>

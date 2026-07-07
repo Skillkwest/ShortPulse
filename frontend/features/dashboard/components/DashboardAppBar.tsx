@@ -14,6 +14,8 @@ type DashboardAppBarCard = {
   iconSrc?: string;
   className?: string;
   href?: string;
+  target?: string;
+  rel?: string;
 };
 
 type DashboardAppBarProps = {
@@ -93,6 +95,8 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
                   className="header-stat-card header-stat-card-link"
                   aria-label={`${item.label}: ${itemAriaValue}`}
                   prefetch={false}
+                  target={item.target}
+                  rel={item.rel}
                 >
                   {cardBody}
                 </Link>

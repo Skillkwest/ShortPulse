@@ -27,7 +27,7 @@ Client-initiated signup and password-reset flows now resolve their absolute call
 
 Account-first signup launch posture:
 
-- `/sign-up` and `/log-in` are the canonical public auth entry pages. Public dashboard signup actions should route to `/sign-up?next=/ai-studio`; public dashboard app-launch actions such as `Launch App` and `Launch AI Studio` should route to `/log-in?next=/ai-studio`; logged-out paid plan actions should route to `/sign-up` and preserve the selected `/pricing?...&plan=<starter|media|studio|business>` return path.
+- `/sign-up` and `/log-in` are the canonical public auth entry pages. Public dashboard signup actions and public dashboard app-launch actions such as `Launch App` and `Launch AI Studio` should route to `/sign-up?next=/ai-studio`; logged-out paid plan actions should route to `/sign-up` and preserve the selected `/pricing?...&plan=<starter|media|studio|business>` return path.
 - ShortPulse public signup is open by default at the app layer. Set `NEXT_PUBLIC_SHORTPULSE_PUBLIC_SIGNUP_ENABLED=false` only as an emergency app-level close switch; when false, the signup page and `/api/auth/signup-intent` refuse account creation.
 - In the Supabase production project, Auth public signup may be enabled (`disable_signup=false`) only when `public.hook_shortpulse_signup_intent(event jsonb)` is enabled and verified, so direct calls to Supabase Auth or enabled OAuth providers cannot create non-intended accounts.
 - Verify the provider-level state with:

@@ -217,23 +217,22 @@ describe("useAiStudioOutputLifecycle", () => {
     const { result } = renderHook(() =>
       useHarness([makeOutput("out-1", { taskState: "pending" })], "out-1")
     );
+    const message =
+      "You've reached your max active generations. Wait for one to finish, or try again in 20 seconds.";
 
     act(() => {
-      result.current.notifyGenerationFailure(
-        "out-1",
-        "You already have too many active generations. Please retry in 20 seconds.",
-        "You already have too many active generations. Please retry in 20 seconds."
-      );
+      result.current.notifyGenerationFailure("out-1", message, message);
     });
 
-    expect(result.current.outputs[0]?.errorMessage).toBe(
-      "You already have too many active generations. Please retry in 20 seconds."
-    );
+    expect(result.current.outputs[0]?.errorMessage).toBe(message);
+    expect(result.current.outputs[0]?.hiddenInReferenceGrid).toBe(true);
+    expect(result.current.outputs[0]?.timestamp).toBe("Max active generations");
+    expect(result.current.activeOutputId).toBeNull();
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "generation.admission_limited",
         severity: "low",
-        message: "You already have too many active generations. Please retry in 20 seconds.",
+        message,
         metadata: expect.objectContaining({
           failure_class: "admission_limited",
         }),

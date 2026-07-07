@@ -134,6 +134,10 @@
   margin: 0;
 }
 
+.app-message-stack--viewport .ai-warning-stack {
+  margin: 0;
+}
+
 .app-message__copy {
   display: flex;
   min-width: 0;

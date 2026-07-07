@@ -1,6 +1,6 @@
 /**
  * PulsePresetsLibraryPanel tests.
- * Verifies the shared Pulse panel supports custom create/edit/delete flows.
+ * Verifies the shared Pulse panel supports custom edit/delete flows while new creation is deferred.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -16,7 +16,7 @@ describe("PulsePresetsLibraryPanel", () => {
         /Manage your Pulse catalog here\. Custom and built-in Pulses share the same grid\./
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create new pulse" })).not.toBeInTheDocument();
   });
 
   it("hides custom ownership pills while keeping ShortPulse favicon markers for built-in pulse tiles", () => {
@@ -82,40 +82,36 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByText("No Pulses match this search.")).toBeInTheDocument();
   });
 
-  it("creates a new shared custom pulse preset", async () => {
+  it("keeps the new custom Pulse creation entry point hidden", () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
       <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
-    expect(screen.getByRole("heading", { name: "Create New Pulse" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Preset Name"), {
-      target: { value: "Storyboard" },
-    });
-    fireEvent.change(screen.getByLabelText("System Instructions"), {
-      target: { value: "Build a storyboard-ready pulse sequence." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
-
-    await waitFor(() => {
-      expect(onSavedPresetsChange).toHaveBeenCalledTimes(1);
-      expect(onSavedPresetsChange.mock.calls[0]?.[0]).toEqual([
-        expect.objectContaining({
-          label: "Storyboard",
-          systemInstructions: "Build a storyboard-ready pulse sequence.",
-          pulseKind: "custom_gpt",
-          schemaVersion: 2,
-        }),
-      ]);
-    });
+    expect(screen.queryByRole("button", { name: "Create new pulse" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Create New Pulse" })).not.toBeInTheDocument();
+    expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });
 
-  it("keeps pulse authoring limited to name and system instructions", () => {
-    render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
+  it("keeps existing custom pulse editing limited to name and system instructions", () => {
+    render(
+      <PulsePresetsLibraryPanel
+        savedPresets={[
+          {
+            presetId: "pulse_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
+    fireEvent.click(screen.getByRole("button", { name: "Inspect pulse preset tile: Storyboard" }));
 
     expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
     expect(screen.getByLabelText("Custom Pulse instruction guide")).toBeInTheDocument();
@@ -217,20 +213,29 @@ describe("PulsePresetsLibraryPanel", () => {
     const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
 
     render(
-      <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
+      <PulsePresetsLibraryPanel
+        savedPresets={[
+          {
+            presetId: "pulse_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={onSavedPresetsChange}
+      />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
-    fireEvent.change(screen.getByLabelText("Preset Name"), {
-      target: { value: "Storyboard" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect pulse preset tile: Storyboard" }));
     fireEvent.change(screen.getByLabelText("System Instructions"), {
-      target: { value: "Build a storyboard-ready pulse sequence." },
+      target: { value: "Build a storyboard sequence with clear pacing." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Unable to save this Pulse right now.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Create New Pulse" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Edit Preset" })).toBeInTheDocument();
   });
 
   it("deletes a shared custom pulse preset", async () => {

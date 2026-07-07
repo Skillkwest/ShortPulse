@@ -6,9 +6,7 @@ import React from "react";
 import Image from "next/image";
 import { TrashSimple } from "phosphor-react";
 import {
-  createCreatePulseCustomPresetId,
   createCreatePulseCustomSavedPreset,
-  isCreatePulseBuiltInPresetId,
   resolveCreatePulsePresetCatalog,
   type CreatePulseBuiltInPresetDefinition,
   type CreatePulseResolvedPreset,
@@ -81,14 +79,6 @@ export function PulsePresetsLibraryPanel({
       )
     );
   }, [normalizedSearchQuery, resolvedPresets]);
-  const nextPresetNumber = React.useMemo(
-    () =>
-      savedPresets.filter(
-        (preset) => !isCreatePulseBuiltInPresetId(preset.presetId, builtInDefinitions)
-      ).length + 1,
-    [builtInDefinitions, savedPresets]
-  );
-
   const closeEditModal = React.useCallback(() => {
     if (editSubmitting) return;
     setPendingPresetEdit(null);
@@ -325,33 +315,6 @@ export function PulsePresetsLibraryPanel({
             })}
             {visibleResolvedPresets.length === 0 && normalizedSearchQuery ? (
               <p className="pulse-presets-library-empty-state">No Pulses match this search.</p>
-            ) : null}
-            {!normalizedSearchQuery ? (
-              <button
-                type="button"
-                className="pulse-presets-library-tile pulse-presets-library-create-tile"
-                aria-label="Create new pulse"
-                onClick={() => {
-                  const nextPresetId = createCreatePulseCustomPresetId();
-                  const defaultLabel = `Pulse ${nextPresetNumber}`;
-                  setSelectedPresetId(nextPresetId);
-                  setLocalSaveError(null);
-                  setPendingPresetEdit({
-                    presetId: nextPresetId,
-                    presetLabel: defaultLabel,
-                    label: defaultLabel,
-                    systemInstructions: "",
-                    mode: "create",
-                  });
-                }}
-              >
-                <span className="pulse-presets-library-create-plus" aria-hidden="true">
-                  +
-                </span>
-                <span className="pulse-presets-library-tile-head">
-                  <span className="pulse-presets-library-tile-title">Create New Pulse</span>
-                </span>
-              </button>
             ) : null}
           </div>
         </section>

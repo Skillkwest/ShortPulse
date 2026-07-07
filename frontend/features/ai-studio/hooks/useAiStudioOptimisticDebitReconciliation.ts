@@ -45,6 +45,8 @@ type FailureCard = Pick<
 type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
 const EMPTY_FAILURES: FailureCard[] = [];
 const EMPTY_OUTPUT_LITE: ReconciliationOutputLite[] = [];
+const ADMISSION_LIMIT_FAILURE_PATTERN =
+  /\b(?:too many active generations|max active generations|shared generation capacity|generation admission)\b/i;
 
 const hasFailurePresentationCopy = (
   item: Pick<StudioOutput, "errorMessage" | "errorMessageShort" | "errorDetail" | "errorPayload">
@@ -55,6 +57,31 @@ const hasFailurePresentationCopy = (
     item.errorDetail?.trim() ||
     item.errorPayload
   );
+
+const isAdmissionLimitFailure = (
+  item: Pick<StudioOutput, "errorMessage" | "errorMessageShort" | "errorDetail">
+): boolean =>
+  ADMISSION_LIMIT_FAILURE_PATTERN.test(item.errorMessage ?? "") ||
+  ADMISSION_LIMIT_FAILURE_PATTERN.test(item.errorMessageShort ?? "") ||
+  ADMISSION_LIMIT_FAILURE_PATTERN.test(item.errorDetail ?? "");
+
+const shouldShowFailureCard = (
+  item: Pick<
+    StudioOutput,
+    | "id"
+    | "taskState"
+    | "errorMessage"
+    | "errorMessageShort"
+    | "errorDetail"
+    | "errorPayload"
+    | "hiddenInReferenceGrid"
+  >,
+  suppressedFailureIdSet: Set<string>
+): boolean =>
+  item.taskState === "fail" &&
+  hasFailurePresentationCopy(item) &&
+  !suppressedFailureIdSet.has(item.id) &&
+  (item.hiddenInReferenceGrid !== true || isAdmissionLimitFailure(item));
 
 const areOutputLiteListsEqual = (
   left: ReconciliationOutputLite[],
@@ -123,13 +150,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
     return snapshot.outputOrder
       .map((id) => snapshot.outputById[id])
       .filter((item): item is StudioOutput => Boolean(item))
-      .filter(
-        (item) =>
-          item.taskState === "fail" &&
-          hasFailurePresentationCopy(item) &&
-          item.hiddenInReferenceGrid !== true &&
-          !suppressedFailureIdSet.has(item.id)
-      )
+      .filter((item) => shouldShowFailureCard(item, suppressedFailureIdSet))
       .map((item) => ({
         id: item.id,
         model: item.model,
@@ -154,13 +175,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   const overrideFailureCards = useMemo<FailureCard[]>(
     () =>
       (outputsOverride ?? [])
-        .filter(
-          (item) =>
-            item.taskState === "fail" &&
-            hasFailurePresentationCopy(item) &&
-            item.hiddenInReferenceGrid !== true &&
-            !suppressedFailureIdSet.has(item.id)
-        )
+        .filter((item) => shouldShowFailureCard(item, suppressedFailureIdSet))
         .map((item) => ({
           id: item.id,
           model: item.model,

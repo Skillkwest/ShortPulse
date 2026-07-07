@@ -24,6 +24,12 @@ type AdminUserRow = {
   monthlyCreditsCents: number | null;
   billingSource: "billing_profile" | "subscription_contract";
   subscriptionStatus: string | null;
+  planRenewalAt: string | null;
+  currentCycleSpentCredits: number;
+  topUpPurchaseCount: number;
+  topUpCreditsPurchased: number;
+  recurringStorageAddonBytes: number;
+  recurringStorageAddonPriceCents: number;
   credits: number;
   availableCredits: number;
   reservedCredits: number;
@@ -35,6 +41,7 @@ type BillingProfileRow = {
   user_id: string;
   plan_id: string | null;
   subscription_status: string | null;
+  current_period_end: string | null;
 };
 
 type BillingSubscriptionContractRow = {
@@ -47,11 +54,31 @@ type BillingSubscriptionContractRow = {
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
   status: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
 };
 
 type CreditBalanceRow = {
   user_id: string;
   balance_cents: number | string | null;
+};
+
+type CreditLedgerSpendRow = {
+  user_id: string;
+  change_cents: number | string | null;
+  created_at: string | null;
+};
+
+type CreditTopUpRow = {
+  user_id: string;
+  change_cents: number | string | null;
+};
+
+type BillingSubscriptionStorageAddonRow = {
+  user_id: string;
+  storage_limit_bytes: number | string | null;
+  quantity: number | string | null;
+  recurring_price_cents: number | string | null;
 };
 
 type AuthUser = {
@@ -84,6 +111,17 @@ const isSchemaCompatibilityError = (message: string) => {
     text.includes("failed to parse select parameter") ||
     text.includes("column")
   );
+};
+
+const toFiniteCents = (value: unknown): number => {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
+};
+
+const parseDateMs = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
 };
 
 const listUsersPage = async (
@@ -207,34 +245,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const [balancesResult, contractsResult, profilesResult] = await Promise.all([
-      supabaseAdmin
-        .from("ai_credit_balance")
-        .select("user_id, balance_cents")
-        .in("user_id", userIds),
-      supabaseAdmin
-        .from("billing_subscription_contracts")
-        .select(
-          "user_id, plan_id, offer_id, stripe_price_id, contract_source, billing_interval, recurring_price_cents, monthly_credits_cents, status"
-        )
-        .in("user_id", userIds)
-        .is("ended_at", null),
-      supabaseAdmin
-        .from("billing_profiles")
-        .select("user_id, plan_id, subscription_status")
-        .in("user_id", userIds),
-    ]);
+    const [balancesResult, contractsResult, profilesResult, topUpsResult, storageAddonsResult] =
+      await Promise.all([
+        supabaseAdmin
+          .from("ai_credit_balance")
+          .select("user_id, balance_cents")
+          .in("user_id", userIds),
+        supabaseAdmin
+          .from("billing_subscription_contracts")
+          .select(
+            "user_id, plan_id, offer_id, stripe_price_id, contract_source, billing_interval, recurring_price_cents, monthly_credits_cents, status, current_period_start, current_period_end"
+          )
+          .in("user_id", userIds)
+          .is("ended_at", null),
+        supabaseAdmin
+          .from("billing_profiles")
+          .select("user_id, plan_id, subscription_status, current_period_end")
+          .in("user_id", userIds),
+        supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("user_id, change_cents")
+          .in("user_id", userIds)
+          .eq("source", "stripe_checkout")
+          .gt("change_cents", 0),
+        supabaseAdmin
+          .from("billing_subscription_storage_addons")
+          .select("user_id, storage_limit_bytes, quantity, recurring_price_cents")
+          .in("user_id", userIds)
+          .is("ended_at", null)
+          .in("status", ["active", "trialing", "past_due"]),
+      ]);
     const contractsCompatibilityError =
       contractsResult.error?.message && isSchemaCompatibilityError(contractsResult.error.message);
+    const storageAddonsCompatibilityError =
+      storageAddonsResult.error?.message &&
+      isSchemaCompatibilityError(storageAddonsResult.error.message);
     if (
       balancesResult.error ||
       profilesResult.error ||
+      topUpsResult.error ||
+      (storageAddonsResult.error && !storageAddonsCompatibilityError) ||
       (contractsResult.error && !contractsCompatibilityError)
     ) {
       const detail = [
         balancesResult.error?.message,
         contractsResult.error?.message,
         profilesResult.error?.message,
+        topUpsResult.error?.message,
+        storageAddonsResult.error?.message,
       ]
         .filter(Boolean)
         .join(" | ");
@@ -246,6 +304,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? []
       : ((contractsResult.data ?? []) as BillingSubscriptionContractRow[]);
     const profiles = (profilesResult.data ?? []) as BillingProfileRow[];
+    const topUps = (topUpsResult.data ?? []) as CreditTopUpRow[];
+    const storageAddons = storageAddonsCompatibilityError
+      ? []
+      : ((storageAddonsResult.data ?? []) as BillingSubscriptionStorageAddonRow[]);
     const grantSummariesResult = await fetchCreditGrantSummaries(userIds);
     if (grantSummariesResult.error) {
       return res.status(500).json({
@@ -262,6 +324,79 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const profileByUser = new Map<string, BillingProfileRow>(
       profiles.map((row) => [row.user_id, row])
     );
+    const topUpSummaryByUser = new Map<
+      string,
+      { purchaseCount: number; creditsPurchased: number }
+    >();
+    for (const row of topUps) {
+      const creditsPurchased = Math.max(0, toFiniteCents(row.change_cents));
+      if (creditsPurchased <= 0) continue;
+      const current = topUpSummaryByUser.get(row.user_id) ?? {
+        purchaseCount: 0,
+        creditsPurchased: 0,
+      };
+      current.purchaseCount += 1;
+      current.creditsPurchased += creditsPurchased;
+      topUpSummaryByUser.set(row.user_id, current);
+    }
+    const recurringStorageByUser = new Map<string, { addonBytes: number; priceCents: number }>();
+    for (const row of storageAddons) {
+      const quantity = Math.max(1, toFiniteCents(row.quantity));
+      const addonBytes = Math.max(0, toFiniteCents(row.storage_limit_bytes)) * quantity;
+      const priceCents = Math.max(0, toFiniteCents(row.recurring_price_cents)) * quantity;
+      if (addonBytes <= 0 && priceCents <= 0) continue;
+      const current = recurringStorageByUser.get(row.user_id) ?? {
+        addonBytes: 0,
+        priceCents: 0,
+      };
+      current.addonBytes += addonBytes;
+      current.priceCents += priceCents;
+      recurringStorageByUser.set(row.user_id, current);
+    }
+    const periodStarts = contracts
+      .map((row) => parseDateMs(row.current_period_start))
+      .filter((value): value is number => value !== null);
+    const periodEnds = contracts
+      .map((row) => parseDateMs(row.current_period_end))
+      .filter((value): value is number => value !== null);
+    const spentByUser = new Map<string, number>();
+    if (periodStarts.length) {
+      const earliestPeriodStart = new Date(Math.min(...periodStarts)).toISOString();
+      const latestPeriodEnd = periodEnds.length
+        ? new Date(Math.max(...periodEnds)).toISOString()
+        : null;
+      let spendQuery = supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("user_id, change_cents, created_at")
+        .in("user_id", userIds)
+        .eq("source", "generation_charge")
+        .lt("change_cents", 0)
+        .gte("created_at", earliestPeriodStart);
+      if (latestPeriodEnd) {
+        spendQuery = spendQuery.lt("created_at", latestPeriodEnd);
+      }
+      const spendResult = await spendQuery;
+      if (spendResult.error) {
+        return res.status(500).json({
+          error: spendResult.error.message || "Failed to load admin user cycle spend.",
+        });
+      }
+
+      const spendRows = (spendResult.data ?? []) as CreditLedgerSpendRow[];
+      for (const row of spendRows) {
+        const contract = contractByUser.get(row.user_id);
+        const createdAtMs = parseDateMs(row.created_at);
+        const periodStartMs = parseDateMs(contract?.current_period_start);
+        const periodEndMs = parseDateMs(contract?.current_period_end);
+        if (createdAtMs === null || periodStartMs === null) continue;
+        if (createdAtMs < periodStartMs) continue;
+        if (periodEndMs !== null && createdAtMs >= periodEndMs) continue;
+        spentByUser.set(
+          row.user_id,
+          (spentByUser.get(row.user_id) ?? 0) + Math.abs(toFiniteCents(row.change_cents))
+        );
+      }
+    }
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
       const contract = contractByUser.get(user.id);
@@ -273,6 +408,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const reservedCredits = grantSummary.reservedCents;
       const spendableCredits = grantSummary.spendableCents;
+      const topUpSummary = topUpSummaryByUser.get(user.id);
+      const recurringStorage = recurringStorageByUser.get(user.id);
       return {
         id: user.id,
         email: user.email ?? null,
@@ -293,6 +430,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           (contract?.status as string | undefined) ??
           (profile?.subscription_status as string | undefined) ??
           null,
+        planRenewalAt:
+          (contract?.current_period_end as string | undefined) ??
+          (profile?.current_period_end as string | undefined) ??
+          null,
+        currentCycleSpentCredits: spentByUser.get(user.id) ?? 0,
+        topUpPurchaseCount: topUpSummary?.purchaseCount ?? 0,
+        topUpCreditsPurchased: topUpSummary?.creditsPurchased ?? 0,
+        recurringStorageAddonBytes: recurringStorage?.addonBytes ?? 0,
+        recurringStorageAddonPriceCents: recurringStorage?.priceCents ?? 0,
         credits: spendableCredits,
         availableCredits,
         reservedCredits,

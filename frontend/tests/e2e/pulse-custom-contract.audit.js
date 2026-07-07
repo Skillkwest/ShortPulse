@@ -2,9 +2,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Custom Pulse contract browser audit.
- * Signs in with the dedicated audit account, creates a custom Pulse through the real UI,
- * activates it from the live Pulses surface, intercepts the Pulse route request,
- * and verifies the outgoing request stays on the minimal custom-Pulse contract.
+ * While custom Pulse creation is deferred, verifies the creation affordance stays hidden.
+ * When PULSE_CUSTOM_CREATION_DEFERRED=false, runs the full minimal custom-Pulse contract audit.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,6 +11,7 @@ const { chromium } = require("playwright");
 
 const DEFAULT_BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000").trim();
 const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
+const CUSTOM_PULSE_CREATION_DEFERRED = process.env.PULSE_CUSTOM_CREATION_DEFERRED !== "false";
 const normalizeWhitespace = (value) =>
   typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
 
@@ -235,6 +235,19 @@ async function createCustomPulse(page, pulseLabel, systemInstructions) {
   }
 }
 
+async function verifyCustomPulseCreationDeferred(page) {
+  const { root: libraryRoot, isDialog } = await openPulseLibrary(page);
+  const createButton = libraryRoot.getByRole("button", { name: "Create new pulse" });
+  const isCreateButtonVisible = await createButton.isVisible().catch(() => false);
+  if (isDialog) {
+    const closeButton = page.getByRole("button", { name: "Close Pulse Library" }).first();
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click();
+    }
+  }
+  return !isCreateButtonVisible;
+}
+
 async function cleanupCustomPulse(page, pulseLabel) {
   try {
     const { root: libraryRoot } = await openPulseLibrary(page);
@@ -307,6 +320,10 @@ async function main() {
       activationMessageSeen: false,
       followupMessageSeen: false,
       persistsOnLeaveCreateVerified: false,
+    },
+    deferredCustomPulseCreation: {
+      enabled: CUSTOM_PULSE_CREATION_DEFERRED,
+      createButtonHidden: false,
     },
     screenshots: {
       final: "/tmp/shortpulse-pulse-custom-contract-final.png",
@@ -401,6 +418,14 @@ async function main() {
     out.auth.reachedProtectedRoute = true;
 
     await ensurePulseMode(page);
+    if (CUSTOM_PULSE_CREATION_DEFERRED) {
+      out.deferredCustomPulseCreation.createButtonHidden =
+        await verifyCustomPulseCreationDeferred(page);
+      await page.screenshot({ path: out.screenshots.final, fullPage: true });
+      out.ok = out.auth.reachedProtectedRoute && out.deferredCustomPulseCreation.createButtonHidden;
+      return;
+    }
+
     await createCustomPulse(page, pulseLabel, systemInstructions);
     createdPreset = true;
 

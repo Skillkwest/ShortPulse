@@ -1,1 +1,8 @@
-export const SHORTPULSE_COMMUNITY_URL = "https://www.skool.com/shortpulse-7357/about";
+/**
+ * Dashboard-facing re-export for the shared ShortPulse community link contract.
+ */
+export {
+  SHORTPULSE_COMMUNITY_LINK_REL,
+  SHORTPULSE_COMMUNITY_LINK_TARGET,
+  SHORTPULSE_COMMUNITY_URL,
+} from "../../lib/communityLinks";

@@ -37,7 +37,9 @@ describe("falClient generation admission error handling", () => {
 
     await expect(
       submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
-    ).rejects.toThrow("You already have too many active generations. Please retry in 20 seconds.");
+    ).rejects.toThrow(
+      "You've reached your max active generations. Wait for one to finish, or try again in 20 seconds."
+    );
   });
 
   it("surfaces shared-provider retry guidance for shared-capacity saturation", async () => {
@@ -74,7 +76,7 @@ describe("falClient generation admission error handling", () => {
 
     await expect(
       submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
-    ).rejects.toThrow("Too many active generations. Please retry in 9 seconds.");
+    ).rejects.toThrow("Max active generations reached. Please retry in 9 seconds.");
   });
 
   it("surfaces deterministic retry guidance for admission unavailable 503 payloads", async () => {

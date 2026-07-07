@@ -42,7 +42,7 @@ type GenerationFailureTelemetryClassification = {
 };
 
 const ADMISSION_LIMIT_FAILURE_PATTERN =
-  /\b(?:too many active generations|shared generation capacity|generation admission)\b/i;
+  /\b(?:too many active generations|max active generations|shared generation capacity|generation admission)\b/i;
 
 const classifyGenerationFailureTelemetry = ({
   explicitContent,
@@ -365,15 +365,18 @@ export const useAiStudioOutputLifecycle = ({
         detail: resolvedDetail,
         reasonCode: context?.reasonCode ?? null,
       });
+      const isAdmissionLimitFailure = telemetryClassification.failureClass === "admission_limited";
+      const resolvedTimestamp = isAdmissionLimitFailure ? "Max active generations" : "Failed";
       updateOutputById(outputId, (item) => {
         if (
           item.taskState === "fail" &&
           item.status === "ready" &&
-          item.timestamp === "Failed" &&
+          item.timestamp === resolvedTimestamp &&
           item.errorMessage === resolvedMessage &&
           item.errorMessageShort === resolvedShortMessage &&
           item.errorDetail === resolvedDetail &&
-          item.errorPayload === rawErrorPayload
+          item.errorPayload === rawErrorPayload &&
+          (!isAdmissionLimitFailure || item.hiddenInReferenceGrid === true)
         ) {
           return item;
         }
@@ -381,13 +384,17 @@ export const useAiStudioOutputLifecycle = ({
           ...item,
           taskState: "fail",
           status: "ready",
-          timestamp: "Failed",
+          timestamp: resolvedTimestamp,
+          hiddenInReferenceGrid: isAdmissionLimitFailure ? true : item.hiddenInReferenceGrid,
           errorMessage: resolvedMessage,
           errorMessageShort: resolvedShortMessage,
           errorDetail: resolvedDetail,
           errorPayload: rawErrorPayload,
         };
       });
+      if (isAdmissionLimitFailure) {
+        setActiveOutputId((current) => (current === outputId ? null : current));
+      }
       const telemetryMode = context?.telemetryMode ?? "incident";
       if (telemetryMode === "incident") {
         void reportAppError({
@@ -417,7 +424,7 @@ export const useAiStudioOutputLifecycle = ({
         });
       }
     },
-    [findOutputById, pendingAutoSavesRef, updateOutputById]
+    [findOutputById, pendingAutoSavesRef, setActiveOutputId, updateOutputById]
   );
 
   const updateOutputPrompt = useCallback(

@@ -170,4 +170,50 @@ describe("usePulseCreateAgentRuntime", () => {
       }),
     ]);
   });
+
+  it("replaces stale pre-activation chat history when recovering a starter message", async () => {
+    mockAgentMessages = [
+      {
+        id: "old-assistant",
+        role: "assistant",
+        content: "Old Pulse message that belongs to a previous session.",
+      },
+    ];
+    runPulsePresetStartRuntimeMock.mockResolvedValue({
+      status: "started",
+      latestAgentPrompt: null,
+      starterAssistantMessage: "paste the prompt you want to modify",
+    });
+    const { result } = renderHook(() => usePulseCreateAgentRuntime(baseParams));
+
+    await act(async () => {
+      await result.current.handlePulsePresetStart({
+        presetId: "prompt_modifier",
+        label: "Prompt Modifier",
+        description: "Modify prompts",
+        systemInstructions: "You are a prompt modification assistant.",
+        pulseKind: "guided_workflow",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "paste the prompt you want to modify",
+        workflowStageHints: ["paste the prompt you want to modify"],
+        outputMode: "chat_reply",
+        artifactTarget: "video_prompt",
+        memoryPolicy: "session",
+        schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+        isCustom: false,
+        isBuiltIn: true,
+        isEditable: true,
+        hasUserOverride: false,
+      });
+    });
+
+    expect(mockReplaceMessages).toHaveBeenCalledWith([
+      expect.objectContaining({
+        role: "assistant",
+        content: "paste the prompt you want to modify",
+      }),
+    ]);
+    expect(mockReplaceMessages.mock.calls.at(-1)?.[0]).toHaveLength(1);
+  });
 });

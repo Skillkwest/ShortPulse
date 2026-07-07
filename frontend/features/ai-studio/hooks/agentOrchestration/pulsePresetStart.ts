@@ -58,6 +58,35 @@ const normalizeStarterFallbackSession = (
   };
 };
 
+const resolveRecoverableStarterMessage = ({
+  preset,
+  rawResponseMessage,
+  responseMessage,
+  workflowStepPrompt,
+  appliedPrompt,
+}: {
+  preset: CreatePulseResolvedPreset;
+  rawResponseMessage: string;
+  responseMessage: string | null | undefined;
+  workflowStepPrompt: string | null | undefined;
+  appliedPrompt: string | null | undefined;
+}): string | null => {
+  if (appliedPrompt || preset.pulseKind !== "guided_workflow") return null;
+  const starterAssistantMessage =
+    typeof preset.starterAssistantMessage === "string" ? preset.starterAssistantMessage.trim() : "";
+  if (!starterAssistantMessage) return null;
+  const trimmedRawResponseMessage = rawResponseMessage.trim();
+  const normalizedResponseMessage =
+    typeof responseMessage === "string" ? responseMessage.trim() : "";
+  const normalizedWorkflowStepPrompt =
+    typeof workflowStepPrompt === "string" ? workflowStepPrompt.trim() : "";
+  return trimmedRawResponseMessage === starterAssistantMessage ||
+    normalizedResponseMessage === starterAssistantMessage ||
+    normalizedWorkflowStepPrompt === starterAssistantMessage
+    ? starterAssistantMessage
+    : null;
+};
+
 export const startPulsePreset = async ({
   preset,
   options,
@@ -258,6 +287,7 @@ export const startPulsePreset = async ({
     }
 
     const appliedPrompt = normalizePromptText(actions?.applyPrompt);
+    const rawResponseMessage = typeof response.message === "string" ? response.message : "";
     const responseMessage = normalizePromptText(response.message);
     const workflowStepPrompt = normalizePromptText(workflowSession?.currentStepPrompt);
     if (!appliedPrompt && !responseMessage && !workflowStepPrompt) {
@@ -305,7 +335,18 @@ export const startPulsePreset = async ({
       workflow_status: workflowSession?.status ?? null,
       has_apply_prompt: Boolean(appliedPrompt),
     });
-    return { status: "started", latestAgentPrompt: appliedPrompt || null };
+    const starterAssistantMessage = resolveRecoverableStarterMessage({
+      preset,
+      rawResponseMessage,
+      responseMessage,
+      workflowStepPrompt,
+      appliedPrompt,
+    });
+    return {
+      status: "started",
+      latestAgentPrompt: appliedPrompt || null,
+      ...(starterAssistantMessage ? { starterAssistantMessage } : {}),
+    };
   } finally {
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);

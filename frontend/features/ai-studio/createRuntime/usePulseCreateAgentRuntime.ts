@@ -98,7 +98,7 @@ const appendRecoveredStarterMessage = ({
     .reverse()
     .find((message) => message.role === "assistant" && message.content.trim().length > 0);
   if (latestAssistantMessage?.content.trim() === normalizedStarter) return null;
-  return appendAssistantMessage(messages, {
+  return appendAssistantMessage([], {
     id: createAgentMessageId("assistant"),
     content: normalizedStarter,
     canUseAsPrompt: false,

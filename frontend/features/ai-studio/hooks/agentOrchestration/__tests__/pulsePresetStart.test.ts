@@ -199,6 +199,59 @@ describe("pulsePresetStart", () => {
     });
   });
 
+  it("returns the configured starter for recovery when the server kickoff succeeds deterministically", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const workflowSession: AgentPulseWorkflowSession = {
+      presetId: videoPromptPreset.presetId,
+      status: "awaiting_input",
+      currentStepIndex: 1,
+      currentStepLabel: videoPromptPreset.workflowStageHints?.[0] ?? null,
+      currentStepPrompt: videoPromptPreset.starterAssistantMessage,
+      collectedInputs: [],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    };
+
+    const result = await startPulsePreset({
+      preset: videoPromptPreset,
+      options: {
+        deferWorkflowSessionCommit: true,
+        activationIsCurrent: () => true,
+      },
+      agentBootstrapReady: true,
+      agentIsSending: false,
+      agentSessionEnabled: true,
+      agentUiBusyRef: { current: false },
+      latestAgentPrompt: null,
+      lastAssistantMessage: null,
+      selectedTool: "create",
+      pulseSessionInstanceId: null,
+      resolvePulseSessionNamespace: vi.fn(() => "ai-studio:session-1::pulse:image:test"),
+      getAgentContext: vi.fn(() => ({})),
+      notifyBootstrapPending: vi.fn(),
+      sendToAgent: vi.fn(async () => ({
+        response: { message: videoPromptPreset.starterAssistantMessage ?? "" },
+        actions: undefined,
+        workflowSession,
+      })),
+      trackAgentUiEvent: vi.fn(),
+      setAgentSessionEnabled: vi.fn(),
+      setAgentAttachmentError: vi.fn(),
+      setAgentUiBusy: vi.fn(),
+      setPulseWorkflowSession,
+      setLatestAgentPrompt: vi.fn(),
+      setSharedPrompt: vi.fn(),
+      setPromptOrigin: vi.fn(),
+    });
+
+    expect(result).toEqual({
+      status: "started",
+      latestAgentPrompt: null,
+      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
+    });
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(workflowSession);
+  });
+
   it("starts from the configured starter when a guided kickoff returns no response object", async () => {
     const setPulseWorkflowSession = vi.fn();
 

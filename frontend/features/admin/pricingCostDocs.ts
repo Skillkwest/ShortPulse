@@ -143,16 +143,14 @@ const getProviderPricingDocLines = (
     case "seedance-2-per-second":
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
-        "Seedance 2.0 is priced by resolution and whether the request includes reference video input.",
-        "1080p: 62 credits/sec with video input, 102 credits/sec without video input.",
-        "720p: 25 credits/sec with video input, 41 credits/sec without video input. 480p: 11.5 credits/sec with video input, 19 credits/sec without video input.",
+        "Seedance 2.0 customer billing is priced by output resolution and duration; video references do not reduce billed credits.",
+        "1080p: 102 credits/sec. 720p: 41 credits/sec. 480p: 19 credits/sec.",
       ];
     case "seedance-2-fast-per-second":
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
-        "Seedance 2.0 Fast is priced by resolution and whether the request includes reference video input.",
-        "720p: 20 credits/sec with video input, 33 credits/sec without video input.",
-        "480p: 9 credits/sec with video input, 15.5 credits/sec without video input.",
+        "Seedance 2.0 Fast customer billing is priced by output resolution and duration; video references do not reduce billed credits.",
+        "720p: 33 credits/sec. 480p: 15.5 credits/sec.",
       ];
     case "elevenlabs-music-per-minute":
       return [

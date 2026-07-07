@@ -7,7 +7,6 @@ import {
 import { createEmptyExpertEditSecondaryImageUrls } from "../../features/ai-studio/logic/expertEditReferenceSlots";
 import { sanitizeRightRailLayoutSnapshot } from "../../features/ai-studio/logic/rightRailLayout";
 import {
-  buildReferenceGridOverflowArchiveRows,
   isReferenceGridVisibleOutput,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
 } from "../model-runtime/referenceGridLimits";
@@ -287,9 +286,8 @@ const shouldPersistOutputInProjectWorkspaceSnapshot = (
 
 const limitProjectWorkspaceVisibleOutputs = (
   rows: Record<string, unknown>[]
-): { rows: Record<string, unknown>[]; overflowRows: Record<string, unknown>[] } => {
+): Record<string, unknown>[] => {
   const nextRows: Record<string, unknown>[] = [];
-  const overflowRows: Record<string, unknown>[] = [];
   let visibleCount = 0;
 
   rows.forEach((row) => {
@@ -302,17 +300,13 @@ const limitProjectWorkspaceVisibleOutputs = (
       return;
     }
     if (visibleCount >= REFERENCE_GRID_MAX_VISIBLE_ITEMS) {
-      overflowRows.push(row);
       return;
     }
     visibleCount += 1;
     nextRows.push(row);
   });
 
-  return {
-    rows: nextRows,
-    overflowRows,
-  };
+  return nextRows;
 };
 
 const filterProjectWorkspaceOutputIds = ({
@@ -428,33 +422,20 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
     outputsRecord.active,
     options
   );
-  const normalizedArchivedOutputs = normalizeProjectWorkspaceOutputRows(
-    outputsRecord.archived,
-    options
-  );
   const visibleLimitedActiveOutputs = limitProjectWorkspaceVisibleOutputs(normalizedActiveOutputs);
-  const overflowArchivedOutputs = buildReferenceGridOverflowArchiveRows(
-    visibleLimitedActiveOutputs.overflowRows,
-    null
-  );
   const outputIdAliases = new Map<string, string>();
   const persistedOutputIds = new Set<string>();
   const canonicalActiveOutputs = canonicalizeProjectWorkspaceOutputRows({
-    rows: visibleLimitedActiveOutputs.rows,
+    rows: visibleLimitedActiveOutputs,
     outputIdAliases,
     persistedOutputIds,
   });
   const activeOutputIds = new Set(persistedOutputIds);
-  const canonicalArchivedOutputs = canonicalizeProjectWorkspaceOutputRows({
-    rows: [...overflowArchivedOutputs, ...normalizedArchivedOutputs],
-    outputIdAliases,
-    persistedOutputIds,
-  });
 
   const normalizedOutputs = {
     ...outputsRecord,
     active: canonicalActiveOutputs,
-    archived: canonicalArchivedOutputs,
+    archived: [],
     activeOutputId: null,
     curatedReferenceIds: filterProjectWorkspaceOutputIds({
       value: outputsRecord.curatedReferenceIds,
@@ -463,7 +444,7 @@ const stripFailedOutputsFromProjectWorkspaceOutputs = (
     }),
     removedFromAllRefsIds: filterProjectWorkspaceOutputIds({
       value: outputsRecord.removedFromAllRefsIds,
-      persistedOutputIds,
+      persistedOutputIds: activeOutputIds,
       outputIdAliases,
     }),
   };

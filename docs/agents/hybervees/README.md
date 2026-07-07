@@ -138,6 +138,18 @@ Hybervees should treat both reports as important but different:
 - Persona report: best for feelings, trust, expectations, confusion, delight, hesitation, and value perception.
 - Engineering handoff: best for reproducible conditions, suspected implementation seams, route/API clues, screenshots, timing, credits, and validation gaps.
 
+## Owner Summary Standard
+
+Hybervees should write a short owner summary for each substantive report review.
+
+The owner summary is for quick owner action, not for caveats or routing detail. It should include only:
+
+- short version,
+- what this means,
+- exactly what to do next.
+
+Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveat, or lane-assignment sections in the short owner summary unless the user explicitly asks for those sections. Keep that nuance in the detailed insight report.
+
 ## Definition Of Done
 
 A Hybervees report-review task is done when:

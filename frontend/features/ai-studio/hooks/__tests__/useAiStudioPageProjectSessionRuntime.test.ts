@@ -189,10 +189,10 @@ describe("useAiStudioPageProjectSessionRuntime", () => {
       },
     });
     expect(normalized.outputs.active.map((output) => output.id)).toEqual(["out-1"]);
-    expect(normalized.outputs.archived.map((output) => output.id)).toEqual(["out-archived"]);
+    expect(normalized.outputs.archived).toEqual([]);
     expect(normalized.outputs.activeOutputId).toBeNull();
     expect(normalized.outputs.curatedReferenceIds).toEqual(["out-1"]);
-    expect(normalized.outputs.removedFromAllRefsIds).toEqual(["out-archived"]);
+    expect(normalized.outputs.removedFromAllRefsIds).toEqual([]);
     expect(normalizedCanvas?.draftTextEntry).toBeNull();
     expect(normalizedCanvas?.textEditSession).toBeNull();
     expect(normalizedCanvas?.items[0]?.selected).toBe(false);

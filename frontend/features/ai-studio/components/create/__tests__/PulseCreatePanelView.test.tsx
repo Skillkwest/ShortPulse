@@ -2,7 +2,7 @@ import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PulsePromptStep } from "../../PulsePromptStep";
-import { PulseCreatePanelView } from "../PulseCreatePanelView";
+import { PulseCreatePanelView, resolvePulseCreatePanelMessageState } from "../PulseCreatePanelView";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN, prepareReferenceDrag } from "../../../utils/dragDrop";
 import { createCanvasTearOutComposerTargetRegistry } from "../../../hooks/useAiStudioCanvasTearOutTargets";
 import type { AgentComposerDirectDropPayload } from "../../../logic/agentComposerDirectDropPayload";
@@ -93,6 +93,56 @@ describe("PulseCreatePanelView", () => {
     expect(screen.getByRole("group", { name: "Create composer" })).toHaveClass(
       "is-pulse-rail-active"
     );
+  });
+
+  it("treats empty persisted agent shells as no visible Pulse history", () => {
+    expect(
+      resolvePulseCreatePanelMessageState([
+        {
+          id: "empty-assistant",
+          role: "assistant",
+          content: "   ",
+        },
+      ])
+    ).toEqual({
+      hasVisibleAgentMessages: false,
+      hasVisibleAssistantMessages: false,
+    });
+  });
+
+  it("distinguishes user-visible history from recovered assistant starter presence", () => {
+    expect(
+      resolvePulseCreatePanelMessageState([
+        {
+          id: "user-image",
+          role: "user",
+          content: "",
+          attachments: [
+            {
+              id: "image-1",
+              kind: "image",
+              imageUrl: "https://example.com/image.png",
+            },
+          ],
+        },
+      ])
+    ).toEqual({
+      hasVisibleAgentMessages: true,
+      hasVisibleAssistantMessages: false,
+    });
+
+    expect(
+      resolvePulseCreatePanelMessageState([
+        {
+          id: "starter",
+          role: "assistant",
+          content: "paste the prompt you want to modify",
+        },
+      ])
+    ).toEqual({
+      hasVisibleAgentMessages: true,
+      hasVisibleAssistantMessages: true,
+    });
   });
 
   it("accepts media drops from the wider create panel body", () => {

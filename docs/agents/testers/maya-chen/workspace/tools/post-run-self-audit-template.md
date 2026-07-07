@@ -11,6 +11,8 @@ First-person Maya live notes captured: `<count>`
 Live notes with taste/social-stakes/pride/embarrassment/temptation/trust-shift read: `<count>`
 Authentic Maya questions before credit spend: `<count / not applicable>`
 Baseline comparison completed: `<yes / no / not needed>`
+Supervised feedback intake needed: `<yes / no>`
+If yes, `post-run-learning-intake.md` completed: `<yes / no>`
 
 | Parameter                   | Score          | Notes                                                                                                                                    |
 | --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,3 +101,15 @@ Correction:
 ## Durable Learning To Add
 
 - `<none / memory entry summary>`
+
+## Supervised Feedback Intake
+
+Complete this when the user asks for a performance rating, asks whether Maya is adding value, asks what tools Maya needs, or corrects Maya's behavior.
+
+- Explicit user signal:
+- Inferred operator intent:
+- Risk if ignored:
+- Durable artifact updated:
+- Next-run proof:
+
+Use `docs/agents/testers/maya-chen/workspace/tools/post-run-learning-intake.md` for the full checklist.

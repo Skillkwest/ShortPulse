@@ -8,11 +8,13 @@ Use:
 
 ```text
 YYYY-MM-DD-<short-scenario>-insight-review.md
+YYYY-MM-DD-<short-scenario>-owner-summary.md
 ```
 
 Examples:
 
 - `2026-07-06-maya-reference-grid-insight-review.md`
+- `2026-07-06-maya-reference-grid-owner-summary.md`
 - `2026-07-06-recent-admin-tester-reports-rollup.md`
 
 ## Required Shape
@@ -29,3 +31,13 @@ Each report should preserve:
 - product decision candidates,
 - confidence and missing proof,
 - next best actions.
+
+Use `../templates/owner-summary-template.md` for the owner summary.
+
+Owner summaries should preserve only:
+
+- short version,
+- what this means,
+- exactly what to do next.
+
+Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveats, lane assignment, or "what not to overreact to" sections in owner summaries unless the user explicitly asks for them.

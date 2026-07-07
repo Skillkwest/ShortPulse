@@ -401,7 +401,6 @@ export const useAiStudioState = ({
   } = useAiStudioReferenceGridStateActions({
     outputs,
     archivedOutputs,
-    outputsLength: outputs.length,
     setActiveOutputId,
     setOutputsState,
     setArchivedOutputs,

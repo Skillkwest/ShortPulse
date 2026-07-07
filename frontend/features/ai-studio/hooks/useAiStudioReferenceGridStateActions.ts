@@ -1,9 +1,8 @@
 /**
  * Reference-grid state action bundle for AI Studio.
- * Encapsulates archive/restore and curated projection actions.
+ * Encapsulates Reference Grid output and curated projection actions.
  */
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import type { StudioOutput } from "../types";
 import {
   addQuickSlotReference,
@@ -15,19 +14,13 @@ import {
   type ReferenceProjectionState,
 } from "../reference-projections";
 import {
-  admitReferenceGridIncomingOutputs,
-  buildReferenceGridOverflowArchiveRows,
-  buildReferenceGridOverflowArchivedMessage,
   buildReferenceGridPartialCapMessage,
   limitReferenceGridVisibleOutputs,
-  mergeReferenceGridArchivedRows,
-  REFERENCE_GRID_CAP_REACHED_MESSAGE,
 } from "../reference-grid/logic/referenceGridLimits";
 
 type UseAiStudioReferenceGridStateActionsArgs = {
   outputs: StudioOutput[];
   archivedOutputs: StudioOutput[];
-  outputsLength: number;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -86,7 +79,6 @@ const outputReferencesDeletedMedia = (
 export const useAiStudioReferenceGridStateActions = ({
   outputs,
   archivedOutputs,
-  outputsLength,
   setActiveOutputId,
   setOutputsState,
   setArchivedOutputs,
@@ -96,65 +88,14 @@ export const useAiStudioReferenceGridStateActions = ({
 }: UseAiStudioReferenceGridStateActionsArgs): UseAiStudioReferenceGridStateActionsResult => {
   const restoreArchivedOutput = useCallback(
     (outputId: string) => {
-      setArchivedOutputs((prev) => {
-        const target = prev.find((item) => item.id === outputId) ?? null;
-        if (!target) return prev;
-        const restoredTarget = {
-          ...target,
-          archivedAt: null,
-          archiveReason: null,
-        };
-        const admission = admitReferenceGridIncomingOutputs([restoredTarget], outputs);
-        if (!admission.admitted.length) {
-          setUiError?.(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-          return prev;
-        }
-        setOutputsState((current) => [restoredTarget, ...current]);
-        setActiveOutputId(target.id);
-        logMediaPerf("media.grid.archive.transition", {
-          surface: "reference-grid",
-          restored_count: 1,
-          active_count_hint: outputsLength + 1,
-          archived_count_hint: Math.max(0, prev.length - 1),
-        });
-        return target ? prev.filter((item) => item.id !== outputId) : prev;
-      });
+      setArchivedOutputs((prev) => prev.filter((item) => item.id !== outputId));
     },
-    [outputs, outputsLength, setActiveOutputId, setArchivedOutputs, setOutputsState, setUiError]
+    [setArchivedOutputs]
   );
 
   const restoreAllArchivedOutputs = useCallback(() => {
-    let moved: StudioOutput[] = [];
-    let skippedCount = 0;
-    setArchivedOutputs((prev) => {
-      const restored = prev.map((item) => ({
-        ...item,
-        archivedAt: null,
-        archiveReason: null,
-      }));
-      const admission = admitReferenceGridIncomingOutputs(restored, outputs);
-      moved = admission.admitted;
-      skippedCount = admission.skipped.length;
-      const movedIds = new Set(moved.map((item) => item.id));
-      return prev.filter((item) => !movedIds.has(item.id));
-    });
-    if (!moved.length) {
-      if (skippedCount > 0) {
-        setUiError?.(REFERENCE_GRID_CAP_REACHED_MESSAGE);
-      }
-      return;
-    }
-    setOutputsState((prev) => [...moved, ...prev]);
-    if (skippedCount > 0) {
-      setUiError?.(buildReferenceGridPartialCapMessage(skippedCount));
-    }
-    logMediaPerf("media.grid.archive.transition", {
-      surface: "reference-grid",
-      restored_count: moved.length,
-      active_count_hint: outputsLength + moved.length,
-      archived_count_hint: 0,
-    });
-  }, [outputs, outputsLength, setArchivedOutputs, setOutputsState, setUiError]);
+    setArchivedOutputs([]);
+  }, [setArchivedOutputs]);
 
   const setOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>(
     (nextValue) => {
@@ -162,16 +103,12 @@ export const useAiStudioReferenceGridStateActions = ({
         const resolved = typeof nextValue === "function" ? nextValue(prev) : nextValue;
         const limited = limitReferenceGridVisibleOutputs(resolved);
         if (limited.trimmedCount > 0) {
-          const overflowRows = buildReferenceGridOverflowArchiveRows(limited.trimmedRows);
-          setArchivedOutputs((currentArchived) =>
-            mergeReferenceGridArchivedRows(currentArchived, overflowRows)
-          );
-          setUiError?.(buildReferenceGridOverflowArchivedMessage(limited.trimmedCount));
+          setUiError?.(buildReferenceGridPartialCapMessage(limited.trimmedCount));
         }
         return limited.rows;
       });
     },
-    [setArchivedOutputs, setOutputsState, setUiError]
+    [setOutputsState, setUiError]
   );
 
   const addCuratedReference = useCallback(

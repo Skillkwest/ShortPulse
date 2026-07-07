@@ -1,29 +1,22 @@
 # Hybervees Owner Summary: Maya First Report
 
-## The Problem
+## Short Version
 
 Maya does not trust that her work will be saved.
 
 Because of that, she would not spend credits.
 
-## What Went Wrong
+Her prompt disappeared after she checked credits, and saving did not clearly show where the work went.
 
-- She typed a prompt.
-- She went to check credits.
-- She came back.
-- The prompt was gone.
+## What This Means
 
-Then:
+The app felt risky before Maya even spent credits.
 
-- She clicked `Save to media library`.
-- The app did not clearly say where it saved.
-- Media Library still looked empty.
+For a new creator, save confidence and prompt continuity are the first trust checkpoint.
 
-This made the app feel risky.
+## Do This
 
-## Do These First
-
-### 1. Keep Prompt Drafts
+### 1. Preserve Prompt Drafts
 
 If someone leaves AI Studio and comes back, their prompt should still be there.
 
@@ -45,8 +38,6 @@ View in Media Library
 
 If it does not save to Media Library, rename the button and show the real location.
 
-## Do These Next
-
 ### 3. Explain Where Work Lives
 
 Make it clear where saved prompts and saved media go.
@@ -54,21 +45,6 @@ Make it clear where saved prompts and saved media go.
 - `Reference Grid`
 - `Media Library`
 
-### 4. Leave `My Generations` Alone
-
-`My Generations` has already been handled.
-
-Do not reopen it from this report.
-
-### 5. Explain Credits
+### 4. Explain Credits
 
 Change `CREDITS 100 / 0` so both numbers are obvious.
-
-## Simple Priority
-
-Fix these now:
-
-1. Prompts should not disappear.
-2. Saved work should be easy to find.
-
-That is the trust problem.

@@ -1,10 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import {
-  REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-  REFERENCE_GRID_TARGET_TOTAL_ITEMS,
-} from "../../reference-grid/logic/referenceGridLimits";
+import { REFERENCE_GRID_MAX_VISIBLE_ITEMS } from "../../reference-grid/logic/referenceGridLimits";
 import { getAiStudioOutputSnapshot, resetAiStudioOutputStore } from "../aiStudioOutputStore";
 import { useAiStudioOutputCollectionState } from "../useAiStudioOutputCollectionState";
 
@@ -107,7 +104,7 @@ describe("useAiStudioOutputCollectionState", () => {
     ]);
   });
 
-  it("caps active visible Reference Grid outputs and archives overflow while preserving hidden rows", () => {
+  it("caps active visible Reference Grid outputs and drops overflow while preserving hidden rows", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
     const visibleOutputs = Array.from(
       { length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2 },
@@ -130,18 +127,12 @@ describe("useAiStudioOutputCollectionState", () => {
     ).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(result.current.outputs.some((output) => output.id === "hidden-lifecycle")).toBe(true);
     expect(result.current.outputs.some((output) => output.id === "visible-1")).toBe(false);
-    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      "visible-2",
-      "visible-1",
-    ]);
-    expect(
-      result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")
-    ).toBe(true);
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
-  it("preserves the 500-item target as capped active rows plus archived overflow", () => {
+  it("preserves the 500-item hard cap as active rows only", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
-    const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
+    const targetOutputs = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2 }, (_, index) =>
       makeOutput(`target-${index + 1}`, {
         createdAt: new Date(Date.UTC(2026, 5, 28, 12, 0, index)).toISOString(),
       })
@@ -152,15 +143,10 @@ describe("useAiStudioOutputCollectionState", () => {
     });
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(result.current.archivedOutputs).toHaveLength(
-      REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS
-    );
-    expect(result.current.outputs.length + result.current.archivedOutputs.length).toBe(
-      REFERENCE_GRID_TARGET_TOTAL_ITEMS
-    );
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
-  it("archives over-cap active rows during authority restore instead of dropping them", () => {
+  it("drops over-cap active rows and ignores archived rows during authority restore", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
     const activeRows = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1 }, (_, index) =>
       makeOutput(`active-${index + 1}`)
@@ -175,14 +161,10 @@ describe("useAiStudioOutputCollectionState", () => {
     });
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      `active-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-      "already-archived",
-    ]);
-    expect(result.current.archivedOutputs[0]?.archiveReason).toBe("cleanup");
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
-  it("preserves sequential functional updater semantics for active and archived collections", () => {
+  it("preserves sequential functional updater semantics for active collections and ignores archived writes", () => {
     const { result } = renderHook(() => useAiStudioOutputCollectionState());
 
     act(() => {
@@ -193,9 +175,6 @@ describe("useAiStudioOutputCollectionState", () => {
     });
 
     expect(result.current.outputs.map((output) => output.id)).toEqual(["active-1", "active-2"]);
-    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      "archived-1",
-      "archived-2",
-    ]);
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 });

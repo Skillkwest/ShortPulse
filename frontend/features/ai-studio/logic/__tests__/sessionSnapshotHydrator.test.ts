@@ -93,7 +93,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedCharacterLookId).toBeNull();
     expect(payload.outputs.activeOutputId).toBe("out-1");
     expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
-    expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
+    expect(payload.outputs.removedFromAllRefsIds).toEqual([]);
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(false);
     expect(payload.agent.pulseWorkflowSession).toBeNull();
@@ -214,7 +214,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.videoReferenceMode).toBe("standard");
   });
 
-  it("recovers quick-slot membership from pinned restored outputs when projection ids are absent", () => {
+  it("recovers quick-slot membership from pinned active restored outputs when projection ids are absent", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         outputs: {
@@ -246,7 +246,7 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
 
-    expect(payload.outputs.curatedReferenceIds).toEqual(["out-1", "out-2"]);
+    expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
   });
 
   it("keeps explicit quick-slot projection ids authoritative over pinned restore hints", () => {

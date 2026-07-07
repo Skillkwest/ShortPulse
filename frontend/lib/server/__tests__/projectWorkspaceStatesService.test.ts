@@ -1843,7 +1843,7 @@ describe("projectWorkspaceStatesService", () => {
     )?.archived ?? []) as Array<Record<string, unknown>>;
 
     expect(storedActiveOutputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(storedArchivedOutputs).toHaveLength(600 - REFERENCE_GRID_MAX_VISIBLE_ITEMS);
+    expect(storedArchivedOutputs).toHaveLength(0);
     expect(storedBytes).toBeLessThan(originalBytes * 0.3);
     expect(storedActiveOutputs[0]).toEqual({
       id: "pathological-output-1",
@@ -1855,18 +1855,6 @@ describe("projectWorkspaceStatesService", () => {
       mode: "image",
       mediaSource: "library",
     });
-    expect(storedArchivedOutputs[0]).toEqual({
-      id: `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-      mode: "image",
-      mediaSource: "library",
-      archiveReason: "cleanup",
-    });
-    expect(storedArchivedOutputs.at(-1)).toEqual({
-      id: "pathological-output-600",
-      mode: "image",
-      mediaSource: "library",
-      archiveReason: "cleanup",
-    });
     expect(
       (storedCheckpoint.outputs as { curatedReferenceIds?: string[] }).curatedReferenceIds
     ).toEqual(["pathological-output-1", "pathological-output-2", "pathological-output-129"]);
@@ -1877,7 +1865,7 @@ describe("projectWorkspaceStatesService", () => {
     const outputDisplayUpsertRows = outputDisplayUpsert.mock.calls.flatMap(
       (call) => call[0] as Array<Record<string, unknown>>
     );
-    expect(outputDisplayUpsertRows).toHaveLength(600);
+    expect(outputDisplayUpsertRows).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     expect(outputDisplayUpsert.mock.calls[0]?.[0]?.[0]).toMatchObject({
       output_id: "pathological-output-1",
       width: 1024,
@@ -1885,7 +1873,7 @@ describe("projectWorkspaceStatesService", () => {
       duration_ms: 333,
     });
     expect(outputDisplayUpsertRows.at(-1)).toMatchObject({
-      output_id: "pathological-output-600",
+      output_id: `pathological-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS}`,
     });
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -2281,10 +2269,7 @@ describe("projectWorkspaceStatesService", () => {
     )?.archived ?? []) as Array<Record<string, unknown>>;
 
     expect(storedActiveOutputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(storedArchivedOutputs.map((row) => row.id)).toEqual([
-      `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-      `visible-output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
-    ]);
+    expect(storedArchivedOutputs).toHaveLength(0);
     expect(storedActiveOutputs.filter((row) => row.hiddenInReferenceGrid !== true)).toHaveLength(
       REFERENCE_GRID_MAX_VISIBLE_ITEMS
     );
@@ -5262,25 +5247,13 @@ describe("projectWorkspaceStatesService", () => {
               prompt: "Display prompt",
             }),
           ],
-          archived: [
-            expect.objectContaining({
-              id: "display-archived-1",
-              mediaSource: "library",
-              previewStoragePath: "user-1/generated/archived-preview.png",
-              fullStoragePath: "user-1/generated/archived-full.png",
-              savedMediaIds: [MEDIA_ID_2],
-              title: "Archived Display",
-              prompt: "Archived display prompt",
-              archivedAt: "2026-06-03T11:59:00.000Z",
-              archiveReason: "cleanup",
-            }),
-          ],
+          archived: [],
           curatedReferenceIds: ["display-1"],
-          removedFromAllRefsIds: ["display-archived-1"],
+          removedFromAllRefsIds: [],
         },
       },
     });
-    expect(outputDisplayIn).toHaveBeenCalledWith("output_id", ["display-1", "display-archived-1"]);
+    expect(outputDisplayIn).toHaveBeenCalledWith("output_id", ["display-1"]);
   });
 
   it("does not let display summaries overwrite full prompt-only reference text on workspace read", async () => {

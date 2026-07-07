@@ -130,7 +130,7 @@ describe("videoBilledCredits", () => {
     expect(serverLookup.breakdown?.credits).toBe(31);
   });
 
-  it("keeps Seedance video-input lookup on the authored video-input row", () => {
+  it("keeps Seedance video-input lookup on the customer-billed resolution row", () => {
     const params = {
       aspect: "1:1",
       durationSeconds: 10,
@@ -151,7 +151,7 @@ describe("videoBilledCredits", () => {
       }).breakdown
     ).toMatchObject({
       credits: 44,
-      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:with",
+      variantId: "default|res:720p|aspect:16:9|audio:on",
     });
   });
 

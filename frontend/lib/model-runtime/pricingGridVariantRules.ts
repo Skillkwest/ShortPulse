@@ -26,10 +26,7 @@ const RESOLUTION_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "seedance-2-fast-per-second",
 ]);
 
-const VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES = new Set<string>([
-  "seedance-2-per-second",
-  "seedance-2-fast-per-second",
-]);
+const VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES = new Set<string>();
 
 export const shouldExpandAspectPricingVariants = (pricingStrategy?: string | null): boolean =>
   Boolean(pricingStrategy && ASPECT_EXPANDED_PRICING_STRATEGIES.has(pricingStrategy));

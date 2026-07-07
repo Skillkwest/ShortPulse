@@ -33,6 +33,7 @@ export const useReferenceGridOutputCollections = ({
   curatedReferenceIds,
   removedFromAllRefsIds,
 }: UseReferenceGridOutputCollectionsArgs): ReferenceGridOutputCollections => {
+  void archivedOutputsProp;
   const selectorOutputIds = useOutputSelector(
     React.useCallback(
       (snapshot) => {
@@ -59,19 +60,14 @@ export const useReferenceGridOutputCollections = ({
     (left, right) =>
       left.length === right.length && left.every((item, index) => item === right[index])
   );
-  const selectorArchivedOutputs = useOutputSelector((snapshot) => {
-    if (archivedOutputsProp) return EMPTY_OUTPUTS;
-    return snapshot.archivedOutputOrder
-      .map((id) => snapshot.archivedOutputById[id])
-      .filter((item): item is StudioOutput => Boolean(item));
-  }, areOutputListsEqual);
+  const selectorArchivedOutputs = useOutputSelector(() => EMPTY_OUTPUTS, areOutputListsEqual);
   const allOutputIds = outputsProp
     ? selectVisibleAllRefsProjection(outputsProp, {
         quickSlotIds: [...curatedReferenceIds],
         removedFromAllRefsIds: [...removedFromAllRefsIds],
       }).map((item) => item.id)
     : selectorOutputIds;
-  const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  const archivedOutputs = selectorArchivedOutputs;
 
   const outputById = React.useMemo(() => {
     const map: Record<string, StudioOutput> = {};

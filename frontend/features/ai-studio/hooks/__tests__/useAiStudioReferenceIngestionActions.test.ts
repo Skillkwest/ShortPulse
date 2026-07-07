@@ -1039,7 +1039,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
     );
   });
 
-  it("patches file refs that overflow into archive during large drops", async () => {
+  it("keeps only the hard-cap file refs during large drops", async () => {
     const files = Array.from({ length: REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1 }, (_, index) => {
       return new File([`hello-${index}`], `reference-${index + 1}.png`, { type: "image/png" });
     });
@@ -1073,15 +1073,14 @@ describe("useAiStudioReferenceIngestionActions", () => {
 
       expect(insertedResults).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1);
       expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-      expect(result.current.archivedOutputs).toHaveLength(1);
-      expect(result.current.archivedOutputs[0]).toEqual(
+      expect(result.current.archivedOutputs).toEqual([]);
+      expect(result.current.outputs.at(-1)).toEqual(
         expect.objectContaining({
           id: expect.stringMatching(/^upload-/),
           timestamp: "Library",
           mediaSource: "library",
         })
       );
-      expect(result.current.archivedOutputs[0]?.taskState).not.toBe("pending");
     } finally {
       Object.defineProperty(URL, "createObjectURL", {
         configurable: true,

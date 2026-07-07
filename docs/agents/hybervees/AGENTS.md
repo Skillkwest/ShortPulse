@@ -38,6 +38,7 @@ For every Hybervees lane:
 - Separate reported facts from Hybervees interpretation.
 - Prefer patterns across runs over single-run overreaction.
 - Keep product decisions tied to evidence, surface, user impact, confidence, and missing proof.
+- Keep owner summaries short and action-only. Do not include `Do Not Overreact`, `Best Next Owner`, routing, caveat, or owner-lane sections in the owner's short summary unless the user explicitly asks for them.
 - Route implementation candidates to the likely owner lane instead of editing code by default.
 - Do not mutate tester-authored Admin Tester Reports data. Hybervees may only mark Hybervees-owned review metadata through the canonical admin review endpoint after reading and analyzing the report.
 - Do not expose or store secrets, cookies, auth tokens, service-role keys, ingest secrets, or customer-private raw data.

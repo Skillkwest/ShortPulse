@@ -115,8 +115,7 @@ export const buildProjectWorkspaceQuickSlotDiagnostics = (
 ): ProjectWorkspaceQuickSlotDiagnostics => {
   const outputs = asRecord(snapshot?.outputs);
   const activeRows = asRows(outputs.active);
-  const archivedRows = asRows(outputs.archived);
-  const allRows = [...activeRows, ...archivedRows];
+  const allRows = activeRows;
   const rowById = new Map<string, Record<string, unknown>>();
   const activeIds = activeRows
     .map((row) => (typeof row.id === "string" ? row.id.trim() : ""))
@@ -159,7 +158,7 @@ export const buildProjectWorkspaceQuickSlotDiagnostics = (
 
   return {
     active_count: activeRows.length,
-    archived_count: archivedRows.length,
+    archived_count: 0,
     quick_slot_count: quickSlotIds.length,
     removed_from_refs_count: asStringList(outputs.removedFromAllRefsIds).length,
     quick_slot_missing_count: missingQuickSlotIds.length,

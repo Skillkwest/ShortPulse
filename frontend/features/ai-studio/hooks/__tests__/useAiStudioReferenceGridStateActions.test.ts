@@ -42,7 +42,6 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const actions = useAiStudioReferenceGridStateActions({
         outputs,
         archivedOutputs,
-        outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
         setArchivedOutputs,
@@ -74,7 +73,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
     expect(Array.from(result.current.pendingFinalizeRemovalIds)).toEqual(["output-2"]);
   });
 
-  it("caps large all-refs collections at the visible output limit and archives overflow", () => {
+  it("caps large all-refs collections at the hard output limit and drops overflow", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>([]);
@@ -88,7 +87,6 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const actions = useAiStudioReferenceGridStateActions({
         outputs,
         archivedOutputs,
-        outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
         setArchivedOutputs,
@@ -113,16 +111,10 @@ describe("useAiStudioReferenceGridStateActions", () => {
     });
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual([
-      `output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-      `output-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 2}`,
-    ]);
-    expect(
-      result.current.archivedOutputs.every((output) => output.archiveReason === "cleanup")
-    ).toBe(true);
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
-  it("blocks archived restore when the visible Reference Grid is full", () => {
+  it("clears archived rows instead of restoring them into a full Reference Grid", () => {
     const { result } = renderHook(() => {
       const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
       const [outputs, setOutputsState] = useState<StudioOutput[]>(
@@ -145,7 +137,6 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const actions = useAiStudioReferenceGridStateActions({
         outputs,
         archivedOutputs,
-        outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
         setArchivedOutputs,
@@ -166,7 +157,7 @@ describe("useAiStudioReferenceGridStateActions", () => {
     });
 
     expect(result.current.outputs).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(result.current.archivedOutputs.map((output) => output.id)).toEqual(["archived-1"]);
+    expect(result.current.archivedOutputs).toEqual([]);
     expect(result.current.activeOutputId).toBeNull();
   });
 
@@ -204,7 +195,6 @@ describe("useAiStudioReferenceGridStateActions", () => {
       const actions = useAiStudioReferenceGridStateActions({
         outputs,
         archivedOutputs,
-        outputsLength: outputs.length,
         setActiveOutputId,
         setOutputsState,
         setArchivedOutputs,

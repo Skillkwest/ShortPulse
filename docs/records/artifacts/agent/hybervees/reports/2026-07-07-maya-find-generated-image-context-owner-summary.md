@@ -23,15 +23,3 @@ Add one backlog item:
 Make saved generated images clearly show the original prompt/setup or a clear reload/reuse action from the normal Media Library detail path.
 
 Start by checking current production. If the feature already exists, improve discoverability. If it does not, fix the recovery path.
-
-## Do Not Overreact
-
-Do not rebuild the whole prompt system from this one report.
-
-Do not treat the empty `Prompts` tab as automatically wrong. It may be for saved prompt cards, not generated image history.
-
-## Best Next Owner
-
-Abismia plus Holomony first.
-
-D-Bug or Babineaux only if current production cannot actually recover generated prompt/setup data.

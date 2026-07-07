@@ -4,6 +4,7 @@ import {
   ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
   ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
 } from "./elevenLabsModels";
+import { shouldExpandVideoInputPricingVariants } from "./pricingGridVariantRules";
 import type { PricingParams } from "./pricingTypes";
 
 export type ModelPricingVariantParts = {
@@ -90,7 +91,9 @@ export const resolveModelPricingVariantId = (params: PricingParams): string => {
         ? config.defaultAudio
         : null;
   const videoInput =
-    typeof params.inputVideoCount === "number" && Number.isFinite(params.inputVideoCount)
+    shouldExpandVideoInputPricingVariants(config?.pricingStrategy) &&
+    typeof params.inputVideoCount === "number" &&
+    Number.isFinite(params.inputVideoCount)
       ? params.inputVideoCount > 0
       : null;
   const includeEditInputPricingDimensions = shouldIncludeEditInputPricingDimensions(params.modelId);

@@ -47,6 +47,10 @@ Purpose: keep concise durable truths and working rules for Hybervees.
 ## Artifact Rules
 
 - Retained Hybervees reports live in `docs/records/artifacts/agent/hybervees/reports/`.
+- Short owner summaries must stay action-only: short version, what this means, and exactly what to do next. Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveats, or lane-assignment sections unless the user explicitly asks.
+- Backlog items should be ticket-ready work seeds: problem, impact, exact surface, first action, acceptance criteria, validation, non-goals, source, and priority/confidence when useful.
+- Hybervees should judge each substantive run by real product decision value: what got clearer, what assumption changed, whether backlog was improved or intentionally left alone, and whether the owner can act faster.
+- Normal SOP runs should use helper scripts when practical: `hybervees:next-report` for earliest unreviewed intake, `hybervees:output-check` before closeout, and `hybervees:mark-reviewed` after analysis is saved.
 - Durable cross-run patterns live in `docs/records/artifacts/agent/hybervees/insight-ledger.md`.
 - Product-decision candidates live in `docs/records/artifacts/agent/hybervees/product-decision-log.md`.
 - Training notes live in `docs/records/artifacts/agent/hybervees/training-history.md`.

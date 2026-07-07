@@ -907,7 +907,7 @@ describe("useAiStudioSessionSnapshotController", () => {
     );
   });
 
-  it("preserves archived outputs in project workspace snapshots", () => {
+  it("omits archived outputs from project workspace snapshots", () => {
     const activeOutput = createOutput({
       id: "active-1",
       previewStoragePath: "user-1/projects/active-1.webp",
@@ -942,17 +942,8 @@ describe("useAiStudioSessionSnapshotController", () => {
 
     expect(snapshot.workspace.standardPrompt).toBe("");
     expect(snapshot.outputs.active.map((output) => output.id)).toEqual(["active-1"]);
-    expect(snapshot.outputs.archived.map((output) => output.id)).toEqual(["archived-1"]);
-    expect(snapshot.outputs.archived[0]).toEqual(
-      expect.objectContaining({
-        previewStoragePath: "user-1/projects/archived-1.webp",
-        fullStoragePath: "user-1/projects/archived-1.webp",
-        savedMediaIds: ["media-archived-1"],
-        archivedAt: "2026-06-27T12:00:00.000Z",
-        archiveReason: "cleanup",
-      })
-    );
-    expect(snapshot.outputs.removedFromAllRefsIds).toEqual(["archived-1"]);
+    expect(snapshot.outputs.archived).toEqual([]);
+    expect(snapshot.outputs.removedFromAllRefsIds).toEqual([]);
   });
 
   it("preserves full visible output prompts in project workspace snapshots", () => {
@@ -989,7 +980,7 @@ describe("useAiStudioSessionSnapshotController", () => {
     });
   });
 
-  it("keeps the 500-item target active without project-restorable archived overflow", () => {
+  it("keeps the 500-item target active without project-restorable overflow rows", () => {
     const targetOutputs = Array.from({ length: REFERENCE_GRID_TARGET_TOTAL_ITEMS }, (_, index) =>
       createOutput({
         id: `target-${index + 1}`,
@@ -1064,17 +1055,9 @@ describe("useAiStudioSessionSnapshotController", () => {
     const secondPrepared = prepareAiStudioSessionAutosaveSnapshot(secondSnapshot);
 
     expect(firstSnapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(firstSnapshot.outputs.archived).toHaveLength(
-      overCapTotal - REFERENCE_GRID_MAX_VISIBLE_ITEMS
-    );
-    expect(firstSnapshot.outputs.archived[0]).toEqual(
-      expect.objectContaining({
-        id: `stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-        archivedAt: null,
-        archiveReason: "cleanup",
-      })
-    );
-    expect(secondSnapshot.outputs.archived[0]).toEqual(firstSnapshot.outputs.archived[0]);
+    expect(firstSnapshot.outputs.archived).toEqual([]);
+    expect(firstSnapshot.outputs.removedFromAllRefsIds).toEqual([]);
+    expect(secondSnapshot.outputs.archived).toEqual([]);
     expect(secondPrepared.hash).toBe(firstPrepared.hash);
   });
 });

@@ -1223,13 +1223,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
     expect(rebuiltSnapshot.outputs.active).toHaveLength(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
-    expect(rebuiltSnapshot.outputs.archived[0]).toEqual(
-      expect.objectContaining({
-        id: `stable-target-${REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1}`,
-        archivedAt: null,
-        archiveReason: "cleanup",
-      })
-    );
+    expect(rebuiltSnapshot.outputs.archived).toEqual([]);
   });
 
   it("keeps autosave snapshot preparation stable across an unrelated rerender", async () => {

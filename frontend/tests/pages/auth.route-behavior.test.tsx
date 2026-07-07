@@ -1,7 +1,7 @@
 /**
  * Auth route tests for redirect sanitization and primary auth actions.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AuthPage from "../../pages/auth";
@@ -51,6 +51,7 @@ vi.mock("../../lib/supabaseClient", () => ({
 
 describe("Auth route behavior", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
   });
 
@@ -226,6 +227,41 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "user@example.com" } });
     expect(screen.getByRole("button", { name: "Sign in" })).not.toBeDisabled();
+  });
+
+  it("caps auth showcase motion sources to the first two gallery tiles", async () => {
+    vi.useFakeTimers();
+
+    const { container } = render(<AuthPage />);
+
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+
+    const showcaseMedia = Array.from(
+      container.querySelectorAll<HTMLVideoElement>(".auth-showcase-gallery-media")
+    );
+    const attachedMedia = showcaseMedia.filter((media) => media.hasAttribute("src"));
+
+    expect(showcaseMedia).toHaveLength(10);
+    expect(attachedMedia).toHaveLength(2);
+    expect(showcaseMedia[0]).toHaveAttribute(
+      "src",
+      "/dashboard/gallery/monster-wall-break-demo.mp4"
+    );
+    expect(showcaseMedia[1]).toHaveAttribute("src", "/dashboard/gallery/anime-cat-dance-demo.mp4");
+    expect(showcaseMedia[0]).toHaveAttribute("preload", "metadata");
+    expect(showcaseMedia[1]).toHaveAttribute("preload", "metadata");
+    showcaseMedia.slice(2).forEach((media) => {
+      expect(media).not.toHaveAttribute("src");
+      expect(media).toHaveAttribute("preload", "none");
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(showcaseMedia.filter((media) => media.hasAttribute("src"))).toHaveLength(2);
   });
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {

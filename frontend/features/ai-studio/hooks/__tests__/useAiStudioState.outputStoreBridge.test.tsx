@@ -1229,9 +1229,7 @@ describe("useAiStudioState output store bridge", () => {
     await waitFor(() => {
       expect(result.current.outputs.length).toBe(REFERENCE_GRID_MAX_VISIBLE_ITEMS);
     });
-    expect(result.current.archivedOutputs).toHaveLength(
-      bulkOutputs.length + 2 - REFERENCE_GRID_MAX_VISIBLE_ITEMS
-    );
+    expect(result.current.archivedOutputs).toEqual([]);
   });
 
   it("deletes quick-slotted references from the shared workspace when grid delete is requested", async () => {

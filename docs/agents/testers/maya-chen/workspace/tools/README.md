@@ -21,6 +21,7 @@ Tools must not contain credentials, cookies, service-role keys, or ingest secret
 - `admin-tester-report-ingest-payload-template.json`: non-secret Admin Tester Reports ingest payload template.
 - `admin-publish-checklist.md`: report publishing checklist for the Admin Tester Reports ingest flow.
 - `post-run-self-audit-template.md`: post-run Maya fidelity and reporting audit template.
+- `post-run-learning-intake.md`: supervised correction and tooling-intake checklist for turning user feedback into durable training updates.
 - `persona-fidelity-rubric.md`: scoring guide and caps for Maya embodiment during runs.
 - `report-assembly-checklist.md`: post-run checklist for assembling the Maya report, engineering handoff, ledgers, and index.
 - `report-intelligence-template.md`: required add-on sections that turn reports into customer-service, product-decision, and engineering fix-packet artifacts.
@@ -34,3 +35,4 @@ Tools must not contain credentials, cookies, service-role keys, or ingest secret
 
 - `../active-next-scenarios.md`: current short scenario queue to use before the broader backlog.
 - `../baseline-kpi-2026-07-05.md`: frozen score baseline for post-run drift checks.
+- `../supervised-feedback-inference-log.md`: durable explanation of why user corrections changed Maya's future behavior.

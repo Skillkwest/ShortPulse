@@ -29,7 +29,6 @@ import {
   type FreezeInvestigationSnapshot,
 } from "../logic/freezeInvestigationTelemetry";
 import {
-  buildReferenceGridOverflowArchiveRows,
   limitReferenceGridVisibleOutputs,
   REFERENCE_GRID_MAX_VISIBLE_ITEMS,
   REFERENCE_GRID_TARGET_TOTAL_ITEMS,
@@ -477,7 +476,7 @@ export function useAiStudioPerfAuditRuntime({
     const PROJECT_RESTORE_GATES = {
       targetTotalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
       targetActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-      targetArchivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      targetArchivedCount: 0,
       hydrateDurationMsAtTarget: 750,
       settleDurationMsAtTarget: 1_500,
       longTaskP95MsAtTarget: 180,
@@ -682,7 +681,7 @@ export function useAiStudioPerfAuditRuntime({
       const allRows = createPerfOutputs(totalCount);
       const limited = limitReferenceGridVisibleOutputs(allRows, activeCount);
       const activeRows = limited.rows;
-      const archivedRows = buildReferenceGridOverflowArchiveRows(limited.trimmedRows);
+      const archivedRows: StudioOutput[] = [];
       const baseSnapshot = createEmptyAiStudioSessionSnapshot({
         sessionId: `perf-project-restore-${Date.now()}`,
         updatedAt: new Date().toISOString(),
@@ -696,7 +695,7 @@ export function useAiStudioPerfAuditRuntime({
           archived: archivedRows,
           activeOutputId: activeRows[0]?.id ?? null,
           curatedReferenceIds: activeRows.slice(0, 4).map((row) => row.id),
-          removedFromAllRefsIds: archivedRows.slice(0, 3).map((row) => row.id),
+          removedFromAllRefsIds: [],
         }),
       };
     };
@@ -1497,7 +1496,7 @@ export function useAiStudioPerfAuditRuntime({
         if (activeCapOverride && setReferenceGridAuditOutputs) {
           setReferenceGridAuditOutputs({
             active: limited.rows,
-            archived: buildReferenceGridOverflowArchiveRows(limited.trimmedRows),
+            archived: [],
           });
           setActiveOutputId(limited.rows[0]?.id ?? null);
         } else {

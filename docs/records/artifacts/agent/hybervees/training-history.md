@@ -253,3 +253,88 @@ Outcome:
 - Saved a detailed insight report and ADHD-friendly owner summary.
 - Added one high-ROI backlog item for generated-media context recovery.
 - Marked the production tester report row `Hybervees reviewed` through Hybervees-owned review metadata.
+
+### 2026-07-07 - Owner Summary Caveat Sections Removed
+
+Prompt used:
+
+> Do Not Overreact... Best Next Owner... I don't want this section in the summary for me. Add to your instruction and SOPs correctly that summaries should not include this.
+
+Behavior learned:
+
+- Hybervees owner summaries should stay short, simple, and action-only.
+- Owner summaries should include the short version, what the finding means, and exactly what to do next.
+- Owner summaries should not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveat, lane-assignment, or "what not to overreact to" sections unless the user explicitly asks for them.
+- Detailed reports may still include caveats, owner routing, and non-overreaction guidance when that nuance helps avoid bad product decisions.
+- Inferred reason: the owner summary is an executive attention tool. Extra caveats and routing make the owner do filtering work, which defeats the ADHD-friendly purpose of the summary.
+- Inferred reason: the user still wants nuance preserved, but in the detailed report where it supports later implementation or audit decisions without cluttering the quick summary.
+- Inferred reason: future Hybervees behavior should optimize for the user's decision flow, not for showing all of Hybervees' internal analysis in every artifact.
+
+SOP or template updates:
+
+- Updated Hybervees instruction overlay, main contract, SOP, memory, report README, workspace README, and output-quality gate with the owner-summary rule.
+- Cleaned the current Maya generated-media context owner summary to remove the unwanted sections.
+- Added an owner-summary template and backlog-item quality gate so future outputs are easier to read and more actionable.
+
+### 2026-07-07 - Second `run sop` Review Refined Existing Backlog Instead Of Duplicating It
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- Earliest unreviewed processing moved from `2026-07-05-find-generated-image-context` to `2026-07-05-prompt-detail-recovery`.
+- When a new tester report confirms an existing Hybervees backlog item, Hybervees should refine that item with better acceptance criteria instead of adding a duplicate.
+- Prompt recovery should be interpreted carefully: this report proved prompt data was recoverable in Media Detail, so the product issue became discoverability, empty-state semantics, and copy feedback rather than prompt-storage rebuild.
+- The new owner-summary rule worked: caveats and routing stayed in the detailed report, while the owner summary stayed short and action-only.
+
+Outcome:
+
+- Reviewed `2026-07-05-prompt-detail-recovery`.
+- Saved a detailed insight report and short owner summary.
+- Updated the generated-media context backlog item into a ticket-ready work seed.
+- Updated the insight ledger and product-decision log with the refined evidence.
+
+### 2026-07-07 - Value-Add Growth Guidance
+
+Prompt used:
+
+> Do you need any more tools scripts etc to make your job easier?
+> let's update your workspace so you can continue to learn and grow and make sure you are adding real value
+
+Behavior learned:
+
+- Hybervees should measure success by decision value, not file count.
+- A run adds value when it clarifies a product decision, changes an assumption, improves or avoids backlog work, and gives the owner a faster next action.
+- Hybervees should be honest when a report is low-signal. Preventing bad backlog clutter is also value.
+- Tooling should reduce manual risk around earliest-report lookup, review-state marking, and output-quality checks.
+- The owner is training Hybervees to infer the reason behind corrections, not just memorize the wording of corrections.
+
+Inferred reason:
+
+- The user wants Hybervees to become a compounding product-insight agent. Each correction should improve future judgment, reduce owner cognitive load, and produce sharper product decisions from tester evidence.
+
+SOP or template updates:
+
+- Added `value-add-scorecard.md` for post-run value checks.
+- Added `tooling-roadmap.md` for future helper scripts and admin affordances.
+- Updated `output-quality-gate.md`, Hybervees SOP, workspace README, and memory with the value-add rule.
+
+### 2026-07-07 - Helper Scripts Added To Hybervees Workspace
+
+Prompt used:
+
+> update your workspace create the scripts you need and add the correct instructions to your workspace
+
+Behavior learned:
+
+- Hybervees should not keep manually repeating fragile Supabase query/update snippets when small scoped scripts can reduce risk.
+- Helper scripts should keep secret values hidden, print safe intake packets, and mutate only Hybervees-owned review metadata.
+- Output quality should be script-checkable for repeated owner-summary and backlog mistakes.
+
+SOP or template updates:
+
+- Added `scripts/hybervees/next-report.mjs`, `scripts/hybervees/mark-reviewed.mjs`, and `scripts/hybervees/output-check.mjs`.
+- Added npm aliases: `hybervees:next-report`, `hybervees:mark-reviewed`, and `hybervees:output-check`.
+- Updated Hybervees workspace README, tooling roadmap, SOP, and memory to use the helper scripts during future `run sop` work.

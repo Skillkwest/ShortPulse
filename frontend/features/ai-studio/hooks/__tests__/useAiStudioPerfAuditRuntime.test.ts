@@ -129,7 +129,7 @@ describe("useAiStudioPerfAuditRuntime", () => {
     expect(seeded).toEqual({
       requestedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
       activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-      archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+      archivedCount: 0,
       totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
       activeCapOverride: null,
     });
@@ -257,11 +257,10 @@ describe("useAiStudioPerfAuditRuntime", () => {
       expect.objectContaining({
         totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
         activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: 0,
         semantics: expect.objectContaining({
           restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-          restoredArchivedCount:
-            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount: 0,
           activeOutputId: null,
         }),
         outputStore: expect.objectContaining({

@@ -1323,7 +1323,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
-  it("uses Seedance 2 Fast video-input pricing when multimodal video references are present", () => {
+  it("keeps Seedance 2 Fast pricing on the customer-billed resolution row when video references are present", () => {
     const costParamsForModel = (
       targetModelId: string,
       overrides?: Omit<PricingParams, "modelId">

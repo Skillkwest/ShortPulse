@@ -77,13 +77,13 @@ const SEEDANCE_RESOLUTION_MAP = {
   "480p": { width: 854, height: 480 },
 };
 const SEEDANCE_2_STANDARD_CREDITS_PER_SECOND = {
-  "1080p": { withVideoInput: 62, noVideoInput: 102 },
-  "720p": { withVideoInput: 25, noVideoInput: 41 },
-  "480p": { withVideoInput: 11.5, noVideoInput: 19 },
+  "1080p": 102,
+  "720p": 41,
+  "480p": 19,
 } as const;
 const SEEDANCE_2_FAST_CREDITS_PER_SECOND = {
-  "720p": { withVideoInput: 20, noVideoInput: 33 },
-  "480p": { withVideoInput: 9, noVideoInput: 15.5 },
+  "720p": 33,
+  "480p": 15.5,
 } as const;
 const OMNIHUMAN_V15_USD_PER_SECOND = 0.16;
 
@@ -659,11 +659,6 @@ const resolveSeedance2Duration = (value?: number) => {
   return normalized;
 };
 
-const resolveSeedanceVideoInput = (params: PricingParams): boolean =>
-  typeof params.inputVideoCount === "number" &&
-  Number.isFinite(params.inputVideoCount) &&
-  params.inputVideoCount > 0;
-
 const resolveSeedanceResolutionKey = (
   params: PricingParams,
   fallback: "1080p" | "720p"
@@ -676,7 +671,6 @@ const resolveSeedanceResolutionKey = (
 
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   const duration = resolveSeedance2Duration(params.durationSeconds ?? undefined);
-  const videoInput = resolveSeedanceVideoInput(params);
   const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const resolutionKey = resolveSeedanceResolutionKey(params, isSeedanceFast ? "720p" : "1080p");
   const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
@@ -691,10 +685,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
         : resolutionKey) as keyof typeof pricingTable
     ];
   if (!resolutionPricing) return null;
-  const creditsPerSecond = videoInput
-    ? resolutionPricing.withVideoInput
-    : resolutionPricing.noVideoInput;
-  const usdRaw = kieCreditsToUsd(creditsPerSecond * duration);
+  const usdRaw = kieCreditsToUsd(resolutionPricing * duration);
   return toCostBreakdown({
     modelId: params.modelId,
     usdRaw,
@@ -706,7 +697,6 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
       baseVariantId: "default",
       aspect: params.aspect ?? getModelConfig(params.modelId)?.defaultAspect ?? null,
       resolution: resolutionKey,
-      videoInput,
     }),
   });
 };

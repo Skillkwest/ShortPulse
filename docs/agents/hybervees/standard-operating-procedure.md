@@ -34,7 +34,7 @@ When the user asks Hybervees to review tester reports without naming a specific 
 2. Read the persona report and engineering handoff.
 3. Analyze the report for product insight, tester feelings, user confusion, trust shifts, workflow friction, and improvement opportunities.
 4. Write a full detailed Hybervees insight report.
-5. Write a short owner summary in simple, ADHD-friendly language.
+5. Write a short owner summary in simple, ADHD-friendly language that includes only the short version, what it means, and exactly what to do next.
 6. Save both reports in Hybervees' workspace.
 7. Pick the highest-ROI backlog items from the report and add them smartly to the canonical backlog.
 8. Mark the tester report as Hybervees reviewed in the admin review state so it is not analyzed again.
@@ -98,6 +98,8 @@ If all canonical report sources are blocked, Hybervees should stop with an acces
 - Run the first capability gate.
 - Use the admin Hybervees review state to avoid duplicate work. Reports already marked `Hybervees reviewed` should be skipped unless the user explicitly asks for a re-review.
 - Select the earliest unreviewed report when no specific report is named. In the admin page this is the default `Needs Hybervees` queue; in the admin read API use `hyberveesReview=unreviewed`.
+- Prefer the helper command for normal queue intake:
+  - `npm -C frontend run hybervees:next-report -- --limit 1`
 - Prefer durable local tester artifacts when the requested report already exists there.
 - Use authenticated API or admin-authorized data access when local artifacts are missing or the user wants current production DB truth.
 - Use the live admin browser only for UI proof, deployed admin-page behavior, or manual review-state confirmation.
@@ -198,6 +200,13 @@ For a substantive run, write a retained report under:
 Use the template at:
 
 - `docs/records/artifacts/agent/hybervees/templates/tester-report-insight-review-template.md`
+- `docs/records/artifacts/agent/hybervees/templates/owner-summary-template.md`
+
+Before finalizing outputs, run:
+
+- `docs/agents/hybervees/workspace/output-quality-gate.md`
+- `docs/agents/hybervees/workspace/value-add-scorecard.md`
+- `npm -C frontend run hybervees:output-check`
 
 The report should include:
 
@@ -211,6 +220,14 @@ The report should include:
 - what not to overreact to,
 - missing proof,
 - next best actions.
+
+The short owner summary should be simpler than the detailed report. Keep it focused on:
+
+- short version,
+- what this means,
+- exactly what to do next.
+
+Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveat, lane-assignment, or "what not to overreact to" sections in the owner summary unless the user explicitly asks. Keep caveats, owner routing, and "what not to overreact to" guidance in the detailed report.
 
 ### Step 10. Update Durable Learning
 
@@ -239,11 +256,29 @@ Before adding backlog items:
 - place the item under the right backlog program,
 - and keep the item scoped enough for a future owner lane to execute.
 
+Backlog items should be ticket-ready work seeds, not just product direction. For each promoted item, include or make obvious:
+
+- the tester problem,
+- why it matters for trust, spend readiness, runtime continuity, support load, or customer psychology,
+- the exact app surface,
+- the first action,
+- acceptance criteria,
+- validation path,
+- non-goals or surfaces not to reopen,
+- source report,
+- priority/confidence when useful.
+
 Do not add every finding. Low-confidence observations, watch items, superseded issues, and issues already covered by stronger backlog entries should stay in the Hybervees report unless the user asks to promote them.
 
 ### Step 12. Mark Admin Review State
 
 After the report has actually been read and analyzed, mark the row reviewed through the canonical admin review endpoint or admin UI action.
+
+Prefer the helper command:
+
+```bash
+npm -C frontend run hybervees:mark-reviewed -- --external-run-id <run-id> --summary "<summary>" --artifact-path <retained-report-path>
+```
 
 This review marker is Hybervees' duplicate-prevention boundary. A report marked `Hybervees reviewed` should not be analyzed again in normal earliest-report runs.
 
@@ -267,7 +302,10 @@ Close with:
 - the highest-ROI next action,
 - any blocked access or evidence gaps,
 - files updated,
-- and whether this should become an implementation lane, another tester run, or a watch item.
+- whether this should become an implementation lane, another tester run, or a watch item,
+- and a short value-add self-rating when the user asks for performance feedback or when the run materially changed backlog/product decisions.
+
+The value-add self-rating should explain what got clearer, what assumption changed, and whether Hybervees avoided unnecessary backlog clutter. Do not use the rating as self-praise; use it to improve future runs.
 
 ## Quality Bar
 

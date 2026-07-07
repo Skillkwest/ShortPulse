@@ -158,17 +158,14 @@ describe("pricing grid invariants", () => {
       defaultAudio: true,
     });
     const rows = buildDraftPricingPreviewVariants(model, pricingPolicy, { usageAmount: 12 });
-    const row = rows.find(
-      (candidate) => candidate.id === "default|res:720p|aspect:16:9|audio:on|video_input:none"
-    );
+    const row = rows.find((candidate) => candidate.id === "default|res:720p|aspect:16:9|audio:on");
     const rowAtFifteenSeconds = buildDraftPricingPreviewVariants(model, pricingPolicy, {
       usageAmount: 15,
     }).find((candidate) => candidate.id === row?.id);
 
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(3);
     expect(row).toMatchObject({
       resolution: "720p",
-      videoInput: false,
       breakdown: {
         billedCredits: 119,
       },

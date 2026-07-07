@@ -46,7 +46,7 @@ const AUTH_SHOWCASE_PODCAST_SRC = "/dashboard/gallery/seedance-podcast-demo.mp4"
 const AUTH_SHOWCASE_MONSTER_SRC = "/dashboard/gallery/monster-wall-break-demo.mp4";
 const AUTH_SHOWCASE_SKI_SRC = "/dashboard/gallery/alpine-ski-pov-demo.mp4";
 const AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT = 2;
-const AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS = 420;
+const AUTH_SHOWCASE_MAX_ATTACHED_VIDEO_COUNT = 2;
 const AUTH_SHOWCASE_TILE_CLASS_BY_SRC = new Map<string, string>([
   [AUTH_SHOWCASE_MONSTER_SRC, "auth-showcase-gallery-tile-alpine"],
   [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-seedance"],
@@ -341,22 +341,17 @@ export default function AuthPage() {
 
     let cancelled = false;
     let timeoutId: number | null = null;
-    let nextCount = 0;
-    const maxCount = AUTH_SHOWCASE_GALLERY_ITEMS.length;
+    const maxCount = Math.min(
+      AUTH_SHOWCASE_MAX_ATTACHED_VIDEO_COUNT,
+      AUTH_SHOWCASE_GALLERY_ITEMS.length
+    );
 
-    const attachNextBatch = () => {
+    const attachInitialBatch = () => {
       if (cancelled) return;
-      nextCount =
-        nextCount === 0
-          ? Math.min(AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT, maxCount)
-          : Math.min(nextCount + 1, maxCount);
-      setAttachedShowcaseVideoCount(nextCount);
-      if (nextCount < maxCount) {
-        timeoutId = window.setTimeout(attachNextBatch, AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS);
-      }
+      setAttachedShowcaseVideoCount(Math.min(AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT, maxCount));
     };
 
-    timeoutId = window.setTimeout(attachNextBatch, 0);
+    timeoutId = window.setTimeout(attachInitialBatch, 0);
 
     return () => {
       cancelled = true;

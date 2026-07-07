@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeCostForModel } from "../pricing";
 
 describe("Seedance runtime pricing", () => {
-  it("uses Kie's live Seedance 2 per-second table without video input", () => {
+  it("uses Kie's live Seedance 2 base per-second table", () => {
     const breakdown1080 = computeCostForModel("kie-ai/seedance-2", {
       durationSeconds: 5,
       resolution: "1080p",
@@ -24,7 +24,7 @@ describe("Seedance runtime pricing", () => {
     expect(breakdown480?.usdRaw).toBeCloseTo(0.475, 6);
   });
 
-  it("uses Kie's live Seedance 2 per-second table with video input", () => {
+  it("keeps Seedance 2 customer pricing unchanged when video input is present", () => {
     const breakdown1080 = computeCostForModel("kie-ai/seedance-2", {
       durationSeconds: 5,
       resolution: "1080p",
@@ -41,9 +41,9 @@ describe("Seedance runtime pricing", () => {
       inputVideoCount: 1,
     });
 
-    expect(breakdown1080?.usdRaw).toBeCloseTo(1.55, 6);
-    expect(breakdown720?.usdRaw).toBeCloseTo(0.625, 6);
-    expect(breakdown480?.usdRaw).toBeCloseTo(0.2875, 6);
+    expect(breakdown1080?.usdRaw).toBeCloseTo(2.55, 6);
+    expect(breakdown720?.usdRaw).toBeCloseTo(1.025, 6);
+    expect(breakdown480?.usdRaw).toBeCloseTo(0.475, 6);
   });
 
   it("keeps intermediate Seedance durations linear instead of snapping them to 5/10/15", () => {
@@ -56,7 +56,7 @@ describe("Seedance runtime pricing", () => {
     expect(breakdown12?.usdRaw).toBeCloseTo(6.12, 6);
   });
 
-  it("uses Kie's live Seedance 2 Fast per-second table", () => {
+  it("keeps Seedance 2 Fast customer pricing unchanged when video input is present", () => {
     const breakdown720NoInput = computeCostForModel("kie-ai/seedance-2-fast", {
       durationSeconds: 5,
       resolution: "720p",
@@ -79,8 +79,8 @@ describe("Seedance runtime pricing", () => {
     });
 
     expect(breakdown720NoInput?.usdRaw).toBeCloseTo(0.825, 6);
-    expect(breakdown720WithInput?.usdRaw).toBeCloseTo(0.5, 6);
+    expect(breakdown720WithInput?.usdRaw).toBeCloseTo(0.825, 6);
     expect(breakdown480NoInput?.usdRaw).toBeCloseTo(0.3875, 6);
-    expect(breakdown480WithInput?.usdRaw).toBeCloseTo(0.225, 6);
+    expect(breakdown480WithInput?.usdRaw).toBeCloseTo(0.3875, 6);
   });
 });

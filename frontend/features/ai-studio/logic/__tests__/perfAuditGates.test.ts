@@ -97,7 +97,7 @@ const PROJECT_WORKSPACE_AUTOSAVE_TYPING_THRESHOLDS = {
 const PROJECT_RESTORE_THRESHOLDS = {
   targetTotalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
   targetActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-  targetArchivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+  targetArchivedCount: 0,
   hydrateDurationMsAtTarget: 750,
   settleDurationMsAtTarget: 1_500,
   longTaskP95MsAtTarget: 180,
@@ -726,7 +726,7 @@ describe("perfAuditGates", () => {
       {
         totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
         activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: 0,
         hydrate: { durationMs: 120 },
         settle: { durationMs: 260 },
         longTask: { samples: 0, p95Ms: null },
@@ -740,8 +740,7 @@ describe("perfAuditGates", () => {
         },
         semantics: {
           restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-          restoredArchivedCount:
-            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount: 0,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: null,
@@ -759,7 +758,7 @@ describe("perfAuditGates", () => {
       {
         totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
         activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: 0,
         hydrate: { durationMs: 900 },
         settle: { durationMs: 1_800 },
         longTask: { samples: 2, p95Ms: 240 },
@@ -773,8 +772,7 @@ describe("perfAuditGates", () => {
         },
         semantics: {
           restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS - 1,
-          restoredArchivedCount:
-            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS + 1,
+          restoredArchivedCount: 1,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: "perf-output-1",
@@ -784,11 +782,13 @@ describe("perfAuditGates", () => {
 
     const gates = evaluateProjectRestoreAuditGates(scenarios, PROJECT_RESTORE_THRESHOLDS);
     const activeCountGate = gates.find((gate) => gate.name === "project_restore_active_count");
+    const archivedCountGate = gates.find((gate) => gate.name === "project_restore_archived_count");
     const publishGate = gates.find(
       (gate) => gate.name === "project_restore_output_store_publish_count"
     );
 
     expect(activeCountGate?.pass).toBe(false);
+    expect(archivedCountGate?.pass).toBe(false);
     expect(publishGate?.pass).toBe(false);
     expect(gates.every((gate) => gate.pass)).toBe(false);
   });
@@ -798,7 +798,7 @@ describe("perfAuditGates", () => {
       {
         totalCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS,
         activeCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-        archivedCount: REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+        archivedCount: 0,
         hydrate: { durationMs: 120 },
         settle: { durationMs: 260 },
         longTask: { samples: 0, p95Ms: null },
@@ -812,8 +812,7 @@ describe("perfAuditGates", () => {
         },
         semantics: {
           restoredActiveCount: REFERENCE_GRID_MAX_VISIBLE_ITEMS,
-          restoredArchivedCount:
-            REFERENCE_GRID_TARGET_TOTAL_ITEMS - REFERENCE_GRID_MAX_VISIBLE_ITEMS,
+          restoredArchivedCount: 0,
           quickSlotCount: 4,
           removedFromAllRefsCount: 3,
           activeOutputId: null,

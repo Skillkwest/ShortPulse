@@ -11,28 +11,17 @@ export type ReferenceGridIdentifiedVisibilityRow = ReferenceGridVisibilityRow & 
   id: string;
 };
 
-export type ReferenceGridArchivableRow = {
-  archivedAt?: string | null;
-  archiveReason?: string | null;
-};
-
 export const REFERENCE_GRID_WARN_VISIBLE_ITEMS = 300;
 export const REFERENCE_GRID_MAX_VISIBLE_ITEMS = 500;
 export const REFERENCE_GRID_TARGET_TOTAL_ITEMS = 500;
 
-export const REFERENCE_GRID_CAP_REACHED_MESSAGE = `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. Remove items from the grid or use Media Library as your archive before adding more.`;
-
-export const buildReferenceGridOverflowArchivedMessage = (archivedCount: number): string => {
-  const normalizedArchivedCount = Math.max(0, Math.floor(archivedCount));
-  const itemLabel = normalizedArchivedCount === 1 ? "reference was" : "references were";
-  return `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. ${normalizedArchivedCount} older ${itemLabel} moved to Archived to keep the grid responsive.`;
-};
+export const REFERENCE_GRID_CAP_REACHED_MESSAGE = `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. Remove items from the grid or use Media Library before adding more.`;
 
 export const buildReferenceGridPartialCapMessage = (skippedCount: number): string => {
   const normalizedSkippedCount = Math.max(0, Math.floor(skippedCount));
   if (normalizedSkippedCount <= 0) return REFERENCE_GRID_CAP_REACHED_MESSAGE;
   const itemLabel = normalizedSkippedCount === 1 ? "item was" : "items were";
-  return `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. ${normalizedSkippedCount} ${itemLabel} not added. Remove items from the grid or use Media Library as your archive before adding more.`;
+  return `Reference Grid is limited to ${REFERENCE_GRID_MAX_VISIBLE_ITEMS} items. ${normalizedSkippedCount} ${itemLabel} not added. Remove items from the grid or use Media Library before adding more.`;
 };
 
 /**
@@ -100,25 +89,6 @@ export const limitReferenceGridVisibleOutputs = <T extends ReferenceGridIdentifi
     visibleCount,
     trimmedCount: trimmedIds.length,
   };
-};
-
-export const buildReferenceGridOverflowArchiveRows = <T extends ReferenceGridArchivableRow>(
-  rows: readonly T[],
-  archivedAt: string | null = new Date().toISOString()
-): T[] =>
-  rows.map((row) => ({
-    ...row,
-    archivedAt: row.archivedAt ?? archivedAt,
-    archiveReason: row.archiveReason ?? "cleanup",
-  }));
-
-export const mergeReferenceGridArchivedRows = <T extends ReferenceGridIdentifiedVisibilityRow>(
-  archivedRows: readonly T[],
-  overflowRows: readonly T[]
-): T[] => {
-  if (!overflowRows.length) return [...archivedRows];
-  const overflowIds = new Set(overflowRows.map((row) => row.id));
-  return [...overflowRows, ...archivedRows.filter((row) => !overflowIds.has(row.id))];
 };
 
 export type ReferenceGridAdmissionResult<T extends ReferenceGridVisibilityRow> = {

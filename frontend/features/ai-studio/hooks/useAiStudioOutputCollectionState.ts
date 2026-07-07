@@ -16,11 +16,7 @@ import {
   type StudioOutputCollectionState,
 } from "../reference-domain";
 import { sortStudioOutputsByCreatedAtDesc } from "../logic/outputOrdering";
-import {
-  buildReferenceGridOverflowArchiveRows,
-  limitReferenceGridVisibleOutputs,
-  mergeReferenceGridArchivedRows,
-} from "../reference-grid/logic/referenceGridLimits";
+import { limitReferenceGridVisibleOutputs } from "../reference-grid/logic/referenceGridLimits";
 import type { StudioOutput } from "../types";
 import { setAiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
@@ -35,7 +31,6 @@ const normalizeActiveRows = (
   rows: StudioOutput[]
 ): {
   rows: StudioOutput[];
-  overflowRows: StudioOutput[];
   state: StudioOutputCollectionState;
 } => {
   const orderedRows = rows.every(
@@ -46,7 +41,6 @@ const normalizeActiveRows = (
   const limited = limitReferenceGridVisibleOutputs(orderedRows);
   return {
     rows: limited.rows,
-    overflowRows: buildReferenceGridOverflowArchiveRows(limited.trimmedRows),
     state: normalizeStudioOutputCollection(limited.rows),
   };
 };
@@ -153,20 +147,6 @@ export const useAiStudioOutputCollectionState = ({
       const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
       const normalized = normalizeActiveRows(resolved);
       const nextState = normalized.state;
-      if (normalized.overflowRows.length > 0) {
-        const nextArchivedRows = mergeReferenceGridArchivedRows(
-          archivedOutputsRef.current,
-          normalized.overflowRows
-        );
-        const nextArchivedState = normalizeStudioOutputCollection(nextArchivedRows);
-        archivedOutputStateRef.current = nextArchivedState;
-        archivedOutputsRef.current = nextArchivedRows;
-        stateByAuthorityKeyRef.current[activeAuthorityKeyRef.current] = {
-          active: nextState,
-          archived: nextArchivedState,
-        };
-        setArchivedOutputState(nextArchivedState);
-      }
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         activeOutputStateRef.current = prevState;
         activeOutputsRef.current = prevRows;
@@ -179,33 +159,27 @@ export const useAiStudioOutputCollectionState = ({
   }, []);
 
   const setArchivedOutputs = useCallback<Dispatch<SetStateAction<StudioOutput[]>>>((nextValue) => {
+    void nextValue;
     setArchivedOutputState((prevState) => {
-      const prevRows =
-        archivedOutputStateRef.current === prevState
-          ? archivedOutputsRef.current
-          : denormalizeStudioOutputCollection(prevState);
-      const resolved = typeof nextValue === "function" ? nextValue(prevRows) : nextValue;
-      const nextState = normalizeStudioOutputCollection(resolved);
+      const nextState = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
       if (areStudioOutputCollectionStatesEqual(prevState, nextState)) {
         archivedOutputStateRef.current = prevState;
-        archivedOutputsRef.current = prevRows;
+        archivedOutputsRef.current = [];
         return prevState;
       }
       archivedOutputStateRef.current = nextState;
-      archivedOutputsRef.current = resolved;
+      archivedOutputsRef.current = [];
       return nextState;
     });
   }, []);
 
   const setOutputCollectionsForAuthority = useCallback(
     (targetAuthorityKey: string, activeRows: StudioOutput[], archivedRows: StudioOutput[]) => {
+      void archivedRows;
       const nextActive = normalizeActiveRows(activeRows);
       const nextActiveState = nextActive.state;
-      const nextArchivedRows = mergeReferenceGridArchivedRows(
-        archivedRows,
-        nextActive.overflowRows
-      );
-      const nextArchivedState = normalizeStudioOutputCollection(nextArchivedRows);
+      const nextArchivedRows: StudioOutput[] = [];
+      const nextArchivedState = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
       stateByAuthorityKeyRef.current[targetAuthorityKey] = {
         active: nextActiveState,
         archived: nextArchivedState,
@@ -273,21 +247,25 @@ export const useAiStudioOutputCollectionState = ({
       active: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
       archived: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
     };
-    stateByAuthorityKeyRef.current[authorityKey] = restoredState;
-    activeOutputStateRef.current = restoredState.active;
-    archivedOutputStateRef.current = restoredState.archived;
-    activeOutputByIdRef.current = restoredState.active.byId;
-    activeOutputsRef.current = denormalizeStudioOutputCollection(restoredState.active);
-    archivedOutputsRef.current = denormalizeStudioOutputCollection(restoredState.archived);
+    const nextState = {
+      active: restoredState.active,
+      archived: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+    };
+    stateByAuthorityKeyRef.current[authorityKey] = nextState;
+    activeOutputStateRef.current = nextState.active;
+    archivedOutputStateRef.current = nextState.archived;
+    activeOutputByIdRef.current = nextState.active.byId;
+    activeOutputsRef.current = denormalizeStudioOutputCollection(nextState.active);
+    archivedOutputsRef.current = [];
     /* eslint-disable react-hooks/set-state-in-effect -- authority switches must restore the selected collection immediately after React commits the new key. */
-    setActiveOutputState(restoredState.active);
-    setArchivedOutputState(restoredState.archived);
+    setActiveOutputState(nextState.active);
+    setArchivedOutputState(nextState.archived);
     /* eslint-enable react-hooks/set-state-in-effect */
     setAiStudioOutputStoreSnapshot({
-      outputOrder: restoredState.active.order,
-      outputById: restoredState.active.byId,
-      archivedOutputOrder: restoredState.archived.order,
-      archivedOutputById: restoredState.archived.byId,
+      outputOrder: nextState.active.order,
+      outputById: nextState.active.byId,
+      archivedOutputOrder: nextState.archived.order,
+      archivedOutputById: nextState.archived.byId,
     });
   }, [authorityKey]);
 

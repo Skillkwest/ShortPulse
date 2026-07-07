@@ -1,6 +1,6 @@
 import React from "react";
 import { Power, Trash } from "phosphor-react";
-import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type { AgentMessage, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PULSE_BUSY_ATTACHMENT_DROP_NOTICE, PulsePromptStep } from "../PulsePromptStep";
 import {
@@ -54,6 +54,26 @@ type PulseCreatePanelViewProps = {
   pulseChatHistory?: PulseChatHistoryPanelProps;
 };
 
+export const resolvePulseCreatePanelMessageState = (
+  agentMessages: readonly AgentMessage[] | null | undefined
+): {
+  hasVisibleAgentMessages: boolean;
+  hasVisibleAssistantMessages: boolean;
+} => {
+  const messages = agentMessages ?? [];
+  return {
+    hasVisibleAgentMessages: messages.some(
+      (message) =>
+        message.content.trim().length > 0 ||
+        (message.outputPrompt?.trim().length ?? 0) > 0 ||
+        (message.attachments?.length ?? 0) > 0
+    ),
+    hasVisibleAssistantMessages: messages.some(
+      (message) => message.role === "assistant" && message.content.trim().length > 0
+    ),
+  };
+};
+
 const PulseCreatePanelViewContent = ({
   promptStepProps,
   canvasTearOutTargetRegistry,
@@ -90,7 +110,8 @@ const PulseCreatePanelViewContent = ({
   const panelRootRef = React.useRef<HTMLDivElement>(null);
   const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const isActivePulseSession = hasActivePulseSession;
-  const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  const { hasVisibleAgentMessages, hasVisibleAssistantMessages } =
+    resolvePulseCreatePanelMessageState(promptStepProps.agentMessages);
   const pulseLoadingState = promptStepProps.pulseLoadingState ?? null;
   const hasPulseLoadingSurface = pulseLoadingState != null;
   const isNoHistoryShell = resolveCreateComposerNoHistoryShell({
@@ -115,9 +136,9 @@ const PulseCreatePanelViewContent = ({
     (presetId: CreatePulsePresetId) =>
       presetId === activePulsePresetId &&
       isActivePulseSession &&
-      !hasVisibleAgentMessages &&
+      !hasVisibleAssistantMessages &&
       !hasPulseLoadingSurface,
-    [activePulsePresetId, hasPulseLoadingSurface, hasVisibleAgentMessages, isActivePulseSession]
+    [activePulsePresetId, hasPulseLoadingSurface, hasVisibleAssistantMessages, isActivePulseSession]
   );
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,

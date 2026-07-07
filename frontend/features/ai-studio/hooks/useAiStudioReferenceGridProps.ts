@@ -96,15 +96,13 @@ export const useAiStudioReferenceGridProps = ({
   addCuratedReference,
   removeCuratedReference,
   reorderCuratedReference,
-  restoreArchivedOutput,
-  restoreAllArchivedOutputs,
 }: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridRuntimeContract => {
   const directOutputs = readOutputsFromStore ? undefined : outputs;
   const directArchivedOutputs = readOutputsFromStore
     ? undefined
     : outputs === undefined && archivedOutputs === undefined
       ? undefined
-      : (archivedOutputs ?? EMPTY_ARCHIVED_OUTPUTS);
+      : EMPTY_ARCHIVED_OUTPUTS;
   const directVisibleAllRefsOutputIds = useMemo(
     () =>
       directOutputs
@@ -245,8 +243,8 @@ export const useAiStudioReferenceGridProps = ({
       onAddCuratedReference: addCuratedReference,
       onRemoveCuratedReference: removeCuratedReference,
       onReorderCuratedReference: reorderCuratedReference,
-      onRestoreArchivedOutput: restoreArchivedOutput,
-      onRestoreAllArchivedOutputs: restoreAllArchivedOutputs,
+      onRestoreArchivedOutput: undefined,
+      onRestoreAllArchivedOutputs: undefined,
     }),
     [
       activeOutputId,
@@ -276,8 +274,6 @@ export const useAiStudioReferenceGridProps = ({
       onReferenceOutputMediaLoaded,
       removeCuratedReference,
       reorderCuratedReference,
-      restoreAllArchivedOutputs,
-      restoreArchivedOutput,
       setDetailOutputId,
     ]
   );

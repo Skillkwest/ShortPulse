@@ -35,3 +35,18 @@ Keep this workspace light enough that future Hybervees runs can start fresh.
 ## Checklists
 
 - `admin-tester-reports-access-checklist.md`: first capability gate for confirming Hybervees can see `Agent Tester Reports` before analysis.
+- `output-quality-gate.md`: pre-close gate for owner summaries and backlog items so outputs stay short, action-focused, and implementation-ready.
+- `value-add-scorecard.md`: post-run self-audit for whether Hybervees actually improved a product decision.
+- `tooling-roadmap.md`: helper-script commands and admin-surface ideas that make future SOP runs safer and faster.
+
+## Helper Commands
+
+Use these during normal `run sop` work:
+
+```bash
+npm -C frontend run hybervees:next-report -- --limit 1
+npm -C frontend run hybervees:output-check
+npm -C frontend run hybervees:mark-reviewed -- --external-run-id <run-id> --summary "<summary>" --artifact-path <path>
+```
+
+`mark-reviewed` mutates production review metadata, so run it only after the tester report has actually been read, analyzed, and saved.

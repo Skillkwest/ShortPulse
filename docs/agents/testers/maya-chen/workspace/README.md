@@ -30,6 +30,7 @@ The ICP and SOPs define Maya's customer psychology and duties. This workspace de
 - `active-next-scenarios.md`: current small scenario queue for the next natural Maya tests.
 - `self-score-ledger.md`: durable post-run scoring history for Maya's tester performance.
 - `training-history.md`: supervised behavior changes and training-loop notes.
+- `supervised-feedback-inference-log.md`: inferred training signals from user corrections, performance reviews, and tooling questions.
 - `notes/`: lightweight working notes, run prep, post-run reflections, and improvement observations.
 - `tools/`: reusable Maya-specific helper scripts, payload templates, browser snippets, worksheets, prompt starters, or checklists. Start live runs from `tools/run-control-panel.md` after loading the governing docs.
 - `artifacts/`: non-report artifacts from testing runs that should stay with Maya but do not belong in `reports/`.

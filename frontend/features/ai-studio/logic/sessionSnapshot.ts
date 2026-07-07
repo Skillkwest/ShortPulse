@@ -815,11 +815,8 @@ export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
 ): AiStudioSessionSnapshotV2 => {
   const persistedActiveOutputs = input.outputs.filter(shouldPersistOutputInSnapshot);
-  const persistedArchivedOutputs = input.archivedOutputs.filter(shouldPersistOutputInSnapshot);
-  const persistedOutputIds = new Set<string>([
-    ...persistedActiveOutputs.map((output) => output.id),
-    ...persistedArchivedOutputs.map((output) => output.id),
-  ]);
+  const persistedArchivedOutputs: AiStudioSessionOutputV1[] = [];
+  const persistedOutputIds = new Set<string>(persistedActiveOutputs.map((output) => output.id));
   const updatedAt = input.updatedAt ?? new Date().toISOString();
   const resolvedPulseWorkspaceState = resolvePulseRuntimeState(
     input.pulseWorkspaceState ?? {
@@ -994,7 +991,7 @@ export const buildAiStudioSessionSnapshot = (
     },
     outputs: {
       active: persistedActiveOutputs.map(sanitizeOutput),
-      archived: persistedArchivedOutputs.map(sanitizeOutput),
+      archived: persistedArchivedOutputs,
       activeOutputId:
         input.activeOutputId && persistedOutputIds.has(input.activeOutputId)
           ? input.activeOutputId
@@ -1129,9 +1126,10 @@ const rebuildV2SnapshotMeta = (
 const stripArchivedOutputsFromSnapshot = (
   snapshot: AiStudioSessionSnapshot
 ): AiStudioSessionSnapshot => {
+  const archivedOutputs: AiStudioSessionOutputV1[] = [];
   const nextOutputs = {
     ...snapshot.outputs,
-    archived: [],
+    archived: archivedOutputs,
     removedFromAllRefsIds: [],
   };
   if (snapshot.schemaVersion === 1) {

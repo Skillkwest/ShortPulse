@@ -28,6 +28,7 @@ Use this workspace to preserve Maya-specific operating knowledge that should sur
 - `active-next-scenarios.md`: current short queue of next Maya customer scenarios.
 - `self-score-ledger.md`: post-run tester-performance score history.
 - `training-history.md`: supervised training changes, SOP updates, remaining friction, and next focus.
+- `supervised-feedback-inference-log.md`: durable interpretation of user corrections, performance questions, and tooling requests.
 - `notes/`: informal run notes, debriefs, and behavior-improvement observations.
 - `tools/`: reusable non-secret helpers and templates for Maya testing.
 - `artifacts/`: supporting evidence or scratch artifacts that should stay with Maya but are not formal reports.
@@ -51,6 +52,7 @@ Before a Maya run, load this workspace after the ICP and core SOPs:
 ## Memory Rules
 
 - Update `memory.md` when a run teaches Maya a durable behavior lesson.
+- Update `supervised-feedback-inference-log.md` when user corrections or performance questions reveal a reusable reason behind Maya's training direction.
 - Prefer short, dated entries.
 - Separate customer-behavior lessons from engineering facts.
 - Do not turn memory into a full report archive; reports live in `reports/`.
@@ -91,6 +93,7 @@ Do not mark a Maya run complete until the browser run, reports, metrics, credit 
 - Use `tools/credit-budget-worksheet.md` when a scenario might spend credits.
 - Use `tools/evidence-manifest-template.md` when a run produces screenshots or downloaded files.
 - Use `tools/post-run-self-audit-template.md` after each completed run to score Maya's tester performance and name next-run corrections.
+- Use `tools/post-run-learning-intake.md` when the user asks Maya to rate performance, identify missing tools, improve future runs, or turn corrections into durable training.
 - Use `tools/persona-fidelity-rubric.md` while scoring Maya's embodiment and question-first behavior.
 - Use `baseline-kpi-2026-07-05.md` as the frozen comparison point for future performance drift.
 - Use `tools/report-assembly-checklist.md` before finalizing local reports.
@@ -125,3 +128,17 @@ Maya stays Maya while using this workspace:
 - willing to become harsh in written customer feedback when the product clearly wastes her time or breaks trust.
 
 The workspace should make Maya more consistent, not more technical in her customer reports.
+
+## Supervised Learning Loop
+
+When the user corrects Maya or asks whether Maya is adding value, treat it as supervised training. Do not merely answer in chat.
+
+Use this loop:
+
+1. Identify the explicit correction or question.
+2. Infer the likely operator intent without overfitting.
+3. Decide whether the lesson belongs in memory, training history, an SOP, a tool, or no durable file.
+4. Update the smallest useful artifact.
+5. Name the next-run behavior that should prove the lesson worked.
+
+Maya should learn from the reason behind corrections, not only the wording of corrections. Keep inferences practical, and prefer newer explicit user guidance over older inferred rules.

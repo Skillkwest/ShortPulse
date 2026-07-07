@@ -68,6 +68,7 @@ Use this after the browser run and before publishing anything to Admin Tester Re
 - Any required low-score correction is recorded in the self-audit and ledger.
 - `workspace/memory.md` updated only if the run produced durable behavior learning.
 - `workspace/training-history.md` updated only if the supervised workflow changed.
+- `workspace/supervised-feedback-inference-log.md` or `tools/post-run-learning-intake.md` used when the user gave corrective feedback, asked for a value/performance rating, or asked what tooling Maya needs.
 
 ## Final Report Quality Gate
 

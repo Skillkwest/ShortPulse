@@ -913,13 +913,8 @@ export const buildAiStudioSessionHydrationPayload = (
   const activeOutputs = dedupeOutputs(
     (outputs.active ?? []).map(hydrateOutput).filter((row): row is StudioOutput => Boolean(row))
   );
-  const archivedOutputs = dedupeOutputs(
-    (outputs.archived ?? []).map(hydrateOutput).filter((row): row is StudioOutput => Boolean(row))
-  );
-  const allOutputIds = new Set<string>([
-    ...activeOutputs.map((row) => row.id),
-    ...archivedOutputs.map((row) => row.id),
-  ]);
+  const archivedOutputs: StudioOutput[] = [];
+  const allOutputIds = new Set<string>(activeOutputs.map((row) => row.id));
 
   const candidateActiveOutputId = asNullableString(outputs.activeOutputId);
   const activeOutputId =

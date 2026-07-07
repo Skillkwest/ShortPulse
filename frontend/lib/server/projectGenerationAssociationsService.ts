@@ -135,10 +135,7 @@ const resolveVideoPosterStoragePath = ({
 
 const collectSnapshotGenerationIds = (snapshot: SnapshotRecord): string[] => {
   const outputsRecord = asRecord(snapshot.outputs);
-  const rows = [
-    ...(Array.isArray(outputsRecord.active) ? outputsRecord.active : []),
-    ...(Array.isArray(outputsRecord.archived) ? outputsRecord.archived : []),
-  ];
+  const rows = Array.isArray(outputsRecord.active) ? outputsRecord.active : [];
   const generationIds = new Set<string>();
 
   rows.forEach((row) => {
@@ -1422,12 +1419,8 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
   };
 
   const activeRows = patchRows(outputsRecord.active);
-  const archivedRows = patchRows(outputsRecord.archived);
   const existingGenerationIds = new Set(
-    [
-      ...(Array.isArray(activeRows) ? activeRows : []),
-      ...(Array.isArray(archivedRows) ? archivedRows : []),
-    ]
+    (Array.isArray(activeRows) ? activeRows : [])
       .map((row) => asTrimmedString(asRecord(row).generationId))
       .filter((generationId): generationId is string => Boolean(generationId))
   );
@@ -1466,7 +1459,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
   const nextOutputs = {
     ...outputsRecord,
     active: orderedActiveRows,
-    archived: Array.isArray(archivedRows) ? archivedRows : [],
+    archived: [],
   };
 
   return changed

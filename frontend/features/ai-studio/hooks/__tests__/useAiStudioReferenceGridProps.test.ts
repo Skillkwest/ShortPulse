@@ -300,11 +300,11 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(result.current.curatedReferenceIds).toEqual(["out-1"]);
     expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
     expect(result.current.linkedPromptReferenceIds).toEqual(["out-1"]);
-    expect(result.current.archivedOutputs?.map((item) => item.id)).toEqual(["archived-1"]);
+    expect(result.current.archivedOutputs).toEqual([]);
     result.current.onRestoreArchivedOutput?.("archived-1");
     result.current.onRestoreAllArchivedOutputs?.();
-    expect(restoreArchivedOutput).toHaveBeenCalledWith("archived-1");
-    expect(restoreAllArchivedOutputs).toHaveBeenCalledTimes(1);
+    expect(restoreArchivedOutput).not.toHaveBeenCalled();
+    expect(restoreAllArchivedOutputs).not.toHaveBeenCalled();
   });
 
   it("omits direct output collections when live grid reads from the selector store", () => {

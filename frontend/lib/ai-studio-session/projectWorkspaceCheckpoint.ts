@@ -128,16 +128,13 @@ export const getProjectWorkspaceSnapshotActiveOutputs = (
 export const getProjectWorkspaceSnapshotArchivedOutputs = (
   snapshot: Record<string, unknown>
 ): Record<string, unknown>[] => {
-  const outputs = asRecord(snapshot.outputs);
-  return Array.isArray(outputs.archived) ? outputs.archived.map((row) => asRecord(row)) : [];
+  void snapshot;
+  return [];
 };
 
 export const getProjectWorkspaceSnapshotOutputRows = (
   snapshot: Record<string, unknown>
-): Record<string, unknown>[] => [
-  ...getProjectWorkspaceSnapshotActiveOutputs(snapshot),
-  ...getProjectWorkspaceSnapshotArchivedOutputs(snapshot),
-];
+): Record<string, unknown>[] => getProjectWorkspaceSnapshotActiveOutputs(snapshot);
 
 const buildCheckpointOutputStub = (
   row: Record<string, unknown>
@@ -282,28 +279,19 @@ export const createLightweightProjectWorkspaceCheckpointSnapshot = ({
   const active = getProjectWorkspaceSnapshotActiveOutputs(snapshot)
     .map((row) => buildCheckpointOutputStub(row))
     .filter((row): row is Record<string, unknown> => Boolean(row));
-  const archived = getProjectWorkspaceSnapshotArchivedOutputs(snapshot)
-    .map((row) => buildCheckpointOutputStub(row))
-    .filter((row): row is Record<string, unknown> => Boolean(row));
   const activeOutputIds = new Set(
     active.map((row) => normalizeString(row.id)).filter((value): value is string => Boolean(value))
   );
-  const persistedOutputIds = new Set([
-    ...activeOutputIds,
-    ...archived
-      .map((row) => normalizeString(row.id))
-      .filter((value): value is string => Boolean(value)),
-  ]);
   const activeOutputId = normalizeString(outputs.activeOutputId);
   const nextSnapshot = {
     ...snapshot,
     outputs: {
       ...outputs,
       active,
-      archived,
+      archived: [],
       activeOutputId: activeOutputId && activeOutputIds.has(activeOutputId) ? activeOutputId : null,
       curatedReferenceIds: filterOutputIds(outputs.curatedReferenceIds, activeOutputIds),
-      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds, persistedOutputIds),
+      removedFromAllRefsIds: filterOutputIds(outputs.removedFromAllRefsIds, activeOutputIds),
     },
   };
   const meta = {

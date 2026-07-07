@@ -14,7 +14,7 @@ Purpose: retained reports, ledgers, templates, and training history for Hybervee
 ## Retained Artifacts
 
 - `reports/`: dated tester-insight analysis reports.
-- `templates/`: reusable report and review templates.
+- `templates/`: reusable detailed-report and owner-summary templates.
 - `insight-ledger.md`: cross-run product insight patterns.
 - `product-decision-log.md`: candidate product decisions and their evidence state.
 - `training-history.md`: supervised training and SOP improvement log.

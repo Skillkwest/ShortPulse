@@ -169,7 +169,7 @@ describe("materializeImageBilledCreditPolicy", () => {
 
     expect(strictVideoBreakdown).toMatchObject({
       credits: 119,
-      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:none",
+      variantId: "default|res:720p|aspect:16:9|audio:on",
     });
     expect(materialized.perModel[KIE_SEEDANCE_2_MODEL_ID]?.variants).toBeUndefined();
   });

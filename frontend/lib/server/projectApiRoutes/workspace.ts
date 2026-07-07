@@ -63,8 +63,7 @@ const summarizeWorkspaceSaveSnapshotForLog = (
   const snapshotRecord = asRecord(snapshot);
   const outputsRecord = asRecord(snapshotRecord.outputs);
   const activeRows = Array.isArray(outputsRecord.active) ? outputsRecord.active : [];
-  const archivedRows = Array.isArray(outputsRecord.archived) ? outputsRecord.archived : [];
-  const outputRows = [...activeRows, ...archivedRows];
+  const outputRows = activeRows;
   const mediaIds = new Set<string>();
   const promptIds = new Set<string>();
   const generationIds = new Set<string>();
@@ -91,7 +90,7 @@ const summarizeWorkspaceSaveSnapshotForLog = (
   return {
     workspace_snapshot_bytes: snapshotBytes,
     workspace_snapshot_active_output_count: activeRows.length,
-    workspace_snapshot_archived_output_count: archivedRows.length,
+    workspace_snapshot_archived_output_count: 0,
     workspace_snapshot_total_output_count: outputRows.length,
     workspace_snapshot_media_id_count: mediaIds.size,
     workspace_snapshot_prompt_id_count: promptIds.size,

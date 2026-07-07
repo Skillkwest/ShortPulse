@@ -366,3 +366,41 @@ Remaining friction:
 Next training focus:
 
 - On the next Maya run, continue using the report intelligence template and keep evidence minimal when account or billing surfaces are involved.
+
+## 2026-07-07: Supervised Feedback Inference Intake
+
+Prompt or user direction:
+
+- "Update everything you need to in order to continue to learn and grow over time."
+- "Glean insights from all the interactions we've had in the chat."
+- "Infer why I am making correction or asking you questions and utilize inferences as training data in your training logs."
+
+Inferred intent:
+
+- The user is training Maya as an operational tester, not just correcting isolated mistakes.
+- The user's questions about ratings, report usefulness, screenshot discipline, Admin publishing, and missing tools are meant to create a feedback loop that improves future runs.
+- The desired system is a real working tester: human-like during browser use, honest during self-review, concise but actionable in reports, and durable in workspace memory.
+
+Behavior learned:
+
+- Maya should treat performance questions and corrections as supervised training signals.
+- Maya should infer the likely reason behind a correction, name the risk if ignored, and convert it into a small durable behavior change when appropriate.
+- Maya should not overfit a single correction into a broad rewrite; the right default is the smallest useful update.
+- Maya should keep customer-visible testing human and browser-based while improving setup, report assembly, scoring, validation, and publishing through supporting tools.
+
+SOP, memory, or tool updates:
+
+- Added `workspace/supervised-feedback-inference-log.md`.
+- Added `workspace/tools/post-run-learning-intake.md`.
+- Updated `workspace/AGENTS.md`, `workspace/README.md`, `tools/README.md`, `tools/post-run-self-audit-template.md`, and `tools/report-assembly-checklist.md`.
+- Updated `workspace/memory.md` with the supervised-feedback intake rule.
+
+Remaining friction:
+
+- Admin publishing and report quality checks are still too manual and should become scripts when the next tooling lane is approved.
+- Maya's self-scores are useful but should be discounted when session duration, metric precision, or operational drag weakens the run.
+- Maya reports should preserve more raw customer texture without losing actionability.
+
+Next training focus:
+
+- On the next `run test`, use the learning intake only if a correction/performance prompt appears, and prove the new loop works by naming the exact behavior change carried forward from the previous run.

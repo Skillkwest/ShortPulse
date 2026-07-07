@@ -2139,8 +2139,7 @@ body.ai-shell-resizing * {
 .toolbar-item.toolbar-item-plan-cta {
   justify-content: center;
   min-height: 40px;
-  margin: var(--ai-toolbar-primary-button-margin-y) 0;
-  margin-bottom: var(--ai-toolbar-primary-button-margin-bottom);
+  margin: 18px 0 var(--ai-toolbar-primary-button-margin-bottom);
   padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
   border: 1px solid rgba(255, 162, 92, 0.72);
   border-radius: 10px;
@@ -2159,6 +2158,11 @@ body.ai-shell-resizing * {
     0 0 22px rgba(255, 74, 96, 0.5),
     0 12px 28px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+
+.toolbar-item.toolbar-item-plan-cta::before {
+  display: none;
+  content: none;
 }
 
 .toolbar-item.toolbar-item-plan-cta:hover,

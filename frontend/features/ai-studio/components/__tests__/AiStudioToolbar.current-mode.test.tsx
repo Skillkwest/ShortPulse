@@ -164,7 +164,7 @@ describe("AiStudioToolbar current mode", () => {
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
 
-  it("replaces Starter-restricted Video and Sound workflow buttons with View plans links", () => {
+  it("replaces Starter-restricted Video and Sound workflow buttons with one View plans link", () => {
     const onSelectTool = vi.fn();
     const onWorkflowPlanAccessAttempt = vi.fn();
 
@@ -186,20 +186,16 @@ describe("AiStudioToolbar current mode", () => {
     expect(screen.queryByRole("button", { name: "Music" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sound Effects" })).toBeNull();
 
-    const videoPlanLink = screen.getByRole("link", {
-      name: "Video: View subscription plans",
-    });
-    const soundPlanLink = screen.getByRole("link", {
-      name: "Sound: View subscription plans",
+    const planLink = screen.getByRole("link", {
+      name: "View subscription plans",
     });
 
-    expect(videoPlanLink).toHaveAttribute("href", "/pricing");
-    expect(soundPlanLink).toHaveAttribute("href", "/pricing");
+    expect(screen.getAllByRole("link", { name: "View subscription plans" })).toHaveLength(1);
+    expect(planLink).toHaveAttribute("href", "/pricing");
 
-    fireEvent.click(videoPlanLink);
-    fireEvent.click(soundPlanLink);
+    fireEvent.click(planLink);
 
-    expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(2);
+    expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(1);
     expect(onSelectTool).not.toHaveBeenCalled();
   });
 

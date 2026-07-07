@@ -123,6 +123,7 @@ function AiStudioToolbarComponent({
   const isSoundSelected = isSoundWorkflow(selectedTool);
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
   const isLibrarySelected = librariesToolList.some((tool) => tool.id === selectedTool);
+  const hasWorkflowPlanRestriction = Boolean(workflowPlanAccessCta);
   const activePrimary: "create" | "video" | "sound" | "edit" | "library" | null = isCreateSelected
     ? "create"
     : isVideoSelected
@@ -194,7 +195,7 @@ function AiStudioToolbarComponent({
         {workflowToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
           const isWorkflowPlanRestrictedTool =
-            Boolean(workflowPlanAccessCta) && (tool.id === "video" || tool.id === "sound");
+            hasWorkflowPlanRestriction && (tool.id === "video" || tool.id === "sound");
           const isActive =
             tool.id === "video"
               ? isVideoSelected
@@ -203,42 +204,31 @@ function AiStudioToolbarComponent({
                 : tool.id === "edit"
                   ? isEditSelected
                   : selectedTool === tool.id;
+          if (isWorkflowPlanRestrictedTool) {
+            return null;
+          }
           return (
             <React.Fragment key={tool.id}>
-              {isWorkflowPlanRestrictedTool && workflowPlanAccessCta ? (
-                <a
-                  className="toolbar-item toolbar-item-plan-cta"
-                  data-tool-id={`${tool.id}-plan`}
-                  href={workflowPlanAccessCta.href}
-                  aria-label={`${tool.label}: ${workflowPlanAccessCta.ariaLabel}`}
-                  onClick={onWorkflowPlanAccessAttempt}
-                >
-                  <div className="toolbar-copy">
-                    <span className="toolbar-label">{workflowPlanAccessCta.label}</span>
-                  </div>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className={`toolbar-item ${isActive ? "is-active" : ""}`}
-                  data-tool-id={tool.id}
-                  onClick={() => {
-                    if (tool.id === "sound") {
-                      onToggleCreateTools(false);
-                      onSelectTool("voices");
-                      return;
-                    }
+              <button
+                type="button"
+                className={`toolbar-item ${isActive ? "is-active" : ""}`}
+                data-tool-id={tool.id}
+                onClick={() => {
+                  if (tool.id === "sound") {
                     onToggleCreateTools(false);
-                    onSelectTool(tool.id);
-                  }}
-                >
-                  {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                  <div className="toolbar-copy">
-                    <span className="toolbar-label">{tool.label}</span>
-                  </div>
-                </button>
-              )}
-              {tool.id === "sound" && !isWorkflowPlanRestrictedTool ? (
+                    onSelectTool("voices");
+                    return;
+                  }
+                  onToggleCreateTools(false);
+                  onSelectTool(tool.id);
+                }}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label">{tool.label}</span>
+                </div>
+              </button>
+              {tool.id === "sound" ? (
                 <div className={`toolbar-create-children ${isSoundSelected ? "is-open" : ""}`}>
                   <div className="toolbar-create-spacer" aria-hidden="true" />
                   {soundChildTools.map((childTool) => {
@@ -271,6 +261,19 @@ function AiStudioToolbarComponent({
             </React.Fragment>
           );
         })}
+        {workflowPlanAccessCta ? (
+          <a
+            className="toolbar-item toolbar-item-plan-cta"
+            data-tool-id="workflow-plan"
+            href={workflowPlanAccessCta.href}
+            aria-label={workflowPlanAccessCta.ariaLabel}
+            onClick={onWorkflowPlanAccessAttempt}
+          >
+            <div className="toolbar-copy">
+              <span className="toolbar-label">{workflowPlanAccessCta.label}</span>
+            </div>
+          </a>
+        ) : null}
         <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower toolbar-libraries">
           <p className="toolbar-section-label">Libraries</p>

@@ -3,11 +3,12 @@ import {
   AI_STUDIO_WORKFLOW_PLAN_REQUIRED_CODE,
   isAiStudioPlanGatedWorkflowTool,
   resolveAiStudioWorkflowFamily,
+  resolveAiStudioWorkflowNavigationAccess,
   resolveAiStudioWorkflowPlanAccess,
 } from "../aiStudioWorkflowEntitlements";
 
 describe("aiStudioWorkflowEntitlements", () => {
-  it("blocks baseline and Starter plans from Video and Sound workflow families", () => {
+  it("blocks baseline and Starter plans from Video and Sound generation", () => {
     expect(
       resolveAiStudioWorkflowPlanAccess({
         planId: "starter",
@@ -29,6 +30,30 @@ describe("aiStudioWorkflowEntitlements", () => {
     ).toMatchObject({
       workflow: "audio",
       planId: "free",
+    });
+  });
+
+  it("allows baseline users to explore Video and Sound while keeping Starter navigation restricted", () => {
+    expect(
+      resolveAiStudioWorkflowNavigationAccess({
+        planId: "free",
+        selectedTool: "video",
+      }).allowed
+    ).toBe(true);
+    expect(
+      resolveAiStudioWorkflowNavigationAccess({
+        planId: "free",
+        selectedTool: "music",
+      }).allowed
+    ).toBe(true);
+    expect(
+      resolveAiStudioWorkflowNavigationAccess({
+        planId: "starter",
+        selectedTool: "video",
+      }).restriction
+    ).toMatchObject({
+      workflow: "video",
+      planId: "starter",
     });
   });
 

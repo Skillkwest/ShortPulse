@@ -26,7 +26,8 @@ export const AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE =
 export const AI_STUDIO_WORKFLOW_PLAN_CTA_HREF = "/pricing";
 export const AI_STUDIO_WORKFLOW_PLAN_CTA_LABEL = "View plans";
 
-const RESTRICTED_WORKFLOW_PLAN_IDS = new Set(["free", "starter"]);
+const RESTRICTED_WORKFLOW_GENERATION_PLAN_IDS = new Set(["free", "starter"]);
+const RESTRICTED_WORKFLOW_NAVIGATION_PLAN_IDS = new Set(["starter"]);
 const VIDEO_WORKFLOW_TOOL_IDS = new Set(["video", "kling"]);
 const AUDIO_WORKFLOW_TOOL_IDS = new Set([
   "sound",
@@ -73,7 +74,7 @@ export const isAiStudioPlanGatedWorkflowTool = (tool: string | null | undefined)
   resolveAiStudioWorkflowFamily({ selectedTool: tool }) != null;
 
 /**
- * Resolves whether the supplied plan may access the requested AI Studio workflow.
+ * Resolves whether the supplied plan may generate from the requested AI Studio workflow.
  */
 export const resolveAiStudioWorkflowPlanAccess = ({
   planId,
@@ -86,7 +87,39 @@ export const resolveAiStudioWorkflowPlanAccess = ({
 }): AiStudioWorkflowPlanAccess => {
   const normalizedPlanId = normalizeAiStudioWorkflowPlanId(planId);
   const workflow = resolveAiStudioWorkflowFamily({ selectedTool, mode });
-  if (!workflow || !RESTRICTED_WORKFLOW_PLAN_IDS.has(normalizedPlanId)) {
+  if (!workflow || !RESTRICTED_WORKFLOW_GENERATION_PLAN_IDS.has(normalizedPlanId)) {
+    return { allowed: true, workflow, restriction: null };
+  }
+
+  return {
+    allowed: false,
+    workflow,
+    restriction: {
+      code: AI_STUDIO_WORKFLOW_PLAN_REQUIRED_CODE,
+      workflow,
+      planId: normalizedPlanId,
+      message: AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE,
+      ctaHref: AI_STUDIO_WORKFLOW_PLAN_CTA_HREF,
+      ctaLabel: AI_STUDIO_WORKFLOW_PLAN_CTA_LABEL,
+    },
+  };
+};
+
+/**
+ * Resolves whether the supplied plan may navigate into the requested AI Studio workflow.
+ */
+export const resolveAiStudioWorkflowNavigationAccess = ({
+  planId,
+  selectedTool,
+  mode,
+}: {
+  planId?: string | null;
+  selectedTool?: string | null;
+  mode?: string | null;
+}): AiStudioWorkflowPlanAccess => {
+  const normalizedPlanId = normalizeAiStudioWorkflowPlanId(planId);
+  const workflow = resolveAiStudioWorkflowFamily({ selectedTool, mode });
+  if (!workflow || !RESTRICTED_WORKFLOW_NAVIGATION_PLAN_IDS.has(normalizedPlanId)) {
     return { allowed: true, workflow, restriction: null };
   }
 

@@ -17,6 +17,7 @@ import {
 } from "../logic/generationAccessCta";
 import {
   AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE,
+  resolveAiStudioWorkflowNavigationAccess,
   resolveAiStudioWorkflowPlanAccess,
 } from "../../../lib/billing/aiStudioWorkflowEntitlements";
 import {
@@ -253,9 +254,17 @@ const AiStudioPageRuntimeBody = ({
       }),
     [resolvedPlan, resolvedPlanStatus]
   );
-  const workflowPlanAccessCta = React.useMemo(() => {
+  const workflowGenerateAccessCta = React.useMemo(() => {
     if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
     const access = resolveAiStudioWorkflowPlanAccess({
+      planId: resolvedPlan.id,
+      mode: "video",
+    });
+    return access.allowed ? null : AI_STUDIO_PLAN_CTA;
+  }, [resolvedPlan, resolvedPlanStatus]);
+  const workflowNavigationAccessCta = React.useMemo(() => {
+    if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
+    const access = resolveAiStudioWorkflowNavigationAccess({
       planId: resolvedPlan.id,
       mode: "video",
     });
@@ -269,10 +278,10 @@ const AiStudioPageRuntimeBody = ({
     }
   }, [generationAccessCta]);
   React.useEffect(() => {
-    if (!workflowPlanAccessCta) {
+    if (!workflowGenerateAccessCta) {
       setIsWorkflowPlanNoticeVisible(false);
     }
-  }, [workflowPlanAccessCta]);
+  }, [workflowGenerateAccessCta]);
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -416,9 +425,9 @@ const AiStudioPageRuntimeBody = ({
     setUiError((current) => (resolveMediaStorageQuotaUserMessage(current) ? null : current));
   }, [generationAccessCta, setUiError]);
   const handleWorkflowPlanAccessAttempt = useCallback(() => {
-    if (!workflowPlanAccessCta) return;
+    if (!workflowGenerateAccessCta) return;
     setIsWorkflowPlanNoticeVisible(true);
-  }, [workflowPlanAccessCta]);
+  }, [workflowGenerateAccessCta]);
   const [rightRailLayout, setRightRailLayout] = useState(createDefaultRightRailLayout);
   const hydrateRightRailLayout = useCallback((layout: unknown) => {
     setRightRailLayout(sanitizeRightRailLayoutSnapshot(layout));
@@ -802,6 +811,23 @@ const AiStudioPageRuntimeBody = ({
     },
     [resolvedPlan, resolvedPlanStatus]
   );
+  const isWorkflowNavigationBlocked = useCallback(
+    ({
+      selectedTool: workflowTool,
+      mode: workflowMode,
+    }: {
+      selectedTool?: ToolId | string | null;
+      mode?: StudioMode | string | null;
+    }): boolean => {
+      if (resolvedPlanStatus !== "ready" || !resolvedPlan) return false;
+      return !resolveAiStudioWorkflowNavigationAccess({
+        planId: resolvedPlan.id,
+        selectedTool: workflowTool,
+        mode: workflowMode,
+      }).allowed;
+    },
+    [resolvedPlan, resolvedPlanStatus]
+  );
   const resolveStudioOutputWorkflowTool = useCallback(
     (output: StudioOutput): ToolId | string | null =>
       output.workflowReload?.originTool ?? output.audioSourceMode ?? null,
@@ -819,19 +845,24 @@ const AiStudioPageRuntimeBody = ({
   );
   const guardedHandleToolSelect = useCallback(
     (tool: ToolId | null) => {
-      if (isWorkflowPlanBlocked({ selectedTool: tool })) {
+      if (isWorkflowNavigationBlocked({ selectedTool: tool })) {
         handleWorkflowPlanAccessAttempt();
         return;
       }
       handleToolSelect(tool);
     },
-    [handleToolSelect, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+    [handleToolSelect, handleWorkflowPlanAccessAttempt, isWorkflowNavigationBlocked]
   );
   React.useEffect(() => {
-    if (!isWorkflowPlanBlocked({ selectedTool })) return;
+    if (!isWorkflowNavigationBlocked({ selectedTool })) return;
     handleWorkflowPlanAccessAttempt();
     handleToolSelect("create");
-  }, [handleToolSelect, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked, selectedTool]);
+  }, [
+    handleToolSelect,
+    handleWorkflowPlanAccessAttempt,
+    isWorkflowNavigationBlocked,
+    selectedTool,
+  ]);
   const guardedHandleGenerate = useCallback(
     async (...args: Parameters<typeof handleGenerate>): ReturnType<typeof handleGenerate> => {
       const options = args[1];
@@ -1007,7 +1038,7 @@ const AiStudioPageRuntimeBody = ({
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
     generationAccessCta,
-    videoGenerationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
+    videoGenerationAccessCta: workflowGenerateAccessCta ?? generationAccessCta,
     referenceImageWarning,
     handleOpenModelModal,
     handleEditPromptTextChange,
@@ -1127,7 +1158,7 @@ const AiStudioPageRuntimeBody = ({
     workflowPlanNoticeMessage: isWorkflowPlanNoticeVisible
       ? AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE
       : null,
-    workflowPlanAccessCta,
+    workflowPlanAccessCta: workflowNavigationAccessCta,
     onWorkflowPlanAccessAttempt: handleWorkflowPlanAccessAttempt,
     onDismissUiError: dismissError,
     onDismissUiNotice: dismissNotice,
@@ -1163,7 +1194,7 @@ const AiStudioPageRuntimeBody = ({
       onSongBatchCountChange: base.setMusicSongBatchCount,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
+      generationAccessCta: workflowGenerateAccessCta ?? generationAccessCta,
       composerMode: base.musicComposerMode,
       durationSeconds: base.musicDurationSeconds,
       instrumentalEnabled: base.musicInstrumentalEnabled,
@@ -1181,7 +1212,7 @@ const AiStudioPageRuntimeBody = ({
       onPromptChange: base.setSoundEffectsPromptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
+      generationAccessCta: workflowGenerateAccessCta ?? generationAccessCta,
       durationSeconds: base.soundEffectsDurationSeconds,
       loopEnabled: base.soundEffectsLoopEnabled,
       prompt: base.soundEffectsPromptDraft,
@@ -1196,7 +1227,7 @@ const AiStudioPageRuntimeBody = ({
       onVoiceScriptChange: base.setVoiceScriptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
+      generationAccessCta: workflowGenerateAccessCta ?? generationAccessCta,
       selectedVoiceId: base.voiceSelectedVoiceId ?? undefined,
       voiceChangerSource: base.voiceChangerSource,
       voicePrompt: base.voiceDesignPromptDraft,

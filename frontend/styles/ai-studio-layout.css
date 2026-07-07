@@ -2138,30 +2138,46 @@ body.ai-shell-resizing * {
 
 .toolbar-item.toolbar-item-plan-cta {
   justify-content: center;
-  min-height: var(--ai-toolbar-primary-button-min-height);
+  min-height: 40px;
   margin: var(--ai-toolbar-primary-button-margin-y) 0;
   margin-bottom: var(--ai-toolbar-primary-button-margin-bottom);
   padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
   border: 1px solid rgba(255, 162, 92, 0.72);
-  border-radius: var(--ai-toolbar-primary-button-radius);
+  border-radius: 10px;
   background:
-    radial-gradient(ellipse 76% 130% at 32% 10%, rgba(255, 255, 255, 0.28), transparent 68%),
+    radial-gradient(
+      ellipse 76% 130% at 32% 10%,
+      rgba(255, 255, 255, 0.32),
+      rgba(255, 255, 255, 0.14) 36%,
+      transparent 70%
+    ),
     linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
   color: #fff;
+  font-weight: 850;
   text-decoration: none;
   box-shadow:
-    0 0 18px rgba(255, 74, 96, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    0 0 22px rgba(255, 74, 96, 0.5),
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44);
 }
 
 .toolbar-item.toolbar-item-plan-cta:hover,
 .toolbar-item.toolbar-item-plan-cta:focus-visible {
   border-color: rgba(255, 205, 130, 0.92);
+  background:
+    radial-gradient(
+      ellipse 80% 136% at 32% 10%,
+      rgba(255, 255, 255, 0.36),
+      rgba(255, 255, 255, 0.16) 38%,
+      transparent 72%
+    ),
+    linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
   color: #fff;
   transform: translateY(-1px);
   box-shadow:
-    0 0 22px rgba(255, 74, 96, 0.58),
-    inset 0 1px 0 rgba(255, 255, 255, 0.44);
+    0 0 26px rgba(255, 74, 96, 0.68),
+    0 14px 32px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
 
 /* Sound button hover - cream canvas variant */

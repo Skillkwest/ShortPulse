@@ -45,7 +45,9 @@ export const useAiStudioPageCreditDerivations = ({
 
   const effectiveBalanceCredits = useMemo(() => {
     if (balanceCredits == null) return null;
-    return Math.max(0, balanceCredits - optimisticUncoveredDebitCredits);
+    const safeOptimisticHoldCredits =
+      optimisticUncoveredDebitCredits > balanceCredits ? 0 : optimisticUncoveredDebitCredits;
+    return Math.max(0, balanceCredits - safeOptimisticHoldCredits);
   }, [balanceCredits, optimisticUncoveredDebitCredits]);
 
   const referenceGridPreconnectOrigin = useMemo(() => {

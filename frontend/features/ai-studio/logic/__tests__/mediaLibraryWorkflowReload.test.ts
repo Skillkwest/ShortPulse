@@ -122,6 +122,43 @@ describe("mediaLibraryWorkflowReload", () => {
     expect(canReloadMediaLibraryWorkflow(createRow())).toBe(true);
   });
 
+  it("carries saved AI Studio video duration into reloadable outputs", () => {
+    const videoWorkflowReload = {
+      ...workflowReload,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: "kie-ai/seedance-2" },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 15,
+        resolution: "720p",
+        generateAudio: false,
+        cameraFixed: null,
+        autoFix: null,
+        referenceInputs: [],
+      },
+    } as const;
+
+    const output = createMediaLibraryWorkflowReloadOutput(
+      createRow({
+        filename: "glass-fox.mp4",
+        file_type: "video/mp4",
+        duration_seconds: 15,
+        metadata: {
+          workflow_reload: videoWorkflowReload,
+        },
+      })
+    );
+
+    expect(output).toMatchObject({
+      mode: "video",
+      durationMs: 15_000,
+    });
+  });
+
   it("keeps saved workflow metadata readable while default launch availability hides reload", () => {
     delete process.env[MANUAL_WORKFLOW_RELOAD_FLAG];
     const row = createRow();

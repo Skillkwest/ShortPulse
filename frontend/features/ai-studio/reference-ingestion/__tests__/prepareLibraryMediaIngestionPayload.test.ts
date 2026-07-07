@@ -279,7 +279,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     });
 
     expect(mediaFilesSelectMock).toHaveBeenCalledWith(
-      "filename, file_type, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
+      "filename, file_type, duration_seconds, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
     );
     expect(mediaFilesSelectMock).not.toHaveBeenCalledWith(
       expect.stringContaining("preview_storage_path")
@@ -297,6 +297,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
         filename: "generated.png",
         source: "ai_studio",
         source_ref: "generation-1",
+        duration_seconds: 15,
         width: 1280,
         height: 720,
         metadata: {
@@ -338,6 +339,7 @@ describe("prepareLibraryMediaIngestionPayload", () => {
     expect(result.characterContext).toEqual(characterContext);
     expect(result.styleContext).toEqual(styleContext);
     expect(result.filename).toBe("generated.png");
+    expect(result.durationMs).toBe(15_000);
     expect(result.width).toBe(1280);
     expect(result.height).toBe(720);
   });

@@ -6,11 +6,29 @@ import { describe, expect, it } from "vitest";
 
 import { registerInternalMediaRefForUrl } from "../../../logic/referenceInputInternalMediaRegistry";
 import {
+  buildPendingSubmissionOutput,
   buildSubmissionWorkflowReloadSnapshot,
   reconcileExpertEditWorkflowReloadReferences,
 } from "../outputBootstrap";
 
 describe("taskSubmission outputBootstrap", () => {
+  it("copies requested video duration onto pending video outputs", () => {
+    const output = buildPendingSubmissionOutput({
+      id: "video-output-1",
+      outputMode: "video",
+      prompt: "A slow camera move through a forest.",
+      aspect: "16:9",
+      modelLabel: "Seedance 2",
+      modelId: "kie-ai/seedance-2",
+      durationSeconds: 15,
+      submissionTraceId: "trace-1",
+      sourceRef: "source-1",
+      submissionMode: "provider-task",
+    });
+
+    expect(output.durationMs).toBe(15_000);
+  });
+
   it("carries Expert Edit slot metadata into image workflow reload payloads", () => {
     const workflowReload = buildSubmissionWorkflowReloadSnapshot({
       outputMode: "image",

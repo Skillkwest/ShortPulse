@@ -139,6 +139,20 @@ describe("MediaLibraryMediaGrid", () => {
     expect(screen.getByText("0:15")).toBeInTheDocument();
   });
 
+  it("shows a video duration badge when duration metadata is a numeric string", () => {
+    const props = baseProps();
+    props.activeMedia = [
+      {
+        ...props.activeMedia[0],
+        metadata: { duration_seconds: "12.5" },
+      },
+    ];
+
+    render(<MediaLibraryMediaGrid {...props} />);
+
+    expect(screen.getByText("0:13")).toBeInTheDocument();
+  });
+
   it("shows an audio duration badge when list-row duration seconds were mirrored into metadata", () => {
     const props = baseProps();
     props.activeMedia = [

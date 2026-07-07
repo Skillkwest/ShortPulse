@@ -336,6 +336,7 @@ export const useAiStudioTaskSubmission = ({
           aspect: effectiveAspect,
           modelLabel,
           modelId: finalModel,
+          durationSeconds: isVideoGeneration ? requestedDurationSeconds : null,
           characterContext: options?.characterContextOverride,
           styleContext: options?.styleContextOverride,
           submissionTraceId,

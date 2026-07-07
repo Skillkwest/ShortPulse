@@ -333,7 +333,7 @@ export function VideoAssetSlotsCard({
         </div>
         {shouldShowShotModeSelector ? (
           <div className="video-shot-mode-section video-elements-shot-mode-section">
-            <span className="input-label video-shot-mode-label">Structure</span>
+            <span className="input-label video-shot-mode-label">Shot Type</span>
             <div
               className={`video-shot-mode-tabs ${
                 isSeedance2FamilyModelSelected ? "video-shot-mode-tabs--compact" : ""

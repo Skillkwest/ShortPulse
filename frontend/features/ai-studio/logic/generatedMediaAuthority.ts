@@ -23,6 +23,7 @@ import {
   resolveWorkflowReloadLyricsText,
   resolveWorkflowReloadMusicMode,
 } from "./generatedMediaAudioMetadata";
+import { resolveWorkflowReloadVideoDurationMs } from "./workflowReloadDuration";
 import { hydrateGeneratedOutputErrorPayloads } from "./generatedMediaErrorPayloadHydration";
 import {
   asObject,
@@ -480,6 +481,7 @@ const toHydratedGeneratedOutput = (
   const audioSourceMode =
     resolveOutputAudioSourceMode({ modelId }) ??
     resolveWorkflowReloadAudioSourceMode(workflowReload);
+  const durationMs = resolveWorkflowReloadVideoDurationMs(workflowReload);
   const replayAspect = asTrimmedString(generationReplay?.aspect);
   const characterContext = (asObject(row.character_context) ?? undefined) as
     | StudioOutput["characterContext"]
@@ -523,6 +525,7 @@ const toHydratedGeneratedOutput = (
     companionArtStoragePath,
     companionArtStatus,
     audioSourceMode,
+    durationMs,
     previewStoragePath,
     fullStoragePath,
     mediaSource: "generated",

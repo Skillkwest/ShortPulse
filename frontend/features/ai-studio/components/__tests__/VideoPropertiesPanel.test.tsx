@@ -2145,6 +2145,8 @@ describe("VideoPropertiesPanel", () => {
 
     expect(screen.queryByTestId("reference-seedance-advanced-steps")).toBeNull();
     expect(screen.queryByTestId("reference-kling-advanced-steps")).toBeNull();
+    expect(screen.getByText("Shot Type")).toBeInTheDocument();
+    expect(screen.queryByText("Structure")).toBeNull();
     expect(screen.getByRole("tab", { name: "Single shot" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Multi-shot" })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();

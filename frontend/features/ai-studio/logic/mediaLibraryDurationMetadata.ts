@@ -5,8 +5,14 @@ const normalizeDurationMetadataCandidateMs = (
   value: unknown,
   unit: "ms" | "seconds"
 ): number | null => {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
-  const durationMs = unit === "seconds" ? value * 1000 : value;
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim().length > 0
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const durationMs = unit === "seconds" ? parsed * 1000 : parsed;
   return Math.max(1, Math.round(durationMs));
 };
 

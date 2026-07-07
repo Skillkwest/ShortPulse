@@ -17,6 +17,7 @@ import {
 } from "../shared/exclusiveSoundPlayback";
 
 const DETAIL_AUDIO_WAVEFORM_BAR_COUNT = 64;
+export const DETAIL_IMAGE_PROMOTION_TIMEOUT_MS = 30_000;
 
 const resolveDetailAudioBackgroundStyle = (
   backgroundImageUrl: string | null | undefined
@@ -122,6 +123,7 @@ type SharedMediaDetailPreviewMediaProps = {
   onImageLoad?: React.ReactEventHandler<HTMLImageElement>;
   onImageError?: React.ReactEventHandler<HTMLImageElement>;
   onImageCandidateError?: (failedUrl: string) => void;
+  onImagePromotionTimeout?: (stalledUrl: string) => void;
   onDisplayedImageUrlChange?: (displayedUrl: string | null) => void;
   onVideoLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>;
   onVideoPlay?: React.ReactEventHandler<HTMLVideoElement>;
@@ -626,6 +628,7 @@ export function SharedMediaDetailPreviewMedia({
   onImageLoad,
   onImageError,
   onImageCandidateError,
+  onImagePromotionTimeout,
   onDisplayedImageUrlChange,
   onVideoLoadedMetadata,
   onVideoPlay,
@@ -685,8 +688,18 @@ export function SharedMediaDetailPreviewMedia({
 
     let isCancelled = false;
     const image = new Image();
+    const timeoutId =
+      typeof window !== "undefined"
+        ? window.setTimeout(() => {
+            if (isCancelled) return;
+            onImagePromotionTimeout?.(mediaUrl);
+          }, DETAIL_IMAGE_PROMOTION_TIMEOUT_MS)
+        : null;
     image.onload = () => {
       if (isCancelled) return;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       setRenderedImageState({
         identityKey: normalizedImageIdentityKey,
         url: mediaUrl,
@@ -694,12 +707,18 @@ export function SharedMediaDetailPreviewMedia({
     };
     image.onerror = () => {
       if (isCancelled) return;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       onImageCandidateError?.(mediaUrl);
     };
     image.src = mediaUrl;
 
     return () => {
       isCancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       image.onload = null;
       image.onerror = null;
     };
@@ -708,6 +727,7 @@ export function SharedMediaDetailPreviewMedia({
     mediaUrl,
     normalizedImageIdentityKey,
     onImageCandidateError,
+    onImagePromotionTimeout,
     deferImagePromotion,
     renderedImageState.identityKey,
     renderedImageState.url,

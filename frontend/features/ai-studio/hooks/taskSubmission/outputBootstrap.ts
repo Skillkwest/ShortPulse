@@ -10,6 +10,7 @@ import {
 } from "../../logic/generationReplay";
 import { SEEDANCE_REFERENCE_IMAGE_LIMIT } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
+import { normalizeDurationSecondsToMs } from "../../logic/workflowReloadDuration";
 import { buildWorkflowReloadConfigV1 } from "../../logic/workflowReload";
 import type {
   GenerationReplayConfig,
@@ -32,6 +33,7 @@ type BuildPendingSubmissionOutputParams = {
   aspect: string;
   modelLabel: string;
   modelId: string;
+  durationSeconds?: number | null;
   characterContext?: StudioOutput["characterContext"];
   styleContext?: StudioOutput["styleContext"];
   submissionTraceId: string;
@@ -360,6 +362,7 @@ export const buildPendingSubmissionOutput = ({
   aspect,
   modelLabel,
   modelId,
+  durationSeconds = null,
   characterContext,
   styleContext,
   submissionTraceId,
@@ -382,6 +385,7 @@ export const buildPendingSubmissionOutput = ({
   errorDetail: null,
   mediaSource: "generated",
   previewTier: outputMode === "video" ? "preview_loop" : "full",
+  durationMs: outputMode === "video" ? normalizeDurationSecondsToMs(durationSeconds) : null,
   archivedAt: null,
   archiveReason: null,
   saveState: "idle",

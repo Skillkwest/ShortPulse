@@ -1,9 +1,10 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as mediaSignedUrlCacheModule from "../../../../lib/mediaSignedUrlCache";
 import * as supabaseClientModule from "../../../../lib/supabaseClient";
 import * as referenceDownloadModule from "../../logic/referenceDownload";
 import { DetailModal } from "../DetailModal";
+import { DETAIL_IMAGE_PROMOTION_TIMEOUT_MS } from "../detail-modal/SharedMediaDetailPreviewMedia";
 import type { StudioOutput } from "../../types";
 
 const baseOutput: StudioOutput = {
@@ -24,6 +25,14 @@ type MockImageInstance = {
   onload: (() => void) | null;
   onerror: (() => void) | null;
   src: string;
+};
+
+const flushResolvedPromises = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
 };
 
 const installDeferredImagePreloadMock = () => {
@@ -64,6 +73,11 @@ const installDeferredImagePreloadMock = () => {
 };
 
 describe("DetailModal full-quality media policy", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   it("prefers the resolved full URL for the primary image display", () => {
     const { baseElement } = render(
       <DetailModal
@@ -225,6 +239,92 @@ describe("DetailModal full-quality media policy", () => {
       supabaseSpy.mockRestore();
       downloadTargetSpy.mockRestore();
       signedUrlSpy.mockRestore();
+    }
+  });
+
+  it("refreshes canonical signed media when full-quality image promotion stalls", async () => {
+    vi.useFakeTimers();
+    const { imageInstances, restore } = installDeferredImagePreloadMock();
+    const supabaseSpy = vi
+      .spyOn(supabaseClientModule, "ensureSupabaseQueryClient")
+      .mockReturnValue({} as ReturnType<typeof supabaseClientModule.ensureSupabaseQueryClient>);
+    const downloadTargetSpy = vi
+      .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
+      .mockResolvedValue({
+        fileRecord: {
+          storagePath: "user-1/generations/images/gen-stalled/output.png",
+          filename: "output.png",
+        },
+        generationId: "gen-stalled",
+        directUrl: "https://provider.test/stale-preview.png",
+      });
+    const signedUrlSpy = vi
+      .spyOn(mediaSignedUrlCacheModule, "getSignedMediaUrl")
+      .mockResolvedValueOnce("https://signed.test/generated-stalled-output.png")
+      .mockResolvedValueOnce("https://signed.test/generated-refreshed-output.png");
+
+    try {
+      const { baseElement } = render(
+        <DetailModal
+          output={{
+            ...baseOutput,
+            mediaSource: "generated",
+            generationId: "gen-stalled",
+            previewUrl: "https://provider.test/stale-preview.png",
+            resultUrls: ["https://provider.test/stale-preview.png"],
+            previewStoragePath: "user-1/generations/images/gen-stalled/output.png",
+            fullStoragePath: "user-1/generations/images/gen-stalled/output.png",
+          }}
+          onClose={vi.fn()}
+          onUpdatePrompt={vi.fn()}
+          onDeleteOutput={vi.fn()}
+        />
+      );
+
+      await flushResolvedPromises();
+
+      expect(imageInstances.map((instance) => instance.src)).toContain(
+        "https://signed.test/generated-stalled-output.png"
+      );
+
+      expect(baseElement.querySelector(".art-hero-image")).toHaveAttribute(
+        "src",
+        "https://provider.test/stale-preview.png"
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(DETAIL_IMAGE_PROMOTION_TIMEOUT_MS);
+      });
+
+      await flushResolvedPromises();
+
+      expect(signedUrlSpy).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePath: "user-1/generations/images/gen-stalled/output.png",
+        previewProfile: "none",
+        forceRefresh: true,
+      });
+      expect(imageInstances.map((instance) => instance.src)).toContain(
+        "https://signed.test/generated-refreshed-output.png"
+      );
+
+      act(() => {
+        imageInstances
+          .filter(
+            (instance) => instance.src === "https://signed.test/generated-refreshed-output.png"
+          )
+          .at(-1)
+          ?.onload?.();
+      });
+
+      expect(baseElement.querySelector(".art-hero-image")).toHaveAttribute(
+        "src",
+        "https://signed.test/generated-refreshed-output.png"
+      );
+      expect(supabaseSpy).toHaveBeenCalled();
+      expect(downloadTargetSpy).toHaveBeenCalled();
+    } finally {
+      restore();
     }
   });
 

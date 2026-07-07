@@ -29,17 +29,21 @@ If someone leaves AI Studio and comes back, their prompt should still be there.
 
 ### 2. Make Saving Clear
 
-After saving, show:
+After saving, clearly say where the work went.
+
+If it saves to Media Library, show:
 
 ```text
 Saved to Media Library
 ```
 
-And give them:
+And give them a button:
 
 ```text
 View in Media Library
 ```
+
+If it does not save to Media Library, rename the button and show the real location.
 
 ## Do These Next
 

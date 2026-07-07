@@ -2,6 +2,14 @@
 
 Purpose: preserve Hybervees' first live attempt to open Agent Tester Reports from the production admin panel.
 
+## Superseded Note
+
+This access-status report is historical.
+
+It has been superseded by Hybervees' completed source-first SOP. Hybervees no longer needs browser access to analyze tester reports when report bodies are available through local tester artifacts, authenticated admin API data, or another admin-authorized data path.
+
+The live admin browser is still useful for deployed UI proof and manual review-state confirmation, but it is not the primary report-analysis gate.
+
 ## Metadata
 
 - Date: 2026-07-06
@@ -22,8 +30,8 @@ The visible page was the ShortPulse sign-in page, not the Agent Tester Reports a
 
 ## Analysis Boundary
 
-No tester reports were read in this attempt. Hybervees cannot infer tester insights or suggest product improvements from Admin Tester Reports until an authorized admin session is available in the browser, or until the user explicitly authorizes a local artifact fallback.
+No tester reports were read in this attempt. This only blocked the live browser-admin path. It did not block report analysis from canonical local tester artifacts, authenticated admin API data, or another admin-authorized data path.
 
 ## Next Step
 
-Sign in to the in-app browser as an authorized admin, then rerun Hybervees against `https://www.shortpulse.ai/admin/tester-reports`.
+Use the strongest available canonical report source. Use the in-app browser only when live admin UI proof or manual review-state confirmation is needed.

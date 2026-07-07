@@ -3,7 +3,11 @@
  */
 import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadMediaKindHint } from "../types";
 import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
-import { resolveMediaMetadataModelId, type MediaFileRow } from "./mediaLibraryModalModel";
+import {
+  resolveMediaFileRowDurationMs,
+  resolveMediaMetadataModelId,
+  type MediaFileRow,
+} from "./mediaLibraryModalModel";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "./generationReplay";
 import { canRerollOutput } from "./workflowReroll";
 import { canReloadWorkflowOutput, isWorkflowReloadConfigV1 } from "./workflowReload";
@@ -129,6 +133,7 @@ export const createMediaLibraryWorkflowReloadOutput = (file: MediaFileRow): Stud
     mimeType: file.file_type ?? null,
     width: file.width ?? null,
     height: file.height ?? null,
+    durationMs: resolveMediaFileRowDurationMs(file),
     mediaSource: "generated",
     saveState: "saved",
     workflowReload: config,

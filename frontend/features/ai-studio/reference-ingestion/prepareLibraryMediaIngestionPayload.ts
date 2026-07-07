@@ -12,6 +12,7 @@ import {
   resolveMediaLibraryGenerationReplayConfig,
   resolveMediaLibraryStyleContext,
 } from "../logic/mediaLibraryWorkflowReload";
+import { resolveMediaFileRowDurationMs } from "../logic/mediaLibraryModalModel";
 import { isGenerationReplayConfigV1, isGenerationReplayConfigV2 } from "../logic/generationReplay";
 import { refreshSupabaseSignedUrlIfNeeded } from "../utils/imageUpload";
 import type { ReferenceIngestionInput } from "./types";
@@ -21,6 +22,7 @@ const SIGNED_URL_TTL_SECONDS = 3600;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"];
 type MediaStoragePathRow = {
+  duration_seconds?: unknown;
   filename?: unknown;
   file_type?: unknown;
   height?: unknown;
@@ -50,6 +52,7 @@ type MediaIdFallback = {
   generationReplay: LibraryMediaPayload["generationReplay"] | null;
   characterContext: LibraryMediaPayload["characterContext"] | null;
   styleContext: LibraryMediaPayload["styleContext"] | null;
+  durationMs: number | null;
   previewStoragePath: string | null;
   previewPosterStoragePath: string | null;
   fullStoragePath: string | null;
@@ -115,6 +118,7 @@ const createEmptyMediaIdFallback = (): MediaIdFallback => ({
   generationReplay: null,
   characterContext: null,
   styleContext: null,
+  durationMs: null,
   previewStoragePath: null,
   previewPosterStoragePath: null,
   fullStoragePath: null,
@@ -210,7 +214,7 @@ const resolveStoragePathsFromMediaId = async (
     const { data, error } = (await supabase
       .from("media_files")
       .select(
-        "filename, file_type, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
+        "filename, file_type, duration_seconds, width, height, source, source_ref, metadata, storage_path, poster_variant_path, thumb_variant_path, preview_variant_path"
       )
       .eq("id", normalizedMediaId)
       .limit(1)
@@ -280,6 +284,16 @@ const resolveStoragePathsFromMediaId = async (
       generationReplay,
       characterContext,
       styleContext,
+      durationMs: data
+        ? resolveMediaFileRowDurationMs({
+            duration_seconds:
+              typeof data.duration_seconds === "number" || typeof data.duration_seconds === "string"
+                ? data.duration_seconds
+                : null,
+            file_type: typeof data.file_type === "string" ? data.file_type : "",
+            metadata,
+          })
+        : null,
       ...paths,
       width,
       height,
@@ -454,6 +468,7 @@ export const prepareLibraryMediaIngestionPayload = async (
       ? payload.characterContext
       : mediaIdFallbackPaths.characterContext,
     styleContext: hasStyleContext ? payload.styleContext : mediaIdFallbackPaths.styleContext,
+    durationMs: payload.durationMs ?? mediaIdFallbackPaths.durationMs,
     width: payload.width ?? mediaIdFallbackPaths.width,
     height: payload.height ?? mediaIdFallbackPaths.height,
   };

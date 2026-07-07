@@ -943,6 +943,10 @@ describe("generatedMediaAuthority", () => {
             version: 1,
             originTool: "video",
             panelKind: "video",
+            payload: {
+              kind: "video",
+              durationSeconds: 15,
+            },
           },
           character_context: {},
           style_context: {},
@@ -1001,6 +1005,7 @@ describe("generatedMediaAuthority", () => {
         queueState: "dispatched",
         timestamp: "Just now",
         aspect: "9:16",
+        durationMs: 15_000,
       }),
     ]);
     const projectionSelectCalls = projectionSelect.mock.calls as unknown as Array<[string]>;
@@ -2317,6 +2322,14 @@ describe("generatedMediaAuthority", () => {
       data: [],
       error: null,
     });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -2325,9 +2338,19 @@ describe("generatedMediaAuthority", () => {
             select: vi.fn(() => projectionBuilder),
           };
         }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
         if (table === "ai_generation_outputs") {
           return {
             select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
           };
         }
         throw new Error(`Unexpected table: ${table}`);

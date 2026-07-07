@@ -518,6 +518,10 @@ function DetailModalContent({
     void refreshCanonicalPreviewCandidate();
   }, [refreshCanonicalPreviewCandidate, tryAdvancePreviewCandidate]);
 
+  const handleDetailImagePromotionTimeout = useCallback(() => {
+    void refreshCanonicalPreviewCandidate();
+  }, [refreshCanonicalPreviewCandidate]);
+
   const handleDetailVideoError = useCallback(() => {
     videoPreviewPlayback.handleError();
     const advanced = tryAdvancePreviewCandidate();
@@ -1337,6 +1341,7 @@ function DetailModalContent({
                     onImageLoad={handleImageLoad}
                     onImageError={handleDetailImageError}
                     onImageCandidateError={handleDetailImageError}
+                    onImagePromotionTimeout={handleDetailImagePromotionTimeout}
                     onDisplayedImageUrlChange={handleDisplayedImageUrlChange}
                     onVideoLoadedMetadata={(event) => {
                       handlePreviewAspectLoad(

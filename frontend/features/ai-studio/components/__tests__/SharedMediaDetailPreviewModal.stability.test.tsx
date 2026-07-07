@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SharedMediaDetailItemBase } from "../detail-modal/detailModalPlatformTypes";
-import { SharedMediaDetailPreviewMedia } from "../detail-modal/SharedMediaDetailPreviewMedia";
+import {
+  DETAIL_IMAGE_PROMOTION_TIMEOUT_MS,
+  SharedMediaDetailPreviewMedia,
+} from "../detail-modal/SharedMediaDetailPreviewMedia";
 import { SharedMediaDetailPreviewModal } from "../detail-modal/SharedMediaDetailPreviewModal";
 
 type MockImageInstance = {
@@ -61,6 +64,7 @@ describe("SharedMediaDetailPreviewModal image stability", () => {
   const originalImage = globalThis.Image;
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Object.defineProperty(globalThis, "Image", {
       configurable: true,
@@ -243,6 +247,7 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
   const originalImage = globalThis.Image;
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Object.defineProperty(globalThis, "Image", {
       configurable: true,
@@ -316,6 +321,73 @@ describe("SharedMediaDetailPreviewMedia image stability", () => {
 
     expect(screen.getByAltText("Generated image")).toHaveAttribute("src", fullUrl);
     expect(onDisplayedImageUrlChange).toHaveBeenLastCalledWith(fullUrl);
+  });
+
+  it("reports a stalled promotion while keeping the current image visible", () => {
+    vi.useFakeTimers();
+    const imageInstances: MockImageInstance[] = [];
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private nextSrc = "";
+
+      get src() {
+        return this.nextSrc;
+      }
+
+      set src(value: string) {
+        this.nextSrc = value;
+        imageInstances.push(this);
+      }
+    }
+
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    const previewUrl = "https://cdn.example.com/generated-preview.jpg";
+    const fullUrl = "https://cdn.example.com/generated-full.jpg";
+    const onImagePromotionTimeout = vi.fn();
+    const { rerender } = render(
+      <SharedMediaDetailPreviewMedia
+        mediaUrl={previewUrl}
+        mediaKind="image"
+        altText="Generated image"
+        imageClassName="art-hero-image"
+        imageIdentityKey="out-1"
+        onImagePromotionTimeout={onImagePromotionTimeout}
+      />
+    );
+
+    expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
+
+    rerender(
+      <SharedMediaDetailPreviewMedia
+        mediaUrl={fullUrl}
+        mediaKind="image"
+        altText="Generated image"
+        imageClassName="art-hero-image"
+        imageIdentityKey="out-1"
+        onImagePromotionTimeout={onImagePromotionTimeout}
+      />
+    );
+
+    expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
+    expect(imageInstances.map((instance) => instance.src)).toContain(fullUrl);
+
+    act(() => {
+      vi.advanceTimersByTime(DETAIL_IMAGE_PROMOTION_TIMEOUT_MS - 1);
+    });
+    expect(onImagePromotionTimeout).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(onImagePromotionTimeout).toHaveBeenCalledWith(fullUrl);
+    expect(screen.getByAltText("Generated image")).toHaveAttribute("src", previewUrl);
   });
 
   it("keeps the current image visible when the same item temporarily has no candidate URL", () => {

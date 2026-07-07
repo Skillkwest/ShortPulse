@@ -58,6 +58,17 @@ describe("mediaLibraryModalModel audio metadata", () => {
     ).toBe(8_000);
   });
 
+  it("resolves numeric string duration metadata used by media list rows", () => {
+    expect(
+      resolveMediaFileRowDurationMs(
+        createAudioRow({
+          duration_seconds: null,
+          metadata: { duration_seconds: "12.5" },
+        })
+      )
+    ).toBe(12_500);
+  });
+
   it("resolves audio companion art from metadata fallback fields", () => {
     expect(
       resolveMediaAudioBackgroundImageUrl(

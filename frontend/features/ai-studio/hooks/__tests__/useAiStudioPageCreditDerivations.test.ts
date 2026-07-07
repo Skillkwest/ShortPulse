@@ -54,6 +54,22 @@ describe("useAiStudioPageCreditDerivations", () => {
     expect(result.current.effectiveBalanceCredits).toBe(97);
   });
 
+  it("does not double-subtract an optimistic hold from an already-captured spendable snapshot", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageCreditDerivations({
+        optimisticDebitEntries: [{ credits: 7, outputId: "out-1" }],
+        inFlightOutputIds: new Set(["out-1"]),
+        balanceReservedCents: 0,
+        balanceCredits: 1,
+        referenceGridPreconnectHintsEnabled: false,
+      })
+    );
+
+    expect(result.current.optimisticUncoveredDebitCredits).toBe(7);
+    expect(result.current.pendingHoldCredits).toBe(7);
+    expect(result.current.effectiveBalanceCredits).toBe(1);
+  });
+
   it("derives the preconnect origin only when enabled and the Supabase URL is valid", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co/storage/v1");
 

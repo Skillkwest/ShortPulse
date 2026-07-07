@@ -387,6 +387,7 @@ export function StandardCreatePropertiesPanel({
     hideChatComposerHint: true,
     agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: false,
+    agentInputVerticalExpansionAnchor: "bottom",
     hideChatModeToggle: false,
     composerLeadingContent: shouldHideCreateControlSet ? null : (
       <div className="create-composer-inline-leading-controls">

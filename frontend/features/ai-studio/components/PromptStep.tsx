@@ -80,6 +80,7 @@ export function PromptStep({
   hideChatComposerHint = false,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
+  agentInputVerticalExpansionAnchor = "top",
   autoFocusAgentInputOnMount = false,
   onAgentInputVisualRowCountChange,
   disableOutputGenerate = false,
@@ -420,6 +421,7 @@ export function PromptStep({
                 handleAgentInputKeyDown={handleAgentInputKeyDown}
                 agentInputMaxHeightPx={agentInputMaxHeightPx}
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
+                agentInputVerticalExpansionAnchor={agentInputVerticalExpansionAnchor}
                 onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
                 embedSendButtonInInput={embedSendButtonInInput}
                 handleAgentSendClick={handleAgentSendClick}

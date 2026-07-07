@@ -80,6 +80,7 @@ type StandardPromptStepChatSurfaceProps = {
   handleAgentInputKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur: boolean;
+  agentInputVerticalExpansionAnchor: "top" | "bottom";
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
@@ -144,6 +145,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   handleAgentInputKeyDown,
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur,
+  agentInputVerticalExpansionAnchor,
   onAgentInputVisualRowCountChange,
   embedSendButtonInInput,
   handleAgentSendClick,
@@ -305,6 +307,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
+        verticalExpansionAnchor={agentInputVerticalExpansionAnchor}
         disabled={agentBootstrapPending}
       />
       {composerTrailingContent ? (

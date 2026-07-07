@@ -8,7 +8,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Client route-transition failures (`client.route_change`, excluding cancelled navigations) are captured for incident triage.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin/errors` shows a simple grouped-error handoff queue backed by `app_error_logs`; raw event-stream inspection remains available through `/api/admin/error-events`. Provider-sensitive/refusal messages and expected retry/rate-limit outcomes are retained for forensics but hidden from the default admin queue.
-- Browser session-health evidence is captured through `/api/log/browser-session` into `browser_crash_sessions`; `/admin/crashes` reviews account-linked freezes, stale heartbeats, abandoned previous sessions, pressure/stall snapshots, and supplemental crash reports without mixing them into grouped app incidents. Crash rows preserve high-water pressure evidence across later heartbeat/lifecycle updates, and keep separate evidence status and operator review status so reviewed or ignored rows can leave the active queue while remaining searchable in History and All Evidence.
+- Browser session-health evidence is captured through `/api/log/browser-session` into `browser_crash_sessions`; Chrome Reporting API crash reports are advertised through `Reporting-Endpoints` and accepted at `/api/browser-crash-report` only when they correlate to an existing browser session row. `/admin/crashes` reviews account-linked freezes, stale heartbeats, abandoned previous sessions, pressure/stall snapshots, and browser-delivered crash reports without mixing them into grouped app incidents. Crash rows preserve high-water pressure evidence across later heartbeat/lifecycle updates, and keep separate evidence status and operator review status so reviewed or ignored rows can leave the active queue while remaining searchable in History and All Evidence.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
 - AI Studio low-severity client telemetry under `telemetry.ai_studio.*` is currently suppressed in the browser reporter before `/api/log/client-error` ingest so incident-budget headroom is reserved for real failures; this includes visible UI mirrors such as `ui_error_banner`, `notice_banner`, `failure_stack`, and media-library panel/modal error banners.
 - AI Studio stability telemetry under `telemetry.ai_studio.stability.*` is emitted at medium severity for crash-adjacent browser pressure signals and therefore reaches `app_error_events` while staying telemetry-only on the server.
@@ -31,6 +31,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 1. Ingestion entrypoints:
    - Browser/runtime: `POST /api/log/client-error`
    - Browser session health: `POST /api/log/browser-session`
+   - Browser-delivered crash reports: `POST /api/browser-crash-report`
    - Browser/public growth telemetry: `POST /api/telemetry/growth`
    - Server/API handlers: `logApiRouteException` / `logGenerationFailure` in `frontend/lib/server/api/appErrorLogs.ts`
 2. Normalization + storage:
@@ -38,7 +39,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - Per-occurrence raw events stored in `app_error_events` during the raw retention window
    - Daily telemetry aggregates stored in `app_error_event_telemetry_daily_rollups`
    - Deduplicated incidents stored in `app_error_logs` (open incident merge by fingerprint)
-   - Browser crash-session rows stored in `browser_crash_sessions` with service-role-only table access; the browser API accepts only allowlisted metadata and trusted server request headers for browser/host attribution. Heartbeat/lifecycle updates merge into existing session metadata so crash-adjacent pressure fields such as `max_pressure_level`, `max_heap_used_to_total_ratio`, `pressure_event_count`, and `last_pressure_snapshot_at` survive calmer later events.
+   - Browser crash-session rows stored in `browser_crash_sessions` with service-role-only table access; the authenticated browser-session API accepts only allowlisted metadata and trusted server request headers for browser/host attribution. The public Reporting API crash endpoint is body-limited, rate-limited, and may update only an existing row identified by `CrashReportContext`; it does not create anonymous rows. Heartbeat/lifecycle updates merge into existing session metadata so crash-adjacent pressure fields such as `max_pressure_level`, `max_heap_used_to_total_ratio`, `pressure_event_count`, and `last_pressure_snapshot_at` survive calmer later events.
 3. Telemetry-only source policy:
    - Sources under `telemetry.*` stay in `app_error_events` only (no grouped incident row)
    - Low-severity browser `telemetry.ai_studio.*` reports are currently dropped before ingest and therefore do not reach `app_error_events`.
@@ -50,7 +51,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
    - `/api/admin/errors` = grouped incidents for the Codex handoff queue, excluding provider-sensitive safety-success rows and expected retry/rate-limit outcomes
-   - `/api/admin/crashes` and `/admin/crashes` = browser session-health rows with derived stale-session status for likely freezes or ungraceful exits; the default Needs Review queue includes probable/confirmed crash rows and open active rows whose heartbeat is stale; `/api/admin/crashes-status` updates open/resolved/ignored review state and optional review notes
+   - `/api/admin/crashes` and `/admin/crashes` = browser session-health rows with derived stale-session status for likely freezes or ungraceful exits; the default Needs Review queue includes probable/confirmed crash rows, browser-delivered confirmed crashes, and open active rows whose heartbeat is stale; `/api/admin/crashes-status` updates open/resolved/ignored review state and optional review notes
    - `/api/admin/stats/global` = admin stats workspace payload for product + growth lenses
 
 ## AI Studio usage analytics
@@ -244,7 +245,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 - `app_error_events` raw rows are retention-managed telemetry. Do not manually delete rows during troubleshooting; preserve forensic history through the approved retention/rollup path.
 - `app_error_event_telemetry_daily_rollups` preserves aggregate telemetry counts after low/medium raw telemetry rows leave the raw retention window.
-- `browser_crash_sessions` rows are crash-session evidence, not grouped incidents. Browser process death cannot reliably send a final event, so classify likely freezes by stale authenticated heartbeats and `previous_session_abandoned` reports on the next authenticated page load. Needs Review must include stale active rows even when their stored status is still `active`. Do not manually delete rows during review; use `review_status` (`open` -> `resolved`/`ignored`, with `open` for reopen) plus `review_note` to clear handled rows from Needs Review while preserving searchable forensic history.
+- `browser_crash_sessions` rows are crash-session evidence, not grouped incidents. Browser process death cannot reliably send a final authenticated event, so classify likely freezes by stale authenticated heartbeats and `previous_session_abandoned` reports on the next authenticated page load; when Chrome can deliver a Reporting API `crash` report, `/api/browser-crash-report` promotes the existing row to `confirmed_crash`. Needs Review must include stale active rows even when their stored status is still `active`. Do not manually delete rows during review; use `review_status` (`open` -> `resolved`/`ignored`, with `open` for reopen) plus `review_note` to clear handled rows from Needs Review while preserving searchable forensic history.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
 - Admin UI focuses on copying grouped incident triage packets into Codex and resolving completed rows. Copying a row marks it in progress locally; each listed row has a `Resolve` action that updates `/api/admin/errors-status` and clears it from the default open queue. Bulk status transitions remain available through `/api/admin/errors-status-bulk` for API/tooling use.
 - Provider-sensitive/refusal generation messages and expected retry/rate-limit outcomes are retained in incident storage but excluded from `/admin/errors`; treat them as successful safety or admission handling unless a separate user-impacting failure signature appears.

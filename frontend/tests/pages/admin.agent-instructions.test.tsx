@@ -185,7 +185,6 @@ describe("Admin agent instructions page", () => {
       {
         ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
         label: "Global Prompt Director",
-        description: "Runs the single-shot image-to-video workflow.",
         systemInstructions: "Draft pulse instructions.",
       },
     ];
@@ -254,9 +253,6 @@ describe("Admin agent instructions page", () => {
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
       target: { value: "Global Prompt Director" },
     });
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Description" }), {
-      target: { value: "Runs the single-shot image-to-video workflow." },
-    });
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "System instructions" }), {
       target: { value: "Draft pulse instructions." },
     });
@@ -303,7 +299,7 @@ describe("Admin agent instructions page", () => {
     expect(payload.builtInDefinitions[0]).toMatchObject({
       presetId: "image",
       label: "Global Prompt Director",
-      description: "Runs the single-shot image-to-video workflow.",
+      description: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].description,
       systemInstructions: "Draft pulse instructions.",
       artifactTarget: "video_prompt",
       starterAssistantMessage: "Upload your image to get the process started :)",
@@ -324,6 +320,89 @@ describe("Admin agent instructions page", () => {
     expect(within(pulseCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
       "Global Prompt Director"
     );
+  }, 10_000);
+
+  it("creates a built-in Pulse from the simple authoring fields", async () => {
+    fetchWithAuthMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          if (init?.method === "PUT") {
+            const payload = JSON.parse(String(init.body)) as {
+              builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
+            };
+            return buildCatalogResponse(payload.builtInDefinitions);
+          }
+          return buildCatalogResponse();
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
+    const newSlotCard = screen.getByText("Pulse Slot 4").closest("article");
+    if (!newSlotCard) throw new Error("Expected new Pulse slot card.");
+
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+      target: { value: "Prompt Modifier" },
+    });
+    fireEvent.change(
+      within(newSlotCard).getByRole("textbox", { name: "Starter assistant message" }),
+      {
+        target: { value: "Paste the prompt you want to modify." },
+      }
+    );
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "System instructions" }), {
+      target: {
+        value: "Ask for the source prompt, then return a cleaner version.",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Pulse set" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/pulse-builtins",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
+    );
+    const payload = JSON.parse(String(saveRequest?.[1]?.body)) as {
+      builtInDefinitions: Array<Record<string, unknown>>;
+    };
+    expect(payload.builtInDefinitions[3]).toMatchObject({
+      presetId: "prompt_modifier",
+      label: "Prompt Modifier",
+      description: "Built-in guided Pulse for Prompt Modifier.",
+      starterAssistantMessage: "Paste the prompt you want to modify.",
+      systemInstructions: "Ask for the source prompt, then return a cleaner version.",
+      artifactTarget: "text_artifact",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+    });
   }, 10_000);
 
   it("edits, adds, removes, resets, and saves built-in Styles", async () => {

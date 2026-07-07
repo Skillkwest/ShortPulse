@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchBrowserCrashSessions,
+  recordBrowserCrashReports,
   recordBrowserSessionEvent,
   updateBrowserCrashSessionReviewStatus,
 } from "../browserCrashSessions";
@@ -40,9 +41,13 @@ const createSupabaseMock = (
     .mockResolvedValue({ data: selectedPreviousRow, error: null });
   const selectBuilder = {
     eq: selectEqMock,
+    order: vi.fn(),
+    limit: vi.fn(),
     maybeSingle: selectMaybeSingleMock,
   };
   selectEqMock.mockReturnValue(selectBuilder);
+  selectBuilder.order.mockReturnValue(selectBuilder);
+  selectBuilder.limit.mockReturnValue(selectBuilder);
   const selectMock = vi.fn(() => selectBuilder);
 
   const updateMock = vi.fn((payload: UpdatePayload) => {
@@ -338,6 +343,133 @@ describe("browserCrashSessions", () => {
         last_pressure_snapshot_at: "2026-07-05T12:02:00.000Z",
       },
     });
+  });
+
+  it("confirms an existing session from a browser-delivered Reporting API crash", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      route: "/ai-studio?projectId&sid",
+      metadata: {
+        pressure_level: 1,
+        pressure_event_count: 2,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    const result = await recordBrowserCrashReports({
+      payload: [
+        {
+          type: "crash",
+          age: 1250,
+          url: "https://www.shortpulse.ai/ai-studio?projectId=secret&sid=secret",
+          body: {
+            reason: "oom",
+            visibility_state: "visible",
+            is_top_level: true,
+            crash_report_api: {
+              shortpulse_browser_session_id: "current-session",
+              shortpulse_route: "/ai-studio?projectId&sid",
+              shortpulse_build_id: "build-1",
+              shortpulse_client_release: "release-1",
+              shortpulse_client_environment: "production",
+              shortpulse_pressure_level: "2",
+              shortpulse_max_input_stall_ms: "1400",
+              shortpulse_heap_used_to_total_ratio: "0.91",
+              shortpulse_heap_used_to_limit_ratio: "0.72",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      received: 1,
+      processed: 1,
+      skipped: 0,
+      sessionIds: ["current-session"],
+    });
+    expect(supabase.updatePayloads[0]).toMatchObject({
+      status: "confirmed_crash",
+      confidence: "high",
+      last_event: "crash_report",
+      route: "/ai-studio?projectId&sid",
+      build_id: "build-1",
+      client_release: "release-1",
+      client_environment: "production",
+      metadata: {
+        crash_report_source: "reporting_api",
+        crash_report_type: "crash",
+        crash_report_url_path: "/ai-studio?projectId&sid",
+        crash_report_age_ms: 1250,
+        crash_report_reason: "oom",
+        crash_report_visibility_state: "visible",
+        crash_report_is_top_level: true,
+        pressure_level: 2,
+        max_pressure_level: 2,
+        max_input_stall_ms: 1400,
+        heap_used_to_total_ratio: 0.91,
+        max_heap_used_to_total_ratio: 0.91,
+        heap_used_to_limit_ratio: 0.72,
+        max_heap_used_to_limit_ratio: 0.72,
+        pressure_event_count: 2,
+      },
+    });
+    expect(supabase.eqMock).toHaveBeenCalledWith("id", "current-row-id");
+    expect(supabase.upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("does not create rows for browser crash reports without session context", async () => {
+    const supabase = createSupabaseMock(null);
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    const result = await recordBrowserCrashReports({
+      payload: [
+        {
+          type: "crash",
+          body: {
+            reason: "unresponsive",
+          },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      received: 1,
+      processed: 0,
+      skipped: 1,
+      sessionIds: [],
+    });
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(supabase.fromMock).not.toHaveBeenCalled();
+    expect(supabase.updatePayloads).toHaveLength(0);
+    expect(supabase.upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("does not create rows for browser crash reports with unknown session ids", async () => {
+    const supabase = createSupabaseMock(null);
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    const result = await recordBrowserCrashReports({
+      payload: [
+        {
+          type: "crash",
+          body: {
+            crash_report_api: {
+              shortpulse_browser_session_id: "unknown-session",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      received: 1,
+      processed: 0,
+      skipped: 1,
+      sessionIds: [],
+    });
+    expect(supabase.updatePayloads).toHaveLength(0);
+    expect(supabase.upsertMock).not.toHaveBeenCalled();
   });
 
   it("maps the needs-review list filter to probable, confirmed, and stale active rows", async () => {

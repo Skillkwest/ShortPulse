@@ -37,6 +37,17 @@ const resolveSupabaseHost = () => {
 const isLocalHost = (hostname) =>
   hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 
+const SHORTPULSE_PRODUCTION_APP_ORIGIN = "https://www.shortpulse.ai";
+
+const resolveCrashReportEndpoint = () => {
+  const rawOrigin = process.env.APP_BASE_URL?.trim() || SHORTPULSE_PRODUCTION_APP_ORIGIN;
+  try {
+    return `${new URL(rawOrigin).origin}/api/browser-crash-report`;
+  } catch {
+    return `${SHORTPULSE_PRODUCTION_APP_ORIGIN}/api/browser-crash-report`;
+  }
+};
+
 const resolveTrustedImageHosts = () => {
   const hosts = new Set();
   const supabaseHost = resolveSupabaseHost();
@@ -116,7 +127,13 @@ const nextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaders,
+        headers: [
+          ...securityHeaders,
+          {
+            key: "Reporting-Endpoints",
+            value: `crash-reporting="${resolveCrashReportEndpoint()}"`,
+          },
+        ],
       },
     ];
   },

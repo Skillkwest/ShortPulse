@@ -51,6 +51,10 @@ declare global {
   }
 
   interface Window {
+    crashReport?: {
+      set?: (key: string, value: string) => void;
+      delete?: (key: string) => void;
+    };
     ReportingObserver?: new (
       callback: (
         reports: Array<{
@@ -107,6 +111,11 @@ const currentRoute = (): string | null => {
   return `${window.location.pathname}${window.location.search}`.slice(0, 320);
 };
 
+const redactedCurrentRoute = (): string | null => {
+  const route = currentRoute();
+  return route ? redactedPathFromUrl(route) : null;
+};
+
 const redactedPathFromUrl = (value: string | undefined): string | null => {
   if (typeof window === "undefined" || !value) return null;
   try {
@@ -116,6 +125,67 @@ const redactedPathFromUrl = (value: string | undefined): string | null => {
   } catch {
     return null;
   }
+};
+
+const writeCrashReportContextValue = (key: string, value: unknown): void => {
+  if (typeof window === "undefined" || typeof window.crashReport?.set !== "function") return;
+  const normalized =
+    typeof value === "number" || typeof value === "boolean" ? String(value) : value;
+  if (typeof normalized !== "string" || !normalized.trim()) {
+    try {
+      window.crashReport.delete?.(key);
+    } catch {
+      // CrashReportContext is diagnostic-only.
+    }
+    return;
+  }
+  try {
+    window.crashReport.set(key, normalized.trim().slice(0, 240));
+  } catch {
+    // CrashReportContext is diagnostic-only.
+  }
+};
+
+const clearCrashReportContext = (): void => {
+  if (typeof window === "undefined" || typeof window.crashReport?.delete !== "function") return;
+  for (const key of [
+    "shortpulse_browser_session_id",
+    "shortpulse_route",
+    "shortpulse_build_id",
+    "shortpulse_client_release",
+    "shortpulse_client_environment",
+    "shortpulse_pressure_level",
+    "shortpulse_max_input_stall_ms",
+    "shortpulse_long_task_p95_ms",
+    "shortpulse_heap_used_to_total_ratio",
+    "shortpulse_heap_used_to_limit_ratio",
+  ]) {
+    try {
+      window.crashReport.delete(key);
+    } catch {
+      // CrashReportContext is diagnostic-only.
+    }
+  }
+};
+
+const syncCrashReportContext = (sessionId: string, metadata: JsonObject): void => {
+  if (typeof window === "undefined") return;
+  writeCrashReportContextValue("shortpulse_browser_session_id", sessionId);
+  writeCrashReportContextValue("shortpulse_route", redactedCurrentRoute());
+  writeCrashReportContextValue("shortpulse_build_id", metadata.build_id);
+  writeCrashReportContextValue("shortpulse_client_release", metadata.client_release);
+  writeCrashReportContextValue("shortpulse_client_environment", metadata.client_environment);
+  writeCrashReportContextValue("shortpulse_pressure_level", metadata.pressure_level);
+  writeCrashReportContextValue("shortpulse_max_input_stall_ms", metadata.max_input_stall_ms);
+  writeCrashReportContextValue("shortpulse_long_task_p95_ms", metadata.long_task_p95_ms);
+  writeCrashReportContextValue(
+    "shortpulse_heap_used_to_total_ratio",
+    metadata.heap_used_to_total_ratio
+  );
+  writeCrashReportContextValue(
+    "shortpulse_heap_used_to_limit_ratio",
+    metadata.heap_used_to_limit_ratio
+  );
 };
 
 const readStoredSessionRecord = (): BrowserSessionRecord | null => {
@@ -343,6 +413,10 @@ const reportEvent = (
   } else {
     touchActiveTabRecord(activeMonitor.tabId, activeMonitor.sessionId, updatedAt);
   }
+  syncCrashReportContext(activeMonitor.sessionId, {
+    ...readRuntimeMetadata(),
+    ...metadata,
+  });
   void sendBrowserSessionEvent({
     eventType,
     sessionId: activeMonitor.sessionId,
@@ -506,6 +580,7 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
     cleanupCrashReportObserver();
     if (state.heartbeatId !== null) window.clearInterval(state.heartbeatId);
     if (state.stallProbeId !== null) window.clearInterval(state.stallProbeId);
+    clearCrashReportContext();
     if (activeMonitor === state) activeMonitor = null;
   };
   return state.cleanup;

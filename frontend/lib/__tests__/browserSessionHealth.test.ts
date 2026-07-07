@@ -28,6 +28,7 @@ describe("browserSessionHealth", () => {
     window.history.pushState({}, "", "/ai-studio?projectId=secret");
     global.fetch = vi.fn().mockResolvedValue({ ok: true }) as never;
     (window as Partial<Window>).ReportingObserver = undefined;
+    (window as Partial<Window>).crashReport = undefined;
   });
 
   it("does not send session events without a cached access token", async () => {
@@ -182,6 +183,35 @@ describe("browserSessionHealth", () => {
       })
     );
     cleanup();
+  });
+
+  it("writes redacted CrashReportContext values for browser-delivered crash reports", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    const setMock = vi.fn();
+    const deleteMock = vi.fn();
+    window.crashReport = {
+      set: setMock,
+      delete: deleteMock,
+    };
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+
+    expect(setMock).toHaveBeenCalledWith("shortpulse_browser_session_id", expect.any(String));
+    expect(setMock).toHaveBeenCalledWith("shortpulse_route", "/ai-studio?projectId");
+
+    setMock.mockClear();
+    reportBrowserSessionHealthEvent("pressure_snapshot", {
+      pressure_level: 2,
+      max_input_stall_ms: 1400,
+    });
+    await flushPromises();
+
+    expect(setMock).toHaveBeenCalledWith("shortpulse_pressure_level", "2");
+    expect(setMock).toHaveBeenCalledWith("shortpulse_max_input_stall_ms", "1400");
+
+    cleanup();
+    expect(deleteMock).toHaveBeenCalledWith("shortpulse_browser_session_id");
   });
 
   it("reports supplemental browser crash reports when ReportingObserver supports them", async () => {

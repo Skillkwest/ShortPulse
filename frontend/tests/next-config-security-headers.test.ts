@@ -83,4 +83,21 @@ describe("next.config security headers", () => {
 
     expect(contentSecurityPolicy?.value).toContain("connect-src 'self' https: wss: blob: data:");
   });
+
+  it("registers the Chrome crash Reporting API endpoint", async () => {
+    const nextConfigModule = await import("../next.config.js");
+    const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
+    const headerEntries = await nextConfig.headers();
+    const appHeaders = headerEntries.find(
+      (entry: { source: string; headers: Array<{ key: string; value: string }> }) =>
+        entry.source === "/:path*"
+    );
+    const reportingEndpoints = appHeaders?.headers.find(
+      (header: { key: string; value: string }) => header.key === "Reporting-Endpoints"
+    );
+
+    expect(reportingEndpoints?.value).toBe(
+      'crash-reporting="https://www.shortpulse.ai/api/browser-crash-report"'
+    );
+  });
 });

@@ -44,6 +44,13 @@ export type BrowserSessionEventRequest = {
   metadata?: JsonObject;
 };
 
+export type BrowserCrashReportIngestResult = {
+  received: number;
+  processed: number;
+  skipped: number;
+  sessionIds: string[];
+};
+
 export type BrowserCrashSessionListFilters = {
   page: number;
   limit: number;
@@ -65,6 +72,8 @@ const MAX_USER_AGENT_LENGTH = 500;
 const MAX_METADATA_KEYS = 48;
 const MAX_METADATA_KEY_LENGTH = 80;
 const MAX_REVIEW_NOTE_LENGTH = 400;
+const MAX_CRASH_REPORTS_PER_REQUEST = 16;
+const MAX_CRASH_REPORT_AGE_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_STALE_AFTER_MS = 10 * 60 * 1000;
 
 const BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
@@ -91,8 +100,13 @@ const ALLOWED_METADATA_KEYS = new Set([
   "connection_effective_type",
   "connection_rtt",
   "connection_save_data",
+  "crash_report_age_ms",
+  "crash_report_is_top_level",
+  "crash_report_reason",
+  "crash_report_source",
   "crash_report_type",
   "crash_report_url_path",
+  "crash_report_visibility_state",
   "device_memory",
   "device_pixel_ratio",
   "document_hidden",
@@ -224,6 +238,9 @@ const sanitizeMetadata = (value: unknown): JsonObject => {
   return output;
 };
 
+const isJsonObject = (value: unknown): value is JsonObject =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 const assignSanitizedMetadataValue = (output: JsonObject, key: string, value: unknown): void => {
   if (!ALLOWED_METADATA_KEYS.has(key)) return;
   const sanitized = sanitizeMetadataValue(value);
@@ -347,6 +364,129 @@ const resolveReviewStatus = (value: unknown): BrowserCrashSessionReviewStatus | 
 
 const resolveSessionStartedAt = (eventType: BrowserSessionEventType, occurredAt: string) =>
   eventType === "session_start" ? occurredAt : undefined;
+
+const normalizeFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const normalizeReportAgeMs = (value: unknown): number | null => {
+  const numeric = normalizeFiniteNumber(value);
+  if (numeric === null || numeric < 0 || numeric > MAX_CRASH_REPORT_AGE_MS) return null;
+  return Math.round(numeric);
+};
+
+const normalizeOccurredAtFromReport = (report: JsonObject): string => {
+  const ageMs = normalizeReportAgeMs(report.age);
+  if (ageMs === null) return new Date().toISOString();
+  return new Date(Date.now() - ageMs).toISOString();
+};
+
+const redactReportUrlPath = (value: unknown): string | null => {
+  const text = sanitizeText(value, 2000);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    const keys = Array.from(url.searchParams.keys())
+      .map((key) => sanitizeText(key, 40))
+      .filter((key): key is string => Boolean(key))
+      .slice(0, 12);
+    const route = keys.length ? `${url.pathname}?${keys.join("&")}` : url.pathname;
+    return sanitizeText(route, MAX_ROUTE_LENGTH);
+  } catch {
+    return redactRoute(text);
+  }
+};
+
+const normalizeCrashReportPayload = (payload: unknown): JsonObject[] => {
+  const reports = Array.isArray(payload)
+    ? payload
+    : isJsonObject(payload) && Array.isArray(payload.reports)
+      ? payload.reports
+      : [payload];
+  return reports.filter(isJsonObject).slice(0, MAX_CRASH_REPORTS_PER_REQUEST);
+};
+
+const readCrashReportContext = (report: JsonObject): JsonObject => {
+  const body = isJsonObject(report.body) ? report.body : {};
+  const context = body.crash_report_api;
+  return isJsonObject(context) ? context : {};
+};
+
+const readCrashReportSessionId = (report: JsonObject): string | null => {
+  const context = readCrashReportContext(report);
+  for (const key of [
+    "shortpulse_browser_session_id",
+    "shortpulse_session_id",
+    "browser_session_id",
+    "browserSessionId",
+    "session_id",
+    "sessionId",
+  ]) {
+    const sessionId = sanitizeText(context[key], MAX_SESSION_ID_LENGTH);
+    if (sessionId) return sessionId;
+  }
+  return null;
+};
+
+const normalizeCrashReportMetadata = (
+  report: JsonObject
+): { metadata: JsonObject; route: string | null } => {
+  const body = isJsonObject(report.body) ? report.body : {};
+  const context = readCrashReportContext(report);
+  const metadata: JsonObject = {
+    crash_report_source: "reporting_api",
+  };
+
+  assignSanitizedMetadataValue(metadata, "crash_report_type", report.type);
+  assignSanitizedMetadataValue(metadata, "crash_report_url_path", redactReportUrlPath(report.url));
+  assignSanitizedMetadataValue(metadata, "crash_report_age_ms", normalizeReportAgeMs(report.age));
+  assignSanitizedMetadataValue(metadata, "crash_report_reason", body.reason);
+  assignSanitizedMetadataValue(metadata, "crash_report_visibility_state", body.visibility_state);
+  assignSanitizedMetadataValue(metadata, "crash_report_is_top_level", body.is_top_level);
+
+  assignSanitizedMetadataValue(metadata, "build_id", context.shortpulse_build_id);
+  assignSanitizedMetadataValue(metadata, "client_release", context.shortpulse_client_release);
+  assignSanitizedMetadataValue(
+    metadata,
+    "client_environment",
+    context.shortpulse_client_environment
+  );
+  assignSanitizedMetadataValue(
+    metadata,
+    "pressure_level",
+    normalizeFiniteNumber(context.shortpulse_pressure_level)
+  );
+  assignSanitizedMetadataValue(
+    metadata,
+    "max_input_stall_ms",
+    normalizeFiniteNumber(context.shortpulse_max_input_stall_ms)
+  );
+  assignSanitizedMetadataValue(
+    metadata,
+    "long_task_p95_ms",
+    normalizeFiniteNumber(context.shortpulse_long_task_p95_ms)
+  );
+  assignSanitizedMetadataValue(
+    metadata,
+    "heap_used_to_total_ratio",
+    normalizeFiniteNumber(context.shortpulse_heap_used_to_total_ratio)
+  );
+  assignSanitizedMetadataValue(
+    metadata,
+    "heap_used_to_limit_ratio",
+    normalizeFiniteNumber(context.shortpulse_heap_used_to_limit_ratio)
+  );
+
+  return {
+    metadata: sanitizeMetadata(metadata),
+    route: redactRoute(context.shortpulse_route),
+  };
+};
 
 const mergeSessionEventMetadata = (params: {
   previousMetadata: unknown;
@@ -570,6 +710,88 @@ export const recordBrowserSessionEvent = async (params: {
   if (error) throw new Error(error.message);
 
   return { sessionId, previousSessionId: previousId, eventType };
+};
+
+/**
+ * Records browser-delivered Reporting API crash reports.
+ * The endpoint is unauthenticated by browser design, so it only updates an
+ * existing authenticated session row that already knows the browser session id.
+ */
+export const recordBrowserCrashReports = async (params: {
+  payload: unknown;
+}): Promise<BrowserCrashReportIngestResult> => {
+  const reports = normalizeCrashReportPayload(params.payload);
+  const result: BrowserCrashReportIngestResult = {
+    received: reports.length,
+    processed: 0,
+    skipped: 0,
+    sessionIds: [],
+  };
+  const candidates = reports.filter((report) => sanitizeText(report.type, 80) === "crash");
+  if (!candidates.length) {
+    result.skipped = reports.length;
+    return result;
+  }
+
+  let supabaseAdmin: SupabaseClient | null = null;
+  const processedSessionIds = new Set<string>();
+
+  for (const report of candidates) {
+    const sessionId = readCrashReportSessionId(report);
+    if (!sessionId) {
+      result.skipped += 1;
+      continue;
+    }
+    supabaseAdmin ??= getSupabaseAdmin();
+
+    const { data: existing, error: selectError } = await supabaseAdmin
+      .from("browser_crash_sessions")
+      .select("id, metadata, route")
+      .eq("browser_session_id", sessionId)
+      .order("last_seen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (selectError) throw new Error(selectError.message);
+    if (!existing || typeof existing.id !== "string") {
+      result.skipped += 1;
+      continue;
+    }
+
+    const occurredAt = normalizeOccurredAtFromReport(report);
+    const { metadata: incomingMetadata, route } = normalizeCrashReportMetadata(report);
+    const metadata = mergeSessionEventMetadata({
+      previousMetadata: existing.metadata,
+      metadata: incomingMetadata,
+      eventType: "crash_report",
+      occurredAt,
+    });
+    const release = resolveBuildMetadata(metadata);
+    const { error: updateError } = await supabaseAdmin
+      .from("browser_crash_sessions")
+      .update({
+        status: "confirmed_crash",
+        confidence: "high",
+        last_event: "crash_report",
+        route: route ?? (typeof existing.route === "string" ? existing.route : null),
+        build_id: release.build_id,
+        client_release: release.client_release,
+        client_environment: release.client_environment,
+        metadata,
+        last_seen_at: occurredAt,
+        ended_at: occurredAt,
+        suspected_at: occurredAt,
+        updated_at: occurredAt,
+      })
+      .eq("id", existing.id);
+    if (updateError) throw new Error(updateError.message);
+
+    result.processed += 1;
+    processedSessionIds.add(sessionId);
+  }
+
+  result.skipped += reports.length - candidates.length;
+  result.sessionIds = Array.from(processedSessionIds);
+  return result;
 };
 
 /**

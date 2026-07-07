@@ -59,6 +59,20 @@ describe("ReferenceAudioPlayer", () => {
     expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
   });
 
+  it("can defer audio metadata preload for pressure-sensitive surfaces", () => {
+    render(
+      <ReferenceAudioPlayer
+        audioId="audio-deferred-metadata"
+        audioUrl="https://signed.test/deferred-metadata.mp3"
+        preloadAudioMetadata={false}
+        playLabel="Play audio"
+        pauseLabel="Pause audio"
+      />
+    );
+
+    expect(document.querySelector("audio")?.getAttribute("preload")).toBe("none");
+  });
+
   it("can hide the duration badge without changing duration metadata", () => {
     const { rerender } = render(
       <ReferenceAudioPlayer

@@ -7,6 +7,7 @@ import {
   forgetObjectUrlBlob,
   readRememberedObjectUrlBlob,
   rememberObjectUrlBlob,
+  REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT,
   REMEMBERED_OBJECT_URL_BLOB_ENTRY_LIMIT,
 } from "../objectUrlBlobRegistry";
 
@@ -16,6 +17,8 @@ const rememberTestBlob = (url: string, blob: Blob): void => {
   rememberedUrls.add(url);
   rememberObjectUrlBlob(url, blob);
 };
+
+const makeSizedBlob = (size: number): Blob => ({ size }) as Blob;
 
 describe("objectUrlBlobRegistry", () => {
   afterEach(() => {
@@ -54,6 +57,19 @@ describe("objectUrlBlobRegistry", () => {
 
     expect(readRememberedObjectUrlBlob(firstUrl)).toBeNull();
     expect(readRememberedObjectUrlBlob(lastUrl)).toBe(lastBlob);
+  });
+
+  it("evicts the oldest remembered blob when the byte limit is exceeded", () => {
+    const firstUrl = "blob:oversized-reference-1";
+    const secondUrl = "blob:oversized-reference-2";
+    const firstBlob = makeSizedBlob(Math.floor(REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT / 2) + 1);
+    const secondBlob = makeSizedBlob(Math.floor(REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT / 2) + 1);
+
+    rememberTestBlob(firstUrl, firstBlob);
+    rememberTestBlob(secondUrl, secondBlob);
+
+    expect(readRememberedObjectUrlBlob(firstUrl)).toBeNull();
+    expect(readRememberedObjectUrlBlob(secondUrl)).toBe(secondBlob);
   });
 
   it("keeps recently read blobs ahead of older entries during pruning", () => {

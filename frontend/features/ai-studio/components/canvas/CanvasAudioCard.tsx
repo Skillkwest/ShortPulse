@@ -54,6 +54,7 @@ export function CanvasAudioCard({
           pauseLabel={`Pause ${title}`}
           onError={onMediaError}
           eagerWaveformDecode={false}
+          preloadAudioMetadata={false}
         />
       </div>
     </div>

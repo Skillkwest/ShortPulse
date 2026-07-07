@@ -3,8 +3,8 @@
  * Lets submission preflight reuse known blobs without re-fetching fragile `blob:` URLs.
  */
 
-export const REMEMBERED_OBJECT_URL_BLOB_ENTRY_LIMIT = 256;
-const REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT = 512 * 1024 * 1024;
+export const REMEMBERED_OBJECT_URL_BLOB_ENTRY_LIMIT = 128;
+export const REMEMBERED_OBJECT_URL_BLOB_BYTE_LIMIT = 192 * 1024 * 1024;
 
 type ObjectUrlBlobRegistryEntry = {
   blob: Blob;

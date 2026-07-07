@@ -6,6 +6,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreatePulsePresetPanel } from "../CreatePulsePresetPanel";
+import type { CreatePulsePresetId } from "../createPulsePresets";
 import { CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS } from "../../../../../lib/model-runtime/createPulsePresetDomain";
 
 class MockDataTransfer implements DataTransfer {
@@ -765,17 +766,21 @@ describe("CreatePulsePresetPanel", () => {
     expect(within(pulsesSurface).getByRole("button", { name: "Storyboard" })).toBeInTheDocument();
   });
 
-  it("does not show a visual active state inside the Pulses activation surface", () => {
+  it("does not show panel Pulses inside the Pulses activation surface", () => {
     render(<CreatePulsePresetPanel activePresetId="image" />);
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
-    const activePulse = within(pulsesSurface).getByRole("button", {
-      name: "Video Prompt Magic",
-    });
 
-    expect(activePulse).toHaveAttribute("aria-pressed", "true");
-    expect(activePulse.closest(".create-composer-presets-chip-item")).not.toHaveClass("is-active");
+    expect(
+      within(pulsesSurface).queryByRole("button", { name: "Video Prompt Magic" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(pulsesSurface).queryByRole("button", { name: "Multi Sequence Video Prompt" })
+    ).not.toBeInTheDocument();
+    expect(within(pulsesSurface).getByRole("status")).toHaveTextContent(
+      "All available Pulses are in the panel."
+    );
   });
 
   it("renders custom and built-in Pulses inside one catalog grid", () => {
@@ -848,21 +853,24 @@ describe("CreatePulsePresetPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps pinned rail Pulses visible inside the Pulses grid", () => {
+  it("hides pinned rail Pulses from the Pulses grid", () => {
     render(<CreatePulsePresetPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
     expect(
-      within(pulsesSurface).getByRole("button", { name: "Video Prompt Magic" })
-    ).toBeInTheDocument();
+      within(pulsesSurface).queryByRole("button", { name: "Video Prompt Magic" })
+    ).not.toBeInTheDocument();
     expect(
-      within(pulsesSurface).getByRole("button", { name: "Multi Sequence Video Prompt" })
-    ).toBeInTheDocument();
+      within(pulsesSurface).queryByRole("button", { name: "Multi Sequence Video Prompt" })
+    ).not.toBeInTheDocument();
     expect(
-      within(pulsesSurface).getByRole("button", { name: "DFY Story Builder" })
-    ).toBeInTheDocument();
+      within(pulsesSurface).queryByRole("button", { name: "DFY Story Builder" })
+    ).not.toBeInTheDocument();
+    expect(within(pulsesSurface).getByRole("status")).toHaveTextContent(
+      "All available Pulses are in the panel."
+    );
   });
 
   it("hides built-in Pulses from the catalog when the user has removed them", () => {
@@ -952,6 +960,89 @@ describe("CreatePulsePresetPanel", () => {
 
     await waitFor(() => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
+    });
+  });
+
+  it("moves a dragged Pulse from the Pulses surface into the panel only", async () => {
+    const transfer = new MockDataTransfer();
+
+    const StatefulPulsePanel = () => {
+      const [selectedPresetIds, setSelectedPresetIds] = React.useState<CreatePulsePresetId[]>([
+        "image",
+      ]);
+      return (
+        <CreatePulsePresetPanel
+          selectedPresetIds={selectedPresetIds}
+          onSelectedPresetIdsChange={(nextPresetIds) => {
+            setSelectedPresetIds(nextPresetIds);
+            return true;
+          }}
+        />
+      );
+    };
+
+    render(<StatefulPulsePanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    const panelDropzone = screen.getByLabelText("Pulse preset panel list");
+    const surfacePulse = within(pulsesSurface).getByRole("button", {
+      name: "Multi Sequence Video Prompt",
+    });
+
+    fireEvent.dragStart(surfacePulse, { dataTransfer: transfer });
+    fireEvent.dragOver(panelDropzone, { dataTransfer: transfer });
+    fireEvent.drop(panelDropzone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(
+        within(panelDropzone).getByRole("button", { name: "Multi Sequence Video Prompt preset" })
+      ).toBeInTheDocument();
+      expect(
+        within(pulsesSurface).queryByRole("button", { name: "Multi Sequence Video Prompt" })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("moves a dragged Pulse from the panel back into the Pulses surface only", async () => {
+    const transfer = new MockDataTransfer();
+
+    const StatefulPulsePanel = () => {
+      const [selectedPresetIds, setSelectedPresetIds] = React.useState<CreatePulsePresetId[]>([
+        "image",
+        "multi_shot",
+      ]);
+      return (
+        <CreatePulsePresetPanel
+          selectedPresetIds={selectedPresetIds}
+          onSelectedPresetIdsChange={(nextPresetIds) => {
+            setSelectedPresetIds(nextPresetIds);
+            return true;
+          }}
+        />
+      );
+    };
+
+    render(<StatefulPulsePanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    const panelDropzone = screen.getByLabelText("Pulse preset panel list");
+    const panelPulse = within(panelDropzone).getByRole("button", {
+      name: "Multi Sequence Video Prompt preset",
+    });
+
+    fireEvent.dragStart(panelPulse, { dataTransfer: transfer });
+    fireEvent.dragOver(pulsesSurface, { dataTransfer: transfer });
+    fireEvent.drop(pulsesSurface, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(
+        within(panelDropzone).queryByRole("button", { name: "Multi Sequence Video Prompt preset" })
+      ).not.toBeInTheDocument();
+      expect(
+        within(pulsesSurface).getByRole("button", { name: "Multi Sequence Video Prompt" })
+      ).toBeInTheDocument();
     });
   });
 

@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
+import { maybePreprocessLocalImageFileForUpload } from "../../../lib/adaptive-media";
 import type { AgentContext } from "../../ai-agent/types";
 import { publishMediaLibraryChanged } from "../../media-library/logic/mediaLibrarySyncEvents";
 import { randomId } from "../logic/ids";
@@ -92,6 +93,11 @@ const resolveUploadDestinationTabForReferenceFile = (
 const normalizeReferenceUploadFile = (file: File, index: number): File | null =>
   normalizeMediaFile(file, null, index);
 
+const prepareReferenceUploadPreviewFile = async (file: File): Promise<File> => {
+  if (!file.type.trim().toLowerCase().startsWith("image/")) return file;
+  return await maybePreprocessLocalImageFileForUpload(file);
+};
+
 const createLocalPreviewUrls = (
   file: File
 ): {
@@ -127,12 +133,14 @@ const createLocalPreviewUrls = (
 
 const buildPendingReferenceFileOutput = ({
   file,
+  previewFile = file,
   outputId,
   source,
   aspect,
   model,
 }: {
   file: File;
+  previewFile?: File;
   outputId: string;
   source: "filePicker" | "drop";
   aspect: string;
@@ -140,7 +148,7 @@ const buildPendingReferenceFileOutput = ({
 }): StudioOutput => {
   const isAudio = file.type.startsWith("audio/");
   const isVideo = !isAudio && file.type.startsWith("video/");
-  const localPreview = createLocalPreviewUrls(file);
+  const localPreview = createLocalPreviewUrls(previewFile);
   const modelLabel = model ? resolveModelLabel(model) : "Upload pending";
   return {
     id: outputId,
@@ -159,7 +167,7 @@ const buildPendingReferenceFileOutput = ({
     previewStoragePath: null,
     fullStoragePath: null,
     previewTier: "full",
-    mimeType: file.type || null,
+    mimeType: previewFile.type || file.type || null,
     mediaSource: "upload",
     localObjectUrl: localPreview.localObjectUrl,
     saveState: "saving",
@@ -715,20 +723,24 @@ export const useAiStudioReferenceIngestionActions = ({
       let importedCount = 0;
       let firstErrorMessage: string | null = null;
       const insertedResults: IngestedReferenceFileResult[] = [];
-      const pendingUploads: PendingReferenceFileUpload[] = supportedCandidates.map((candidate) => {
+      const pendingUploads: PendingReferenceFileUpload[] = [];
+      for (const candidate of supportedCandidates) {
+        const preparedFile = await prepareReferenceUploadPreviewFile(candidate.file);
         const outputId = `upload-${randomId()}`;
-        return {
+        pendingUploads.push({
           ...candidate,
+          file: preparedFile,
           outputId,
           optimisticOutput: buildPendingReferenceFileOutput({
             file: candidate.file,
+            previewFile: preparedFile,
             outputId,
             source,
             aspect,
             model,
           }),
-        };
-      });
+        });
+      }
 
       if (pendingUploads.length > 0) {
         pendingUploads.forEach((candidate) => rememberReferenceOutputId(candidate.outputId));

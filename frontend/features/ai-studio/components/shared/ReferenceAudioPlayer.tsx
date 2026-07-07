@@ -41,6 +41,7 @@ export type ReferenceAudioPlayerProps = {
   onDownload?: () => void;
   onResolveAudioUrl?: () => Promise<string | null>;
   resolveAudioUrlOnMount?: boolean;
+  preloadAudioMetadata?: boolean;
   onReady?: () => void;
   onError?: () => void;
   eagerWaveformDecode?: boolean;
@@ -67,6 +68,7 @@ export function ReferenceAudioPlayer({
   onDownload,
   onResolveAudioUrl,
   resolveAudioUrlOnMount = false,
+  preloadAudioMetadata = true,
   onReady,
   onError,
   eagerWaveformDecode = false,
@@ -711,7 +713,10 @@ export function ReferenceAudioPlayer({
         <audio
           className="reference-card-audio"
           preload={
-            resolvedAudioDurationMs != null && resolvedAudioDurationMs > 0 ? "none" : "metadata"
+            preloadAudioMetadata &&
+            (resolvedAudioDurationMs == null || resolvedAudioDurationMs <= 0)
+              ? "metadata"
+              : "none"
           }
           ref={audioNodeRef}
           src={activeAudioUrl || undefined}

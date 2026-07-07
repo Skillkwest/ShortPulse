@@ -18,6 +18,7 @@ const uploadImageAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadAudioAssetToStorageMock = vi.hoisted(() => vi.fn());
 const publishMediaLibraryChangedMock = vi.hoisted(() => vi.fn());
+const maybePreprocessLocalImageFileForUploadMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPanelApi", () => ({
   uploadMediaFile: (...args: unknown[]) => uploadMediaFileMock(...args),
@@ -31,6 +32,15 @@ vi.mock("../../../../lib/protectedRouteSessionContext", () => ({
   useResolvedProtectedSessionState: (...args: unknown[]) =>
     useResolvedProtectedSessionStateMock(...args),
 }));
+
+vi.mock("../../../../lib/adaptive-media", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../lib/adaptive-media")>();
+  return {
+    ...actual,
+    maybePreprocessLocalImageFileForUpload: (...args: unknown[]) =>
+      maybePreprocessLocalImageFileForUploadMock(...args),
+  };
+});
 
 vi.mock("../../../media-library/logic/mediaLibrarySyncEvents", () => ({
   publishMediaLibraryChanged: (...args: unknown[]) => publishMediaLibraryChangedMock(...args),
@@ -102,6 +112,7 @@ describe("useAiStudioReferenceIngestionActions", () => {
       user: { id: CURRENT_USER_ID } as never,
     });
     prepareLibraryMediaIngestionPayloadMock.mockImplementation(async (payload) => payload);
+    maybePreprocessLocalImageFileForUploadMock.mockImplementation(async (file: File) => file);
     uploadMediaFileMock.mockImplementation(async ({ file }: { file: File }) =>
       makeUploadRow({
         id: `media-${file.name}`,
@@ -126,6 +137,84 @@ describe("useAiStudioReferenceIngestionActions", () => {
       path: "user-1/reference.mp3",
       size: 789,
     });
+  });
+
+  it("uses the prepared local image file for pending upload previews", async () => {
+    let nextOutputs: StudioOutput[] = [];
+    const setOutputs = vi.fn(
+      (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => {
+        nextOutputs = typeof updater === "function" ? updater(nextOutputs) : updater;
+      }
+    );
+    const originalFile = new File(["original-heavy"], "reference.png", { type: "image/png" });
+    const preparedFile = new File(["prepared-small"], "reference.webp", { type: "image/webp" });
+    maybePreprocessLocalImageFileForUploadMock.mockResolvedValueOnce(preparedFile);
+    let resolveUpload: ((row: ReturnType<typeof makeUploadRow>) => void) | null = null;
+    uploadMediaFileMock.mockReturnValueOnce(
+      new Promise<ReturnType<typeof makeUploadRow>>((resolve) => {
+        resolveUpload = resolve;
+      })
+    );
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:prepared-reference"),
+    });
+
+    try {
+      const { result } = renderHook(() =>
+        useAiStudioReferenceIngestionActions(
+          createParams({
+            projectId: "project-1",
+            setOutputs,
+          })
+        )
+      );
+
+      let ingestPromise: Promise<unknown> | null = null;
+      act(() => {
+        ingestPromise = result.current.ingestReferenceFiles([originalFile], "drop");
+      });
+
+      await waitFor(() => {
+        expect(nextOutputs[0]).toEqual(
+          expect.objectContaining({
+            prompt: "reference.png",
+            previewUrl: "blob:prepared-reference",
+            localObjectUrl: "blob:prepared-reference",
+            mimeType: "image/webp",
+            mediaSource: "upload",
+            taskState: "pending",
+          })
+        );
+      });
+      expect(maybePreprocessLocalImageFileForUploadMock).toHaveBeenCalledWith(originalFile);
+      expect(URL.createObjectURL).toHaveBeenCalledWith(preparedFile);
+      expect(readRememberedObjectUrlBlob("blob:prepared-reference")).toBe(preparedFile);
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file: preparedFile,
+        destinationTab: "uploaded_images",
+      });
+
+      await act(async () => {
+        resolveUpload?.(
+          makeUploadRow({
+            id: "media-reference-webp",
+            filename: "reference.webp",
+            storage_path: "user-1/uploads/images/reference.webp",
+            preview_storage_path: "user-1/uploads/images/reference.webp",
+            signedUrl: "https://signed.test/reference.webp",
+          })
+        );
+        await ingestPromise!;
+      });
+    } finally {
+      forgetObjectUrlBlob("blob:prepared-reference");
+      Object.defineProperty(URL, "createObjectURL", {
+        configurable: true,
+        value: originalCreateObjectURL,
+      });
+    }
   });
 
   it("does not use the active output as default agent image context", () => {
@@ -617,17 +706,19 @@ describe("useAiStudioReferenceIngestionActions", () => {
         addPromise = result.current.addOutputsFromFiles(files, "drop");
       });
 
-      expect(nextOutputs[0]).toEqual(
-        expect.objectContaining({
-          prompt: "reference.png",
-          mediaSource: "upload",
-          taskState: "pending",
-          saveState: "saving",
-          previewUrl: "blob:local-reference",
-          localObjectUrl: "blob:local-reference",
-          timestamp: "Dropped",
-        })
-      );
+      await waitFor(() => {
+        expect(nextOutputs[0]).toEqual(
+          expect.objectContaining({
+            prompt: "reference.png",
+            mediaSource: "upload",
+            taskState: "pending",
+            saveState: "saving",
+            previewUrl: "blob:local-reference",
+            localObjectUrl: "blob:local-reference",
+            timestamp: "Dropped",
+          })
+        );
+      });
       expect(readRememberedObjectUrlBlob("blob:local-reference")).toBe(file);
       const pendingOutputId = nextOutputs[0]?.id;
       expect(pendingOutputId).toMatch(/^upload-/);
@@ -872,18 +963,20 @@ describe("useAiStudioReferenceIngestionActions", () => {
         addPromise = result.current.addOutputsFromFiles(files, "drop");
       });
 
-      expect(nextOutputs[0]).toEqual(
-        expect.objectContaining({
-          mode: "audio",
-          prompt: "reference.mp3",
-          title: "reference.mp3",
-          previewUrl: "blob:https://shortpulse.test/local-audio",
-          localObjectUrl: "blob:https://shortpulse.test/local-audio",
-          mediaSource: "upload",
-          taskState: "pending",
-          saveState: "saving",
-        })
-      );
+      await waitFor(() => {
+        expect(nextOutputs[0]).toEqual(
+          expect.objectContaining({
+            mode: "audio",
+            prompt: "reference.mp3",
+            title: "reference.mp3",
+            previewUrl: "blob:https://shortpulse.test/local-audio",
+            localObjectUrl: "blob:https://shortpulse.test/local-audio",
+            mediaSource: "upload",
+            taskState: "pending",
+            saveState: "saving",
+          })
+        );
+      });
       expect(nextOutputs[0]?.previewUrl).not.toContain("#audio=1");
       expect(readRememberedObjectUrlBlob("blob:https://shortpulse.test/local-audio")).toBe(file);
 

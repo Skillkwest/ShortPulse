@@ -57,7 +57,6 @@ export default function AdminCrashesPage() {
       pageDescription="Inspect account-linked browser freeze, crash, close, and stale-heartbeat evidence."
       userEmail={user?.email}
       currentPath="/admin/crashes"
-      hideSubNav
     >
       <AdminCrashLogsPanel
         sessions={sessions}

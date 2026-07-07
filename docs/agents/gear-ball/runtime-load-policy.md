@@ -20,6 +20,10 @@ Purpose: keep Gear Ball's active startup context lean so normal runs load only t
 - `docs/agents/gear-ball/memory.md`
 - `docs/agents/gear-ball/hot-path-checklist.md`
 
+## Normal SOP Fast Path
+
+After the always-load files, go straight to branch/status/artifact checks and the live manifest. Do not read Gear Ball artifact indexes, full ledgers, dated reports, prompt-library files, or the full worktree SOP unless the run is unusual, blocked, mixed enough to need the detail, or explicitly about Gear Ball process work.
+
 ## Load Conditionally
 
 - `docs/agents/gear-ball/CURRENT-HANDOFF.md`

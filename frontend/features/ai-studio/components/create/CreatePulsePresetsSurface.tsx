@@ -246,6 +246,11 @@ export const CreatePulsePresetsSurface = ({
             role="list"
             aria-label="Pulse catalog presets"
           >
+            {presets.length === 0 ? (
+              <p className="create-composer-presets-surface-empty" role="status">
+                All available Pulses are in the panel.
+              </p>
+            ) : null}
             {presets.map((preset) => (
               <div
                 key={preset.presetId}

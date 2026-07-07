@@ -2,7 +2,7 @@
  * Admin Crash Logs page tests.
  * Locks the authenticated admin route wiring for browser crash-session evidence.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminCrashesPage from "../../pages/admin/crashes";
@@ -121,10 +121,23 @@ describe("Admin Crash Logs page", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Crash logs" })).toBeInTheDocument();
-      expect(screen.queryByRole("link", { name: "Crash Logs" })).not.toBeInTheDocument();
       expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
       expect(screen.getByText("Probable freeze")).toBeInTheDocument();
     });
+
+    const subNav = screen.getByRole("navigation", { name: "Error management pages" });
+    expect(within(subNav).getByRole("link", { name: "Errors" })).toHaveAttribute(
+      "href",
+      "/admin/errors"
+    );
+    expect(within(subNav).getByRole("link", { name: "Crash Logs" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    expect(within(subNav).getByRole("link", { name: "Ophestivus" })).toHaveAttribute(
+      "href",
+      "/admin/kanban"
+    );
 
     expect(useAdminCrashSessionsControllerMock).toHaveBeenCalledWith({
       enabled: true,

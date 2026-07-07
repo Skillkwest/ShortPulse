@@ -19,6 +19,7 @@ const restoreSigningMocks = vi.hoisted(() => ({
 }));
 const mediaSigningMocks = vi.hoisted(() => ({
   getSignedMediaUrl: vi.fn(),
+  getSignedMediaUrlsBatch: vi.fn(),
 }));
 
 type MockDualCanvasArgs = {
@@ -42,6 +43,8 @@ vi.mock("../../../lib/clientBreadcrumbs", () => ({
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => mediaSigningMocks.getSignedMediaUrl(...args),
+  getSignedMediaUrlsBatch: (...args: unknown[]) =>
+    mediaSigningMocks.getSignedMediaUrlsBatch(...args),
 }));
 
 vi.mock("../../logic/sessionRestoreMediaSigning", () => ({
@@ -174,6 +177,15 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     mediaSigningMocks.getSignedMediaUrl.mockImplementation(
       async ({ storagePath }: { storagePath: string }) =>
         `https://signed.shortpulse.test/${storagePath}`
+    );
+    mediaSigningMocks.getSignedMediaUrlsBatch.mockImplementation(
+      async ({ storagePaths }: { storagePaths: string[] }) =>
+        new Map(
+          storagePaths.map((storagePath) => [
+            storagePath,
+            `https://signed.shortpulse.test/${storagePath}`,
+          ])
+        )
     );
     latestDualCanvasArgs = null;
     mockedRailCanvasProps = {};
@@ -1894,13 +1906,12 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     );
 
     await waitFor(() => {
-      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+      expect(mediaSigningMocks.getSignedMediaUrlsBatch).toHaveBeenCalledWith({
         bucket: "media_library",
-        storagePath: "user-1/generations/videos/storage-stable/full.mp4",
-      });
-      expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
-        bucket: "media_library",
-        storagePath: "user-1/variants/videos/storage-stable/poster.webp",
+        storagePaths: [
+          "user-1/generations/videos/storage-stable/full.mp4",
+          "user-1/variants/videos/storage-stable/poster.webp",
+        ],
       });
     });
     expect(hydrateCanvasSessionStateMock).not.toHaveBeenCalled();
@@ -2084,10 +2095,94 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
         ],
       });
     });
-    expect(mediaSigningMocks.getSignedMediaUrl).toHaveBeenCalledWith({
+    expect(mediaSigningMocks.getSignedMediaUrlsBatch).toHaveBeenCalledWith({
       bucket: "media_library",
-      storagePath: "user-1/images/storage-path-refresh.png",
+      storagePaths: ["user-1/images/storage-path-refresh.png"],
     });
+  });
+
+  it("batches restored canvas stored-path signing to avoid per-item request fanout", async () => {
+    mockedCanvasSessionState = {
+      items: [
+        {
+          id: "canvas-image-storage-path-batch-1",
+          kind: "image" as const,
+          x: 12,
+          y: 24,
+          z: 1,
+          selected: false,
+          outputId: null,
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          src: "https://expired.shortpulse.test/canvas-image-1.png",
+          srcStoragePath: "user-1/images/storage-path-batch-1.png",
+          alt: "Canvas image 1",
+          width: 320,
+          height: 180,
+        },
+        {
+          id: "canvas-video-storage-path-batch-1",
+          kind: "video" as const,
+          x: 48,
+          y: 72,
+          z: 2,
+          selected: false,
+          outputId: null,
+          sourceSurface: "curated" as const,
+          mediaId: null,
+          videoUrl: "https://expired.shortpulse.test/canvas-video.mp4",
+          videoStoragePath: "user-1/videos/storage-path-batch-1.mp4",
+          posterUrl: "https://expired.shortpulse.test/canvas-video-poster.webp",
+          posterStoragePath: "user-1/videos/storage-path-batch-1-poster.webp",
+          title: "Canvas video",
+          durationMs: null,
+          width: 320,
+          height: 180,
+        },
+      ],
+      draftTextEntry: null,
+      textEditSession: null,
+      draftOwnerInstanceId: null,
+      textEditOwnerInstanceId: null,
+      mainCamera: { x: 0, y: 0, zoom: 1 },
+      railCamera: { x: 0, y: 0, zoom: 1 },
+    };
+
+    renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: () => null,
+        getOutputSnapshot: () => createOutputSnapshot(),
+      })
+    );
+
+    await waitFor(() => {
+      expect(mediaSigningMocks.getSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
+      expect(mediaSigningMocks.getSignedMediaUrlsBatch).toHaveBeenCalledWith({
+        bucket: "media_library",
+        storagePaths: [
+          "user-1/images/storage-path-batch-1.png",
+          "user-1/videos/storage-path-batch-1.mp4",
+          "user-1/videos/storage-path-batch-1-poster.webp",
+        ],
+      });
+      expect(hydrateCanvasSessionStateMock).toHaveBeenCalledWith({
+        ...mockedCanvasSessionState,
+        items: [
+          expect.objectContaining({
+            id: "canvas-image-storage-path-batch-1",
+            src: "https://signed.shortpulse.test/user-1/images/storage-path-batch-1.png",
+          }),
+          expect.objectContaining({
+            id: "canvas-video-storage-path-batch-1",
+            videoUrl: "https://signed.shortpulse.test/user-1/videos/storage-path-batch-1.mp4",
+            posterUrl:
+              "https://signed.shortpulse.test/user-1/videos/storage-path-batch-1-poster.webp",
+          }),
+        ],
+      });
+    });
+    expect(mediaSigningMocks.getSignedMediaUrl).not.toHaveBeenCalled();
   });
 
   it("retries failed canvas image renders through fresh output media authority", async () => {

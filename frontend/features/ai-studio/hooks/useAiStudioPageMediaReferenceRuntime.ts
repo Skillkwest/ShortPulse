@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, type DragEvent } from "react";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { useAiStudioDualCanvasWorkspaceState } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
   CanvasDropResolution,
@@ -1823,18 +1823,13 @@ export const useAiStudioPageMediaReferenceRuntime = ({
     if (missingStoragePaths.length === 0) return;
 
     let cancelled = false;
-    void Promise.all(
-      missingStoragePaths.map(async (storagePath) => {
-        const signedUrl = await getSignedMediaUrl({
-          bucket: CANVAS_MEDIA_LIBRARY_BUCKET,
-          storagePath,
-        });
-        return { storagePath, signedUrl };
-      })
-    )
-      .then((entries) => {
+    void getSignedMediaUrlsBatch({
+      bucket: CANVAS_MEDIA_LIBRARY_BUCKET,
+      storagePaths: missingStoragePaths,
+    })
+      .then((signedUrlsByStoragePath) => {
         if (cancelled) return;
-        entries.forEach(({ storagePath, signedUrl }) => {
+        signedUrlsByStoragePath.forEach((signedUrl, storagePath) => {
           if (signedUrl) {
             canvasStoredMediaUrlCacheRef.current.set(storagePath, signedUrl);
           }

@@ -19,7 +19,7 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
   });
 
-  it("shows custom ownership text and ShortPulse favicon markers for built-in pulse tiles", () => {
+  it("hides custom ownership pills while keeping ShortPulse favicon markers for built-in pulse tiles", () => {
     render(
       <PulsePresetsLibraryPanel
         savedPresets={[
@@ -36,7 +36,7 @@ describe("PulsePresetsLibraryPanel", () => {
       />
     );
 
-    expect(screen.getByText("Custom")).toBeInTheDocument();
+    expect(screen.queryByText("Custom")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Built-in Pulse").length).toBeGreaterThan(0);
     expect(
       screen.getAllByRole("img", { name: "Built-in Pulse" })[0]?.querySelector("img")

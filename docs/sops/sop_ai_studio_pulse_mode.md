@@ -98,6 +98,10 @@ behave like guided workflow tools.
 ### 2. Activating a Pulse
 
 - The user clicks a pinned Pulse in the left rail, or clicks a Pulse in `More Pulses`.
+- `More Pulses` shows only Pulses that are not already pinned in the left rail.
+- Dragging a Pulse from `More Pulses` into the left rail pins it and removes it
+  from `More Pulses`; dragging a pinned rail Pulse back into `More Pulses`
+  unpins it and returns it to that catalog.
 - The clicked Pulse becomes the active Pulse.
 - A fresh Pulse session instance is created.
 - Any prior active Pulse workflow session is discarded only after the new Pulse

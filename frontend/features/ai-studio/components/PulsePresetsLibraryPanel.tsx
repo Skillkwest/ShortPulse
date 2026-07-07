@@ -297,9 +297,6 @@ export function PulsePresetsLibraryPanel({
                         ) : null}
                         <span className="pulse-presets-library-tile-title">{preset.label}</span>
                       </span>
-                      {preset.isCustom ? (
-                        <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
-                      ) : null}
                     </span>
                     <span className="pulse-presets-library-tile-prompt">
                       {preset.description?.trim() || ""}

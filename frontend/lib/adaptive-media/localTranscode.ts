@@ -61,6 +61,30 @@ const createCanvasContext = (
   return { canvas, context };
 };
 
+const releaseCanvasBackingStore = (canvas: HTMLCanvasElement): void => {
+  canvas.width = 0;
+  canvas.height = 0;
+};
+
+const yieldToBrowserTask = async (): Promise<void> => {
+  const maybeScheduler = (
+    globalThis as typeof globalThis & {
+      scheduler?: { yield?: () => Promise<void> };
+    }
+  ).scheduler;
+  if (typeof maybeScheduler?.yield === "function") {
+    try {
+      await maybeScheduler.yield();
+      return;
+    } catch {
+      // Fall through to a timer yield when Scheduler API yielding is unavailable.
+    }
+  }
+  await new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, 0);
+  });
+};
+
 type ResolvedLocalImageSource = {
   source: CanvasImageSource;
   width: number;
@@ -145,8 +169,12 @@ const encodeResizedImageBlob = async ({
   const width = Math.max(1, Math.round(sourceWidth * scale));
   const height = Math.max(1, Math.round(sourceHeight * scale));
   const { canvas, context } = createCanvasContext(width, height);
-  context.drawImage(source, 0, 0, width, height);
-  return await canvasToBlob(canvas, mimeType, quality);
+  try {
+    context.drawImage(source, 0, 0, width, height);
+    return await canvasToBlob(canvas, mimeType, quality);
+  } finally {
+    releaseCanvasBackingStore(canvas);
+  }
 };
 
 export const shouldTranscodeLocalAdaptiveImage = ({
@@ -194,9 +222,14 @@ export const transcodeLocalImageToObjectUrl = async ({
     const { canvas, context } = createCanvasContext(width, height);
     context.drawImage(image, 0, 0, width, height);
 
-    const blob =
-      (await canvasToBlob(canvas, "image/webp", decision.localTranscodeQuality)) ??
-      (await canvasToBlob(canvas, "image/jpeg", decision.localTranscodeQuality));
+    let blob: Blob | null = null;
+    try {
+      blob =
+        (await canvasToBlob(canvas, "image/webp", decision.localTranscodeQuality)) ??
+        (await canvasToBlob(canvas, "image/jpeg", decision.localTranscodeQuality));
+    } finally {
+      releaseCanvasBackingStore(canvas);
+    }
     if (!blob) return null;
     return URL.createObjectURL(blob);
   } catch {
@@ -231,13 +264,29 @@ export const maybeTranscodeLocalImageBlobForUpload = async (blob: Blob): Promise
       initialTargetLongEdge,
       ...LOCAL_IMAGE_UPLOAD_LONG_EDGE_STEPS.filter((edge) => edge < initialTargetLongEdge),
     ];
+    let encodeAttemptCount = 0;
+    const encodeUploadCandidateBlob = async (args: {
+      targetLongEdge: number;
+      quality: number;
+      mimeType: string;
+    }): Promise<Blob | null> => {
+      if (encodeAttemptCount > 0) {
+        await yieldToBrowserTask();
+      }
+      encodeAttemptCount += 1;
+      return await encodeResizedImageBlob({
+        source: resolvedSource.source,
+        sourceWidth: resolvedSource.width,
+        sourceHeight: resolvedSource.height,
+        targetLongEdge: args.targetLongEdge,
+        quality: args.quality,
+        mimeType: args.mimeType,
+      });
+    };
 
     for (const targetLongEdge of targetLongEdges) {
       for (const quality of LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS) {
-        const webpBlob = await encodeResizedImageBlob({
-          source: resolvedSource.source,
-          sourceWidth: resolvedSource.width,
-          sourceHeight: resolvedSource.height,
+        const webpBlob = await encodeUploadCandidateBlob({
           targetLongEdge,
           quality,
           mimeType: "image/webp",
@@ -250,10 +299,7 @@ export const maybeTranscodeLocalImageBlobForUpload = async (blob: Blob): Promise
 
     for (const targetLongEdge of targetLongEdges) {
       for (const quality of LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS) {
-        const jpegBlob = await encodeResizedImageBlob({
-          source: resolvedSource.source,
-          sourceWidth: resolvedSource.width,
-          sourceHeight: resolvedSource.height,
+        const jpegBlob = await encodeUploadCandidateBlob({
           targetLongEdge,
           quality,
           mimeType: "image/jpeg",

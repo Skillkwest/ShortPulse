@@ -10,6 +10,9 @@ import {
 
 const originalCreateImageBitmap = globalThis.createImageBitmap;
 const originalCreateElement = document.createElement.bind(document);
+const originalScheduler = (
+  globalThis as typeof globalThis & { scheduler?: { yield?: () => Promise<void> } }
+).scheduler;
 
 describe("localTranscode upload preprocessing", () => {
   beforeEach(() => {
@@ -26,6 +29,16 @@ describe("localTranscode upload preprocessing", () => {
           createImageBitmap?: typeof createImageBitmap;
         },
         "createImageBitmap"
+      );
+    }
+    if (originalScheduler) {
+      (
+        globalThis as typeof globalThis & { scheduler?: { yield?: () => Promise<void> } }
+      ).scheduler = originalScheduler;
+    } else {
+      Reflect.deleteProperty(
+        globalThis as typeof globalThis & { scheduler?: { yield?: () => Promise<void> } },
+        "scheduler"
       );
     }
   });
@@ -120,6 +133,54 @@ describe("localTranscode upload preprocessing", () => {
     expect(toBlob).toHaveBeenNthCalledWith(1, expect.any(Function), "image/webp", 0.88);
     expect(toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/webp", 0.76);
     expect(drawImage).toHaveBeenCalledTimes(2);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("yields between repeated upload transcode attempts and releases temporary canvases", async () => {
+    const schedulerYield = vi.fn(async () => undefined);
+    (globalThis as typeof globalThis & { scheduler?: { yield?: () => Promise<void> } }).scheduler =
+      { yield: schedulerYield };
+    const close = vi.fn();
+    const bitmap = {
+      width: 4096,
+      height: 4096,
+      close,
+    } as unknown as ImageBitmap;
+    globalThis.createImageBitmap = vi.fn(async () => bitmap) as typeof createImageBitmap;
+
+    const encodedSizes = [24 * 1024 * 1024, 2 * 1024 * 1024];
+    const drawImage = vi.fn();
+    const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
+      const size = encodedSizes.shift() ?? 1024;
+      callback(new Blob([new Uint8Array(size)], { type: type ?? "image/webp" }));
+    });
+    const canvases: HTMLCanvasElement[] = [];
+    const fakeContext = {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: "low",
+      drawImage,
+    } as unknown as CanvasRenderingContext2D;
+
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string) => {
+      if (tagName !== "canvas") return originalCreateElement(tagName);
+      const fakeCanvas = {
+        width: 0,
+        height: 0,
+        getContext: vi.fn(() => fakeContext),
+        toBlob,
+      } as unknown as HTMLCanvasElement;
+      canvases.push(fakeCanvas);
+      return fakeCanvas;
+    }) as typeof document.createElement);
+
+    const sourceBlob = new Blob([new Uint8Array(30 * 1024 * 1024)], { type: "image/png" });
+    const result = await maybeTranscodeLocalImageBlobForUpload(sourceBlob);
+
+    expect(result).not.toBe(sourceBlob);
+    expect(result.size).toBe(2 * 1024 * 1024);
+    expect(schedulerYield).toHaveBeenCalledTimes(1);
+    expect(canvases).toHaveLength(2);
+    expect(canvases.every((canvas) => canvas.width === 0 && canvas.height === 0)).toBe(true);
     expect(close).toHaveBeenCalledTimes(1);
   });
 

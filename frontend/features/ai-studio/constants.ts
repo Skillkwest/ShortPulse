@@ -144,7 +144,7 @@ export const librariesToolList: ToolConfig[] = [
   { id: "elements", label: "Elements", desc: "Create and manage reusable scene elements" },
   {
     id: "presets",
-    label: "Presets",
+    label: "Pulses & Presets",
     desc: "Browse the Pulse Catalog and Prompt Presets",
   },
   { id: "styles", label: "Styles", desc: "Browse reusable styles" },

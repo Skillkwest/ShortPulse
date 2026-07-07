@@ -91,7 +91,7 @@ export function CreatePulsePresetPanel({
   );
   const [isPulseLibraryOpen, setIsPulseLibraryOpen] = React.useState(false);
   const {
-    catalogPresets,
+    availableCatalogPresets,
     hasSelectedPresetIds,
     isMorePresetsSurfaceOpen,
     savedPresets: resolvedSavedPresets,
@@ -342,7 +342,7 @@ export function CreatePulsePresetPanel({
             <CreatePulsePresetsSurface
               id={morePresetsSurfaceId}
               isOpen={isMorePresetsSurfaceOpen}
-              presets={catalogPresets}
+              presets={availableCatalogPresets}
               activePresetId={activePresetId ?? null}
               selectedPresetIds={resolvedSelectedPresetIds}
               onClose={closeMorePresetsSurface}

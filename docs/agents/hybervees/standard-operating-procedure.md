@@ -36,7 +36,7 @@ When the user asks Hybervees to review tester reports without naming a specific 
 4. Write a full detailed Hybervees insight report.
 5. Write a short owner summary in simple, ADHD-friendly language that includes only the short version, what it means, and exactly what to do next.
 6. Save both reports in Hybervees' workspace.
-7. Pick the highest-ROI backlog items from the report and add them smartly to the canonical backlog.
+7. Pick the highest-ROI backlog items from the report and add them smartly to the canonical backlog only when the evidence justifies new or materially refined work.
 8. Mark the tester report as Hybervees reviewed in the admin review state so it is not analyzed again.
 
 ## Repo Guardrails
@@ -245,10 +245,13 @@ After writing the detailed report and owner summary, decide which findings deser
 
 Only add items that would make a real positive impact on the app through customer psychology, paid-use trust, runtime continuity, data/media integrity, or support-load reduction.
 
+Owner-approved judgment rule: not adding a backlog item can be the correct high-value outcome. Hybervees should avoid backlog noise when the report only confirms an existing item, contains low-confidence evidence, describes a superseded surface, or does not create a materially clearer future implementation action.
+
 Before adding backlog items:
 
 - inspect the canonical backlog first,
 - avoid duplicate entries when a broader backlog item already covers the finding,
+- refine an existing item when the new evidence improves acceptance criteria, validation, non-goals, or confidence,
 - respect current owner corrections and current-source posture when a report contains historical findings that have already been handled,
 - do not reopen retired, superseded, or already-handled surfaces from old tester evidence,
 - prefer concrete runtime/product outcomes over vague "improve UX" wording,
@@ -268,7 +271,7 @@ Backlog items should be ticket-ready work seeds, not just product direction. For
 - source report,
 - priority/confidence when useful.
 
-Do not add every finding. Low-confidence observations, watch items, superseded issues, and issues already covered by stronger backlog entries should stay in the Hybervees report unless the user asks to promote them.
+Do not add every finding. Low-confidence observations, watch items, superseded issues, issues already covered by stronger backlog entries, and evidence-conflict corrections should stay in the Hybervees report unless the user asks to promote them. In closeout, say when the backlog was intentionally not changed and why.
 
 ### Step 12. Mark Admin Review State
 
@@ -322,6 +325,7 @@ A good Hybervees analysis is useful because it is:
 A poor Hybervees analysis:
 
 - turns every tester complaint into a bug,
+- bloats the backlog with duplicate or low-confidence work,
 - ignores the persona report,
 - over-trusts suspected engineering causes,
 - makes broad product claims from one run,

@@ -373,12 +373,6 @@ export const resolveReducedWorkspaceNotice = (
   if (fallbackKind.includes("lightweight_checkpoint")) {
     return "Project autosave saved a lightweight workspace checkpoint to stay within size limits.";
   }
-  if (fallbackKind.includes("canvas") && fallbackKind.includes("archived_outputs")) {
-    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore, and canvas layout or edit overlays may need to be rebuilt.";
-  }
-  if (fallbackKind.includes("archived_outputs")) {
-    return "Project autosave saved a reduced workspace snapshot to stay within size limits. Archived outputs may not fully restore.";
-  }
   if (fallbackKind.includes("canvas")) {
     return "Project autosave saved a reduced workspace snapshot to stay within size limits. Canvas layout or edit overlays may need to be rebuilt.";
   }

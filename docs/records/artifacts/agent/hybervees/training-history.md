@@ -338,3 +338,92 @@ SOP or template updates:
 - Added `scripts/hybervees/next-report.mjs`, `scripts/hybervees/mark-reviewed.mjs`, and `scripts/hybervees/output-check.mjs`.
 - Added npm aliases: `hybervees:next-report`, `hybervees:mark-reviewed`, and `hybervees:output-check`.
 - Updated Hybervees workspace README, tooling roadmap, SOP, and memory to use the helper scripts during future `run sop` work.
+
+### 2026-07-07 - Third `run sop` Review Preserved Evidence Conflict Instead Of Overclaiming
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- The helper script correctly selected `2026-07-05-second-image-variant` as the next unreviewed report.
+- Hybervees must inspect screenshots, not only read report prose. In this run, the written report claimed prompt detail was blank, but retained screenshots showed prompt text, creating an evidence conflict.
+- When report prose and evidence conflict, Hybervees should preserve the conflict, lower confidence, and avoid promoting a stronger product defect than the evidence supports.
+- Preventing a bad backlog item is real value.
+- Positive signals deserve preservation too: this run showed visible cost, exact debit, successful save, and findability.
+
+Outcome:
+
+- Reviewed `2026-07-05-second-image-variant`.
+- Saved a detailed insight report and short owner summary.
+- Did not add a new backlog item because the existing generated-media context recovery item already covers the useful next action.
+- Updated the insight ledger and product-decision log to distinguish proven paid-loop reliability from unproven prompt-detail failure.
+
+### 2026-07-07 - Fourth `run sop` Review Reconfirmed Evidence-First Analysis
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- The helper script correctly selected `2026-07-06-find-both-assets-later` as the next unreviewed report.
+- Hybervees again found that report prose and screenshot labels claimed blank prompt detail, while retained screenshots visibly showed prompt text for both generated images.
+- Repeated evidence conflict changes the product interpretation: the high-ROI work is prompt discovery, empty-state semantics, and inspection affordance clarity unless live production proves prompt data loss.
+- Positive return-session evidence matters. ShortPulse restored the project, preserved the credit balance, showed two Media Library items, and matched Reference Grid `Media: 2/500`.
+- Hybervees should treat screenshot inspection as mandatory before backlog promotion when tester prose describes a visible UI defect.
+
+Outcome:
+
+- Reviewed `2026-07-06-find-both-assets-later`.
+- Saved a detailed insight report and short owner summary.
+- Refined the existing generated-media context recovery backlog item instead of adding a duplicate.
+- Updated the insight ledger and product-decision log with saved-work recovery proof and the repeated report/evidence mismatch pattern.
+
+### 2026-07-07 - Owner Praise For Backlog Restraint
+
+Prompt used:
+
+> I like that you did not add a backlog item when there really wasnt anything to add. continue to be smart this way. i dont want to make a mess in the backlog and add noise. log my praise and approval of your action in the training data and update your workspace with the insights you can glean
+
+Behavior reinforced:
+
+- The owner explicitly approved Hybervees' choice not to add a backlog item when the evidence did not justify new work.
+- Hybervees should continue treating backlog restraint as a high-value product judgment, not as a failure to act.
+- Avoiding duplicate, low-confidence, stale, or weak backlog items protects the owner's planning surface and reduces future cognitive load.
+- When a report confirms an existing backlog item, Hybervees should refine that item only if the new evidence materially improves acceptance criteria, validation, confidence, or non-goals.
+- When no backlog change is warranted, Hybervees should say so clearly in closeout and explain the reason.
+
+Inferred reason:
+
+- The owner wants Hybervees to act like a product-insight filter, not a backlog expansion machine.
+- A clean backlog is more useful than a comprehensive backlog when the solo owner needs to choose real work.
+- Hybervees should optimize for decision quality, evidence strength, and implementation clarity over the appearance of activity.
+
+SOP or template updates:
+
+- Updated the Hybervees SOP backlog step with an owner-approved judgment rule for not adding backlog items.
+- Updated the value-add scorecard so preventing backlog clutter can score as strong backlog quality.
+- Updated the output quality gate with explicit no-add reasons.
+- Added `docs/agents/hybervees/workspace/backlog-restraint-principle.md` and linked it from the workspace README.
+
+### 2026-07-07 - Fifth `run sop` Review Added One Focused Credit-Usage Backlog Item
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- Backlog restraint does not mean avoiding all new backlog work. It means adding new work only when the report creates a materially clearer, ticket-ready implementation action.
+- `2026-07-06-credits-renewal-confidence` had enough evidence for one focused backlog item because it exposed a specific customer-visible gap: generation credit debits are not self-serve auditable from the Credits surface.
+- Broad deferred credit-education notes should not swallow sharper runtime/accountability findings when a tester report identifies exact surface, customer impact, acceptance criteria, and validation.
+- Positive evidence should be preserved as non-regression criteria: balance, renewal date, incoming credits, top-up cards, and payment history clarity were working.
+
+Outcome:
+
+- Reviewed `2026-07-06-credits-renewal-confidence`.
+- Saved a detailed insight report and short owner summary.
+- Added one Program 1 backlog item for customer-visible generation credit usage history.
+- Updated the insight ledger and product-decision log with the credit-auditability decision.

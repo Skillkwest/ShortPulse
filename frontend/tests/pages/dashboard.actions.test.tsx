@@ -462,6 +462,20 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=subscription"
     );
+    expect(within(footer).getByRole("link", { name: "Customer Support" })).toHaveAttribute(
+      "href",
+      "mailto:service@shortpulse.co"
+    );
+    expect(within(footer).getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
+      "href",
+      "/terms"
+    );
+    const footerLinkLabels = within(footer)
+      .getAllByRole("link")
+      .map((link) => link.textContent?.trim() ?? "");
+    expect(footerLinkLabels.indexOf("Customer Support")).toBeLessThan(
+      footerLinkLabels.indexOf("Terms of Service")
+    );
     expect(within(footer).queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
     expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
       "href",
@@ -536,9 +550,19 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=transactions"
     );
+    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toHaveAttribute(
+      "href",
+      "mailto:service@shortpulse.co"
+    );
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(
       "href",
       "/report-issue?from=%2Fdashboard"
+    );
+    const menuItemLabels = within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent?.trim() ?? "");
+    expect(menuItemLabels.indexOf("Customer Support")).toBeLessThan(
+      menuItemLabels.indexOf("Report an issue")
     );
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
   });

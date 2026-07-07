@@ -274,8 +274,6 @@ export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessio
 export type AiStudioProjectWorkspaceAutosaveCandidateKind =
   | "full"
   | "without_canvas"
-  | "without_archived_outputs"
-  | "without_canvas_and_archived_outputs"
   | "lightweight_checkpoint"
   | "without_canvas_lightweight_checkpoint";
 export type AiStudioProjectWorkspaceAutosaveCandidate = {
@@ -1123,29 +1121,6 @@ const rebuildV2SnapshotMeta = (
   },
 });
 
-const stripArchivedOutputsFromSnapshot = (
-  snapshot: AiStudioSessionSnapshot
-): AiStudioSessionSnapshot => {
-  const archivedOutputs: AiStudioSessionOutputV1[] = [];
-  const nextOutputs = {
-    ...snapshot.outputs,
-    archived: archivedOutputs,
-    removedFromAllRefsIds: [],
-  };
-  if (snapshot.schemaVersion === 1) {
-    return {
-      ...snapshot,
-      outputs: nextOutputs,
-    };
-  }
-  const { meta, ...baseSnapshot } = snapshot as AiStudioSessionSnapshotV2;
-  void meta;
-  return rebuildV2SnapshotMeta({
-    ...(baseSnapshot as Omit<AiStudioSessionSnapshotV2, "meta">),
-    outputs: nextOutputs,
-  });
-};
-
 const stripCanvasFromSnapshot = (
   snapshot: AiStudioSessionSnapshotV2
 ): AiStudioSessionSnapshotV2 => {
@@ -1203,20 +1178,6 @@ export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
     if (shouldYieldCandidate(withoutCanvasCandidate)) {
       yield withoutCanvasCandidate;
     }
-    const withoutArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
-      kind: "without_archived_outputs",
-      snapshot: stripArchivedOutputsFromSnapshot(v2Snapshot),
-    };
-    if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
-      yield withoutArchivedOutputsCandidate;
-    }
-    const withoutCanvasAndArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
-      kind: "without_canvas_and_archived_outputs",
-      snapshot: stripArchivedOutputsFromSnapshot(withoutCanvas),
-    };
-    if (shouldYieldCandidate(withoutCanvasAndArchivedOutputsCandidate)) {
-      yield withoutCanvasAndArchivedOutputsCandidate;
-    }
     if (!snapshotNeedsLightweightAutosaveCheckpoint(v2Snapshot)) {
       return;
     }
@@ -1235,14 +1196,6 @@ export function* iterateAiStudioProjectWorkspaceAutosaveCandidates(
       yield withoutCanvasLightweightCheckpointCandidate;
     }
     return;
-  }
-
-  const withoutArchivedOutputsCandidate: AiStudioProjectWorkspaceAutosaveCandidate = {
-    kind: "without_archived_outputs",
-    snapshot: stripArchivedOutputsFromSnapshot(snapshot),
-  };
-  if (shouldYieldCandidate(withoutArchivedOutputsCandidate)) {
-    yield withoutArchivedOutputsCandidate;
   }
   if (!snapshotNeedsLightweightAutosaveCheckpoint(snapshot)) {
     return;

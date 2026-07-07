@@ -1305,9 +1305,9 @@ export function useAiStudioPerfAuditRuntime({
     }): Promise<ProjectRestoreScenario> => {
       if (!hydrateFromSessionSnapshot) {
         return {
-          totalCount,
+          totalCount: activeCount,
           activeCount,
-          archivedCount: Math.max(0, totalCount - activeCount),
+          archivedCount: 0,
           hydrate: { durationMs: null },
           settle: { durationMs: null },
           longTask: { samples: 0, p95Ms: null },
@@ -1382,7 +1382,7 @@ export function useAiStudioPerfAuditRuntime({
       const outputSnapshot = getOutputSnapshot();
 
       return {
-        totalCount,
+        totalCount: activeRows.length,
         activeCount: activeRows.length,
         archivedCount: archivedRows.length,
         hydrate: {
@@ -1500,14 +1500,14 @@ export function useAiStudioPerfAuditRuntime({
           });
           setActiveOutputId(limited.rows[0]?.id ?? null);
         } else {
-          setOutputs(nextOutputs);
-          setActiveOutputId(nextOutputs[0]?.id ?? null);
+          setOutputs(limited.rows);
+          setActiveOutputId(limited.rows[0]?.id ?? null);
         }
         return {
           requestedCount: count,
           activeCount: limited.rows.length,
-          archivedCount: limited.trimmedCount,
-          totalCount: nextOutputs.length,
+          archivedCount: 0,
+          totalCount: limited.rows.length,
           activeCapOverride,
         };
       },
@@ -1515,13 +1515,13 @@ export function useAiStudioPerfAuditRuntime({
         const nextOutputs = createPerfOutputsFromInputs(items);
         const limited = limitReferenceGridVisibleOutputs(nextOutputs);
         resetReferenceGridState();
-        setOutputs(nextOutputs);
-        setActiveOutputId(nextOutputs[0]?.id ?? null);
+        setOutputs(limited.rows);
+        setActiveOutputId(limited.rows[0]?.id ?? null);
         return {
           activeCount: limited.rows.length,
-          archivedCount: limited.trimmedCount,
-          totalCount: nextOutputs.length,
-          outputIds: nextOutputs.map((item) => item.id),
+          archivedCount: 0,
+          totalCount: limited.rows.length,
+          outputIds: limited.rows.map((item) => item.id),
         };
       },
       clearReferenceGrid: () => {
@@ -1762,14 +1762,20 @@ export function useAiStudioPerfAuditRuntime({
         return result;
       },
       runProjectRestoreAudit: async (options) => {
-        const totalCount = Math.max(
+        const requestedTotalCount = Math.max(
           1,
           Math.floor(options?.totalCount ?? PROJECT_RESTORE_GATES.targetTotalCount)
         );
-        const activeCount = Math.min(
-          totalCount,
+        const requestedActiveCount = Math.min(
+          requestedTotalCount,
           Math.max(1, Math.floor(options?.activeCount ?? PROJECT_RESTORE_GATES.targetActiveCount))
         );
+        const cappedRequestedTotalCount = Math.min(
+          requestedTotalCount,
+          REFERENCE_GRID_MAX_VISIBLE_ITEMS
+        );
+        const activeCount = Math.min(requestedActiveCount, cappedRequestedTotalCount);
+        const totalCount = activeCount;
         const scenarios = [
           await runProjectRestoreScenario({
             totalCount,
@@ -1780,7 +1786,7 @@ export function useAiStudioPerfAuditRuntime({
           ...PROJECT_RESTORE_GATES,
           targetTotalCount: totalCount,
           targetActiveCount: activeCount,
-          targetArchivedCount: totalCount - activeCount,
+          targetArchivedCount: 0,
         });
         const result = {
           ok: gates.every((gate) => gate.pass),

@@ -12,7 +12,7 @@ import { buildPlanView, type BillingCatalogSnapshot } from "../../billing/catalo
 import { fetchBillingAccountSummary } from "../../billing/accountSummary";
 import { formatStorageBytes } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
-import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
+import { ACCOUNT_MENU_LINKS, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
 import {
   AuthenticatedDashboardView,
   type DashboardAnnouncement,
@@ -472,6 +472,13 @@ export function AuthenticatedDashboardRoute({
                     ))}
                   </div>
                   <div className="toolbar-account-menu__actions">
+                    <a
+                      href={CUSTOMER_SUPPORT_MENU_LINK.href}
+                      role="menuitem"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      {CUSTOMER_SUPPORT_MENU_LINK.label}
+                    </a>
                     <Link
                       href="/report-issue?from=%2Fdashboard"
                       role="menuitem"

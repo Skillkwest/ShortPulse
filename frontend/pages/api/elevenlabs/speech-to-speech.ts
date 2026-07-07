@@ -14,6 +14,7 @@ import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
 } from "../../../lib/server/api/generationBilling";
+import { requireAiStudioWorkflowPlanAccess } from "../../../lib/server/api/aiStudioWorkflowPlanGuard";
 import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
@@ -186,6 +187,14 @@ export default async function handler(
   }
   if (!user) return;
   const authenticatedUser = user;
+  const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+    req,
+    res,
+    user,
+    workflow: "audio",
+    routeLabel: "elevenlabs-speech-to-speech",
+  });
+  if (!workflowAccess.allowed) return;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
   let lifecycleSourceStoragePath: string | null = null;
   let lifecycleOriginalVideoStoragePath: string | null = null;

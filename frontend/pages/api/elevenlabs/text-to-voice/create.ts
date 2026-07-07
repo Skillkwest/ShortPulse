@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { validateCustomVoiceName } from "../../../../lib/customVoiceName";
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { requireAiStudioWorkflowPlanAccess } from "../../../../lib/server/api/aiStudioWorkflowPlanGuard";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
@@ -80,6 +81,14 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+    req,
+    res,
+    user,
+    workflow: "audio",
+    routeLabel: "elevenlabs-text-to-voice-create",
+  });
+  if (!workflowAccess.allowed) return;
   const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {

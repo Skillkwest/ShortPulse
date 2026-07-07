@@ -17,3 +17,9 @@ Owner summaries kept here as working copies must follow:
 - `2026-07-06-maya-authenticated-orientation-owner-summary.md`
 - `2026-07-07-maya-prompt-detail-recovery-insight-review.md`
 - `2026-07-07-maya-prompt-detail-recovery-owner-summary.md`
+- `2026-07-07-maya-credits-renewal-confidence-insight-review.md`
+- `2026-07-07-maya-credits-renewal-confidence-owner-summary.md`
+- `2026-07-07-maya-find-both-assets-later-insight-review.md`
+- `2026-07-07-maya-find-both-assets-later-owner-summary.md`
+- `2026-07-07-maya-second-image-variant-insight-review.md`
+- `2026-07-07-maya-second-image-variant-owner-summary.md`

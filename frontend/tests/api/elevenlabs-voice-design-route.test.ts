@@ -5,8 +5,10 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
 const designElevenLabsVoiceMock = vi.fn();
 const issueVoiceDesignPreviewTokenMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -14,6 +16,12 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -35,6 +43,12 @@ describe("POST /api/elevenlabs/text-to-voice/design", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      source: "profile",
+      maxConcurrentGenerations: 3,
+    });
     issueVoiceDesignPreviewTokenMock.mockImplementation(
       ({ generatedVoiceId }: { generatedVoiceId: string }) => `token:${generatedVoiceId}`
     );

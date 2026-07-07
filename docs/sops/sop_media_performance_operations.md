@@ -46,7 +46,7 @@ This checkpoint protects the cursor append, panel runtime ordering, indexed virt
   - consumed by Media Library adaptive pressure and Reference Grid perf watchdog hooks
 - Reference Grid autoplay budget:
   - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
-- Reference Grid archive + output lifecycle controls:
+- Reference Grid cap + output lifecycle controls:
   - `frontend/features/ai-studio/hooks/useAiStudioState.ts`
 - Upload preview ingestion path:
   - `frontend/features/ai-studio/logic/stateParsers.ts`
@@ -126,7 +126,7 @@ Before treating an AI Studio freeze or console CSP violation as app-owned perfor
 1. Confirm the Reference Grid counter displays `Media: <visible>/500`.
 2. Add or restore references until the active workset reaches 500 visible items.
 3. Confirm new visible references are refused with cap copy instead of entering the hot path.
-4. Confirm restored or normalized over-cap active rows move into Archived with restore actions instead of being dropped.
+4. Confirm restored or normalized over-cap rows are not archived into the Reference Grid; the retained grid total stays capped at 500.
 5. Confirm high-density posture starts before the cap is reached, with the threshold at 300 visible items.
 
 ### 3b) Validate Curated Split Behavior
@@ -184,7 +184,6 @@ Key indicators:
   - `media.grid.render.commit`
   - `media.grid.longtask.sample`
   - `media.grid.memory.sample`
-  - `media.grid.archive.transition`
 - AI Studio stability events via `app_error_events` source filters:
   - `telemetry.ai_studio.stability.session_started`
   - `telemetry.ai_studio.stability.visibility_hidden`
@@ -212,7 +211,7 @@ Key indicators:
   - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid active-workset cap:
   - `REFERENCE_GRID_MAX_VISIBLE_ITEMS` in `frontend/features/ai-studio/reference-grid/logic/referenceGridLimits.ts`
-  - Over-cap active rows should archive through `archiveReason: "cleanup"` rather than disappear from project/session state.
+  - Over-cap rows must not archive into the Reference Grid; 500 retained grid items is the hard cap.
 - Reference Grid high-density threshold:
   - `REFERENCE_HIGH_DENSITY_CARD_COUNT` in `frontend/features/ai-studio/reference-grid/referenceGridConfig.ts`
 - Reference Grid feature flags:
@@ -479,7 +478,7 @@ Monitor these events during rollout:
   - `window.__shortpulseAiStudioPerf.clearReferenceGrid()`
   - `window.__shortpulseAiStudioPerf.runReferenceGridAudit(options?)`
   - `window.__shortpulseAiStudioPerf.runStudioShellAudit(options?)`
-- Scenarios: 20 / 40 / 50 / 60 / 100 / 400 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total / 400-active workset cap, and runs an explicit 400-active workset through `activeCapOverride`.
+- Scenarios: 20 / 40 / 50 / 60 / 100 / 400 seeded reference cards. The production release check runs the capped 40 / 60 / 100 path, separately verifies the 500-total hard cap with no archived grid rows, and runs an explicit 400-active workset through `activeCapOverride`.
 - Viewport posture:
   - The canonical release-check viewport is `1720x980`.
   - Wider/taller desktop observation runs may render additional virtualized rows. The rendered-item gates stay strict at the canonical height, then add a bounded allowance of 3 items per extra 50 px of viewport height above 980 px. Treat interaction, long-task, media-work-token, decode, and restore gates as unchanged across these desktop viewports.

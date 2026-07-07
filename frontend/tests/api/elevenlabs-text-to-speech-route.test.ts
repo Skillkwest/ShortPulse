@@ -3,6 +3,7 @@ import handler from "../../pages/api/elevenlabs/text-to-speech";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
 const listSavedVoicesForUserMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
@@ -12,6 +13,7 @@ const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const generateAudioCompanionArtNowBestEffortMock = vi.fn();
 const generateAudioReferenceTitleBestEffortMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -19,6 +21,12 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
 }));
 
 vi.mock("../../lib/server/api/userSavedVoices", () => ({
@@ -86,6 +94,12 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     vi.clearAllMocks();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      source: "profile",
+      maxConcurrentGenerations: 3,
+    });
     listSavedVoicesForUserMock.mockResolvedValue([]);
     listElevenLabsVoicesMock.mockResolvedValue([
       {

@@ -13,6 +13,7 @@ import {
   captureSucceededGenerationByProviderRequest,
   chargeGenerationRequest,
 } from "../../../lib/server/api/generationBilling";
+import { requireAiStudioWorkflowPlanAccess } from "../../../lib/server/api/aiStudioWorkflowPlanGuard";
 import {
   generateElevenLabsVoiceover,
   listElevenLabsVoices,
@@ -109,6 +110,14 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+    req,
+    res,
+    user,
+    workflow: "audio",
+    routeLabel: "elevenlabs-text-to-speech",
+  });
+  if (!workflowAccess.allowed) return;
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {

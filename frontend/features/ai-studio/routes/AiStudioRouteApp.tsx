@@ -12,8 +12,13 @@ import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosave
 import { resolveAiStudioRuntimeScopeKey } from "../logic/aiStudioRuntimeScopeKey";
 import {
   AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE,
+  AI_STUDIO_PLAN_CTA,
   resolveGenerationAccessCta,
 } from "../logic/generationAccessCta";
+import {
+  AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE,
+  resolveAiStudioWorkflowPlanAccess,
+} from "../../../lib/billing/aiStudioWorkflowEntitlements";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
   resolveWorkflowReloadCharacterSelection,
@@ -42,7 +47,7 @@ import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../createRuntime/useStandardCreateAgentRuntime";
 import type { MediaFileRow } from "../logic/mediaLibraryModalModel";
-import type { StudioOutput } from "../types";
+import type { StudioMode, StudioOutput, ToolId } from "../types";
 import {
   createEmptyPulseChatProjectState,
   type PulseChatProjectState,
@@ -248,12 +253,26 @@ const AiStudioPageRuntimeBody = ({
       }),
     [resolvedPlan, resolvedPlanStatus]
   );
+  const workflowPlanAccessCta = React.useMemo(() => {
+    if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
+    const access = resolveAiStudioWorkflowPlanAccess({
+      planId: resolvedPlan.id,
+      mode: "video",
+    });
+    return access.allowed ? null : AI_STUDIO_PLAN_CTA;
+  }, [resolvedPlan, resolvedPlanStatus]);
   const [isMediaPlanNoticeVisible, setIsMediaPlanNoticeVisible] = useState(false);
+  const [isWorkflowPlanNoticeVisible, setIsWorkflowPlanNoticeVisible] = useState(false);
   React.useEffect(() => {
     if (!generationAccessCta) {
       setIsMediaPlanNoticeVisible(false);
     }
   }, [generationAccessCta]);
+  React.useEffect(() => {
+    if (!workflowPlanAccessCta) {
+      setIsWorkflowPlanNoticeVisible(false);
+    }
+  }, [workflowPlanAccessCta]);
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -396,6 +415,10 @@ const AiStudioPageRuntimeBody = ({
     setIsMediaPlanNoticeVisible(true);
     setUiError((current) => (resolveMediaStorageQuotaUserMessage(current) ? null : current));
   }, [generationAccessCta, setUiError]);
+  const handleWorkflowPlanAccessAttempt = useCallback(() => {
+    if (!workflowPlanAccessCta) return;
+    setIsWorkflowPlanNoticeVisible(true);
+  }, [workflowPlanAccessCta]);
   const [rightRailLayout, setRightRailLayout] = useState(createDefaultRightRailLayout);
   const hydrateRightRailLayout = useCallback((layout: unknown) => {
     setRightRailLayout(sanitizeRightRailLayoutSnapshot(layout));
@@ -762,6 +785,119 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   });
+  const isWorkflowPlanBlocked = useCallback(
+    ({
+      selectedTool: workflowTool,
+      mode: workflowMode,
+    }: {
+      selectedTool?: ToolId | string | null;
+      mode?: StudioMode | string | null;
+    }): boolean => {
+      if (resolvedPlanStatus !== "ready" || !resolvedPlan) return false;
+      return !resolveAiStudioWorkflowPlanAccess({
+        planId: resolvedPlan.id,
+        selectedTool: workflowTool,
+        mode: workflowMode,
+      }).allowed;
+    },
+    [resolvedPlan, resolvedPlanStatus]
+  );
+  const resolveStudioOutputWorkflowTool = useCallback(
+    (output: StudioOutput): ToolId | string | null =>
+      output.workflowReload?.originTool ?? output.audioSourceMode ?? null,
+    []
+  );
+  const isStudioOutputWorkflowPlanBlocked = useCallback(
+    (output: StudioOutput | null | undefined): boolean =>
+      output
+        ? isWorkflowPlanBlocked({
+            selectedTool: resolveStudioOutputWorkflowTool(output),
+            mode: output.workflowReload?.outputMode ?? output.mode,
+          })
+        : false,
+    [isWorkflowPlanBlocked, resolveStudioOutputWorkflowTool]
+  );
+  const guardedHandleToolSelect = useCallback(
+    (tool: ToolId | null) => {
+      if (isWorkflowPlanBlocked({ selectedTool: tool })) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
+      handleToolSelect(tool);
+    },
+    [handleToolSelect, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+  );
+  React.useEffect(() => {
+    if (!isWorkflowPlanBlocked({ selectedTool })) return;
+    handleWorkflowPlanAccessAttempt();
+    handleToolSelect("create");
+  }, [handleToolSelect, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked, selectedTool]);
+  const guardedHandleGenerate = useCallback(
+    async (...args: Parameters<typeof handleGenerate>): ReturnType<typeof handleGenerate> => {
+      const options = args[1];
+      if (
+        isWorkflowPlanBlocked({
+          selectedTool: options?.toolOverride ?? selectedTool,
+          mode: options?.modeOverride ?? mode,
+        })
+      ) {
+        handleWorkflowPlanAccessAttempt();
+        return { accepted: false, optimisticOutputId: null };
+      }
+      return handleGenerate(...args);
+    },
+    [handleGenerate, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked, mode, selectedTool]
+  );
+  const guardedHandleRegenerateWithDebit = useCallback(
+    async (
+      ...args: Parameters<typeof handleRegenerateWithDebit>
+    ): ReturnType<typeof handleRegenerateWithDebit> => {
+      if (isWorkflowPlanBlocked({ selectedTool: "video", mode: "video" })) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
+      return handleRegenerateWithDebit(...args);
+    },
+    [handleRegenerateWithDebit, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+  );
+  const guardedHandleMusicGenerate = useCallback(
+    async (
+      ...args: Parameters<typeof handleMusicGenerate>
+    ): ReturnType<typeof handleMusicGenerate> => {
+      if (isWorkflowPlanBlocked({ selectedTool: "music", mode: "audio" })) {
+        handleWorkflowPlanAccessAttempt();
+        return false;
+      }
+      return handleMusicGenerate(...args);
+    },
+    [handleMusicGenerate, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+  );
+  const guardedHandleSoundEffectsGenerate = useCallback(
+    async (
+      ...args: Parameters<typeof handleSoundEffectsGenerate>
+    ): ReturnType<typeof handleSoundEffectsGenerate> => {
+      if (isWorkflowPlanBlocked({ selectedTool: "sound-effects", mode: "audio" })) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
+      return handleSoundEffectsGenerate(...args);
+    },
+    [handleSoundEffectsGenerate, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+  );
+  const guardedHandleVoicesGenerate = useCallback(
+    async (
+      ...args: Parameters<typeof handleVoicesGenerate>
+    ): ReturnType<typeof handleVoicesGenerate> => {
+      const request = args[0];
+      const requestedTool = request.mode === "voiceover" ? "text-to-speech" : "voice-changer";
+      if (isWorkflowPlanBlocked({ selectedTool: requestedTool, mode: "audio" })) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
+      return handleVoicesGenerate(...args);
+    },
+    [handleVoicesGenerate, handleWorkflowPlanAccessAttempt, isWorkflowPlanBlocked]
+  );
   const handleFileBrowserSelectionWithPlanNotice = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       if (event.target.files && event.target.files.length > 0 && generationAccessCta) {
@@ -786,26 +922,56 @@ const AiStudioPageRuntimeBody = ({
   const { rerollAudioOutputFromWorkflow, rerollAudioStudioOutputFromWorkflow } =
     useAiStudioAudioRerollController({
       findOutputById: base.findOutputById,
-      handleVoicesGenerate,
-      handleMusicGenerate,
-      handleSoundEffectsGenerate,
+      handleVoicesGenerate: guardedHandleVoicesGenerate,
+      handleMusicGenerate: guardedHandleMusicGenerate,
+      handleSoundEffectsGenerate: guardedHandleSoundEffectsGenerate,
       setUiNotice,
     });
   const rerollOutputFromReplay = base.rerollOutputFromReplay;
   const rerollStudioOutputFromReplay = base.rerollStudioOutputFromReplay;
   const handleRerollOutputFromWorkflow = useCallback(
     (outputId: string) => {
+      const output = base.findOutputById(outputId.trim());
+      if (isStudioOutputWorkflowPlanBlocked(output)) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
       if (rerollAudioOutputFromWorkflow(outputId)) return;
       rerollOutputFromReplay(outputId);
     },
-    [rerollAudioOutputFromWorkflow, rerollOutputFromReplay]
+    [
+      base,
+      handleWorkflowPlanAccessAttempt,
+      isStudioOutputWorkflowPlanBlocked,
+      rerollAudioOutputFromWorkflow,
+      rerollOutputFromReplay,
+    ]
   );
   const handleRerollStudioOutputFromWorkflow = useCallback(
     (output: StudioOutput) => {
+      if (isStudioOutputWorkflowPlanBlocked(output)) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
       if (rerollAudioStudioOutputFromWorkflow(output)) return;
       rerollStudioOutputFromReplay(output);
     },
-    [rerollAudioStudioOutputFromWorkflow, rerollStudioOutputFromReplay]
+    [
+      handleWorkflowPlanAccessAttempt,
+      isStudioOutputWorkflowPlanBlocked,
+      rerollAudioStudioOutputFromWorkflow,
+      rerollStudioOutputFromReplay,
+    ]
+  );
+  const handleDetailReloadWorkflow = useCallback(
+    (output: StudioOutput, options?: { mediaKindHint?: "image" | "video" | "audio" | null }) => {
+      if (isStudioOutputWorkflowPlanBlocked(output)) {
+        handleWorkflowPlanAccessAttempt();
+        return;
+      }
+      base.reloadWorkflowFromStudioOutput(output, options);
+    },
+    [base, handleWorkflowPlanAccessAttempt, isStudioOutputWorkflowPlanBlocked]
   );
   const resolveExpertEditVariantCostCredits = useCallback(
     ({
@@ -841,12 +1007,13 @@ const AiStudioPageRuntimeBody = ({
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
     generationAccessCta,
+    videoGenerationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
     referenceImageWarning,
     handleOpenModelModal,
     handleEditPromptTextChange,
     handleVideoPromptTextChange,
     handleImageRegenerateWithDebit,
-    handleRegenerateWithDebit,
+    handleRegenerateWithDebit: guardedHandleRegenerateWithDebit,
     resolveExpertEditVariantCostCredits,
   });
   const propertiesCreate = useAiStudioCreatePanelRuntime({
@@ -869,7 +1036,7 @@ const AiStudioPageRuntimeBody = ({
       createPulsePageRuntime.handleActiveCreatePulsePresetIdChangeForPage,
     handleCreatePulsePresetStart,
     handleCreatePulsePresetRestart,
-    handleGenerate,
+    handleGenerate: guardedHandleGenerate,
     handleOpenModelModal,
     canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
   });
@@ -898,7 +1065,7 @@ const AiStudioPageRuntimeBody = ({
     propertiesVideo: videoPanelProps,
     handleSelectOutput,
     handleManualPromptChange,
-    handleRegenerateWithDebit,
+    handleRegenerateWithDebit: guardedHandleRegenerateWithDebit,
     handleOpenMediaLibrary,
     handleRerollOutput: handleRerollOutputFromWorkflow,
   });
@@ -957,9 +1124,15 @@ const AiStudioPageRuntimeBody = ({
     mediaPlanNoticeMessage: isMediaPlanNoticeVisible ? AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE : null,
     mediaPlanNoticeCta: generationAccessCta,
     onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
+    workflowPlanNoticeMessage: isWorkflowPlanNoticeVisible
+      ? AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE
+      : null,
+    workflowPlanAccessCta,
+    onWorkflowPlanAccessAttempt: handleWorkflowPlanAccessAttempt,
     onDismissUiError: dismissError,
     onDismissUiNotice: dismissNotice,
     onDismissMediaPlanNotice: () => setIsMediaPlanNoticeVisible(false),
+    onDismissWorkflowPlanNotice: () => setIsWorkflowPlanNoticeVisible(false),
     balanceCredits: effectiveBalanceCredits,
     creditTotalCredits: resolvedPlan?.monthlyCreditsCents ?? null,
     pendingHoldCredits: pendingHoldCredits > 0 ? pendingHoldCredits : null,
@@ -972,7 +1145,7 @@ const AiStudioPageRuntimeBody = ({
     elementCreateRequestKey,
     showCreateTools,
     onOpenProjects: handleOpenProjectsModal,
-    onSelectTool: handleToolSelect,
+    onSelectTool: guardedHandleToolSelect,
     onToggleCreateTools: setShowCreateTools,
     propertiesCreate: pagePropertiesCreate,
     propertiesEditExpert,
@@ -980,7 +1153,7 @@ const AiStudioPageRuntimeBody = ({
     propertiesMusic: {
       balanceCredits,
       isGenerating: musicIsGenerating,
-      onGenerate: handleMusicGenerate,
+      onGenerate: guardedHandleMusicGenerate,
       onComposerModeChange: base.setMusicComposerMode,
       onDurationChange: base.setMusicDurationSeconds,
       onInstrumentalEnabledChange: base.setMusicInstrumentalEnabled,
@@ -990,7 +1163,7 @@ const AiStudioPageRuntimeBody = ({
       onSongBatchCountChange: base.setMusicSongBatchCount,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta,
+      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
       composerMode: base.musicComposerMode,
       durationSeconds: base.musicDurationSeconds,
       instrumentalEnabled: base.musicInstrumentalEnabled,
@@ -1002,13 +1175,13 @@ const AiStudioPageRuntimeBody = ({
     propertiesSoundEffects: {
       balanceCredits,
       isGenerating: soundEffectsIsGenerating,
-      onGenerate: handleSoundEffectsGenerate,
+      onGenerate: guardedHandleSoundEffectsGenerate,
       onDurationChange: base.setSoundEffectsDurationSeconds,
       onLoopEnabledChange: base.setSoundEffectsLoopEnabled,
       onPromptChange: base.setSoundEffectsPromptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta,
+      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
       durationSeconds: base.soundEffectsDurationSeconds,
       loopEnabled: base.soundEffectsLoopEnabled,
       prompt: base.soundEffectsPromptDraft,
@@ -1016,14 +1189,14 @@ const AiStudioPageRuntimeBody = ({
     propertiesVoices: {
       balanceCredits,
       isGenerating: voicesIsGenerating,
-      onGenerate: handleVoicesGenerate,
+      onGenerate: guardedHandleVoicesGenerate,
       onSelectedVoiceIdChange: base.setVoiceSelectedVoiceId,
       onVoiceChangerSourceChange: base.handleVoiceChangerSourceChange,
       onVoicePromptChange: base.setVoiceDesignPromptDraft,
       onVoiceScriptChange: base.setVoiceScriptDraft,
       pricingPolicy: modelPricingPolicy,
       pricingPolicyReady: modelPricingPolicyReady,
-      generationAccessCta,
+      generationAccessCta: workflowPlanAccessCta ?? generationAccessCta,
       selectedVoiceId: base.voiceSelectedVoiceId ?? undefined,
       voiceChangerSource: base.voiceChangerSource,
       voicePrompt: base.voiceDesignPromptDraft,
@@ -1046,7 +1219,7 @@ const AiStudioPageRuntimeBody = ({
     onSnapshotVideoFrame: handleSnapshotVideoFrame,
     onSnapshotVideoFrameError: setUiError,
     onDetailReloadWorkflow: isManualWorkflowReloadEnabled()
-      ? base.reloadWorkflowFromStudioOutput
+      ? handleDetailReloadWorkflow
       : undefined,
     onMediaLibraryRerollWorkflow: handleRerollStudioOutputFromWorkflow,
     onDetailSavePrompt,

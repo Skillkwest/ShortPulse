@@ -17,6 +17,7 @@ const readInternalEditMediaRefsFromPayloadMock = vi.fn();
 const resolveSignedUrlsForInternalMediaRefsMock = vi.fn();
 const resolveSignedUrlsForInternalEditMediaRefsMock = vi.fn();
 const filterExternalUrlsFromInternalRefsMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 const { TestProviderSubmitValidationError } = vi.hoisted(() => {
   class TestProviderSubmitValidationError extends Error {
@@ -51,6 +52,11 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+}));
+
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
@@ -133,6 +139,12 @@ describe("createFalSubmitHandler", () => {
         code: null,
       }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      source: "profile",
+      maxConcurrentGenerations: 3,
     });
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     dispatchProviderSubmitMock.mockResolvedValue({
@@ -325,6 +337,51 @@ describe("createFalSubmitHandler", () => {
       expect.objectContaining({
         request_id: "req-direct-1",
         generationId: expect.any(String),
+      })
+    );
+  });
+
+  it("rejects Starter video submits before billing or provider dispatch", async () => {
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValueOnce({
+      userId: "user-1",
+      planId: "starter",
+      source: "profile",
+      maxConcurrentGenerations: 1,
+    });
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/bytedance/omnihuman/v1.5",
+      submitUrl: "https://queue.fal.run/fal-ai/bytedance/omnihuman/v1.5",
+      routeLabel: "Fal OmniHuman v1.5",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "Subtle performance.",
+        image_url: "https://v3.fal.media/files/character.png",
+        audio_url: "https://v3.fal.media/files/voice.mp3",
+        resolution: "720p",
+      },
+      headers: {
+        host: "shortpulse.ai",
+        "x-forwarded-proto": "https",
+      },
+      url: "/api/fal/omnihuman-v15-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "WORKFLOW_PLAN_REQUIRED",
+        workflow: "video",
+        planId: "starter",
+        ctaHref: "/pricing",
+        ctaLabel: "View plans",
       })
     );
   });

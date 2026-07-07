@@ -3,6 +3,7 @@ import { validateCustomVoiceName } from "../../../../lib/customVoiceName";
 import { assertUserScopedMediaStoragePath } from "../../../../lib/mediaStoragePath";
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { requireAiStudioWorkflowPlanAccess } from "../../../../lib/server/api/aiStudioWorkflowPlanGuard";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { saveVoiceForUser } from "../../../../lib/server/api/userSavedVoices";
@@ -103,6 +104,14 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+    req,
+    res,
+    user,
+    workflow: "audio",
+    routeLabel: "elevenlabs-voice-clone",
+  });
+  if (!workflowAccess.allowed) return;
   const userId = user.id;
   let lifecycleSourceStoragePath: string | null = null;
 

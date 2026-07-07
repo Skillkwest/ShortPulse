@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
+import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import {
   librariesToolList,
   primaryToolList,
@@ -163,6 +164,45 @@ describe("AiStudioToolbar current mode", () => {
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
 
+  it("replaces Starter-restricted Video and Sound workflow buttons with View plans links", () => {
+    const onSelectTool = vi.fn();
+    const onWorkflowPlanAccessAttempt = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        workflowPlanAccessCta={AI_STUDIO_PLAN_CTA}
+        onOpenProjects={vi.fn()}
+        onSelectTool={onSelectTool}
+        onWorkflowPlanAccessAttempt={onWorkflowPlanAccessAttempt}
+        onToggleCreateTools={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Video" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sound" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Voices" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Music" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sound Effects" })).toBeNull();
+
+    const videoPlanLink = screen.getByRole("link", {
+      name: "Video: View subscription plans",
+    });
+    const soundPlanLink = screen.getByRole("link", {
+      name: "Sound: View subscription plans",
+    });
+
+    expect(videoPlanLink).toHaveAttribute("href", "/pricing");
+    expect(soundPlanLink).toHaveAttribute("href", "/pricing");
+
+    fireEvent.click(videoPlanLink);
+    fireEvent.click(soundPlanLink);
+
+    expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(2);
+    expect(onSelectTool).not.toHaveBeenCalled();
+  });
+
   it.each(leftRailRepeatClickCases)(
     "keeps the active %s rail panel open on repeat click",
     (label, selectedTool, expectedTool) => {
@@ -266,9 +306,19 @@ describe("AiStudioToolbar current mode", () => {
       "href",
       "/profile?section=transactions"
     );
+    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toHaveAttribute(
+      "href",
+      "mailto:service@shortpulse.co"
+    );
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(
       "href",
       "/report-issue?from=%2Fai-studio%3FprojectId%3Dproject-1"
+    );
+    const menuItemLabels = within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent?.trim() ?? "");
+    expect(menuItemLabels.indexOf("Customer Support")).toBeLessThan(
+      menuItemLabels.indexOf("Report an issue")
     );
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
   });

@@ -38,6 +38,8 @@ Use this shape:
 
 Before adding a backlog item, verify it is more than good product direction. It should be a ticket-ready work seed.
 
+Backlog restraint is part of the gate. The owner approved Hybervees' choice to avoid adding a backlog item when the report did not justify one. Treat "no new backlog item" as the right answer when it prevents duplicate work, stale work, low-confidence work, or noisy planning.
+
 Include:
 
 - problem: what the tester experienced,
@@ -51,6 +53,14 @@ Include:
 - priority/confidence: ROI and evidence strength when useful.
 
 If those fields cannot be stated, keep the finding in the detailed report instead of promoting it to backlog.
+
+When choosing not to add backlog work, write down the reason in the detailed report or closeout:
+
+- already covered by an existing backlog item,
+- evidence conflict or low confidence,
+- superseded or already handled,
+- watch-only until another report repeats it,
+- useful positive proof to preserve, but not a task.
 
 ## Value-Add Gate
 

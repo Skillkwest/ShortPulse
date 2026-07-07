@@ -3,6 +3,7 @@ import { validateCustomVoiceName } from "../../../../lib/customVoiceName";
 import { resolveRequiredAudioVoiceDesignModelId } from "../../../../lib/model-runtime/modelCatalog";
 import { sanitizeCustomerFacingProviderText } from "../../../../lib/customerFacingProviderText";
 import { requireApiUser } from "../../../../lib/server/api/auth";
+import { requireAiStudioWorkflowPlanAccess } from "../../../../lib/server/api/aiStudioWorkflowPlanGuard";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { designElevenLabsVoice } from "../../../../lib/server/elevenlabs";
@@ -71,6 +72,14 @@ export default async function handler(
     });
   }
   if (!user) return;
+  const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+    req,
+    res,
+    user,
+    workflow: "audio",
+    routeLabel: "elevenlabs-text-to-voice-design",
+  });
+  if (!workflowAccess.allowed) return;
   const userId = user.id;
   if (
     !enforceApiRateLimit(req, res, {

@@ -19,6 +19,7 @@ type UseAiStudioEditVideoPanelRuntimesParams = {
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
   generationAccessCta?: GenerationAccessCta | null;
+  videoGenerationAccessCta?: GenerationAccessCta | null;
   referenceImageWarning: string | null;
   handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
   handleEditPromptTextChange: ReturnType<
@@ -50,6 +51,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
   generationAccessCta = null,
+  videoGenerationAccessCta = generationAccessCta,
   referenceImageWarning,
   handleOpenModelModal,
   handleEditPromptTextChange,
@@ -223,7 +225,7 @@ export const useAiStudioEditVideoPanelRuntimes = ({
     resolveInternalReferenceVideoDropSource: base.resolveMotionReferenceVideoDropSource,
     canvasTearOutTargetRegistry: base.canvasTearOutTargetRegistry,
     isGenerateDisabled: effectiveIsGenerateDisabled,
-    generationAccessCta,
+    generationAccessCta: videoGenerationAccessCta,
     generationGuardrail: effectiveGenerationGuardrail,
     onCreateCharacter: base.handleOpenCharacterCreate,
     onCreateElement: base.handleOpenElementCreate,

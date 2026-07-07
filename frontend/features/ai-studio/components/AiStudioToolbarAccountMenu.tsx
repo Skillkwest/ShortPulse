@@ -13,7 +13,7 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { normalizeIssueReportSourcePath } from "../../../lib/issueReports";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
-import { ACCOUNT_MENU_LINKS } from "../../profile/accountMenuLinks";
+import { ACCOUNT_MENU_LINKS, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
 
 type MenuStyle = React.CSSProperties & {
   "--ai-toolbar-account-menu-transform-origin"?: string;
@@ -157,6 +157,9 @@ export function AiStudioToolbarAccountMenu() {
               ))}
             </div>
             <div className="toolbar-account-menu__actions">
+              <a href={CUSTOMER_SUPPORT_MENU_LINK.href} role="menuitem" onClick={closeMenu}>
+                {CUSTOMER_SUPPORT_MENU_LINK.label}
+              </a>
               <Link href={reportIssueHref} role="menuitem" onClick={closeMenu}>
                 Report an issue
               </Link>

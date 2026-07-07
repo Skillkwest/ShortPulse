@@ -14,9 +14,13 @@ type UseAiStudioPageContentRuntimeParams = {
   mediaPlanNoticeMessage: AiStudioPageContentProps["mediaPlanNoticeMessage"];
   mediaPlanNoticeCta: AiStudioPageContentProps["mediaPlanNoticeCta"];
   onMediaPlanAccessAttempt: AiStudioPageContentProps["onMediaPlanAccessAttempt"];
+  workflowPlanNoticeMessage: AiStudioPageContentProps["workflowPlanNoticeMessage"];
+  workflowPlanAccessCta: AiStudioPageContentProps["workflowPlanAccessCta"];
+  onWorkflowPlanAccessAttempt: AiStudioPageContentProps["onWorkflowPlanAccessAttempt"];
   onDismissUiError: AiStudioPageContentProps["onDismissUiError"];
   onDismissUiNotice: AiStudioPageContentProps["onDismissUiNotice"];
   onDismissMediaPlanNotice: AiStudioPageContentProps["onDismissMediaPlanNotice"];
+  onDismissWorkflowPlanNotice: AiStudioPageContentProps["onDismissWorkflowPlanNotice"];
   balanceCredits: AiStudioPageContentProps["balanceCredits"];
   creditTotalCredits: AiStudioPageContentProps["creditTotalCredits"];
   pendingHoldCredits: AiStudioPageContentProps["pendingHoldCredits"];
@@ -101,9 +105,13 @@ export const useAiStudioPageContentRuntime = ({
   mediaPlanNoticeMessage,
   mediaPlanNoticeCta,
   onMediaPlanAccessAttempt,
+  workflowPlanNoticeMessage,
+  workflowPlanAccessCta,
+  onWorkflowPlanAccessAttempt,
   onDismissUiError,
   onDismissUiNotice,
   onDismissMediaPlanNotice,
+  onDismissWorkflowPlanNotice,
   balanceCredits,
   creditTotalCredits,
   pendingHoldCredits,
@@ -185,9 +193,13 @@ export const useAiStudioPageContentRuntime = ({
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
       onMediaPlanAccessAttempt,
+      workflowPlanNoticeMessage,
+      workflowPlanAccessCta,
+      onWorkflowPlanAccessAttempt,
       onDismissUiError,
       onDismissUiNotice,
       onDismissMediaPlanNotice,
+      onDismissWorkflowPlanNotice,
       balanceCredits,
       creditTotalCredits,
       pendingHoldCredits,
@@ -268,9 +280,13 @@ export const useAiStudioPageContentRuntime = ({
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
       onMediaPlanAccessAttempt,
+      workflowPlanNoticeMessage,
+      workflowPlanAccessCta,
+      onWorkflowPlanAccessAttempt,
       onDismissUiError,
       onDismissUiNotice,
       onDismissMediaPlanNotice,
+      onDismissWorkflowPlanNotice,
       balanceCredits,
       creditTotalCredits,
       pendingHoldCredits,

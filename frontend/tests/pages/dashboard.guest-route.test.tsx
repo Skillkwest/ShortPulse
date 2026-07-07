@@ -244,6 +244,11 @@ describe("Dashboard guest route", () => {
     expect(screen.queryByText("Offer 2")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 3")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 4")).not.toBeInTheDocument();
+    const footer = screen.getByRole("contentinfo", { name: "ShortPulse footer" });
+    expect(within(footer).getByRole("link", { name: "Customer Support" })).toHaveAttribute(
+      "href",
+      "mailto:service@shortpulse.co"
+    );
     expect(screen.getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
       "href",
       "/terms"
@@ -256,7 +261,12 @@ describe("Dashboard guest route", () => {
       "href",
       "/refund-policy"
     );
-    const footer = screen.getByRole("contentinfo", { name: "ShortPulse footer" });
+    const footerLinkLabels = within(footer)
+      .getAllByRole("link")
+      .map((link) => link.textContent?.trim() ?? "");
+    expect(footerLinkLabels.indexOf("Customer Support")).toBeLessThan(
+      footerLinkLabels.indexOf("Terms of Service")
+    );
     expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
       "href",
       SHORTPULSE_COMMUNITY_URL

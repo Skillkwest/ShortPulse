@@ -37,6 +37,7 @@ Keep this workspace light enough that future Hybervees runs can start fresh.
 - `admin-tester-reports-access-checklist.md`: first capability gate for confirming Hybervees can see `Agent Tester Reports` before analysis.
 - `output-quality-gate.md`: pre-close gate for owner summaries and backlog items so outputs stay short, action-focused, and implementation-ready.
 - `value-add-scorecard.md`: post-run self-audit for whether Hybervees actually improved a product decision.
+- `backlog-restraint-principle.md`: owner-approved guidance for when not adding a backlog item is the smartest product move.
 - `tooling-roadmap.md`: helper-script commands and admin-surface ideas that make future SOP runs safer and faster.
 
 ## Helper Commands

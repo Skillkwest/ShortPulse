@@ -41,3 +41,12 @@ Owner summaries should preserve only:
 - exactly what to do next.
 
 Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveats, lane assignment, or "what not to overreact to" sections in owner summaries unless the user explicitly asks for them.
+
+## Current Retained Reports
+
+- `2026-07-07-maya-credits-renewal-confidence-insight-review.md`
+- `2026-07-07-maya-credits-renewal-confidence-owner-summary.md`
+- `2026-07-07-maya-find-both-assets-later-insight-review.md`
+- `2026-07-07-maya-find-both-assets-later-owner-summary.md`
+- `2026-07-07-maya-second-image-variant-insight-review.md`
+- `2026-07-07-maya-second-image-variant-owner-summary.md`

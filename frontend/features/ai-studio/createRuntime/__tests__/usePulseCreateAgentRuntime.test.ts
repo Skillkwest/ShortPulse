@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentContext,
@@ -132,6 +132,70 @@ describe("usePulseCreateAgentRuntime", () => {
     mockAgentMessages = [];
   });
 
+  const promptModifierPreset = {
+    presetId: "prompt_modifier",
+    label: "Prompt Modifier",
+    description: "Modify prompts",
+    systemInstructions: "You are a prompt modification assistant.",
+    pulseKind: "guided_workflow" as const,
+    runtimeMode: "workflow_gpt" as const,
+    activationMode: "activate_and_start" as const,
+    starterAssistantMessage: "paste the prompt you want to modify",
+    workflowStageHints: ["paste the prompt you want to modify"],
+    outputMode: "chat_reply" as const,
+    artifactTarget: "video_prompt" as const,
+    memoryPolicy: "session" as const,
+    schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+    isCustom: false,
+    isBuiltIn: true,
+    isEditable: true,
+    hasUserOverride: false,
+  };
+
+  it("recovers the starter when an active built-in Pulse hydrates with blank history", async () => {
+    renderHook(() =>
+      usePulseCreateAgentRuntime({
+        ...baseParams,
+        activePresetSnapshot: promptModifierPreset,
+        activePresetId: "prompt_modifier",
+        sessionInstanceId: "pulse-session-1",
+      })
+    );
+
+    await waitFor(() => {
+      expect(mockReplaceMessages).toHaveBeenCalledWith([
+        expect.objectContaining({
+          role: "assistant",
+          content: "paste the prompt you want to modify",
+          canUseAsPrompt: false,
+        }),
+      ]);
+    });
+  });
+
+  it("does not overwrite visible Pulse history while recovering starters", async () => {
+    mockAgentMessages = [
+      {
+        id: "user-1",
+        role: "user",
+        content: "Make this prompt sharper.",
+      },
+    ];
+
+    renderHook(() =>
+      usePulseCreateAgentRuntime({
+        ...baseParams,
+        activePresetSnapshot: promptModifierPreset,
+        activePresetId: "prompt_modifier",
+        sessionInstanceId: "pulse-session-1",
+      })
+    );
+
+    await Promise.resolve();
+
+    expect(mockReplaceMessages).not.toHaveBeenCalled();
+  });
+
   it("appends a recovered starter message when built-in kickoff falls back locally", async () => {
     runPulsePresetStartRuntimeMock.mockResolvedValue({
       status: "started",
@@ -141,25 +205,7 @@ describe("usePulseCreateAgentRuntime", () => {
     const { result } = renderHook(() => usePulseCreateAgentRuntime(baseParams));
 
     await act(async () => {
-      await result.current.handlePulsePresetStart({
-        presetId: "prompt_modifier",
-        label: "Prompt Modifier",
-        description: "Modify prompts",
-        systemInstructions: "You are a prompt modification assistant.",
-        pulseKind: "guided_workflow",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        starterAssistantMessage: "paste the prompt you want to modify",
-        workflowStageHints: ["paste the prompt you want to modify"],
-        outputMode: "chat_reply",
-        artifactTarget: "video_prompt",
-        memoryPolicy: "session",
-        schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
-        isCustom: false,
-        isBuiltIn: true,
-        isEditable: true,
-        hasUserOverride: false,
-      });
+      await result.current.handlePulsePresetStart(promptModifierPreset);
     });
 
     expect(mockReplaceMessages).toHaveBeenCalledWith([
@@ -187,25 +233,7 @@ describe("usePulseCreateAgentRuntime", () => {
     const { result } = renderHook(() => usePulseCreateAgentRuntime(baseParams));
 
     await act(async () => {
-      await result.current.handlePulsePresetStart({
-        presetId: "prompt_modifier",
-        label: "Prompt Modifier",
-        description: "Modify prompts",
-        systemInstructions: "You are a prompt modification assistant.",
-        pulseKind: "guided_workflow",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        starterAssistantMessage: "paste the prompt you want to modify",
-        workflowStageHints: ["paste the prompt you want to modify"],
-        outputMode: "chat_reply",
-        artifactTarget: "video_prompt",
-        memoryPolicy: "session",
-        schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
-        isCustom: false,
-        isBuiltIn: true,
-        isEditable: true,
-        hasUserOverride: false,
-      });
+      await result.current.handlePulsePresetStart(promptModifierPreset);
     });
 
     expect(mockReplaceMessages).toHaveBeenCalledWith([

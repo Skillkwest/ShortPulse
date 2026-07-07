@@ -58,6 +58,7 @@ import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransit
 import { associateGenerationWithProjectForUserBestEffort } from "../projectGenerationAssociationsService";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { createMotionReferenceVideoLeaseForGeneration } from "../motionReferenceVideoAssetLease";
+import { requireAiStudioWorkflowPlanAccess } from "./aiStudioWorkflowPlanGuard";
 import {
   readGenerationProjectIdFromContext,
   readGenerationWorkspaceRuntimeKeyFromContext,
@@ -705,6 +706,16 @@ export const createFalSubmitHandler = ({
       profileId: safetyProfile.profileId,
     });
     const generationMode = resolveGenerationModeFromPayload(modelId, payload);
+    if (generationMode === "video") {
+      const workflowAccess = await requireAiStudioWorkflowPlanAccess({
+        req,
+        res,
+        user,
+        workflow: "video",
+        routeLabel,
+      });
+      if (!workflowAccess.allowed) return;
+    }
     if (generationMode === "image" && internalMediaRefs.some((ref) => Boolean(ref))) {
       try {
         const signedUrls = await resolveSignedUrlsForInternalMediaRefs({

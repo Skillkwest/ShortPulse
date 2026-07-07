@@ -2121,7 +2121,7 @@ describe("sessionSnapshot", () => {
     expect(candidates.map((candidate) => candidate.kind)).toEqual(["full", "without_canvas"]);
   });
 
-  it("offers a combined v2 autosave reduction when canvas and archived outputs both remain", () => {
+  it("does not offer archive-based project autosave reductions", () => {
     const snapshot = patchAiStudioSessionSnapshotCanvas(
       buildAiStudioSessionSnapshot({
         sessionId: "project-combined-candidate-session",
@@ -2179,27 +2179,14 @@ describe("sessionSnapshot", () => {
     );
 
     const candidates = createAiStudioProjectWorkspaceAutosaveCandidates(snapshot);
-    const combinedCandidate = candidates.find(
-      (candidate) => candidate.kind === "without_canvas_and_archived_outputs"
-    );
 
     expect(candidates.map((candidate) => candidate.kind)).toEqual([
       "full",
       "without_canvas",
-      "without_archived_outputs",
-      "without_canvas_and_archived_outputs",
       "lightweight_checkpoint",
       "without_canvas_lightweight_checkpoint",
     ]);
-    expect(combinedCandidate?.snapshot.schemaVersion).toBe(2);
-    expect(
-      (combinedCandidate?.snapshot as AiStudioSessionSnapshotV2 | undefined)?.canvas
-    ).toBeUndefined();
-    expect(combinedCandidate?.snapshot.outputs.archived).toEqual([]);
-    expect(combinedCandidate?.snapshot.outputs.removedFromAllRefsIds).toEqual([]);
-    expect(
-      (combinedCandidate?.snapshot as AiStudioSessionSnapshotV2 | undefined)?.meta.checksum
-    ).not.toBe(snapshot.meta.checksum);
+    expect(candidates.some((candidate) => candidate.kind.includes("archived"))).toBe(false);
   });
 
   it("dedupes identical v2 autosave candidates when reductions are no-ops", () => {

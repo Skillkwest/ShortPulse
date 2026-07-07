@@ -1,7 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { resolveCreatePulsePresetCatalog } from "../createPulsePresets";
+import {
+  resolveCreatePulseDefaultPanelPresetIds,
+  resolveCreatePulsePresetCatalog,
+} from "../createPulsePresets";
+
+const buildBuiltInDefinition = (presetId: string, label: string) => ({
+  presetId,
+  label,
+  description: `${label} built-in.`,
+  systemInstructions: `${label} instructions.`,
+  pulseKind: "guided_workflow" as const,
+  runtimeMode: "workflow_gpt" as const,
+  activationMode: "activate_and_start" as const,
+  outputMode: "chat_reply" as const,
+  memoryPolicy: "session" as const,
+  starterAssistantMessage: `Start ${label}.`,
+  workflowStageHints: null,
+  artifactTarget: "video_prompt" as const,
+  schemaVersion: 2,
+});
 
 describe("createPulsePresets", () => {
+  it("pins newly published control-plane built-ins into the default Pulse rail", () => {
+    expect(
+      resolveCreatePulseDefaultPanelPresetIds([
+        buildBuiltInDefinition("image", "Video Prompt Magic"),
+        buildBuiltInDefinition("multi_shot", "Multi Sequence Video Prompt"),
+        buildBuiltInDefinition("story_builder", "DFY Story Builder"),
+        buildBuiltInDefinition("prompt_modifier", "Prompt Modifier"),
+      ])
+    ).toEqual(["image", "multi_shot", "story_builder", "prompt_modifier"]);
+  });
+
   it("drops built-in collisions from saved per-user Pulse records", () => {
     const catalog = resolveCreatePulsePresetCatalog([
       {

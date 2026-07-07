@@ -2136,6 +2136,34 @@ body.ai-shell-resizing * {
     0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
+.toolbar-item.toolbar-item-plan-cta {
+  justify-content: center;
+  min-height: var(--ai-toolbar-primary-button-min-height);
+  margin: var(--ai-toolbar-primary-button-margin-y) 0;
+  margin-bottom: var(--ai-toolbar-primary-button-margin-bottom);
+  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
+  border: 1px solid rgba(255, 162, 92, 0.72);
+  border-radius: var(--ai-toolbar-primary-button-radius);
+  background:
+    radial-gradient(ellipse 76% 130% at 32% 10%, rgba(255, 255, 255, 0.28), transparent 68%),
+    linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  color: #fff;
+  text-decoration: none;
+  box-shadow:
+    0 0 18px rgba(255, 74, 96, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.toolbar-item.toolbar-item-plan-cta:hover,
+.toolbar-item.toolbar-item-plan-cta:focus-visible {
+  border-color: rgba(255, 205, 130, 0.92);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 22px rgba(255, 74, 96, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+
 /* Sound button hover - cream canvas variant */
 .toolbar-item[data-tool-id="sound"]:hover {
   background: linear-gradient(135deg, #fbf3e1 0%, #f4e8cd 54%, #edd9b2 100%);

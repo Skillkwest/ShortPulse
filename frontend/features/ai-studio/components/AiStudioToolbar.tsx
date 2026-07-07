@@ -42,12 +42,15 @@ import {
   isSoundWorkflow,
   isVideoWorkflow,
 } from "../logic/workflowIdentity";
+import type { GenerationAccessCta } from "../logic/generationAccessCta";
 
 type AiStudioToolbarProps = {
   selectedTool: ToolId | null;
   showCreateTools: boolean;
+  workflowPlanAccessCta?: GenerationAccessCta | null;
   onOpenProjects?: () => void;
   onSelectTool: (tool: ToolId | null) => void;
+  onWorkflowPlanAccessAttempt?: () => void;
   onToggleCreateTools: (show: boolean) => void;
 };
 
@@ -108,8 +111,10 @@ const toolIcons: Record<ToolId, IconComponent> = {
  */
 function AiStudioToolbarComponent({
   selectedTool,
+  workflowPlanAccessCta = null,
   onOpenProjects,
   onSelectTool,
+  onWorkflowPlanAccessAttempt,
   onToggleCreateTools,
 }: AiStudioToolbarProps) {
   const isCreateSelected = isCreateWorkflow(selectedTool);
@@ -188,6 +193,8 @@ function AiStudioToolbarComponent({
         })}
         {workflowToolList.map((tool) => {
           const IconComponent = toolIcons[tool.id];
+          const isWorkflowPlanRestrictedTool =
+            Boolean(workflowPlanAccessCta) && (tool.id === "video" || tool.id === "sound");
           const isActive =
             tool.id === "video"
               ? isVideoSelected
@@ -198,26 +205,40 @@ function AiStudioToolbarComponent({
                   : selectedTool === tool.id;
           return (
             <React.Fragment key={tool.id}>
-              <button
-                type="button"
-                className={`toolbar-item ${isActive ? "is-active" : ""}`}
-                data-tool-id={tool.id}
-                onClick={() => {
-                  if (tool.id === "sound") {
+              {isWorkflowPlanRestrictedTool && workflowPlanAccessCta ? (
+                <a
+                  className="toolbar-item toolbar-item-plan-cta"
+                  data-tool-id={`${tool.id}-plan`}
+                  href={workflowPlanAccessCta.href}
+                  aria-label={`${tool.label}: ${workflowPlanAccessCta.ariaLabel}`}
+                  onClick={onWorkflowPlanAccessAttempt}
+                >
+                  <div className="toolbar-copy">
+                    <span className="toolbar-label">{workflowPlanAccessCta.label}</span>
+                  </div>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={`toolbar-item ${isActive ? "is-active" : ""}`}
+                  data-tool-id={tool.id}
+                  onClick={() => {
+                    if (tool.id === "sound") {
+                      onToggleCreateTools(false);
+                      onSelectTool("voices");
+                      return;
+                    }
                     onToggleCreateTools(false);
-                    onSelectTool("voices");
-                    return;
-                  }
-                  onToggleCreateTools(false);
-                  onSelectTool(tool.id);
-                }}
-              >
-                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
-                <div className="toolbar-copy">
-                  <span className="toolbar-label">{tool.label}</span>
-                </div>
-              </button>
-              {tool.id === "sound" ? (
+                    onSelectTool(tool.id);
+                  }}
+                >
+                  {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                  <div className="toolbar-copy">
+                    <span className="toolbar-label">{tool.label}</span>
+                  </div>
+                </button>
+              )}
+              {tool.id === "sound" && !isWorkflowPlanRestrictedTool ? (
                 <div className={`toolbar-create-children ${isSoundSelected ? "is-open" : ""}`}>
                   <div className="toolbar-create-spacer" aria-hidden="true" />
                   {soundChildTools.map((childTool) => {

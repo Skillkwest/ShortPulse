@@ -3,6 +3,7 @@
  */
 import Image from "next/image";
 import Link from "next/link";
+import { CUSTOMER_SUPPORT_LABEL, CUSTOMER_SUPPORT_MAILTO_HREF } from "../../../lib/customerSupport";
 
 type PublicHomeFooterProps = {
   createProjectHref: string;
@@ -71,6 +72,7 @@ export function PublicHomeFooter({
           </div>
           <div>
             <span>Resources</span>
+            <a href={CUSTOMER_SUPPORT_MAILTO_HREF}>{CUSTOMER_SUPPORT_LABEL}</a>
             <Link href="/terms">Terms of Service</Link>
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/refund-policy">Refund Policy</Link>

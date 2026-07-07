@@ -3,12 +3,14 @@ import handler from "../../pages/api/elevenlabs/music";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsMusicMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingBestEffortMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -16,6 +18,12 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
@@ -75,6 +83,12 @@ describe("POST /api/elevenlabs/music", () => {
     vi.clearAllMocks();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      source: "profile",
+      maxConcurrentGenerations: 3,
+    });
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "music_v1",
@@ -179,6 +193,45 @@ describe("POST /api/elevenlabs/music", () => {
       retryAfterSeconds: 6,
       admissionScope: "per_user",
     });
+  });
+
+  it("rejects Starter audio workflow submits before billing or provider dispatch", async () => {
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValueOnce({
+      userId: "user-1",
+      planId: "starter",
+      source: "profile",
+      maxConcurrentGenerations: 1,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        text: "Night-drive synth anthem",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsMusicMock).not.toHaveBeenCalled();
+    expect(persistGeneratedAudioAssetMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "WORKFLOW_PLAN_REQUIRED",
+        workflow: "audio",
+        planId: "starter",
+        ctaHref: "/pricing",
+        ctaLabel: "View plans",
+      })
+    );
   });
 
   it("falls back to the catalog-backed default music model id for auto duration", async () => {

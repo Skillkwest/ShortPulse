@@ -475,7 +475,7 @@ export const CREATE_PULSE_SURFACE_PRESET_IDS = CREATE_PULSE_SEEDED_BUILT_IN_DEFI
 ) as readonly CreatePulseBuiltInPresetId[];
 
 /**
- * Seeded default preset IDs pinned into the Create Pulse rail.
+ * Seeded fallback preset IDs pinned into the Create Pulse rail when no live catalog is available.
  */
 export const CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS = [
   "image",
@@ -485,13 +485,15 @@ export const CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS = [
 
 /**
  * Resolves the default built-in Pulse ids pinned into the Create rail.
+ * The live admin catalog is the default authority, so newly published built-ins
+ * become visible in Pulse mode without waiting for each user to customize the rail.
  */
 export const resolveCreatePulseDefaultPanelPresetIds = (
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): CreatePulseBuiltInPresetId[] => {
   const resolvedBuiltInDefinitions = resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
   const resolvedDefaultPresetIds = resolvedBuiltInDefinitions
-    .slice(0, CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS.length)
+    .slice(0, CREATE_PULSE_PANEL_MAX)
     .map((definition) => definition.presetId);
   return resolvedDefaultPresetIds.length > 0
     ? resolvedDefaultPresetIds

@@ -5,12 +5,14 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
 const saveVoiceForUserMock = vi.fn();
 const cleanupFailedElevenLabsCustomVoiceMock = vi.fn();
 const createElevenLabsClonedVoiceMock = vi.fn();
 const createPersistedElevenLabsVoiceSampleMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 const recordVoiceSourceLifecycleStateMock = vi.fn();
+const resolveBillingConcurrencyEntitlementMock = vi.fn();
 const { MockMediaAudioExtractionInputError } = vi.hoisted(() => ({
   MockMediaAudioExtractionInputError: class MockMediaAudioExtractionInputError extends Error {
     readonly statusCode: number;
@@ -29,6 +31,12 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
+}));
+
+vi.mock("../../lib/server/api/billingConcurrencyEntitlements", () => ({
+  resolveBillingConcurrencyEntitlement: (...args: unknown[]) =>
+    resolveBillingConcurrencyEntitlementMock(...args),
 }));
 
 vi.mock("../../lib/server/api/userSavedVoices", () => ({
@@ -71,6 +79,12 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
+      userId: "user-1",
+      planId: "studio",
+      source: "profile",
+      maxConcurrentGenerations: 3,
+    });
     readStoredMediaBufferMock.mockResolvedValue({
       buffer: Buffer.from("voice-sample"),
       contentType: "audio/mpeg",

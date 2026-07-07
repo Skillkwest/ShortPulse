@@ -16,6 +16,7 @@ import {
   normalizeCustomerFacingProviderError,
   normalizeProviderSideGenerationFailure,
 } from "../../../lib/customerFacingProviderText";
+import { isAiStudioPlanGatedWorkflowTool } from "../../../lib/billing/aiStudioWorkflowEntitlements";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
@@ -278,9 +279,14 @@ type AiStudioAlertsStackProps = {
     message: string;
     action: AppMessageAction;
   } | null;
+  workflowPlanNotice: {
+    message: string;
+    action: AppMessageAction;
+  } | null;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
   onDismissMediaPlanNotice: () => void;
+  onDismissWorkflowPlanNotice: () => void;
   onDismissFailure: (id: string) => void;
 };
 
@@ -374,9 +380,11 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiNotice,
   visibleFailures,
   mediaPlanNotice,
+  workflowPlanNotice,
   onDismissUiError,
   onDismissUiNotice,
   onDismissMediaPlanNotice,
+  onDismissWorkflowPlanNotice,
   onDismissFailure,
 }: AiStudioAlertsStackProps) {
   const normalizedUiError = normalizeAlertText(uiError);
@@ -420,7 +428,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
     });
   }, [groupedFailures, onDismissFailure]);
   const hasVisibleAlerts = Boolean(
-    mediaPlanNotice || effectiveUiError || uiNotice || groupedFailures.length
+    mediaPlanNotice || workflowPlanNotice || effectiveUiError || uiNotice || groupedFailures.length
   );
   const dismissUiErrorRef = React.useRef(onDismissUiError);
   const dismissUiNoticeRef = React.useRef(onDismissUiNotice);
@@ -476,6 +484,16 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           live="polite"
           action={mediaPlanNotice.action}
           onDismiss={onDismissMediaPlanNotice}
+        />
+      ) : null}
+      {workflowPlanNotice ? (
+        <AiStudioAlertBanner
+          message={workflowPlanNotice.message}
+          variant="plan-access"
+          role="status"
+          live="polite"
+          action={workflowPlanNotice.action}
+          onDismiss={onDismissWorkflowPlanNotice}
         />
       ) : null}
       {effectiveUiError ? (
@@ -534,9 +552,13 @@ export type AiStudioPageContentProps = {
   mediaPlanNoticeMessage?: string | null;
   mediaPlanNoticeCta?: GenerationAccessCta | null;
   onMediaPlanAccessAttempt?: () => void;
+  workflowPlanNoticeMessage?: string | null;
+  workflowPlanAccessCta?: GenerationAccessCta | null;
+  onWorkflowPlanAccessAttempt?: () => void;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
   onDismissMediaPlanNotice?: () => void;
+  onDismissWorkflowPlanNotice?: () => void;
   balanceCredits: number | null;
   creditTotalCredits: number | null;
   pendingHoldCredits: number | null;
@@ -642,9 +664,13 @@ export function AiStudioPageContent({
   mediaPlanNoticeMessage = null,
   mediaPlanNoticeCta = null,
   onMediaPlanAccessAttempt,
+  workflowPlanNoticeMessage = null,
+  workflowPlanAccessCta = null,
+  onWorkflowPlanAccessAttempt,
   onDismissUiError,
   onDismissUiNotice,
   onDismissMediaPlanNotice,
+  onDismissWorkflowPlanNotice,
   balanceCredits,
   creditTotalCredits,
   balanceLoading,
@@ -727,9 +753,25 @@ export function AiStudioPageContent({
         : null,
     [mediaPlanNoticeCta, mediaPlanNoticeMessage]
   );
+  const workflowPlanNotice = React.useMemo(
+    () =>
+      workflowPlanNoticeMessage && workflowPlanAccessCta
+        ? {
+            message: workflowPlanNoticeMessage,
+            action: {
+              label: workflowPlanAccessCta.label,
+              href: workflowPlanAccessCta.href,
+            },
+          }
+        : null,
+    [workflowPlanAccessCta, workflowPlanNoticeMessage]
+  );
   const handleDismissMediaPlanNotice = React.useCallback(() => {
     onDismissMediaPlanNotice?.();
   }, [onDismissMediaPlanNotice]);
+  const handleDismissWorkflowPlanNotice = React.useCallback(() => {
+    onDismissWorkflowPlanNotice?.();
+  }, [onDismissWorkflowPlanNotice]);
   useAiStudioStabilityLifecycleTelemetry({
     projectId,
     projectRouteRequested,
@@ -1127,10 +1169,19 @@ export function AiStudioPageContent({
   }, []);
   const handleToolSelection = React.useCallback(
     (tool: ToolId | null) => {
+      if (workflowPlanAccessCta && isAiStudioPlanGatedWorkflowTool(tool)) {
+        onWorkflowPlanAccessAttempt?.();
+        return;
+      }
       onSelectTool(tool);
     },
-    [onSelectTool]
+    [onSelectTool, onWorkflowPlanAccessAttempt, workflowPlanAccessCta]
   );
+  React.useEffect(() => {
+    if (!workflowPlanAccessCta || !isAiStudioPlanGatedWorkflowTool(selectedTool)) return;
+    onWorkflowPlanAccessAttempt?.();
+    onSelectTool("create");
+  }, [onSelectTool, onWorkflowPlanAccessAttempt, selectedTool, workflowPlanAccessCta]);
   const handleOpenPromptPresetsLibrary = React.useCallback(
     (presetId?: ExpertEditPresetId | null) => {
       const requestedPresetId = presetId ?? null;
@@ -1665,16 +1716,20 @@ export function AiStudioPageContent({
     <AiStudioToolbarRail
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
+      workflowPlanAccessCta={workflowPlanAccessCta}
       onOpenProjects={onOpenProjects}
       onSelectTool={handleToolSelection}
+      onWorkflowPlanAccessAttempt={onWorkflowPlanAccessAttempt}
       onToggleCreateTools={onToggleCreateTools}
     />
   ) : (
     <AiStudioToolbar
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
+      workflowPlanAccessCta={workflowPlanAccessCta}
       onOpenProjects={onOpenProjects}
       onSelectTool={handleToolSelection}
+      onWorkflowPlanAccessAttempt={onWorkflowPlanAccessAttempt}
       onToggleCreateTools={onToggleCreateTools}
     />
   );
@@ -1849,9 +1904,11 @@ export function AiStudioPageContent({
           uiNotice={uiNotice}
           visibleFailures={visibleFailures}
           mediaPlanNotice={mediaPlanNotice}
+          workflowPlanNotice={workflowPlanNotice}
           onDismissUiError={onDismissUiError}
           onDismissUiNotice={onDismissUiNotice}
           onDismissMediaPlanNotice={handleDismissMediaPlanNotice}
+          onDismissWorkflowPlanNotice={handleDismissWorkflowPlanNotice}
           onDismissFailure={onDismissFailure}
         />
 

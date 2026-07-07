@@ -105,6 +105,11 @@ const appendRecoveredStarterMessage = ({
   });
 };
 
+const hasRenderablePulseMessage = (message: AgentMessage): boolean =>
+  message.content.trim().length > 0 ||
+  (message.outputPrompt?.trim().length ?? 0) > 0 ||
+  (message.attachments?.length ?? 0) > 0;
+
 /**
  * Returns the Pulse Create agent runtime.
  */
@@ -187,6 +192,31 @@ export const usePulseCreateAgentRuntime = ({
     pulseWorkflowSession: workflowSession,
     setPulseWorkflowSession: setWorkflowSession,
   });
+
+  useEffect(() => {
+    if (!runtimePolicy.hasActivePulseSession || agentBusy) return;
+    if (
+      !activePresetSnapshot ||
+      activePresetSnapshot.presetId !== activePresetId ||
+      activePresetSnapshot.runtimeMode !== "workflow_gpt"
+    ) {
+      return;
+    }
+    if (agentMessages.some(hasRenderablePulseMessage)) return;
+    const recoveredStarterMessages = appendRecoveredStarterMessage({
+      messages: [],
+      starterAssistantMessage: activePresetSnapshot.starterAssistantMessage,
+    });
+    if (!recoveredStarterMessages) return;
+    replaceMessages(recoveredStarterMessages);
+  }, [
+    activePresetId,
+    activePresetSnapshot,
+    agentBusy,
+    agentMessages,
+    replaceMessages,
+    runtimePolicy.hasActivePulseSession,
+  ]);
 
   const ensureAgentSession = useCallback(() => {
     if (agentFlag) setAgentSessionEnabled(true);

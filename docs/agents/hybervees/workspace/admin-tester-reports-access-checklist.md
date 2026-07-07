@@ -14,7 +14,7 @@ Purpose: first-run checklist for Hybervees to access tester reports through cano
 4. Identify the available report set:
    - requested run is found,
    - earliest or latest run is found,
-   - earliest unreviewed run is found,
+   - earliest unreviewed run is found through the default `Needs Hybervees` admin queue or `hyberveesReview=unreviewed` API filter,
    - rows are visible in admin UI,
    - empty state is visible,
    - loading/error state is visible,

@@ -378,7 +378,6 @@
 
 .adminAgentInstructionsPage .agentInstructionCard,
 .adminAgentInstructionsPage .agentInstructionPulseSection,
-.adminAgentInstructionsPage .agentInstructionAdvancedDetails,
 .adminAgentInstructionsPage .agentInstructionCollapsedSummary,
 .adminAgentInstructionsPage .agentInstructionMetaItem,
 .adminAgentInstructionsPage .agentInstructionInput,
@@ -408,7 +407,6 @@
 }
 
 .adminAgentInstructionsPage .agentInstructionPulseSection,
-.adminAgentInstructionsPage .agentInstructionAdvancedDetails,
 .adminAgentInstructionsPage .agentInstructionAddTile,
 .adminAgentInstructionsPage .agentInstructionCollapsedSummary,
 .adminAgentInstructionsPage .agentInstructionMetaItem {
@@ -830,28 +828,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-}
-
-.agentInstructionAdvancedDetails {
-  display: grid;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(120, 132, 146, 0.14);
-  background: rgba(10, 14, 18, 0.34);
-}
-
-.agentInstructionAdvancedSummary {
-  cursor: pointer;
-  color: var(--admin-text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.agentInstructionAdvancedBody {
-  display: grid;
-  gap: 12px;
-  padding-top: 12px;
 }
 
 .agentInstructionField {

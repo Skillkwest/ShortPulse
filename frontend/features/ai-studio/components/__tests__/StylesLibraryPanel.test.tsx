@@ -105,6 +105,20 @@ describe("StylesLibraryPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Edit style" })).not.toBeInTheDocument();
   });
 
+  it("shows the ShortPulse favicon marker for built-in style titles", () => {
+    render(<StylesLibraryPanel styles={createBuiltInStyles()} />);
+
+    expect(screen.getAllByLabelText("Built-in style")).toHaveLength(2);
+    expect(
+      screen.getAllByRole("img", { name: "Built-in style" })[0]?.querySelector("img")
+    ).toHaveAttribute("src", expect.stringContaining("Fav.png"));
+    expect(
+      screen
+        .getAllByRole("img", { name: "Built-in style" })[0]
+        ?.compareDocumentPosition(screen.getByText("Cinematic"))
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("opens create modal with the trailing add style button", () => {
     render(<StylesLibraryPanel styles={createStyles()} />);
 

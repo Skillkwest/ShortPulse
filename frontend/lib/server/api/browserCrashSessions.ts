@@ -403,11 +403,19 @@ const redactReportUrlPath = (value: unknown): string | null => {
 };
 
 const normalizeCrashReportPayload = (payload: unknown): JsonObject[] => {
-  const reports = Array.isArray(payload)
-    ? payload
-    : isJsonObject(payload) && Array.isArray(payload.reports)
-      ? payload.reports
-      : [payload];
+  let normalizedPayload = payload;
+  if (typeof payload === "string" && payload.trim()) {
+    try {
+      normalizedPayload = JSON.parse(payload);
+    } catch {
+      normalizedPayload = null;
+    }
+  }
+  const reports = Array.isArray(normalizedPayload)
+    ? normalizedPayload
+    : isJsonObject(normalizedPayload) && Array.isArray(normalizedPayload.reports)
+      ? normalizedPayload.reports
+      : [normalizedPayload];
   return reports.filter(isJsonObject).slice(0, MAX_CRASH_REPORTS_PER_REQUEST);
 };
 
@@ -883,9 +891,7 @@ export const fetchBrowserCrashSessions = async (
     .order("last_seen_at", { ascending: false });
 
   if (filters.status === "needs_review") {
-    query = query.or(
-      `status.in.(probable_freeze_or_crash,confirmed_crash),and(status.eq.active,last_seen_at.lt.${staleCutoff})`
-    );
+    query = query.in("status", ["probable_freeze_or_crash", "confirmed_crash"]);
   } else if (filters.status === "possible_ungraceful_exit") {
     query = query.or(
       `status.eq.possible_ungraceful_exit,and(status.eq.active,last_seen_at.lt.${staleCutoff})`

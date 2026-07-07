@@ -47,6 +47,8 @@ const renderPanel = (overrides = {}) => {
       blockedCount: 0,
       failedCount: 0,
       partialCount: 0,
+      hyberveesUnreviewedCount: 1,
+      hyberveesReviewedCount: 0,
     },
     testerReportsPagination: {
       page: 1,
@@ -57,9 +59,11 @@ const renderPanel = (overrides = {}) => {
       hasPrevPage: false,
     },
     testerReportStatusFilter: "all" as const,
+    testerReportReviewFilter: "unreviewed" as const,
     testerReportTesterFilter: "",
     testerReportSearch: "",
     onTesterReportStatusFilterChange: vi.fn(),
+    onTesterReportReviewFilterChange: vi.fn(),
     onTesterReportTesterFilterChange: vi.fn(),
     onTesterReportSearchChange: vi.fn(),
     onPrevPage: vi.fn(),
@@ -119,20 +123,24 @@ describe("AdminTesterReportsPanel", () => {
     expect(screen.queryByText("# Maya notes")).not.toBeInTheDocument();
   });
 
-  it("uses the status strip and tester field as filters", () => {
+  it("uses the status strip, review select, and tester field as filters", () => {
     const props = renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Completed tester reports: 1" }));
+    fireEvent.change(screen.getByLabelText("Hybervees review"), {
+      target: { value: "reviewed" },
+    });
     fireEvent.change(screen.getByLabelText("Tester slug"), { target: { value: "maya-chen" } });
 
     expect(props.onTesterReportStatusFilterChange).toHaveBeenCalledWith("completed");
+    expect(props.onTesterReportReviewFilterChange).toHaveBeenCalledWith("reviewed");
     expect(props.onTesterReportTesterFilterChange).toHaveBeenCalledWith("maya-chen");
   });
 
   it("marks tester runs as reviewed by Hybervees", () => {
     const props = renderPanel();
 
-    expect(screen.getByText("Needs Hybervees")).toBeInTheDocument();
+    expect(screen.getAllByText("Needs Hybervees").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
     fireEvent.click(screen.getByRole("button", { name: "Mark Hybervees reviewed" }));
 
@@ -154,7 +162,7 @@ describe("AdminTesterReportsPanel", () => {
       ],
     });
 
-    expect(screen.getByText("Hybervees reviewed")).toBeInTheDocument();
+    expect(screen.getAllByText("Hybervees reviewed").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Authenticated orientation/i }));
     expect(screen.getByRole("button", { name: "Mark Hybervees reviewed" })).toBeDisabled();
     expect(

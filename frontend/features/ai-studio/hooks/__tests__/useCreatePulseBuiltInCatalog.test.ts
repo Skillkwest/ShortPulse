@@ -64,12 +64,12 @@ describe("useCreatePulseBuiltInCatalog", () => {
       expect.arrayContaining([
         expect.objectContaining({
           presetId: "catalog_test",
+          systemInstructions: "Use the control-plane catalog.",
           artifactTarget: "image_prompt",
           outputMode: "apply_prompt",
         }),
       ])
     );
-    expect(result.current.builtInDefinitions[0]).not.toHaveProperty("systemInstructions");
   });
 
   it("drops control-plane built-ins that cannot show a starter message", async () => {

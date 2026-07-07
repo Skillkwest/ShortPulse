@@ -369,6 +369,8 @@ export type AdminTesterReportSummary = {
   blockedCount: number;
   failedCount: number;
   partialCount: number;
+  hyberveesUnreviewedCount: number;
+  hyberveesReviewedCount: number;
 };
 
 export type AdminPagination = {

@@ -3,7 +3,11 @@
  * Loads and filters the operator tester-run report log.
  */
 import React from "react";
-import { TESTER_REPORT_PAGE_SIZE, type TesterReportStatus } from "../../../lib/testerReports";
+import {
+  TESTER_REPORT_PAGE_SIZE,
+  type HyberveesReviewStatus,
+  type TesterReportStatus,
+} from "../../../lib/testerReports";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   DEFAULT_ADMIN_TESTER_REPORT_SUMMARY,
@@ -27,9 +31,11 @@ type UseAdminTesterReportsControllerResult = {
   testerReportSummary: AdminTesterReportSummary;
   testerReportsPagination: AdminPagination;
   testerReportStatusFilter: "all" | TesterReportStatus;
+  testerReportReviewFilter: "all" | HyberveesReviewStatus;
   testerReportTesterFilter: string;
   testerReportSearch: string;
   handleTesterReportStatusFilterChange: (value: "all" | TesterReportStatus) => void;
+  handleTesterReportReviewFilterChange: (value: "all" | HyberveesReviewStatus) => void;
   handleTesterReportTesterFilterChange: (value: string) => void;
   handleTesterReportSearchChange: (value: string) => void;
   handleTesterReportsPrevPage: () => void;
@@ -52,6 +58,9 @@ export const useAdminTesterReportsController = ({
   const [testerReportStatusFilter, setTesterReportStatusFilter] = React.useState<
     "all" | TesterReportStatus
   >("all");
+  const [testerReportReviewFilter, setTesterReportReviewFilter] = React.useState<
+    "all" | HyberveesReviewStatus
+  >("unreviewed");
   const [testerReportTesterFilter, setTesterReportTesterFilter] = React.useState("");
   const [testerReportSearch, setTesterReportSearch] = React.useState("");
   const [debouncedTesterReportSearch, setDebouncedTesterReportSearch] = React.useState("");
@@ -69,6 +78,7 @@ export const useAdminTesterReportsController = ({
     async (overrides?: {
       page?: number;
       status?: "all" | TesterReportStatus;
+      hyberveesReview?: "all" | HyberveesReviewStatus;
       tester?: string;
       search?: string;
     }) => {
@@ -77,11 +87,13 @@ export const useAdminTesterReportsController = ({
       try {
         const activePage = overrides?.page ?? testerReportsPage;
         const activeStatus = overrides?.status ?? testerReportStatusFilter;
+        const activeHyberveesReview = overrides?.hyberveesReview ?? testerReportReviewFilter;
         const activeTester = overrides?.tester ?? testerReportTesterFilter.trim();
         const activeSearch = overrides?.search ?? debouncedTesterReportSearch;
         const params = buildAdminTesterReportsParams({
           page: activePage,
           status: activeStatus,
+          hyberveesReview: activeHyberveesReview,
           tester: activeTester,
           search: activeSearch,
         });
@@ -114,6 +126,7 @@ export const useAdminTesterReportsController = ({
     },
     [
       debouncedTesterReportSearch,
+      testerReportReviewFilter,
       testerReportStatusFilter,
       testerReportTesterFilter,
       testerReportsPage,
@@ -132,6 +145,7 @@ export const useAdminTesterReportsController = ({
     void loadTesterReports({
       page: 1,
       status: testerReportStatusFilter,
+      hyberveesReview: testerReportReviewFilter,
       tester: testerReportTesterFilter.trim(),
       search: debouncedTesterReportSearch,
     });
@@ -139,6 +153,7 @@ export const useAdminTesterReportsController = ({
     debouncedTesterReportSearch,
     enabled,
     loadTesterReports,
+    testerReportReviewFilter,
     testerReportStatusFilter,
     testerReportTesterFilter,
   ]);
@@ -146,6 +161,14 @@ export const useAdminTesterReportsController = ({
   const handleTesterReportStatusFilterChange = React.useCallback(
     (value: "all" | TesterReportStatus) => {
       setTesterReportStatusFilter(value);
+      setTesterReportsPage(1);
+    },
+    []
+  );
+
+  const handleTesterReportReviewFilterChange = React.useCallback(
+    (value: "all" | HyberveesReviewStatus) => {
+      setTesterReportReviewFilter(value);
       setTesterReportsPage(1);
     },
     []
@@ -216,9 +239,11 @@ export const useAdminTesterReportsController = ({
     testerReportSummary,
     testerReportsPagination,
     testerReportStatusFilter,
+    testerReportReviewFilter,
     testerReportTesterFilter,
     testerReportSearch,
     handleTesterReportStatusFilterChange,
+    handleTesterReportReviewFilterChange,
     handleTesterReportTesterFilterChange,
     handleTesterReportSearchChange,
     handleTesterReportsPrevPage,

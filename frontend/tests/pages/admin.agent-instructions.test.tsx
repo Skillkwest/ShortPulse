@@ -250,10 +250,10 @@ describe("Admin agent instructions page", () => {
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Global Prompt Director" },
     });
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "System instructions" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Prompt" }), {
       target: { value: "Draft pulse instructions." },
     });
     expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe("Admin agent instructions page", () => {
 
     const newSlotCard = screen.getByText("Pulse Slot 2").closest("article");
     if (!newSlotCard) throw new Error("Expected new Pulse slot card.");
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Universal Story Pulse" },
     });
     fireEvent.click(within(newSlotCard).getByRole("button", { name: "Delete" }));
@@ -298,26 +298,18 @@ describe("Admin agent instructions page", () => {
     };
     expect(payload.builtInDefinitions[0]).toMatchObject({
       presetId: "image",
-      label: "Global Prompt Director",
-      description: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].description,
-      systemInstructions: "Draft pulse instructions.",
-      artifactTarget: "video_prompt",
-      starterAssistantMessage: "Upload your image to get the process started :)",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      outputMode: "chat_reply",
-      memoryPolicy: "session",
+      title: "Global Prompt Director",
+      prompt: "Draft pulse instructions.",
     });
 
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
     expect(within(pulseCard).getByText("Stored")).toBeInTheDocument();
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Temporary name" },
     });
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Reset to stored" }));
-    expect(within(pulseCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
+    expect(within(pulseCard).getByRole("textbox", { name: "Title" })).toHaveValue(
       "Global Prompt Director"
     );
   }, 10_000);
@@ -339,10 +331,7 @@ describe("Admin agent instructions page", () => {
         }
         if (input === "/api/admin/agent-instructions/pulse-builtins") {
           if (init?.method === "PUT") {
-            const payload = JSON.parse(String(init.body)) as {
-              builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
-            };
-            return buildCatalogResponse(payload.builtInDefinitions);
+            return buildCatalogResponse();
           }
           return buildCatalogResponse();
         }
@@ -357,16 +346,10 @@ describe("Admin agent instructions page", () => {
     const newSlotCard = screen.getByText("Pulse Slot 4").closest("article");
     if (!newSlotCard) throw new Error("Expected new Pulse slot card.");
 
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Prompt Modifier" },
     });
-    fireEvent.change(
-      within(newSlotCard).getByRole("textbox", { name: "Starter assistant message" }),
-      {
-        target: { value: "Paste the prompt you want to modify." },
-      }
-    );
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "System instructions" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Prompt" }), {
       target: {
         value: "Ask for the source prompt, then return a cleaner version.",
       },
@@ -391,17 +374,8 @@ describe("Admin agent instructions page", () => {
       builtInDefinitions: Array<Record<string, unknown>>;
     };
     expect(payload.builtInDefinitions[3]).toMatchObject({
-      presetId: "prompt_modifier",
-      label: "Prompt Modifier",
-      description: "Built-in guided Pulse for Prompt Modifier.",
-      starterAssistantMessage: "Paste the prompt you want to modify.",
-      systemInstructions: "Ask for the source prompt, then return a cleaner version.",
-      artifactTarget: "text_artifact",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      outputMode: "chat_reply",
-      memoryPolicy: "session",
+      title: "Prompt Modifier",
+      prompt: "Ask for the source prompt, then return a cleaner version.",
     });
   }, 10_000);
 
@@ -635,10 +609,10 @@ describe("Admin agent instructions page", () => {
     fireEvent.click(within(firstCard).getByRole("button", { name: "Expand" }));
     fireEvent.click(within(secondCard).getByRole("button", { name: "Expand" }));
 
-    fireEvent.change(within(firstCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(firstCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Global Prompt Director" },
     });
-    fireEvent.change(within(secondCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(secondCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Do Not Publish Yet" },
     });
 
@@ -663,12 +637,12 @@ describe("Admin agent instructions page", () => {
     };
 
     expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
-    expect(payload.builtInDefinitions[0]?.label).toBe("Global Prompt Director");
-    expect(payload.builtInDefinitions[1]?.label).toBe("Multi Sequence Video Prompt");
+    expect(payload.builtInDefinitions[0]?.title).toBe("Global Prompt Director");
+    expect(payload.builtInDefinitions[1]?.title).toBe("Multi Sequence Video Prompt");
 
     expect(within(firstCard).getByText("Stored")).toBeInTheDocument();
     expect(within(secondCard).getByText("Unsaved edits")).toBeInTheDocument();
-    expect(within(secondCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
+    expect(within(secondCard).getByRole("textbox", { name: "Title" })).toHaveValue(
       "Do Not Publish Yet"
     );
   });
@@ -684,7 +658,7 @@ describe("Admin agent instructions page", () => {
 
     const newSlotCard = screen.getByText("Pulse Slot 4").closest("article");
     if (!newSlotCard) throw new Error("Expected blank Pulse slot card.");
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Incomplete Pulse" },
     });
 
@@ -929,7 +903,7 @@ describe("Admin agent instructions page", () => {
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Pulse card.");
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Global Prompt Director" },
     });
 
@@ -990,7 +964,7 @@ describe("Admin agent instructions page", () => {
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Pulse card.");
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Title" }), {
       target: { value: "Global Prompt Director" },
     });
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));

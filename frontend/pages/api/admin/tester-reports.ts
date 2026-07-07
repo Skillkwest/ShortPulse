@@ -5,7 +5,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import {
   TESTER_REPORT_MAX_PAGE_SIZE,
   TESTER_REPORT_PAGE_SIZE,
+  isHyberveesReviewStatus,
   isTesterReportStatus,
+  type HyberveesReviewStatus,
   normalizeTesterReportSearch,
   normalizeTesterSlug,
 } from "../../../lib/testerReports";
@@ -48,13 +50,26 @@ const normalizeStatusFilter = (value: unknown): "all" | string => {
   return isTesterReportStatus(value) ? value : "all";
 };
 
+const normalizeHyberveesReviewFilter = (value: unknown): "all" | HyberveesReviewStatus => {
+  if (value === "all" || typeof value === "undefined") return "all";
+  return isHyberveesReviewStatus(value) ? value : "all";
+};
+
 const applyListFilters = (
   query: TesterReportQuery,
-  filters: { status: string; tester: string | null; search: string }
+  filters: {
+    status: string;
+    hyberveesReview: "all" | HyberveesReviewStatus;
+    tester: string | null;
+    search: string;
+  }
 ): TesterReportQuery => {
   let next = query;
   if (filters.status !== "all") {
     next = next.eq("status", filters.status);
+  }
+  if (filters.hyberveesReview !== "all") {
+    next = next.eq("hybervees_review_status", filters.hyberveesReview);
   }
   if (filters.tester) {
     next = next.eq("tester_slug", filters.tester);
@@ -108,6 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
     const filters = {
       status: normalizeStatusFilter(firstQueryValue(req.query.status)),
+      hyberveesReview: normalizeHyberveesReviewFilter(firstQueryValue(req.query.hyberveesReview)),
       tester: normalizeTesterSlug(firstQueryValue(req.query.tester)),
       search: normalizeTesterReportSearch(firstQueryValue(req.query.search)),
     };
@@ -120,8 +136,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .select(TESTER_REPORT_COLUMNS, { count: "exact" }) as unknown as TesterReportQuery,
         filters
       );
+      const oldestFirst = filters.hyberveesReview === "unreviewed";
       return (await filteredQuery
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: oldestFirst })
         .range(offset, offset + limit - 1)) as ListQueryResult;
     };
 
@@ -163,6 +180,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       blockedCountResult,
       failedCountResult,
       partialCountResult,
+      hyberveesUnreviewedCountResult,
+      hyberveesReviewedCountResult,
     ] = await Promise.all([
       supabaseAdmin.from("tester_report_runs").select("id", { count: "exact", head: true }),
       supabaseAdmin
@@ -181,6 +200,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from("tester_report_runs")
         .select("id", { count: "exact", head: true })
         .eq("status", "partial"),
+      supabaseAdmin
+        .from("tester_report_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("hybervees_review_status", "unreviewed"),
+      supabaseAdmin
+        .from("tester_report_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("hybervees_review_status", "reviewed"),
     ]);
 
     const healthDegraded =
@@ -188,7 +215,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hasQueryError(completedCountResult) ||
       hasQueryError(blockedCountResult) ||
       hasQueryError(failedCountResult) ||
-      hasQueryError(partialCountResult);
+      hasQueryError(partialCountResult) ||
+      hasQueryError(hyberveesUnreviewedCountResult) ||
+      hasQueryError(hyberveesReviewedCountResult);
 
     if (healthDegraded) {
       await logApiRouteException({
@@ -202,6 +231,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           blocked_count_error: blockedCountResult.error?.message ?? null,
           failed_count_error: failedCountResult.error?.message ?? null,
           partial_count_error: partialCountResult.error?.message ?? null,
+          hybervees_unreviewed_count_error: hyberveesUnreviewedCountResult.error?.message ?? null,
+          hybervees_reviewed_count_error: hyberveesReviewedCountResult.error?.message ?? null,
         },
       });
     }
@@ -214,6 +245,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         blockedCount: healthDegraded ? 0 : countOrZero(blockedCountResult),
         failedCount: healthDegraded ? 0 : countOrZero(failedCountResult),
         partialCount: healthDegraded ? 0 : countOrZero(partialCountResult),
+        hyberveesUnreviewedCount: healthDegraded ? 0 : countOrZero(hyberveesUnreviewedCountResult),
+        hyberveesReviewedCount: healthDegraded ? 0 : countOrZero(hyberveesReviewedCountResult),
       },
       pagination: {
         page,

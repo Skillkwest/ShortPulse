@@ -2,7 +2,7 @@
  * Operator log for tester-agent run reports.
  */
 import { useState } from "react";
-import type { TesterReportStatus } from "../../../lib/testerReports";
+import type { HyberveesReviewStatus, TesterReportStatus } from "../../../lib/testerReports";
 import type { AdminPagination, AdminTesterReportRunRow, AdminTesterReportSummary } from "../types";
 import { AdminTesterReportMarkdown } from "./AdminTesterReportMarkdown";
 import reportStyles from "./AdminReportLog.module.css";
@@ -17,9 +17,11 @@ type AdminTesterReportsPanelProps = {
   testerReportSummary: AdminTesterReportSummary;
   testerReportsPagination: AdminPagination;
   testerReportStatusFilter: "all" | TesterReportStatus;
+  testerReportReviewFilter: "all" | HyberveesReviewStatus;
   testerReportTesterFilter: string;
   testerReportSearch: string;
   onTesterReportStatusFilterChange: (value: "all" | TesterReportStatus) => void;
+  onTesterReportReviewFilterChange: (value: "all" | HyberveesReviewStatus) => void;
   onTesterReportTesterFilterChange: (value: string) => void;
   onTesterReportSearchChange: (value: string) => void;
   onPrevPage: () => void;
@@ -52,6 +54,12 @@ const statusClassName = (status: TesterReportStatus): string => {
   return reportStyles.testerReportStatusCompleted;
 };
 
+const hyberveesReviewLabel = (status: "all" | HyberveesReviewStatus): string => {
+  if (status === "reviewed") return "Hybervees reviewed";
+  if (status === "unreviewed") return "Needs Hybervees";
+  return "All review states";
+};
+
 const buildScenarioPreview = (scenario: string): string => {
   const normalized = scenario.replace(/\s+/g, " ").trim();
   if (normalized.length <= 120) return normalized;
@@ -67,9 +75,11 @@ export function AdminTesterReportsPanel({
   testerReportSummary,
   testerReportsPagination,
   testerReportStatusFilter,
+  testerReportReviewFilter,
   testerReportTesterFilter,
   testerReportSearch,
   onTesterReportStatusFilterChange,
+  onTesterReportReviewFilterChange,
   onTesterReportTesterFilterChange,
   onTesterReportSearchChange,
   onPrevPage,
@@ -81,6 +91,7 @@ export function AdminTesterReportsPanel({
   const [expandedReportKeys, setExpandedReportKeys] = useState<Set<string>>(new Set());
   const hasActiveFilters =
     testerReportStatusFilter !== "all" ||
+    testerReportReviewFilter !== "unreviewed" ||
     testerReportTesterFilter.trim().length > 0 ||
     testerReportSearch.trim().length > 0;
   const hasStoredReports = testerReportSummary.totalCount > 0;
@@ -97,6 +108,10 @@ export function AdminTesterReportsPanel({
     { label: "Blocked", value: "blocked", count: testerReportSummary.blockedCount },
     { label: "Failed", value: "failed", count: testerReportSummary.failedCount },
     { label: "Partial", value: "partial", count: testerReportSummary.partialCount },
+  ];
+  const hyberveesReviewCounts = [
+    { label: "Needs Hybervees", count: testerReportSummary.hyberveesUnreviewedCount },
+    { label: "Hybervees reviewed", count: testerReportSummary.hyberveesReviewedCount },
   ];
 
   const toggleReport = (key: string) => {
@@ -157,6 +172,20 @@ export function AdminTesterReportsPanel({
 
       <div className={reportStyles.adminReportsToolbar}>
         <label className={reportStyles.reportFilterField}>
+          <span className="tiny subdued">Hybervees review</span>
+          <select
+            className={styles.searchInput}
+            value={testerReportReviewFilter}
+            onChange={(event) =>
+              onTesterReportReviewFilterChange(event.target.value as "all" | HyberveesReviewStatus)
+            }
+          >
+            <option value="unreviewed">Needs Hybervees</option>
+            <option value="reviewed">Hybervees reviewed</option>
+            <option value="all">All review states</option>
+          </select>
+        </label>
+        <label className={reportStyles.reportFilterField}>
           <span className="tiny subdued">Search tester reports</span>
           <input
             className={styles.searchInput}
@@ -180,6 +209,7 @@ export function AdminTesterReportsPanel({
             className="ghost-btn mini"
             onClick={() => {
               onTesterReportStatusFilterChange("all");
+              onTesterReportReviewFilterChange("unreviewed");
               onTesterReportTesterFilterChange("");
               onTesterReportSearchChange("");
             }}
@@ -199,6 +229,12 @@ export function AdminTesterReportsPanel({
               {testerReportStatusFilter === "all"
                 ? "All statuses"
                 : statusLabel(testerReportStatusFilter)}
+            </strong>
+            <span className="tiny subdued">{hyberveesReviewLabel(testerReportReviewFilter)}</span>
+          </div>
+          <div className={reportStyles.adminReportsTableMetaBlock}>
+            <strong>
+              {hyberveesReviewCounts.map((item) => `${item.label}: ${item.count}`).join(" · ")}
             </strong>
           </div>
         </div>

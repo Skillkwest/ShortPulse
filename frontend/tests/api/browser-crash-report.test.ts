@@ -67,13 +67,7 @@ describe("POST /api/browser-crash-report", () => {
     );
     expect(recordBrowserCrashReportsMock).toHaveBeenCalledWith({ payload });
     expect(res.status).toHaveBeenCalledWith(202);
-    expect(res.json).toHaveBeenCalledWith({
-      ok: true,
-      received: 1,
-      processed: 1,
-      skipped: 0,
-      sessionIds: ["browser-session-1"],
-    });
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 
   it("stops when rate limited", async () => {

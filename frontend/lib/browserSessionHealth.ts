@@ -52,6 +52,7 @@ declare global {
 
   interface Window {
     crashReport?: {
+      initialize?: (maxIndividualValueSizeBytes: number) => Promise<void>;
       set?: (key: string, value: string) => void;
       delete?: (key: string) => void;
     };
@@ -83,6 +84,9 @@ const TAB_ID_STORAGE_KEY = "shortpulse.browser_session.tab_id.v1";
 const ACTIVE_TABS_STORAGE_KEY = "shortpulse.browser_session.active_tabs.v1";
 
 let activeMonitor: BrowserSessionMonitorState | null = null;
+let crashReportContextInitialized = false;
+let crashReportContextInitialization: Promise<void> | null = null;
+let pendingCrashReportContext: { sessionId: string; metadata: JsonObject } | null = null;
 
 const nowMs = (): number => Date.now();
 
@@ -146,7 +150,31 @@ const writeCrashReportContextValue = (key: string, value: unknown): void => {
   }
 };
 
+const canWriteCrashReportContext = (): boolean => {
+  if (typeof window === "undefined" || typeof window.crashReport?.set !== "function") return false;
+  const crashReport = window.crashReport;
+  if (crashReportContextInitialized) return true;
+  if (typeof crashReport.initialize !== "function") return true;
+  if (!crashReportContextInitialization) {
+    crashReportContextInitialization = crashReport
+      .initialize(1024)
+      .then(() => {
+        crashReportContextInitialized = true;
+        if (pendingCrashReportContext) {
+          syncCrashReportContext(
+            pendingCrashReportContext.sessionId,
+            pendingCrashReportContext.metadata
+          );
+        }
+      })
+      .catch(() => undefined);
+  }
+  return false;
+};
+
 const clearCrashReportContext = (): void => {
+  pendingCrashReportContext = null;
+  if (!canWriteCrashReportContext()) return;
   if (typeof window === "undefined" || typeof window.crashReport?.delete !== "function") return;
   for (const key of [
     "shortpulse_browser_session_id",
@@ -170,6 +198,8 @@ const clearCrashReportContext = (): void => {
 
 const syncCrashReportContext = (sessionId: string, metadata: JsonObject): void => {
   if (typeof window === "undefined") return;
+  pendingCrashReportContext = { sessionId, metadata };
+  if (!canWriteCrashReportContext()) return;
   writeCrashReportContextValue("shortpulse_browser_session_id", sessionId);
   writeCrashReportContextValue("shortpulse_route", redactedCurrentRoute());
   writeCrashReportContextValue("shortpulse_build_id", metadata.build_id);
@@ -589,4 +619,7 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
 export const resetBrowserSessionHealthMonitorForTests = (): void => {
   if (activeMonitor) activeMonitor.cleanup();
   activeMonitor = null;
+  crashReportContextInitialized = false;
+  crashReportContextInitialization = null;
+  pendingCrashReportContext = null;
 };

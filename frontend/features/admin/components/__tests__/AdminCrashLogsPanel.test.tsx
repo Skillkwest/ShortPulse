@@ -163,9 +163,7 @@ describe("AdminCrashLogsPanel", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("Crash log view"), {
-      target: { value: "all_evidence" },
-    });
+    fireEvent.click(screen.getByRole("tab", { name: "All Evidence" }));
     expect(onViewModeChange).toHaveBeenCalledWith("all_evidence");
 
     fireEvent.click(screen.getByRole("button", { name: "Details" }));

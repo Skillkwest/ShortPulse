@@ -124,41 +124,6 @@ const SEEDED_STANDARD_SYSTEM_PROMPT = agentPrompts.STUDIO_AGENT_SYSTEM;
 const SEEDED_STYLE_EXTRACT_PROMPT = agentPrompts.OPENAI_PROMPT_STYLE_EXTRACT;
 const BUILT_IN_STYLE_REORDER_TRANSFER_TYPE = "application/x-shortpulse-admin-built-in-style";
 const BUILT_IN_STYLE_DROP_END_ID = "__built_in_style_drop_end__";
-const PULSE_ARTIFACT_TARGET_OPTIONS: Array<{
-  value: CreatePulseArtifactTarget;
-  label: string;
-}> = [
-  { value: "image_prompt", label: "Image Prompt" },
-  { value: "video_prompt", label: "Video Prompt" },
-  { value: "storyboard", label: "Storyboard" },
-  { value: "text_artifact", label: "Text Artifact" },
-];
-
-const createSafePulsePresetId = (label: string): string => {
-  const normalized = label
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9_-]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^[-_]+|[-_]+$/g, "");
-  return normalized.slice(0, 64).replace(/^[-_]+|[-_]+$/g, "");
-};
-
-const buildDefaultPulseDescription = (label: string): string => {
-  const normalizedLabel = label.trim();
-  return normalizedLabel ? `Built-in guided Pulse for ${normalizedLabel}.` : "";
-};
-
-const resolvePulseDraftForPersistence = (draft: AdminPulseDraft): AdminPulseDraft => {
-  const label = draft.label.trim();
-  return {
-    ...draft,
-    presetId: draft.presetId.trim() || createSafePulsePresetId(label),
-    description: draft.description.trim() || buildDefaultPulseDescription(label),
-  };
-};
-
 const buildPulseDraftFromDefinition = (
   definition: CreatePulseBuiltInPresetDefinition,
   index: number,
@@ -194,29 +159,11 @@ const buildPulseDraftsFromDefinitions = (
     )
   );
 
-const buildPulseDefinitionFromDraft = (
-  draft: AdminPulseDraft
-): CreatePulseBuiltInPresetDefinition => {
-  const resolvedDraft = resolvePulseDraftForPersistence(draft);
-  return {
-    presetId: resolvedDraft.presetId.trim(),
-    label: resolvedDraft.label.trim(),
-    description: resolvedDraft.description.trim(),
-    starterAssistantMessage: resolvedDraft.starterAssistantMessage.trim() || null,
-    workflowStageHints: resolvedDraft.workflowStageHints
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0),
-    artifactTarget: resolvedDraft.artifactTarget,
-    systemInstructions: resolvedDraft.systemInstructions.trim(),
-    pulseKind: resolvedDraft.pulseKind,
-    runtimeMode: resolvedDraft.runtimeMode,
-    activationMode: resolvedDraft.activationMode,
-    outputMode: resolvedDraft.outputMode,
-    memoryPolicy: resolvedDraft.memoryPolicy,
-    schemaVersion: resolvedDraft.schemaVersion,
-  };
-};
+const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, string> => ({
+  ...(draft.presetId.trim() ? { presetId: draft.presetId.trim() } : {}),
+  title: draft.label.trim(),
+  prompt: draft.systemInstructions.trim(),
+});
 
 const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   localId: `draft-${counter}`,
@@ -668,11 +615,7 @@ export function AdminAgentInstructionsSection() {
     [pulseDrafts, storedPulseDrafts]
   );
   const hasUnpublishablePulseDrafts = React.useMemo(
-    () =>
-      pulseDrafts.some((draft) => {
-        const publishableDraft = resolvePulseDraftForPersistence(draft);
-        return isPulseDraftBlank(draft) || !isPulseDraftPersistable(publishableDraft);
-      }),
+    () => pulseDrafts.some((draft) => isPulseDraftBlank(draft) || !isPulseDraftPersistable(draft)),
     [pulseDrafts]
   );
   const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
@@ -968,29 +911,7 @@ export function AdminAgentInstructionsSection() {
   const updatePulseDraft = React.useCallback(
     <K extends keyof AdminPulseDraft>(localId: string, field: K, value: AdminPulseDraft[K]) => {
       setPulseDrafts((current) =>
-        current.map((draft) => {
-          if (draft.localId !== localId) return draft;
-          if (field !== "label") return { ...draft, [field]: value };
-
-          const nextLabel = String(value);
-          const previousGeneratedPresetId = createSafePulsePresetId(draft.label);
-          const nextGeneratedPresetId = createSafePulsePresetId(nextLabel);
-          const previousGeneratedDescription = buildDefaultPulseDescription(draft.label);
-          const nextGeneratedDescription = buildDefaultPulseDescription(nextLabel);
-          return {
-            ...draft,
-            label: nextLabel,
-            presetId:
-              draft.presetId.trim().length === 0 || draft.presetId === previousGeneratedPresetId
-                ? nextGeneratedPresetId
-                : draft.presetId,
-            description:
-              draft.description.trim().length === 0 ||
-              draft.description === previousGeneratedDescription
-                ? nextGeneratedDescription
-                : draft.description,
-          };
-        })
+        current.map((draft) => (draft.localId === localId ? { ...draft, [field]: value } : draft))
       );
       setPulseSaveState("idle");
       setPulseSaveIssue(null);
@@ -2253,11 +2174,10 @@ export function AdminAgentInstructionsSection() {
                 ? !arePulseDraftsEqual(draft, stored)
                 : !isPulseDraftBlank(draft);
               const feedbackKey = `pulse:${draft.localId}`;
-              const publishableDraft = resolvePulseDraftForPersistence(draft);
               const cardTitle =
                 draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
               const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
-              const validationIssue = resolvePulseDraftValidationIssue(publishableDraft);
+              const validationIssue = resolvePulseDraftValidationIssue(draft);
               const note = stored
                 ? isDirty
                   ? "This slot differs from the stored global Pulse set."
@@ -2268,16 +2188,12 @@ export function AdminAgentInstructionsSection() {
                 pulseSaveState !== "saving" &&
                 !isPulseSaveBlockedByDegradedCatalog &&
                 isDirty &&
-                isPulseDraftPersistable(publishableDraft);
+                isPulseDraftPersistable(draft);
               const copyValue = [
-                `Preset ID: ${publishableDraft.presetId}`,
-                `Label: ${publishableDraft.label}`,
-                `Description: ${publishableDraft.description}`,
-                `Artifact target: ${publishableDraft.artifactTarget}`,
-                `Starter assistant: ${publishableDraft.starterAssistantMessage}`,
-                `Stage hints: ${publishableDraft.workflowStageHints}`,
+                `Title: ${draft.label}`,
                 "",
-                publishableDraft.systemInstructions,
+                "Prompt:",
+                draft.systemInstructions,
               ].join("\n");
 
               return (
@@ -2312,8 +2228,8 @@ export function AdminAgentInstructionsSection() {
                         </span>
                       </div>
                       <p className={styles.agentInstructionDescription}>
-                        Create the visible Pulse name, kickoff message, and operating instructions.
-                        Advanced metadata stays available for routing and runtime safety.
+                        Create the built-in Pulse title and prompt. Required runtime metadata is
+                        inferred by the admin API when this catalog is saved.
                       </p>
                     </div>
                     <div className={styles.agentInstructionActions}>
@@ -2356,7 +2272,7 @@ export function AdminAgentInstructionsSection() {
                     hidden={isCollapsed}
                   >
                     <label className={styles.agentInstructionField}>
-                      <span className={styles.agentInstructionLabel}>Pulse name</span>
+                      <span className={styles.agentInstructionLabel}>Title</span>
                       <input
                         className={styles.agentInstructionInput}
                         type="text"
@@ -2368,31 +2284,11 @@ export function AdminAgentInstructionsSection() {
                       />
                     </label>
 
-                    <label className={styles.agentInstructionField}>
-                      <span className={styles.agentInstructionLabel}>
-                        Starter assistant message
-                      </span>
-                      <textarea
-                        className={styles.agentInstructionSubTextarea}
-                        value={draft.starterAssistantMessage}
-                        onChange={(event) =>
-                          updatePulseDraft(
-                            draft.localId,
-                            "starterAssistantMessage",
-                            event.target.value
-                          )
-                        }
-                        placeholder="Paste the prompt you want to modify."
-                        spellCheck={false}
-                        rows={3}
-                      />
-                    </label>
-
                     <label
                       className={styles.agentInstructionLabel}
                       htmlFor={`admin-pulse-agent-instructions-${draft.localId}`}
                     >
-                      System instructions
+                      Prompt
                     </label>
                     <textarea
                       id={`admin-pulse-agent-instructions-${draft.localId}`}
@@ -2401,87 +2297,10 @@ export function AdminAgentInstructionsSection() {
                       onChange={(event) =>
                         updatePulseDraft(draft.localId, "systemInstructions", event.target.value)
                       }
-                      placeholder="Paste the full built-in Pulse system instructions here."
+                      placeholder="Paste the full built-in Pulse prompt here."
                       spellCheck={false}
                       rows={18}
                     />
-                    <details className={styles.agentInstructionAdvancedDetails}>
-                      <summary className={styles.agentInstructionAdvancedSummary}>
-                        Advanced metadata
-                      </summary>
-                      <div className={styles.agentInstructionAdvancedBody}>
-                        <div className={styles.agentInstructionFormGrid}>
-                          <label className={styles.agentInstructionField}>
-                            <span className={styles.agentInstructionLabel}>Preset ID</span>
-                            <input
-                              className={`${styles.agentInstructionInput} ${styles.adminMonoCell}`}
-                              type="text"
-                              value={draft.presetId}
-                              onChange={(event) =>
-                                updatePulseDraft(draft.localId, "presetId", event.target.value)
-                              }
-                              placeholder={publishableDraft.presetId || "prompt_modifier"}
-                              aria-describedby={`admin-pulse-card-note-${draft.localId}`}
-                            />
-                          </label>
-
-                          <label className={styles.agentInstructionField}>
-                            <span className={styles.agentInstructionLabel}>Artifact target</span>
-                            <select
-                              className={styles.agentInstructionSelect}
-                              value={draft.artifactTarget}
-                              onChange={(event) =>
-                                updatePulseDraft(
-                                  draft.localId,
-                                  "artifactTarget",
-                                  event.target.value as CreatePulseArtifactTarget
-                                )
-                              }
-                            >
-                              {PULSE_ARTIFACT_TARGET_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Description</span>
-                          <textarea
-                            className={styles.agentInstructionSubTextarea}
-                            value={draft.description}
-                            onChange={(event) =>
-                              updatePulseDraft(draft.localId, "description", event.target.value)
-                            }
-                            placeholder={
-                              publishableDraft.description || "What this built-in Pulse is for."
-                            }
-                            spellCheck={false}
-                            rows={3}
-                          />
-                        </label>
-
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Stage hints</span>
-                          <textarea
-                            className={styles.agentInstructionSubTextarea}
-                            value={draft.workflowStageHints}
-                            onChange={(event) =>
-                              updatePulseDraft(
-                                draft.localId,
-                                "workflowStageHints",
-                                event.target.value
-                              )
-                            }
-                            placeholder="Image Gate, Camera Motion, Action Selection"
-                            spellCheck={false}
-                            rows={3}
-                          />
-                        </label>
-                      </div>
-                    </details>
                     <p
                       id={`admin-pulse-card-note-${draft.localId}`}
                       className={styles.agentInstructionNote}
@@ -2491,8 +2310,8 @@ export function AdminAgentInstructionsSection() {
                   </div>
                   {isCollapsed ? (
                     <p className={styles.agentInstructionCollapsedSummary}>
-                      {publishableDraft.description.trim().length > 0
-                        ? publishableDraft.description.trim()
+                      {draft.systemInstructions.trim().length > 0
+                        ? draft.systemInstructions.trim().slice(0, 180)
                         : "Expand this Pulse card to review or edit its full configuration."}
                     </p>
                   ) : null}

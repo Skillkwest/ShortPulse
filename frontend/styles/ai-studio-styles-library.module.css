@@ -341,6 +341,28 @@
   line-height: 1.2;
 }
 
+.bootstrapStyleScope :global(.styles-library-tile-title-group) {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.bootstrapStyleScope :global(.styles-library-built-in-marker) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.bootstrapStyleScope :global(.styles-library-built-in-favicon) {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 .bootstrapStyleScope :global(.styles-library-tile-preview) {
   position: relative;
   width: 100%;

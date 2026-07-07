@@ -187,9 +187,11 @@ describe("browserSessionHealth", () => {
 
   it("writes redacted CrashReportContext values for browser-delivered crash reports", async () => {
     readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    const initializeMock = vi.fn().mockResolvedValue(undefined);
     const setMock = vi.fn();
     const deleteMock = vi.fn();
     window.crashReport = {
+      initialize: initializeMock,
       set: setMock,
       delete: deleteMock,
     };
@@ -197,6 +199,7 @@ describe("browserSessionHealth", () => {
     const cleanup = installBrowserSessionHealthMonitor();
     await flushPromises();
 
+    expect(initializeMock).toHaveBeenCalledWith(1024);
     expect(setMock).toHaveBeenCalledWith("shortpulse_browser_session_id", expect.any(String));
     expect(setMock).toHaveBeenCalledWith("shortpulse_route", "/ai-studio?projectId");
 

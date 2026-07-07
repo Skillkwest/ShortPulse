@@ -25,9 +25,11 @@ export default function AdminTesterReportsPage() {
     testerReportSummary,
     testerReportsPagination,
     testerReportStatusFilter,
+    testerReportReviewFilter,
     testerReportTesterFilter,
     testerReportSearch,
     handleTesterReportStatusFilterChange,
+    handleTesterReportReviewFilterChange,
     handleTesterReportTesterFilterChange,
     handleTesterReportSearchChange,
     handleTesterReportsPrevPage,
@@ -62,9 +64,11 @@ export default function AdminTesterReportsPage() {
         testerReportSummary={testerReportSummary}
         testerReportsPagination={testerReportsPagination}
         testerReportStatusFilter={testerReportStatusFilter}
+        testerReportReviewFilter={testerReportReviewFilter}
         testerReportTesterFilter={testerReportTesterFilter}
         testerReportSearch={testerReportSearch}
         onTesterReportStatusFilterChange={handleTesterReportStatusFilterChange}
+        onTesterReportReviewFilterChange={handleTesterReportReviewFilterChange}
         onTesterReportTesterFilterChange={handleTesterReportTesterFilterChange}
         onTesterReportSearchChange={handleTesterReportSearchChange}
         onPrevPage={handleTesterReportsPrevPage}

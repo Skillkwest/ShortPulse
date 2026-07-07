@@ -11,9 +11,10 @@ import {
   isCreatePulseRetiredPresetId,
   isValidCreatePulseBuiltInPresetId,
   normalizeCreatePulseBuiltInPresetDefinitions,
+  type CreatePulseArtifactTarget,
 } from "../../../../lib/model-runtime/createPulseBuiltIns";
 
-const VALID_ARTIFACT_TARGETS = new Set([
+const VALID_ARTIFACT_TARGETS: ReadonlySet<string> = new Set([
   "image_prompt",
   "video_prompt",
   "storyboard",
@@ -25,57 +26,144 @@ const readTrimmedString = (record: Record<string, unknown>, key: string): string
   return typeof value === "string" ? value.trim() : "";
 };
 
-const resolveBuiltInDefinitionPayloadIssue = (
+const createSafePulsePresetId = (label: string): string =>
+  label
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, 64)
+    .replace(/^[-_]+|[-_]+$/g, "");
+
+const resolveUniquePresetId = (basePresetId: string, seenPresetIds: Set<string>): string => {
+  const base = basePresetId || "built_in_pulse";
+  let candidate = base.slice(0, 64).replace(/^[-_]+|[-_]+$/g, "") || "built_in_pulse";
+  let suffix = 2;
+  while (seenPresetIds.has(candidate)) {
+    const suffixText = `_${suffix}`;
+    candidate = `${base.slice(0, Math.max(1, 64 - suffixText.length))}${suffixText}`.replace(
+      /^[-_]+|[-_]+$/g,
+      ""
+    );
+    suffix += 1;
+  }
+  return candidate;
+};
+
+const inferStarterAssistantMessage = (label: string, prompt: string): string => {
+  const starterPatterns = [
+    /your\s+first\s+message\s+must\s+be\s+exactly\s*:?\s*\n\s*([^\n]+)/i,
+    /first assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
+    /starter assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
+    /starter message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
+  ];
+  for (const pattern of starterPatterns) {
+    const match = prompt.match(pattern);
+    const candidate = match?.[1]?.trim().replace(/^["'“”]+|["'“”]+$/g, "");
+    if (candidate) return candidate;
+  }
+  return label
+    ? `Tell me what you want ${label} to help with.`
+    : "Tell me what this Pulse should help with.";
+};
+
+const inferArtifactTarget = (label: string, prompt: string): CreatePulseArtifactTarget => {
+  const searchable = `${label} ${prompt}`.toLowerCase();
+  if (/\bstoryboard\b|\bstory board\b/.test(searchable)) return "storyboard";
+  if (/\bvideo\b|\bshot\b|\bmotion\b|\bcamera\b|\bscene\b/.test(searchable)) return "video_prompt";
+  if (/\bimage\b|\bphoto\b|\bvisual\b|\billustration\b/.test(searchable)) return "image_prompt";
+  return "text_artifact";
+};
+
+const buildDefaultDescription = (label: string): string => `Built-in guided Pulse for ${label}.`;
+
+const normalizeAdminBuiltInDefinitionRecord = (
   value: unknown,
   index: number,
   seenPresetIds: Set<string>
-): string | null => {
+): { ok: true; value: Record<string, unknown> } | { ok: false; message: string } => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return `Pulse slot ${index + 1} must be an object.`;
+    return { ok: false, message: `Pulse slot ${index + 1} must be an object.` };
   }
   const record = value as Record<string, unknown>;
-  const presetId = readTrimmedString(record, "presetId");
-  if (!presetId) return `Pulse slot ${index + 1} is missing a preset id.`;
-  if (!isValidCreatePulseBuiltInPresetId(presetId)) {
-    return `${CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT} Invalid preset id: ${presetId}`;
+  const label =
+    readTrimmedString(record, "label") ||
+    readTrimmedString(record, "title") ||
+    readTrimmedString(record, "name");
+  const systemInstructions =
+    readTrimmedString(record, "systemInstructions") || readTrimmedString(record, "prompt");
+
+  if (!label) return { ok: false, message: `Pulse slot ${index + 1} needs a title.` };
+  if (!systemInstructions) {
+    return { ok: false, message: `Pulse "${label}" needs a prompt.` };
   }
-  if (isCreatePulseRetiredPresetId(presetId)) {
-    return `Pulse preset id "${presetId}" is retired. Choose a new safe preset id for this built-in Pulse.`;
+
+  const suppliedPresetId = readTrimmedString(record, "presetId");
+  if (suppliedPresetId && !isValidCreatePulseBuiltInPresetId(suppliedPresetId)) {
+    return {
+      ok: false,
+      message: `${CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT} Invalid preset id: ${suppliedPresetId}`,
+    };
   }
-  if (seenPresetIds.has(presetId)) {
-    return `Pulse preset id "${presetId}" is duplicated.`;
+  if (suppliedPresetId && isCreatePulseRetiredPresetId(suppliedPresetId)) {
+    return {
+      ok: false,
+      message: `Pulse preset id "${suppliedPresetId}" is retired. Choose a new safe preset id for this built-in Pulse.`,
+    };
   }
+  if (suppliedPresetId && seenPresetIds.has(suppliedPresetId)) {
+    return { ok: false, message: `Pulse preset id "${suppliedPresetId}" is duplicated.` };
+  }
+  const presetId = suppliedPresetId
+    ? suppliedPresetId
+    : resolveUniquePresetId(createSafePulsePresetId(label), seenPresetIds);
   seenPresetIds.add(presetId);
-  if (!readTrimmedString(record, "label")) return `Pulse "${presetId}" is missing a name.`;
-  if (!readTrimmedString(record, "description")) {
-    return `Pulse "${presetId}" is missing a description.`;
-  }
-  if (!readTrimmedString(record, "starterAssistantMessage")) {
-    return `Pulse "${presetId}" needs a starter assistant message so kickoff can never be blank.`;
-  }
-  if (!readTrimmedString(record, "systemInstructions")) {
-    return `Pulse "${presetId}" is missing system instructions.`;
-  }
+
   if (record.pulseKind !== undefined && record.pulseKind !== "guided_workflow") {
-    return `Pulse "${presetId}" must use pulseKind "guided_workflow".`;
+    return { ok: false, message: `Pulse "${presetId}" must use pulseKind "guided_workflow".` };
   }
   if (record.runtimeMode !== undefined && record.runtimeMode !== "workflow_gpt") {
-    return `Pulse "${presetId}" must use runtimeMode "workflow_gpt".`;
+    return { ok: false, message: `Pulse "${presetId}" must use runtimeMode "workflow_gpt".` };
   }
   if (record.activationMode !== undefined && record.activationMode !== "activate_and_start") {
-    return `Pulse "${presetId}" must use activationMode "activate_and_start".`;
+    return {
+      ok: false,
+      message: `Pulse "${presetId}" must use activationMode "activate_and_start".`,
+    };
   }
   if (record.outputMode !== undefined && record.outputMode !== "chat_reply") {
-    return `Pulse "${presetId}" must use outputMode "chat_reply".`;
+    return { ok: false, message: `Pulse "${presetId}" must use outputMode "chat_reply".` };
   }
   if (record.memoryPolicy !== undefined && record.memoryPolicy !== "session") {
-    return `Pulse "${presetId}" must use memoryPolicy "session".`;
+    return { ok: false, message: `Pulse "${presetId}" must use memoryPolicy "session".` };
   }
-  const artifactTarget = readTrimmedString(record, "artifactTarget");
-  if (!VALID_ARTIFACT_TARGETS.has(artifactTarget)) {
-    return `Pulse "${presetId}" needs a valid artifact target.`;
+
+  const suppliedArtifactTarget = readTrimmedString(record, "artifactTarget");
+  if (suppliedArtifactTarget && !VALID_ARTIFACT_TARGETS.has(suppliedArtifactTarget)) {
+    return { ok: false, message: `Pulse "${presetId}" needs a valid artifact target.` };
   }
-  return null;
+
+  return {
+    ok: true,
+    value: {
+      ...record,
+      presetId,
+      label,
+      description: readTrimmedString(record, "description") || buildDefaultDescription(label),
+      starterAssistantMessage:
+        readTrimmedString(record, "starterAssistantMessage") ||
+        inferStarterAssistantMessage(label, systemInstructions),
+      artifactTarget: suppliedArtifactTarget || inferArtifactTarget(label, systemInstructions),
+      systemInstructions,
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+    },
+  };
 };
 
 const validateBuiltInDefinitionsPayload = (
@@ -90,11 +178,13 @@ const validateBuiltInDefinitionsPayload = (
     return { ok: false, message: "builtInDefinitions must be an array." };
   }
   const seenPresetIds = new Set<string>();
+  const hydratedDefinitions: Record<string, unknown>[] = [];
   for (let index = 0; index < value.length; index += 1) {
-    const issue = resolveBuiltInDefinitionPayloadIssue(value[index], index, seenPresetIds);
-    if (issue) return { ok: false, message: issue };
+    const hydrated = normalizeAdminBuiltInDefinitionRecord(value[index], index, seenPresetIds);
+    if (!hydrated.ok) return { ok: false, message: hydrated.message };
+    hydratedDefinitions.push(hydrated.value);
   }
-  const normalized = normalizeCreatePulseBuiltInPresetDefinitions(value);
+  const normalized = normalizeCreatePulseBuiltInPresetDefinitions(hydratedDefinitions);
   if (normalized.length !== value.length) {
     return {
       ok: false,

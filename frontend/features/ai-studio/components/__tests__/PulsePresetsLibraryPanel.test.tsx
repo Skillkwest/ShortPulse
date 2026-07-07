@@ -148,15 +148,21 @@ describe("PulsePresetsLibraryPanel", () => {
     );
 
     expect(screen.getByRole("dialog", { name: "Video Prompt Magic details" })).toBeInTheDocument();
-    expect(screen.getByText(/Inspecting here does not activate this Pulse\./)).toBeInTheDocument();
-    expect(screen.getByText("Built-in guided workflow")).toBeInTheDocument();
-    expect(screen.getByText("Starts with")).toBeInTheDocument();
-    expect(screen.getByText("Workflow")).toBeInTheDocument();
-    expect(screen.getByText("Produces")).toBeInTheDocument();
-    expect(screen.getByText("Video prompt")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Video Prompt Magic" })).toBeInTheDocument();
+    const promptViewer = screen.getByLabelText("Prompt") as HTMLTextAreaElement;
+    expect(promptViewer.value).toContain("Single-Shot Video Prompt");
+    expect(promptViewer).toHaveAttribute("readonly");
+    expect(
+      screen.queryByText(/Inspecting here does not activate this Pulse\./)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Built-in guided workflow")).not.toBeInTheDocument();
+    expect(screen.queryByText("Starts with")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
+    expect(screen.queryByText("Produces")).not.toBeInTheDocument();
     expect(screen.queryByText("Runtime")).not.toBeInTheDocument();
     expect(screen.queryByText("Activation")).not.toBeInTheDocument();
     expect(screen.queryByText("Artifact Target")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duplicate to custom" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Edit Preset" })).not.toBeInTheDocument();
     expect(onSavedPresetsChange).not.toHaveBeenCalled();

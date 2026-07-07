@@ -41,11 +41,13 @@ Optional fields include `status`, run timing, `creditsSpent`, `productionSurface
 ## Admin Review Flow
 
 1. Open `/admin/tester-reports`.
-2. Filter by status, tester slug, or search text.
-3. Click a run row to reveal run metadata and the two report cards.
-4. Expand `Persona report` or `Engineering handoff` to read the body.
-5. Treat the engineering handoff as an input packet for a separate scoped implementation or audit lane.
-6. After Hybervees has read and analyzed the local tester report or admin report content, mark the row `Hybervees reviewed` in `/admin/tester-reports` so the admin page reflects insight-review progress separately from the tester-run status.
+2. Start from the default `Needs Hybervees` review queue. This view lists unreviewed tester runs oldest first so Hybervees can process the earliest report before newer ones.
+3. Filter by status, tester slug, or search text when narrowing the queue.
+4. Use the `Hybervees review` filter to switch to `Hybervees reviewed` or `All review states` when auditing history.
+5. Click a run row to reveal run metadata and the two report cards.
+6. Expand `Persona report` or `Engineering handoff` to read the body.
+7. Treat the engineering handoff as an input packet for a separate scoped implementation or audit lane.
+8. After Hybervees has read and analyzed the local tester report or admin report content, mark the row `Hybervees reviewed` in `/admin/tester-reports` so the admin page reflects insight-review progress separately from the tester-run status.
 
 ## Security Boundary
 

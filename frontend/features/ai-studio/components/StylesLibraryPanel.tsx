@@ -3,6 +3,7 @@
  * Presentational surface wired to the style-creator controller.
  */
 import React from "react";
+import Image from "next/image";
 import { ArrowCounterClockwise, CircleNotch, Prohibit, UploadSimple, X } from "phosphor-react";
 import type { StylesLibraryStyleDetails } from "../types";
 import type { StylesLibraryReorderPlacement } from "../logic/stylesLibraryCatalog";
@@ -255,6 +256,7 @@ export function StylesLibraryPanel({
         >
           {stylesWithNoneFirst.map((style) => {
             const isNoneStyle = style.id === NONE_STYLE_ID;
+            const isBuiltInStyle = style.source === "built_in";
             const isStylePreviewGenerating = stylePreviewGenerationStyleIds.includes(style.id);
             return (
               <article
@@ -311,7 +313,26 @@ export function StylesLibraryPanel({
                     openStyleEditModal(style);
                   }}
                 >
-                  <span className="styles-library-tile-title">{style.title}</span>
+                  <span className="styles-library-tile-title-group">
+                    {isBuiltInStyle ? (
+                      <span
+                        className="styles-library-built-in-marker"
+                        title="Built-in style. It can't be edited, but you can still delete it from your library."
+                        role="img"
+                        aria-label="Built-in style"
+                      >
+                        <Image
+                          className="styles-library-built-in-favicon"
+                          src="/Fav.png"
+                          alt=""
+                          width={16}
+                          height={16}
+                          aria-hidden="true"
+                        />
+                      </span>
+                    ) : null}
+                    <span className="styles-library-tile-title">{style.title}</span>
+                  </span>
                   <span
                     className="styles-library-tile-preview"
                     style={

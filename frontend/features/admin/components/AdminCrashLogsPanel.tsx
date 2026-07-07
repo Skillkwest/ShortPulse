@@ -210,19 +210,27 @@ export function AdminCrashLogsPanel({
         </button>
       </div>
 
-      <div className={styles.adminErrorsToolbar}>
-        <select
-          aria-label="Crash log view"
-          className={styles.searchInput}
-          value={viewMode}
-          onChange={(event) => onViewModeChange(event.target.value as AdminCrashSessionsViewMode)}
-        >
-          {VIEW_MODE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
+      <div className={styles.adminCrashModeTabs} role="tablist" aria-label="Crash log view">
+        {VIEW_MODE_OPTIONS.map((option) => {
+          const active = option.value === viewMode;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={`${styles.adminNavLink} ${styles.adminNavButton} ${
+                active ? styles.adminNavLinkActive : ""
+              }`}
+              onClick={() => onViewModeChange(option.value)}
+            >
               {option.label}
-            </option>
-          ))}
-        </select>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className={styles.adminErrorsToolbar}>
         <input
           className={styles.searchInput}
           type="search"

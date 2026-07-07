@@ -4,6 +4,11 @@
  * Create rail.
  */
 import { CREATE_PULSE_SEEDED_BUILT_IN_METADATA } from "./createPulseBuiltInMetadata";
+import {
+  MULTI_SEQUENCE_VIDEO_PROMPT_SYSTEM_INSTRUCTIONS,
+  STORY_BUILDER_SYSTEM_INSTRUCTIONS,
+  VIDEO_PROMPT_MAGIC_SYSTEM_INSTRUCTIONS,
+} from "./createPulseBuiltInInstructions";
 
 export const CREATE_PULSE_MORE_LABEL = "More Pulses" as const;
 export const CREATE_PULSE_PANEL_MAX = 10;
@@ -49,6 +54,7 @@ export type CreatePulseBuiltInPresetDefinition = {
   presetId: string;
   label: string;
   description: string;
+  systemInstructions?: string;
   pulseKind: CreatePulsePresetKind;
   runtimeMode: CreatePulseRuntimeMode;
   activationMode: CreatePulseActivationMode;
@@ -83,6 +89,7 @@ const createBuiltInPulseDefinition = ({
   presetId,
   label,
   description,
+  systemInstructions = "",
   pulseKind = CREATE_PULSE_BUILT_IN_KIND,
   runtimeMode = CREATE_PULSE_BUILT_IN_RUNTIME_MODE,
   activationMode = CREATE_PULSE_BUILT_IN_ACTIVATION_MODE,
@@ -94,6 +101,7 @@ const createBuiltInPulseDefinition = ({
   presetId: string;
   label: string;
   description: string;
+  systemInstructions?: string;
   pulseKind?: CreatePulsePresetKind;
   runtimeMode?: CreatePulseRuntimeMode;
   activationMode?: CreatePulseActivationMode;
@@ -105,6 +113,7 @@ const createBuiltInPulseDefinition = ({
   presetId,
   label,
   description,
+  systemInstructions: systemInstructions.trim(),
   pulseKind,
   runtimeMode,
   activationMode,
@@ -117,8 +126,18 @@ const createBuiltInPulseDefinition = ({
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
 });
 
+const CREATE_PULSE_SEEDED_BUILT_IN_SYSTEM_INSTRUCTIONS = [
+  VIDEO_PROMPT_MAGIC_SYSTEM_INSTRUCTIONS,
+  MULTI_SEQUENCE_VIDEO_PROMPT_SYSTEM_INSTRUCTIONS,
+  STORY_BUILDER_SYSTEM_INSTRUCTIONS,
+] as const;
+
 export const CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS = CREATE_PULSE_SEEDED_BUILT_IN_METADATA.map(
-  (definition) => createBuiltInPulseDefinition(definition)
+  (definition, index) =>
+    createBuiltInPulseDefinition({
+      ...definition,
+      systemInstructions: CREATE_PULSE_SEEDED_BUILT_IN_SYSTEM_INSTRUCTIONS[index] ?? "",
+    })
 ) as readonly CreatePulseBuiltInPresetDefinition[];
 
 const CREATE_PULSE_RETIRED_PRESET_IDS = [
@@ -261,6 +280,10 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { description?: unknown }).description === "string"
       ? (value as { description: string }).description.trim()
       : "";
+  const systemInstructions =
+    typeof (value as { systemInstructions?: unknown }).systemInstructions === "string"
+      ? (value as { systemInstructions: string }).systemInstructions.trim()
+      : "";
   const starterAssistantMessage =
     typeof (value as { starterAssistantMessage?: unknown }).starterAssistantMessage === "string"
       ? (value as { starterAssistantMessage: string }).starterAssistantMessage.trim()
@@ -308,6 +331,7 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     presetId,
     label,
     description,
+    systemInstructions,
     pulseKind,
     runtimeMode,
     activationMode: isCreatePulseActivationMode(activationModeRaw)
@@ -627,7 +651,7 @@ export const resolveCreatePulsePresetCatalog = (
         presetId: definition.presetId,
         label: definition.label,
         description: definition.description,
-        systemInstructions: "",
+        systemInstructions: definition.systemInstructions?.trim() ?? "",
         pulseKind: definition.pulseKind,
         runtimeMode: definition.runtimeMode,
         activationMode: definition.activationMode,

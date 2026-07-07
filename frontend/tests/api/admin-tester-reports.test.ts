@@ -102,6 +102,7 @@ describe("GET /api/admin/tester-reports", () => {
         limit: "25",
         tester: "maya-chen",
         status: "completed",
+        hyberveesReview: "unreviewed",
         search: "orientation",
       },
     };
@@ -111,7 +112,9 @@ describe("GET /api/admin/tester-reports", () => {
 
     expect(fromMock).toHaveBeenCalledWith("tester_report_runs");
     expect(listBuilder.eq).toHaveBeenCalledWith("status", "completed");
+    expect(listBuilder.eq).toHaveBeenCalledWith("hybervees_review_status", "unreviewed");
     expect(listBuilder.eq).toHaveBeenCalledWith("tester_slug", "maya-chen");
+    expect(listBuilder.order).toHaveBeenCalledWith("created_at", { ascending: true });
     expect(listBuilder.or).toHaveBeenCalledWith(
       expect.stringContaining("scenario.ilike.%orientation%")
     );
@@ -125,6 +128,8 @@ describe("GET /api/admin/tester-reports", () => {
           blockedCount: 1,
           failedCount: 1,
           partialCount: 1,
+          hyberveesUnreviewedCount: 1,
+          hyberveesReviewedCount: 1,
         },
       })
     );

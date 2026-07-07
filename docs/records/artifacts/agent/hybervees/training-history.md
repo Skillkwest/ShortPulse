@@ -233,3 +233,23 @@ Behavior learned:
 SOP or template updates:
 
 - Updated the completed standard loop, report-source step, admin review-state step, access checklist, and memory with duplicate-prevention behavior.
+
+### 2026-07-07 - First `run sop` Admin-Authorized Review
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- `run sop` successfully triggers the completed Hybervees review loop.
+- The production Supabase admin-authorized data path can identify the earliest unreviewed Admin Tester Reports row without browser login.
+- Local tester artifacts remain the right full-body report source when the production row points to retained report paths.
+- Backlog promotion should account for current repo/source truth: if workflow reload and generated prompt metadata already exist, the recommendation should target discoverability and production validation rather than rebuilding prompt storage.
+
+Outcome:
+
+- Reviewed `2026-07-05-find-generated-image-context`.
+- Saved a detailed insight report and ADHD-friendly owner summary.
+- Added one high-ROI backlog item for generated-media context recovery.
+- Marked the production tester report row `Hybervees reviewed` through Hybervees-owned review metadata.

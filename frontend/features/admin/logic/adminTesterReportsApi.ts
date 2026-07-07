@@ -13,6 +13,7 @@ import type { AdminPagination, AdminTesterReportRunRow, AdminTesterReportSummary
 type AdminTesterReportsLoadOverrides = {
   page?: number;
   status?: "all" | TesterReportStatus;
+  hyberveesReview?: "all" | HyberveesReviewStatus;
   tester?: string;
   search?: string;
 };
@@ -29,6 +30,8 @@ export const DEFAULT_ADMIN_TESTER_REPORT_SUMMARY: AdminTesterReportSummary = {
   blockedCount: 0,
   failedCount: 0,
   partialCount: 0,
+  hyberveesUnreviewedCount: 0,
+  hyberveesReviewedCount: 0,
 };
 
 const toObjectRecord = (value: unknown): Record<string, unknown> =>
@@ -83,6 +86,9 @@ export const buildAdminTesterReportsParams = (
   params.set("limit", String(TESTER_REPORT_PAGE_SIZE));
   if (overrides.status && overrides.status !== "all") {
     params.set("status", overrides.status);
+  }
+  if (overrides.hyberveesReview && overrides.hyberveesReview !== "all") {
+    params.set("hyberveesReview", overrides.hyberveesReview);
   }
   if (overrides.tester?.trim()) {
     params.set("tester", overrides.tester.trim());
@@ -141,6 +147,8 @@ export const normalizeAdminTesterReportsResponse = (
     blockedCount: toFiniteNumber(data.summary?.blockedCount, 0),
     failedCount: toFiniteNumber(data.summary?.failedCount, 0),
     partialCount: toFiniteNumber(data.summary?.partialCount, 0),
+    hyberveesUnreviewedCount: toFiniteNumber(data.summary?.hyberveesUnreviewedCount, 0),
+    hyberveesReviewedCount: toFiniteNumber(data.summary?.hyberveesReviewedCount, 0),
   },
   pagination: buildPagination(data.pagination, activePage),
 });

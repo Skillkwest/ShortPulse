@@ -37,11 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
     return res.status(200).json({
-      builtInDefinitions: builtInCatalog.builtInDefinitions.map((definition) => {
-        const { systemInstructions, ...publicDefinition } = definition;
-        void systemInstructions;
-        return publicDefinition;
-      }),
+      builtInDefinitions: builtInCatalog.builtInDefinitions,
       source: builtInCatalog.source,
       updatedAt: builtInCatalog.updatedAt,
       updatedByEmail: builtInCatalog.updatedByEmail,

@@ -63,7 +63,13 @@ describe("GET /api/ai/create-pulse-builtins", () => {
 
   it("returns the active built-in catalog", async () => {
     resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
-      builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
+      builtInDefinitions: [
+        {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          systemInstructions: "Use the published built-in prompt.",
+        },
+      ],
       source: "control_plane",
       updatedAt: "2026-05-05T18:00:00.000Z",
       updatedByEmail: "admin@example.com",
@@ -77,7 +83,13 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({ bypassCache: true });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      builtInDefinitions: [{ presetId: "image", label: "Video Prompt Magic" }],
+      builtInDefinitions: [
+        {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          systemInstructions: "Use the published built-in prompt.",
+        },
+      ],
       source: "control_plane",
       updatedAt: "2026-05-05T18:00:00.000Z",
       updatedByEmail: "admin@example.com",

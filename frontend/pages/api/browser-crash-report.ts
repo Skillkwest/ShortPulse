@@ -31,8 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const result = await recordBrowserCrashReports({ payload: req.body });
-    return res.status(202).json({ ok: true, ...result });
+    await recordBrowserCrashReports({ payload: req.body });
+    return res.status(202).json({ ok: true });
   } catch (error) {
     await logApiRouteException({
       req,

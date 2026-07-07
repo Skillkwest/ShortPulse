@@ -43,6 +43,8 @@ const buildListResponse = (reports: unknown[], summaryOverrides: Record<string, 
       blockedCount: 0,
       failedCount: 0,
       partialCount: 0,
+      hyberveesUnreviewedCount: reports.length,
+      hyberveesReviewedCount: 0,
       ...summaryOverrides,
     },
     pagination: {
@@ -69,18 +71,19 @@ describe("useAdminTesterReportsController", () => {
 
     await waitFor(() => expect(result.current.testerReports).toHaveLength(1));
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/admin/tester-reports?page=1&limit=25",
+      "/api/admin/tester-reports?page=1&limit=25&hyberveesReview=unreviewed",
       expect.objectContaining({ method: "GET" })
     );
 
     act(() => {
       result.current.handleTesterReportStatusFilterChange("completed");
+      result.current.handleTesterReportReviewFilterChange("reviewed");
       result.current.handleTesterReportTesterFilterChange("maya-chen");
     });
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/tester-reports?page=1&limit=25&status=completed&tester=maya-chen",
+        "/api/admin/tester-reports?page=1&limit=25&status=completed&hyberveesReview=reviewed&tester=maya-chen",
         expect.objectContaining({ method: "GET" })
       )
     );

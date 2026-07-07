@@ -7,6 +7,7 @@ Purpose: define Hybervees' repeatable workflow for reviewing tester reports and 
 Run this SOP when the user says:
 
 - `run Hybervees`
+- `run sop`
 - `review tester insights`
 - `analyze tester reports`
 - `look at Admin Tester Reports`
@@ -96,7 +97,7 @@ If all canonical report sources are blocked, Hybervees should stop with an acces
 
 - Run the first capability gate.
 - Use the admin Hybervees review state to avoid duplicate work. Reports already marked `Hybervees reviewed` should be skipped unless the user explicitly asks for a re-review.
-- Select the earliest unreviewed report when no specific report is named.
+- Select the earliest unreviewed report when no specific report is named. In the admin page this is the default `Needs Hybervees` queue; in the admin read API use `hyberveesReview=unreviewed`.
 - Prefer durable local tester artifacts when the requested report already exists there.
 - Use authenticated API or admin-authorized data access when local artifacts are missing or the user wants current production DB truth.
 - Use the live admin browser only for UI proof, deployed admin-page behavior, or manual review-state confirmation.

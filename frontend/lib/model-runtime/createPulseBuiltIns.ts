@@ -1,6 +1,6 @@
 /**
  * Server/admin Create Pulse built-in catalog surface.
- * Keeps hidden built-in instructions out of the general AI Studio client path.
+ * Defines the authoritative guided-workflow prompts and metadata used by runtime and catalog APIs.
  */
 import { CREATE_PULSE_SEEDED_BUILT_IN_METADATA } from "./createPulseBuiltInMetadata";
 import {

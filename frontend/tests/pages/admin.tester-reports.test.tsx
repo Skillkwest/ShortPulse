@@ -63,6 +63,8 @@ describe("AdminTesterReportsPage", () => {
         blockedCount: 0,
         failedCount: 0,
         partialCount: 0,
+        hyberveesUnreviewedCount: 0,
+        hyberveesReviewedCount: 0,
       },
       testerReportsPagination: {
         page: 1,
@@ -73,14 +75,19 @@ describe("AdminTesterReportsPage", () => {
         hasPrevPage: false,
       },
       testerReportStatusFilter: "all",
+      testerReportReviewFilter: "unreviewed",
       testerReportTesterFilter: "",
       testerReportSearch: "",
       handleTesterReportStatusFilterChange: vi.fn(),
+      handleTesterReportReviewFilterChange: vi.fn(),
       handleTesterReportTesterFilterChange: vi.fn(),
       handleTesterReportSearchChange: vi.fn(),
       handleTesterReportsPrevPage: vi.fn(),
       handleTesterReportsNextPage: vi.fn(),
+      markHyberveesReviewed: vi.fn(),
       refreshTesterReports: vi.fn(),
+      hyberveesReviewSavingId: null,
+      hyberveesReviewError: null,
     });
   });
 

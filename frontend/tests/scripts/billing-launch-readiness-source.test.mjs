@@ -14,6 +14,8 @@ describe("billing launch readiness source", () => {
     expect(source).toContain("billing_renewal_worker_fail_closed");
     expect(source).toContain("/api/internal/credit-expirations/run");
     expect(source).toContain("credit_expiration_worker_fail_closed");
-    expect(source).toContain("response.status !== 401");
+    expect(source).toContain("response.status === 401");
+    expect(source).toContain("allowDisabledNotFound && response.status === 404");
+    expect(source).toContain("allowDisabledNotFound: true");
   });
 });

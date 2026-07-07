@@ -321,8 +321,11 @@ export type AdminIssueReportRow = {
   updatedAt: string;
 };
 
+export type AdminIssueReportFilter = "open" | "all" | IssueReportStatus;
+
 export type AdminIssueReportSummary = {
   totalCount: number;
+  openCount: number;
   newCount: number;
   reviewingCount: number;
   resolvedCount: number;

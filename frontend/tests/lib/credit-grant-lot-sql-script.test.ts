@@ -15,6 +15,10 @@ const creditRpcAmbiguityHotfixPath = path.join(
   repoRoot,
   "sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql"
 );
+const bulkGrantSummaryPath = path.join(
+  repoRoot,
+  "sql/migrations/205_add_bulk_credit_grant_summary_rpc.sql"
+);
 const auditPath = path.join(repoRoot, "sql/audit_billing_credit_rls.sql");
 const schedulerConfigurePath = path.join(
   repoRoot,
@@ -135,6 +139,22 @@ describe("credit grant-lot SQL scripts", () => {
       expect(hotfixSql).toContain(signature);
       expect(runtimeAuditSql).toContain(signature);
     }
+  });
+
+  it("adds a service-role-only set-based grant summary RPC for admin surfaces", () => {
+    const sql = fs.readFileSync(bulkGrantSummaryPath, "utf8");
+    const runtimeAuditSql = fs.readFileSync(runtimeSecurityAuditPath, "utf8");
+
+    expect(sql).toContain(
+      "create or replace function public.get_credit_grant_summaries(p_user_ids uuid[])"
+    );
+    expect(sql).toContain("#variable_conflict use_column");
+    expect(sql).toContain("auth.role() <> 'service_role'");
+    expect(sql).toContain("from unnest(p_user_ids) as input(user_id)");
+    expect(sql).toContain(
+      "grant execute on function public.get_credit_grant_summaries(uuid[]) to service_role"
+    );
+    expect(runtimeAuditSql).toContain("public.get_credit_grant_summaries(uuid[])");
   });
 
   it("audits missing balance/source-ref states after apply", () => {

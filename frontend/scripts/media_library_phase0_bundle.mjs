@@ -32,10 +32,7 @@ const DEFAULT_SURFACE = "media-library-panel";
 const DEFAULT_MEDIA_KIND = "all";
 const DEFAULT_PROFILE = "expanded";
 const DEFAULT_SURFACE_LIMIT = 36;
-const DEFAULT_OUTPUT_FILE = path.join(
-  os.tmpdir(),
-  "media-library-phase0-bundle.latest.md"
-);
+const DEFAULT_OUTPUT_FILE = path.join(os.tmpdir(), "media-library-phase0-bundle.latest.md");
 const SURFACE_PRESETS = {
   panel: {
     surface: "media-library-panel",
@@ -143,12 +140,10 @@ export const parseArgs = (argv) => {
     samples: normalizePositiveInteger(readValue("--samples"), DEFAULT_SAMPLES),
     warmup: normalizePositiveInteger(readValue("--warmup"), DEFAULT_WARMUP),
     preset,
-    surface:
-      normalizeString(readValue("--surface")) || presetConfig?.surface || DEFAULT_SURFACE,
+    surface: normalizeString(readValue("--surface")) || presetConfig?.surface || DEFAULT_SURFACE,
     mediaKind:
       normalizeString(readValue("--media-kind")) || presetConfig?.mediaKind || DEFAULT_MEDIA_KIND,
-    profile:
-      normalizeString(readValue("--profile")) || presetConfig?.profile || DEFAULT_PROFILE,
+    profile: normalizeString(readValue("--profile")) || presetConfig?.profile || DEFAULT_PROFILE,
     limit: normalizePositiveInteger(readValue("--limit"), 0),
     output: normalizeString(readValue("--output")) || DEFAULT_OUTPUT_FILE,
     jsonOutput: normalizeString(readValue("--json-output")) || "",
@@ -268,13 +263,7 @@ export const collectProbePathsFromRows = (rows) => {
 };
 
 export const collectProbeIdsFromRows = (rows) =>
-  Array.from(
-    new Set(
-      rows
-        .map((row) => normalizeString(row?.id))
-        .filter(Boolean)
-    )
-  ).slice(0, 8);
+  Array.from(new Set(rows.map((row) => normalizeString(row?.id)).filter(Boolean))).slice(0, 8);
 
 export const buildProbeWarnings = (probe) => {
   const warnings = [];
@@ -343,7 +332,9 @@ export const buildMarkdownReport = ({ args, probe }) => {
   lines.push(`- Profile: ${args.profile}`);
   lines.push(`- List limit: ${buildListRequestBody(args).limit}`);
   lines.push(`- Live probe run: ${probe ? "yes" : "no"}`);
-  lines.push(`- Env files loaded: ${LOADED_ENV_FILES.length > 0 ? LOADED_ENV_FILES.join(", ") : "none"}`);
+  lines.push(
+    `- Env files loaded: ${LOADED_ENV_FILES.length > 0 ? LOADED_ENV_FILES.join(", ") : "none"}`
+  );
   lines.push("");
   lines.push("## Checklist");
   lines.push("");
@@ -425,9 +416,7 @@ const writeReport = (outputPath, content) => {
 
 const runProbe = async (args) => {
   if (!args.baseUrl) {
-    throw new Error(
-      "Missing --base-url (or SHORTPULSE_MEDIA_LIBRARY_BASE_URL) for --run-probe."
-    );
+    throw new Error("Missing --base-url (or SHORTPULSE_MEDIA_LIBRARY_BASE_URL) for --run-probe.");
   }
   if (!args.token) {
     throw new Error("Missing --token for --run-probe. Use a real user with media rows.");
@@ -444,7 +433,9 @@ const runProbe = async (args) => {
   if (!primeListResponse.ok) {
     throw new Error(`Prime list probe failed with status ${primeListResponse.status}.`);
   }
-  const primeRows = Array.isArray(primeListResponse.payload?.rows) ? primeListResponse.payload.rows : [];
+  const primeRows = Array.isArray(primeListResponse.payload?.rows)
+    ? primeListResponse.payload.rows
+    : [];
   const probePaths = collectProbePathsFromRows(primeRows);
   const probeIds = collectProbeIdsFromRows(primeRows);
 

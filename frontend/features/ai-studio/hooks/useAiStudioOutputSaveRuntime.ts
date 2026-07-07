@@ -13,6 +13,8 @@ import type {
 } from "./persistenceActionContracts";
 import {
   isDurablyGeneratedOutput,
+  isLocalUploadPendingDurability,
+  LOCAL_UPLOAD_PENDING_DURABILITY_AUTOSAVE_SKIP,
   mergeSavedMediaIdsForRequest,
   mergeOutputWithPersistedDelivery,
   resolvePersistOutputSaveKey,
@@ -149,6 +151,15 @@ export const useAiStudioOutputSaveRuntime = ({
           promptId: null,
           delivery: null,
           error: "Output not found.",
+        };
+      }
+      if (persistIntent === "auto" && isLocalUploadPendingDurability(output)) {
+        return {
+          ok: false,
+          mediaFileIds: [],
+          promptId: output.promptId ?? null,
+          delivery: null,
+          error: LOCAL_UPLOAD_PENDING_DURABILITY_AUTOSAVE_SKIP,
         };
       }
       const saveKey = resolvePersistOutputSaveKey(outputId, options);

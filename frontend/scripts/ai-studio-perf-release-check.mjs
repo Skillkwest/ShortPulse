@@ -13,11 +13,15 @@ if (!auditEmail) {
   process.exit(1);
 }
 if (/@example\.com$/i.test(auditEmail)) {
-  console.error("[ai-studio-perf-release-check] PLAYWRIGHT_AUDIT_EMAIL cannot be an @example.com address.");
+  console.error(
+    "[ai-studio-perf-release-check] PLAYWRIGHT_AUDIT_EMAIL cannot be an @example.com address."
+  );
   process.exit(1);
 }
 if (!Number.isFinite(port) || port < 1 || port > 65535) {
-  console.error(`[ai-studio-perf-release-check] Invalid AI_STUDIO_PERF_PORT value: ${process.env.AI_STUDIO_PERF_PORT}`);
+  console.error(
+    `[ai-studio-perf-release-check] Invalid AI_STUDIO_PERF_PORT value: ${process.env.AI_STUDIO_PERF_PORT}`
+  );
   process.exit(1);
 }
 
@@ -70,7 +74,9 @@ process.on("SIGTERM", () => {
 async function main() {
   try {
     if (!skipBuild) {
-      console.log("[ai-studio-perf-release-check] Building production app with perf runtime enabled...");
+      console.log(
+        "[ai-studio-perf-release-check] Building production app with perf runtime enabled..."
+      );
       await runCommand(npmCommand, ["run", "build"], {
         env: {
           ...process.env,
@@ -78,7 +84,9 @@ async function main() {
         },
       });
     } else {
-      console.log("[ai-studio-perf-release-check] Skipping build (AI_STUDIO_PERF_SKIP_BUILD=true).");
+      console.log(
+        "[ai-studio-perf-release-check] Skipping build (AI_STUDIO_PERF_SKIP_BUILD=true)."
+      );
     }
 
     console.log(`[ai-studio-perf-release-check] Starting production server on port ${port}...`);
@@ -107,7 +115,10 @@ async function main() {
 
     console.log("[ai-studio-perf-release-check] Completed successfully.");
   } catch (error) {
-    console.error("[ai-studio-perf-release-check] Failed:", error instanceof Error ? error.message : error);
+    console.error(
+      "[ai-studio-perf-release-check] Failed:",
+      error instanceof Error ? error.message : error
+    );
     process.exitCode = 1;
   } finally {
     cleanup();

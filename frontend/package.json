@@ -38,6 +38,7 @@
     "cleanup:test-auth-users:dry": "cd .. && node scripts/cleanup_test_auth_users.mjs --dry-run",
     "account-health:snapshot": "cd .. && npx tsx scripts/account_health_snapshot.ts",
     "billing:contracts:verify": "cd .. && npx tsx scripts/verify_billing_contracts_against_stripe.ts",
+    "billing:credits:verify": "cd .. && node scripts/check_missing_subscription_credit_grants.mjs",
     "billing:launch-readiness": "cd .. && node scripts/check_billing_launch_readiness.mjs",
     "auth:signup-config": "cd .. && node scripts/check_supabase_auth_signup_config.mjs",
     "auth:google-config": "cd .. && node scripts/configure_supabase_google_auth.mjs",

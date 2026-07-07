@@ -66,6 +66,7 @@ with expected_functions as (
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),
             ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)', null),
             ('public.get_credit_grant_summary(uuid)', null),
+            ('public.get_credit_grant_summaries(uuid[])', null),
             ('public.expire_credit_grants(integer)', null),
             ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
@@ -316,6 +317,7 @@ expected_variable_conflict_functions as (
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)'::text),
             ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)'::text),
             ('public.get_credit_grant_summary(uuid)'::text),
+            ('public.get_credit_grant_summaries(uuid[])'::text),
             ('public.expire_credit_grants(integer)'::text),
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),
@@ -420,6 +422,7 @@ with expected_functions as (
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),
             ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)', null),
             ('public.get_credit_grant_summary(uuid)', null),
+            ('public.get_credit_grant_summaries(uuid[])', null),
             ('public.expire_credit_grants(integer)', null),
             ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
@@ -670,6 +673,7 @@ expected_variable_conflict_functions as (
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)'::text),
             ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)'::text),
             ('public.get_credit_grant_summary(uuid)'::text),
+            ('public.get_credit_grant_summaries(uuid[])'::text),
             ('public.expire_credit_grants(integer)'::text),
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),

@@ -88,6 +88,170 @@ const createGrantLedgerSelectMock = ({
   }),
 });
 
+const setupRecurringGrantDiagnosticScenario = ({
+  recurringGrantRows = [],
+  invoices = [],
+}: {
+  recurringGrantRows?: unknown[];
+  invoices?: unknown[];
+}) => {
+  const billingProfileQuery = {
+    eq: vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          plan_id: "media",
+          subscription_status: "active",
+          stripe_customer_id: "cus_paid",
+          stripe_subscription_id: "sub_paid",
+          current_period_end: "2026-08-01T00:00:00.000Z",
+        },
+        error: null,
+      }),
+    }),
+  };
+  const contractQuery = {
+    eq: vi.fn().mockReturnValue({
+      is: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: {
+                id: "contract-paid",
+                plan_id: "media",
+                offer_id: "media__current",
+                billing_interval: "month",
+                stripe_customer_id: "cus_paid",
+                stripe_price_id: "price_media",
+                stripe_subscription_id: "sub_paid",
+                contract_source: "stripe",
+                recurring_price_cents: 4900,
+                monthly_credits_cents: 1200,
+                storage_limit_bytes: 107374182400,
+                status: "active",
+                current_period_end: "2026-08-01T00:00:00.000Z",
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    }),
+  };
+  const linkedOfferQuery = {
+    eq: vi.fn().mockReturnValue({
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "media__current",
+          plan_id: "media",
+          offer_name: "Media",
+          stripe_price_id: "price_media",
+          recurring_price_cents: 4900,
+          monthly_credits_cents: 1200,
+          storage_limit_bytes: 107374182400,
+          acquisition_enabled: true,
+          is_active: true,
+        },
+        error: null,
+      }),
+    }),
+  };
+  const publicOfferQuery = {
+    eq: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "media__current",
+                  plan_id: "media",
+                  offer_name: "Media",
+                  stripe_price_id: "price_media",
+                  recurring_price_cents: 4900,
+                  monthly_credits_cents: 1200,
+                  storage_limit_bytes: 107374182400,
+                  acquisition_enabled: true,
+                  is_active: true,
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  };
+  const billingOfferSelectMock = vi
+    .fn()
+    .mockReturnValueOnce(linkedOfferQuery)
+    .mockReturnValueOnce(publicOfferQuery);
+
+  getSupabaseAdminMock.mockReturnValue({
+    auth: {
+      admin: {
+        getUserById: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-paid", email: "paid@example.com" } },
+          error: null,
+        }),
+      },
+    },
+    from: vi.fn((table: string) => {
+      if (table === "billing_profiles") {
+        return { select: vi.fn().mockReturnValue(billingProfileQuery) };
+      }
+      if (table === "billing_subscription_contracts") {
+        return { select: vi.fn().mockReturnValue(contractQuery) };
+      }
+      if (table === "billing_plan_offers") {
+        return { select: billingOfferSelectMock };
+      }
+      if (table === "billing_subscription_storage_addons") {
+        return {
+          select: vi.fn().mockReturnValue(createStorageAddonSelectMock({})),
+        };
+      }
+      if (table === "media_files") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
+      }
+      if (table === "ai_credit_reservations") {
+        return {
+          select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
+        };
+      }
+      if (table === "ai_credit_ledger") {
+        return {
+          select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({ recurringGrantRows })),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    }),
+  });
+
+  stripeGetMock
+    .mockResolvedValueOnce({ id: "cus_paid", email: "paid@example.com" })
+    .mockResolvedValueOnce({
+      id: "sub_paid",
+      status: "active",
+      current_period_end: 1785542400,
+      items: {
+        data: [
+          {
+            price: {
+              id: "price_media",
+              unit_amount: 4900,
+              currency: "usd",
+            },
+          },
+        ],
+      },
+    })
+    .mockResolvedValueOnce({ data: invoices });
+};
+
 describe("GET /api/admin/billing-diagnostics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1292,6 +1456,89 @@ describe("GET /api/admin/billing-diagnostics", () => {
     const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(payload.findings).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "storage_over_limit" })])
+    );
+  });
+
+  it("flags a paid subscription invoice without a matching recurring credit grant", async () => {
+    setupRecurringGrantDiagnosticScenario({
+      invoices: [
+        {
+          id: "in_missing_grant",
+          billing_reason: "subscription_create",
+          status: "paid",
+          paid: true,
+          amount_paid: 4900,
+        },
+      ],
+      recurringGrantRows: [],
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(payload.recurringGrantHealth).toMatchObject({
+      recentPaidAllocationInvoices: 1,
+      unmatchedPaidAllocationInvoices: ["in_missing_grant"],
+    });
+    expect(payload.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing_paid_invoice_credit_grant",
+          severity: "critical",
+          recommendedActions: expect.arrayContaining([
+            expect.stringContaining("Replay the Stripe invoice.payment_succeeded event first"),
+          ]),
+        }),
+      ])
+    );
+  });
+
+  it("does not flag a paid subscription invoice when the recurring grant source ref matches", async () => {
+    setupRecurringGrantDiagnosticScenario({
+      invoices: [
+        {
+          id: "in_matched_grant",
+          billing_reason: "subscription_cycle",
+          status: "paid",
+          paid: true,
+          amount_paid: 4900,
+        },
+      ],
+      recurringGrantRows: [
+        {
+          id: "ledger-subscription-grant",
+          source: "subscription_renewal",
+          source_ref: "invoice:in_matched_grant:monthly_allocation",
+          change_cents: 1200,
+          metadata: {},
+          created_at: "2026-07-06T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(payload.recurringGrantHealth).toMatchObject({
+      recentPaidAllocationInvoices: 1,
+      unmatchedPaidAllocationInvoices: [],
+    });
+    expect(payload.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing_paid_invoice_credit_grant" }),
+      ])
     );
   });
 

@@ -22,6 +22,8 @@ Highest-ROI product decision: make saved-work continuity obvious before generati
 
 Main confidence limit: this is one early orientation run, not a repeated pattern across many testers yet. The signal is still high-value because it occurred before any spend, in the exact trust-building window where creators decide whether a credit-based tool is safe to try.
 
+Current status note: `My Generations` was part of Maya's historical confusion in this report, but the owner has confirmed that surface has already been handled. Do not reopen `My Generations` from this analysis. Keep the active follow-up focused on prompt draft continuity and the current Reference Grid / Media Library saved-work path.
+
 ## Reports Reviewed
 
 | Run id or path                         | Tester    | Scenario                                                              | Status                                            | Surface                                                           | Notes                                                                                                  |

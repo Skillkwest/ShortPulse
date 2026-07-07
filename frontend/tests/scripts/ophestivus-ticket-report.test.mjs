@@ -115,9 +115,9 @@ describe("ophestivus ticket report formatter", () => {
       reportPath,
     });
 
-    expect(
-      validateCompactTicketReportEvidence(report, { requiredReportPath: reportPath })
-    ).toEqual({ ok: true, errors: [] });
+    expect(validateCompactTicketReportEvidence(report, { requiredReportPath: reportPath })).toEqual(
+      { ok: true, errors: [] }
+    );
   });
 
   it("rejects missing or truncated report paths before Review", () => {

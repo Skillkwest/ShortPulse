@@ -13,6 +13,7 @@ import { hasStorageAuthority } from "../logic/referenceOutputAuthority";
 import { AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT } from "../logic/persistenceRetryPolicy";
 import { hasDurableGenerationIdentity } from "./useAiStudioPersistenceActions";
 import type { PersistOutputSaveResult } from "./persistenceActionContracts";
+import { isLocalUploadPendingDurability } from "./persistenceOutputSaveUtils";
 import type { StudioOutput } from "../types";
 import type { MediaAutosaveSyncState } from "./useMediaAutosavePreference";
 
@@ -30,17 +31,6 @@ type UseAiStudioMediaAutosaveOrchestratorArgs = {
 
 const hasRenderableMedia = (output: StudioOutput): boolean =>
   Boolean(output.previewUrl) || Boolean(output.resultUrls?.length);
-
-const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
-  const normalized = value?.trim() ?? "";
-  return normalized.startsWith("blob:") || normalized.startsWith("data:");
-};
-
-const isLocalUploadPendingDurability = (output: StudioOutput): boolean => {
-  if (output.mediaSource !== "upload") return false;
-  if (hasStorageAuthority(output)) return false;
-  return isLocalPreviewUrl(output.previewUrl) || isLocalPreviewUrl(output.localObjectUrl);
-};
 
 const inferMediaSource = (output: StudioOutput): MediaAutosaveSource => {
   if (output.mediaSource) return output.mediaSource;

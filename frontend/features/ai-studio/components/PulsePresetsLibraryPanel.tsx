@@ -20,7 +20,12 @@ import { AppMessage } from "../../../components/AppMessage";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
-import { PresetLibraryDetailModal } from "./PresetLibraryDetailModal";
+import {
+  CUSTOM_PULSE_GUIDANCE_ITEMS,
+  CUSTOM_PULSE_HELPER_TEXT,
+  CUSTOM_PULSE_TEXTAREA_PLACEHOLDER,
+} from "./create/pulsePresetAuthoringGuidance";
+import { PulsePresetProfileModal } from "./PulsePresetProfileModal";
 
 type PulsePresetsLibraryPanelProps = {
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
@@ -45,9 +50,6 @@ type PendingPulsePresetDeleteState = {
   systemInstructions: string;
   schemaVersion: number;
 };
-
-const formatPresetContractValue = (value: string | null | undefined) =>
-  value ? value.replaceAll("_", " ") : "None";
 
 export function PulsePresetsLibraryPanel({
   builtInDefinitions,
@@ -396,10 +398,20 @@ export function PulsePresetsLibraryPanel({
                   if (localSaveError) setLocalSaveError(null);
                 }}
               />
-              <p className="tiny subdued helper-text">
-                A custom Pulse is just saved system instructions. If you want it to produce a
-                reusable prompt or artifact, say that directly in the instructions.
-              </p>
+              <p className="tiny subdued helper-text">{CUSTOM_PULSE_HELPER_TEXT}</p>
+              <div
+                className="pulse-presets-library-instruction-guide"
+                aria-label="Custom Pulse instruction guide"
+              >
+                <p className="pulse-presets-library-instruction-guide-title">
+                  A strong custom Pulse usually says:
+                </p>
+                <ul>
+                  {CUSTOM_PULSE_GUIDANCE_ITEMS.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
               <label
                 className="pulse-presets-library-edit-label"
                 htmlFor="pulse-preset-library-prompt-input"
@@ -411,7 +423,7 @@ export function PulsePresetsLibraryPanel({
                 className="pulse-presets-library-edit-textarea"
                 value={pendingPresetEdit.systemInstructions}
                 rows={10}
-                placeholder="Describe how this Pulse should behave, what it should ask for, and what kind of output it should produce."
+                placeholder={CUSTOM_PULSE_TEXTAREA_PLACEHOLDER}
                 onChange={(event) => {
                   setPendingPresetEdit((previous) =>
                     previous
@@ -456,56 +468,7 @@ export function PulsePresetsLibraryPanel({
         </AiStudioModalLayer>
       ) : null}
       {pendingPresetDetail ? (
-        <PresetLibraryDetailModal
-          eyebrow="Pulse"
-          title={pendingPresetDetail.label}
-          description={
-            <>
-              {pendingPresetDetail.description ? `${pendingPresetDetail.description} ` : null}
-              Inspecting here does not activate this Pulse.
-            </>
-          }
-          fields={[
-            {
-              label: "Type",
-              value: pendingPresetDetail.isBuiltIn ? "Built-in guided workflow" : "Custom Pulse",
-            },
-            {
-              label: "Runtime",
-              value: formatPresetContractValue(pendingPresetDetail.runtimeMode),
-            },
-            {
-              label: "Activation",
-              value: formatPresetContractValue(pendingPresetDetail.activationMode),
-            },
-            {
-              label: "Output",
-              value: formatPresetContractValue(pendingPresetDetail.outputMode),
-            },
-            {
-              label: "Artifact Target",
-              value: formatPresetContractValue(pendingPresetDetail.artifactTarget),
-            },
-            ...(pendingPresetDetail.starterAssistantMessage
-              ? [
-                  {
-                    label: "Starter Message",
-                    value: pendingPresetDetail.starterAssistantMessage,
-                    preserveWhitespace: true,
-                  },
-                ]
-              : []),
-            ...(pendingPresetDetail.workflowStageHints?.length
-              ? [
-                  {
-                    label: "Workflow Stages",
-                    value: pendingPresetDetail.workflowStageHints.join(" -> "),
-                  },
-                ]
-              : []),
-          ]}
-          onClose={closeDetailModal}
-        />
+        <PulsePresetProfileModal preset={pendingPresetDetail} onClose={closeDetailModal} />
       ) : null}
       {pendingPresetDelete ? (
         <AiStudioModalLayer>

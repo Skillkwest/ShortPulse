@@ -3,7 +3,12 @@
  */
 import { useMemo, useState } from "react";
 import type { IssueReportStatus } from "../../../lib/issueReports";
-import type { AdminIssueReportRow, AdminIssueReportSummary, AdminPagination } from "../types";
+import type {
+  AdminIssueReportFilter,
+  AdminIssueReportRow,
+  AdminIssueReportSummary,
+  AdminPagination,
+} from "../types";
 import { AdminReportDetailModal } from "./AdminReportDetailModal";
 import reportStyles from "./AdminReportLog.module.css";
 import styles from "../../../styles/admin.module.css";
@@ -14,10 +19,10 @@ type AdminReportsPanelProps = {
   reportsError: string | null;
   reportSummary: AdminIssueReportSummary;
   reportsPagination: AdminPagination;
-  reportStatusFilter: "all" | IssueReportStatus;
+  reportStatusFilter: AdminIssueReportFilter;
   reportSearch: string;
   reportUpdatingId: string | null;
-  onReportStatusFilterChange: (value: "all" | IssueReportStatus) => void;
+  onReportStatusFilterChange: (value: AdminIssueReportFilter) => void;
   onReportSearchChange: (value: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
@@ -68,21 +73,24 @@ export function AdminReportsPanel({
     () => reports.find((report) => report.id === selectedReportId) ?? null,
     [reports, selectedReportId]
   );
-  const hasActiveFilters = reportStatusFilter !== "all" || reportSearch.trim().length > 0;
+  const hasActiveFilters = reportStatusFilter !== "open" || reportSearch.trim().length > 0;
   const hasStoredReports = reportSummary.totalCount > 0;
-  const showingLabel = hasStoredReports
-    ? `Showing ${reports.length} of ${reportSummary.totalCount} reports`
-    : "No reports submitted yet";
   const countFilters: Array<{
     label: string;
-    value: "all" | IssueReportStatus;
+    value: AdminIssueReportFilter;
     count: number;
   }> = [
-    { label: "All", value: "all", count: reportSummary.totalCount },
+    { label: "Open", value: "open", count: reportSummary.openCount },
     { label: "New", value: "new", count: reportSummary.newCount },
     { label: "Reviewing", value: "reviewing", count: reportSummary.reviewingCount },
-    { label: "Resolved", value: "resolved", count: reportSummary.resolvedCount },
+    { label: "History", value: "resolved", count: reportSummary.resolvedCount },
+    { label: "All", value: "all", count: reportSummary.totalCount },
   ];
+  const activeFilterLabel =
+    countFilters.find((filter) => filter.value === reportStatusFilter)?.label ?? "Open";
+  const showingLabel = hasStoredReports
+    ? `Showing ${reports.length} of ${reportsPagination.totalCount} ${activeFilterLabel.toLowerCase()} reports`
+    : "No reports submitted yet";
 
   return (
     <>
@@ -141,7 +149,7 @@ export function AdminReportsPanel({
               type="button"
               className="ghost-btn mini"
               onClick={() => {
-                onReportStatusFilterChange("all");
+                onReportStatusFilterChange("open");
                 onReportSearchChange("");
               }}
             >
@@ -156,9 +164,10 @@ export function AdminReportsPanel({
               <strong>{showingLabel}</strong>
             </div>
             <div className={reportStyles.adminReportsTableMetaBlock}>
-              <strong>
-                {reportStatusFilter === "all" ? "All statuses" : statusLabel(reportStatusFilter)}
-              </strong>
+              <strong>{activeFilterLabel}</strong>
+              {reportStatusFilter === "open" ? (
+                <span className="tiny subdued">Resolved reports are preserved in History.</span>
+              ) : null}
             </div>
           </div>
           <div className={styles.adminTableScroller}>
@@ -168,6 +177,7 @@ export function AdminReportsPanel({
                 <span>Status</span>
                 <span>Reporter</span>
                 <span>Message</span>
+                <span>Actions</span>
               </div>
               {reportsLoading ? (
                 <div className={`${styles.adminTableRow} ${styles.adminTableEmptyRow}`}>
@@ -193,44 +203,94 @@ export function AdminReportsPanel({
                   </span>
                 </div>
               ) : (
-                reports.map((report) => (
-                  <button
-                    key={report.id}
-                    type="button"
-                    className={[
-                      styles.adminTableRow,
-                      styles.adminTableRowButton,
-                      reportStyles.adminReportsRow,
-                      selectedReportId === report.id ? styles.adminTableRowActive : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => setSelectedReportId(report.id)}
-                  >
-                    <span>{formatDateTime(report.createdAt)}</span>
-                    <span>
-                      <span
-                        className={[
-                          reportStyles.reportStatusPill,
-                          report.status === "new"
-                            ? reportStyles.reportStatusNew
-                            : report.status === "reviewing"
-                              ? reportStyles.reportStatusReviewing
-                              : reportStyles.reportStatusResolved,
-                        ].join(" ")}
-                      >
-                        {statusLabel(report.status)}
+                reports.map((report) => {
+                  const isUpdating = reportUpdatingId === report.id;
+                  const statusAction =
+                    report.status === "new"
+                      ? {
+                          label: "Start review",
+                          status: "reviewing" as const,
+                        }
+                      : report.status === "reviewing"
+                        ? {
+                            label: "Resolve",
+                            status: "resolved" as const,
+                          }
+                        : {
+                            label: "Reopen",
+                            status: "new" as const,
+                          };
+                  return (
+                    <div
+                      key={report.id}
+                      className={[
+                        styles.adminTableRow,
+                        reportStyles.adminReportsRow,
+                        selectedReportId === report.id ? styles.adminTableRowActive : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <span>{formatDateTime(report.createdAt)}</span>
+                      <span>
+                        <span
+                          className={[
+                            reportStyles.reportStatusPill,
+                            report.status === "new"
+                              ? reportStyles.reportStatusNew
+                              : report.status === "reviewing"
+                                ? reportStyles.reportStatusReviewing
+                                : reportStyles.reportStatusResolved,
+                          ].join(" ")}
+                        >
+                          {statusLabel(report.status)}
+                        </span>
                       </span>
-                    </span>
-                    <span className={reportStyles.reportIdentityCell}>
-                      <strong>{report.submitterEmail}</strong>
-                      <span className="tiny subdued">{report.userId ?? "Detached user"}</span>
-                    </span>
-                    <span className={reportStyles.reportPreviewCell}>
-                      {buildMessagePreview(report.message)}
-                    </span>
-                  </button>
-                ))
+                      <span className={reportStyles.reportIdentityCell}>
+                        <strong>{report.submitterEmail}</strong>
+                        <span className="tiny subdued">{report.userId ?? "Detached user"}</span>
+                      </span>
+                      <span className={reportStyles.reportPreviewCell}>
+                        {buildMessagePreview(report.message)}
+                      </span>
+                      <span className={reportStyles.reportActionsCell}>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => setSelectedReportId(report.id)}
+                        >
+                          Open
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() =>
+                            void onUpdateReport(report.id, {
+                              status: statusAction.status,
+                            })
+                          }
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? "Saving..." : statusAction.label}
+                        </button>
+                        {report.status === "new" ? (
+                          <button
+                            type="button"
+                            className="ghost-btn mini"
+                            onClick={() =>
+                              void onUpdateReport(report.id, {
+                                status: "resolved",
+                              })
+                            }
+                            disabled={isUpdating}
+                          >
+                            Resolve
+                          </button>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

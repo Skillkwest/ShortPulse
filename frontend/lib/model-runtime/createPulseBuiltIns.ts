@@ -178,7 +178,8 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     !isValidCreatePulseBuiltInPresetId(presetId) ||
     !label ||
     !description ||
-    !systemInstructions
+    !systemInstructions ||
+    !starterAssistantMessage
   ) {
     return null;
   }

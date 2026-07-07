@@ -812,8 +812,9 @@ export const resolveAdminBillingDiagnostics = async ({
         ", "
       )}. The user may have been charged successfully without receiving recurring credits.`,
       recommendedActions: [
-        "Inspect the matching Stripe invoice and local ai_credit_ledger rows together.",
-        "Backfill missing recurring credits only after confirming the invoice was paid and not already granted through another source.",
+        "Inspect the matching Stripe invoice and local ai_credit_ledger / ai_credit_grants rows together.",
+        "Replay the Stripe invoice.payment_succeeded event first so the canonical webhook path creates the grant.",
+        "Use a manual adjustment only if replay is unavailable or insufficient, and only after ruling out an existing grant for the invoice.",
       ],
     });
   }

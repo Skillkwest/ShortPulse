@@ -40,6 +40,7 @@ vi.mock("../../../media-library/logic/mediaLibrarySyncEvents", () => ({
 }));
 
 import { useAiStudioPersistenceActions } from "../useAiStudioPersistenceActions";
+import { LOCAL_UPLOAD_PENDING_DURABILITY_AUTOSAVE_SKIP } from "../persistenceOutputSaveUtils";
 
 const RESOLVED_GENERATION_ID = "11111111-1111-4111-8111-111111111111";
 const PROJECT_GENERATION_ID = "22222222-2222-4222-8222-222222222222";
@@ -1158,6 +1159,67 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
           persist_intent: "auto",
           ui_error_message: null,
         }),
+      })
+    );
+  });
+
+  it("skips background autosave for local uploads before durable storage exists", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          localObjectUrl: "blob:local-upload",
+          previewUrl: "blob:local-upload",
+          previewStoragePath: null,
+          fullStoragePath: null,
+          saveState: "failed",
+          saveError: "Failed to fetch",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let persistResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      persistResult = await result.current.persistOutputSave("out-1", { intent: "auto" });
+    });
+
+    expect(persistResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: LOCAL_UPLOAD_PENDING_DURABILITY_AUTOSAVE_SKIP,
+      })
+    );
+    expect(saveMediaUrlToLibraryMock).not.toHaveBeenCalled();
+    expect(updateOutputById).not.toHaveBeenCalled();
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Failed to fetch",
       })
     );
   });

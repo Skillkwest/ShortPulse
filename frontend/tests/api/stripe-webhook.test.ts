@@ -681,6 +681,72 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
+  it("logs subscription invoice credit context when recurring grant processing fails", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const releasedEventIds: string[] = [];
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingContract: {
+          id: "contract_123",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_price_id: "price_studio",
+          monthly_credits_cents: 3000,
+        },
+        onEventClaimDelete: (eventId) => releasedEventIds.push(eventId),
+      })
+    );
+    grantAccountCreditsMock.mockResolvedValueOnce({
+      error: {
+        code: "42702",
+        message: "column reference ledger_id is ambiguous",
+      },
+    });
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_credit_grant_failed",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_credit_grant_failed",
+            customer: "cus_123",
+            billing_reason: "subscription_create",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
+    expect(releasedEventIds).toEqual(["evt_invoice_credit_grant_failed"]);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "billing/stripe/webhook",
+        metadata: expect.objectContaining({
+          stripe_event_id: "evt_invoice_credit_grant_failed",
+          stripe_event_type: "invoice.payment_succeeded",
+          claim_released_for_retry: true,
+          invoice_id: "in_credit_grant_failed",
+          subscription_grant_source_ref: "invoice:in_credit_grant_failed:monthly_allocation",
+          billing_reason: "subscription_create",
+          stripe_customer_id: "cus_123",
+          user_id: "user_123",
+          contract_id: "contract_123",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_price_id: "price_studio",
+          monthly_credits_cents: 3000,
+        }),
+      })
+    );
+  });
+
   it("does not grant monthly credits for non-allocation subscription invoices", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(

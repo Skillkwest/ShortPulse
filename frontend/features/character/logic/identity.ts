@@ -40,7 +40,9 @@ export const createIdentity = (name = "New Character"): CharacterIdentity => ({
  * Build embeddings using ArcFace ONNX. If models are missing, throw an informative error
  * so the UI can tell the user to place weights in /public/models/character.
  */
-export const buildEmbeddingFromReferences = async (references: CharacterReference[]): Promise<Float32Array> => {
+export const buildEmbeddingFromReferences = async (
+  references: CharacterReference[]
+): Promise<Float32Array> => {
   if (!references.length) {
     throw new Error("Add at least one reference image to build identity.");
   }

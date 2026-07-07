@@ -61,8 +61,9 @@ function loadAuditEnv() {
 
 loadAuditEnv();
 
-const BASE_URL = (process.env.PLAYWRIGHT_AUDIO_EXCLUSIVITY_BASE_URL || "http://localhost:3000")
-  .trim();
+const BASE_URL = (
+  process.env.PLAYWRIGHT_AUDIO_EXCLUSIVITY_BASE_URL || "http://localhost:3000"
+).trim();
 const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
 
 function loadAuditCredentials() {
@@ -275,7 +276,9 @@ async function waitForAiStudioReady(page) {
 
   while (Date.now() < deadline) {
     if (await retryProjectButton.isVisible().catch(() => false)) {
-      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+      throw new Error(
+        "AI Studio did not finish loading: retry project/workspace state is visible."
+      );
     }
     if (await soundButton.isVisible().catch(() => false)) {
       return;
@@ -352,9 +355,12 @@ async function openMediaAudioTab(page) {
 
 async function waitForAudioButtons(page, filenames, timeoutMs = 60_000) {
   for (const filename of filenames) {
-    await page.getByRole("button", { name: exactAudioButtonName(filename) }).first().waitFor({
-      timeout: timeoutMs,
-    });
+    await page
+      .getByRole("button", { name: exactAudioButtonName(filename) })
+      .first()
+      .waitFor({
+        timeout: timeoutMs,
+      });
   }
 }
 
@@ -433,7 +439,9 @@ async function readMediaPanelAudioStates(page, filenames) {
 
 async function dispatchMediaPanelAudioCardDoubleClick(page, filename) {
   await page.evaluate((targetFilename) => {
-    const cards = Array.from(document.querySelectorAll(".media-library-panel-audio-reference-card"));
+    const cards = Array.from(
+      document.querySelectorAll(".media-library-panel-audio-reference-card")
+    );
     const card = cards.find((candidate) =>
       Array.from(candidate.querySelectorAll(".reference-card-audio-play")).some((button) =>
         (button.getAttribute("aria-label") || "").includes(`audio ${targetFilename}`)
@@ -504,8 +512,9 @@ async function readDetailModalAudioDiagnostics(page) {
     return {
       modalLayerPresent: Boolean(root),
       title:
-        document.querySelector("#ai-studio-modal-layer-root .art-modal-title")?.textContent?.trim() ??
-        null,
+        document
+          .querySelector("#ai-studio-modal-layer-root .art-modal-title")
+          ?.textContent?.trim() ?? null,
       playButtons: playButtons.map((button) => ({
         ariaLabel: button.getAttribute("aria-label"),
         ariaPressed: button.getAttribute("aria-pressed"),
@@ -586,7 +595,9 @@ async function deleteMediaLibraryAudioFixture(page, filename) {
   }
 
   await audioButton
-    .locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' media-library-panel-audio-card-shell ')]")
+    .locator(
+      "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' media-library-panel-audio-card-shell ')]"
+    )
     .first()
     .hover({ timeout: 10_000 })
     .catch(() => {});
@@ -735,13 +746,16 @@ async function runAudit(browser, creds, fixtureBundle) {
     if (!HEADLESS) {
       await firstVoiceButton.click({ timeout: 10_000 });
       const voiceStarted = await page
-        .waitForFunction(() => {
-          const button = document.querySelectorAll(".voices-properties-voice-chip-play")[0];
-          return (
-            button instanceof HTMLButtonElement &&
-            /^Stop /i.test(button.getAttribute("aria-label") || "")
-          );
-        }, { timeout: 5_000 })
+        .waitForFunction(
+          () => {
+            const button = document.querySelectorAll(".voices-properties-voice-chip-play")[0];
+            return (
+              button instanceof HTMLButtonElement &&
+              /^Stop /i.test(button.getAttribute("aria-label") || "")
+            );
+          },
+          { timeout: 5_000 }
+        )
         .then(() => true)
         .catch(() => false);
 
@@ -993,9 +1007,7 @@ async function runAudit(browser, creds, fixtureBundle) {
 async function main() {
   const creds = loadAuditCredentials();
   if (!creds.email) {
-    console.error(
-      "[ai-studio-audio-exclusivity.audit] PLAYWRIGHT_AUDIT_EMAIL is required."
-    );
+    console.error("[ai-studio-audio-exclusivity.audit] PLAYWRIGHT_AUDIT_EMAIL is required.");
     process.exit(1);
   }
   if (/@example\.com$/i.test(creds.email)) {

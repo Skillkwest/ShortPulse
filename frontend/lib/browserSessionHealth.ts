@@ -236,6 +236,8 @@ const readBrowserMemoryMetadata = (): JsonObject => {
     used_js_heap_size: Math.round(used),
     total_js_heap_size: Math.round(total),
     js_heap_size_limit: typeof limit === "number" ? Math.round(limit) : null,
+    heap_used_to_limit_ratio:
+      typeof limit === "number" && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
     heap_usage_ratio:
       typeof limit === "number" && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
   };

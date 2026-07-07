@@ -11,7 +11,14 @@ const UUID_V4_PATTERN =
 
 type ReportsQuery = {
   eq: (column: string, value: string) => ReportsQuery;
+  neq: (column: string, value: string) => ReportsQuery;
   or: (filters: string) => ReportsQuery;
+  order: (
+    column: string,
+    options: { ascending: boolean }
+  ) => {
+    range: (from: number, to: number) => Promise<ListQueryResult>;
+  };
 };
 
 type ListQueryResult = {
@@ -51,7 +58,9 @@ const applyListFilters = (
   filters: { status: string; search: string }
 ): ReportsQuery => {
   let next = query;
-  if (filters.status && filters.status !== "all" && isIssueReportStatus(filters.status)) {
+  if (filters.status === "open") {
+    next = next.neq("status", "resolved");
+  } else if (filters.status && filters.status !== "all" && isIssueReportStatus(filters.status)) {
     next = next.eq("status", filters.status);
   }
   if (filters.search) {
@@ -105,17 +114,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const loadPage = async (page: number): Promise<ListQueryResult> => {
       const offset = (page - 1) * limit;
-      return (await applyListFilters(
+      const query = applyListFilters(
         supabaseAdmin
           .from("user_issue_reports")
           .select(
             "id, user_id, submitter_email, message, status, admin_notes, source_path, user_agent, reviewed_at, reviewed_by_user_id, created_at, updated_at",
             { count: "exact" }
-          )
-          .order("created_at", { ascending: false })
-          .range(offset, offset + limit - 1) as unknown as ReportsQuery,
+          ) as unknown as ReportsQuery,
         filters
-      )) as unknown as ListQueryResult;
+      );
+      return query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
     };
 
     let listResult = await loadPage(requestedPage);
@@ -191,6 +199,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       reports: listResult.data ?? [],
       summary: {
         totalCount: healthDegraded ? 0 : countOrZero(totalCountResult),
+        openCount: healthDegraded
+          ? 0
+          : countOrZero(newCountResult) + countOrZero(reviewingCountResult),
         newCount: healthDegraded ? 0 : countOrZero(newCountResult),
         reviewingCount: healthDegraded ? 0 : countOrZero(reviewingCountResult),
         resolvedCount: healthDegraded ? 0 : countOrZero(resolvedCountResult),

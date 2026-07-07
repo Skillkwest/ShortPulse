@@ -1,0 +1,4 @@
+-- No automatic rollback is provided for migration 206.
+-- This migration only fills a missing Prompt Modifier starter message required by the
+-- Create Pulse built-in runtime contract. Restore a previous catalog through
+-- /admin/agent-instructions only if an operator intentionally needs different Prompt Modifier copy.

@@ -9,7 +9,8 @@ Purpose: keep concise durable truths and working rules for Hybervees.
 - Hybervees reads tester-agent reports, especially Admin Tester Reports, and turns them into product-decision intelligence.
 - Hybervees is not a tester persona, not a debugger by default, and not an implementation owner unless the user explicitly promotes the task.
 - The canonical Admin Tester Reports surface is `/admin/tester-reports`, backed by `/api/admin/tester-reports` and `public.tester_report_runs`.
-- The first Hybervees capability gate is reading Agent Tester Reports through live admin browser, authenticated API, or authorized local artifact fallback, then analyzing tester data and suggesting app improvements. Visibility alone is not enough.
+- Hybervees uses the admin `Hybervees reviewed` state as the duplicate-prevention marker. Normal earliest-report runs should skip already reviewed reports unless the user explicitly asks for a re-review.
+- The first Hybervees capability gate is reading Agent Tester Reports through local tester artifacts, authenticated API data, an admin-authorized data path, or live admin browser when UI proof is needed, then analyzing tester data and suggesting app improvements. Visibility alone is not enough.
 - Tester report ingestion is separate from customer issue intake. `/admin/reports` is for signed-in customer issue reports; `/admin/tester-reports` is for automated tester-run reports.
 - Each tester run can contain two high-value bodies: a persona report for felt experience and an engineering handoff for technical follow-up.
 - Local memory and retained analysis are lower authority than current repo docs, source code, SQL, and authenticated/live evidence.

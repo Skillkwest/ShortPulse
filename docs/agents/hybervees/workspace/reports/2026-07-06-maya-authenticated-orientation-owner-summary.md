@@ -49,15 +49,16 @@ If it does not save to Media Library, rename the button and show the real locati
 
 ### 3. Explain Where Work Lives
 
-Make it clear what each area is for:
+Make it clear where saved prompts and saved media go.
 
 - `Reference Grid`
 - `Media Library`
-- `My Generations`
 
-### 4. Fix `My Generations`
+### 4. Leave `My Generations` Alone
 
-If it is not ready, hide it or tell users where to find their work instead.
+`My Generations` has already been handled.
+
+Do not reopen it from this report.
 
 ### 5. Explain Credits
 

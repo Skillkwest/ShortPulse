@@ -27,21 +27,31 @@ const baseFlags = {
   warningCostWithoutSuccessThresholdCents: 2000,
 };
 
+const createGrantSummaryRow = (userId: string, spendableCents: number) => ({
+  user_id: userId,
+  spendable_cents: spendableCents,
+  reserved_cents: 0,
+  expiring_cents: spendableCents,
+  non_expiring_cents: 0,
+  next_expiring_cents: spendableCents,
+  next_expires_at: "2026-08-01T00:00:00.000Z",
+});
+
 const createGrantSummaryRpcMock = (spendableByUser: Record<string, number> = {}) =>
-  vi.fn(async (functionName: string, params?: { p_user_id?: string }) => {
+  vi.fn(async (functionName: string, params?: { p_user_id?: string; p_user_ids?: string[] }) => {
     if (functionName === "get_credit_grant_summary") {
       const spendableCents = spendableByUser[params?.p_user_id ?? ""] ?? 100;
       return {
-        data: [
-          {
-            spendable_cents: spendableCents,
-            reserved_cents: 0,
-            expiring_cents: spendableCents,
-            non_expiring_cents: 0,
-            next_expiring_cents: spendableCents,
-            next_expires_at: "2026-08-01T00:00:00.000Z",
-          },
-        ],
+        data: [createGrantSummaryRow(params?.p_user_id ?? "", spendableCents)],
+        error: null,
+      };
+    }
+    if (functionName === "get_credit_grant_summaries") {
+      const userIds = params?.p_user_ids ?? [];
+      return {
+        data: userIds.map((userId) =>
+          createGrantSummaryRow(userId, spendableByUser[userId] ?? 100)
+        ),
         error: null,
       };
     }
@@ -293,11 +303,12 @@ describe("runAdminUserHealthFleetScan", () => {
     const rpcMock = createGrantSummaryRpcMock({
       "user-1": 25,
     });
-    rpcMock.mockImplementation(async (functionName: string) => {
+    rpcMock.mockImplementation(async (functionName, params) => {
       if (functionName === "get_credit_grant_summary") {
         return {
           data: [
             {
+              user_id: params?.p_user_id ?? "user-1",
               spendable_cents: 25,
               reserved_cents: 10,
               expiring_cents: 25,
@@ -483,6 +494,9 @@ describe("runAdminUserHealthFleetScan", () => {
     });
 
     expect(result.status).toBe("completed");
+    expect(rpcMock).toHaveBeenCalledWith("get_credit_grant_summaries", {
+      p_user_ids: ["user-1", "user-2"],
+    });
     const persistedDrafts = persistFleetSnapshotBatchMock.mock.calls[0]?.[0]?.drafts ?? [];
     const userOneDraft = persistedDrafts.find(
       (draft: { userId?: string }) => draft.userId === "user-1"

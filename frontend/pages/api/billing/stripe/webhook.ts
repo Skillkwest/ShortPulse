@@ -32,6 +32,9 @@ type EventClaimResult =
   | { kind: "claimed" }
   | { kind: "duplicate" }
   | { kind: "failed"; message: string };
+type WebhookMetadataError = Error & {
+  webhookMetadata?: Record<string, unknown>;
+};
 
 type ResolvedOffer = {
   offerId: string | null;
@@ -372,6 +375,27 @@ const buildCheckoutGrantSourceRef = (session: JsonObject, fallbackEventId: strin
 const buildSubscriptionGrantSourceRef = (invoice: JsonObject, fallbackEventId: string): string => {
   const invoiceId = normalizeString(invoice.id);
   return invoiceId ? `invoice:${invoiceId}:monthly_allocation` : `invoice_event:${fallbackEventId}`;
+};
+
+const withWebhookMetadata = (
+  error: unknown,
+  metadata: Record<string, unknown>
+): WebhookMetadataError => {
+  const normalized: WebhookMetadataError =
+    error instanceof Error
+      ? (error as WebhookMetadataError)
+      : (new Error(String(error ?? "Webhook processing failed.")) as WebhookMetadataError);
+  normalized.webhookMetadata = {
+    ...(normalized.webhookMetadata ?? {}),
+    ...metadata,
+  };
+  return normalized;
+};
+
+const getWebhookErrorMetadata = (error: unknown): Record<string, unknown> => {
+  if (!error || typeof error !== "object") return {};
+  const metadata = (error as WebhookMetadataError).webhookMetadata;
+  return metadata && typeof metadata === "object" ? metadata : {};
 };
 
 const recordBillingTelemetrySafely = async (params: {
@@ -1094,50 +1118,70 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
 
   const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : undefined;
   if (!stripeCustomerId) return;
+  const sourceRef = buildSubscriptionGrantSourceRef(invoice, eventId);
 
-  const billingContext =
-    (await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
-    (await resolveBillingContextFromInvoice(invoice, stripeCustomerId));
-  if (!billingContext?.userId || !billingContext.planId) return;
+  let billingContext:
+    | Awaited<ReturnType<typeof resolveCurrentBillingContextByCustomer>>
+    | Awaited<ReturnType<typeof resolveBillingContextFromInvoice>>
+    | null = null;
+  try {
+    billingContext =
+      (await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
+      (await resolveBillingContextFromInvoice(invoice, stripeCustomerId));
+    if (!billingContext?.userId || !billingContext.planId) return;
 
-  const monthlyCredits = Number(billingContext.monthlyCreditsCents ?? 0);
-  if (!Number.isFinite(monthlyCredits) || monthlyCredits <= 0) return;
+    const monthlyCredits = Number(billingContext.monthlyCreditsCents ?? 0);
+    if (!Number.isFinite(monthlyCredits) || monthlyCredits <= 0) return;
 
-  await applyCredit({
-    userId: billingContext.userId,
-    changeCents: monthlyCredits,
-    source: "subscription_renewal",
-    sourceRef: buildSubscriptionGrantSourceRef(invoice, eventId),
-    reason: "Monthly plan credit allocation",
-    creditKind: "subscription_allocation",
-    expiresAt: resolveSubscriptionCreditExpiresAt(),
-    metadata: {
-      invoice_id: invoice.id ?? null,
-      billing_reason: billingReason,
-      plan_id: billingContext.planId,
-      offer_id: billingContext.offerId,
-      stripe_customer_id: stripeCustomerId,
-      stripe_price_id: billingContext.stripePriceId,
-    },
-  });
-
-  if (billingContext.billingInterval === BILLING_INTERVAL_YEAR && billingContext.contractId) {
-    const annualNextGrantAt = resolveAnnualNextCreditGrantAt({
-      currentPeriodStart: billingContext.currentPeriodStart ?? null,
-      currentPeriodEnd: billingContext.currentPeriodEnd ?? null,
+    await applyCredit({
+      userId: billingContext.userId,
+      changeCents: monthlyCredits,
+      source: "subscription_renewal",
+      sourceRef,
+      reason: "Monthly plan credit allocation",
+      creditKind: "subscription_allocation",
+      expiresAt: resolveSubscriptionCreditExpiresAt(),
+      metadata: {
+        invoice_id: invoice.id ?? null,
+        billing_reason: billingReason,
+        plan_id: billingContext.planId,
+        offer_id: billingContext.offerId,
+        stripe_customer_id: stripeCustomerId,
+        stripe_price_id: billingContext.stripePriceId,
+      },
     });
-    const { error } = await getSupabaseAdmin()
-      .from("billing_subscription_contracts")
-      .update({
-        last_credit_grant_at: new Date().toISOString(),
-        next_credit_grant_at: annualNextGrantAt,
-      })
-      .eq("id", billingContext.contractId);
-    if (error && !isIgnorableSchemaDriftError(error)) {
-      throw new Error(
-        error.message || "Failed to update annual credit allocation state after invoice payment."
-      );
+
+    if (billingContext.billingInterval === BILLING_INTERVAL_YEAR && billingContext.contractId) {
+      const annualNextGrantAt = resolveAnnualNextCreditGrantAt({
+        currentPeriodStart: billingContext.currentPeriodStart ?? null,
+        currentPeriodEnd: billingContext.currentPeriodEnd ?? null,
+      });
+      const { error } = await getSupabaseAdmin()
+        .from("billing_subscription_contracts")
+        .update({
+          last_credit_grant_at: new Date().toISOString(),
+          next_credit_grant_at: annualNextGrantAt,
+        })
+        .eq("id", billingContext.contractId);
+      if (error && !isIgnorableSchemaDriftError(error)) {
+        throw new Error(
+          error.message || "Failed to update annual credit allocation state after invoice payment."
+        );
+      }
     }
+  } catch (error) {
+    throw withWebhookMetadata(error, {
+      invoice_id: invoice.id ?? null,
+      subscription_grant_source_ref: sourceRef,
+      billing_reason: billingReason,
+      stripe_customer_id: stripeCustomerId,
+      user_id: billingContext?.userId ?? null,
+      contract_id: billingContext?.contractId ?? null,
+      plan_id: billingContext?.planId ?? null,
+      offer_id: billingContext?.offerId ?? null,
+      stripe_price_id: billingContext?.stripePriceId ?? null,
+      monthly_credits_cents: billingContext?.monthlyCreditsCents ?? null,
+    });
   }
 };
 
@@ -1211,6 +1255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           stripe_event_signature_present: Boolean(req.headers["stripe-signature"]),
           stripe_event_id: event.id,
           stripe_event_type: event.type,
+          ...getWebhookErrorMetadata(processingError),
           claim_released_for_retry: releaseResult.error ? false : true,
           claim_release_error: releaseResult.error,
         },

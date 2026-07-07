@@ -1,6 +1,7 @@
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { resolvePublishedGenerationOutputStoragePathByIndex } from "../logic/generatedMediaAuthority";
+import { hasStorageAuthority } from "../logic/referenceOutputAuthority";
 import { isVideoUrl } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import type {
@@ -31,6 +32,29 @@ const uniqueUrls = (values: Array<string | null | undefined>): string[] => {
     next.push(normalized);
   });
   return next;
+};
+
+const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
+  const normalized = value?.trim() ?? "";
+  return normalized.startsWith("blob:") || normalized.startsWith("data:");
+};
+
+export const LOCAL_UPLOAD_PENDING_DURABILITY_AUTOSAVE_SKIP = "local_upload_pending_durability";
+
+export const isLocalUploadPendingDurability = (
+  output: Pick<
+    StudioOutput,
+    | "mediaSource"
+    | "previewUrl"
+    | "localObjectUrl"
+    | "previewStoragePath"
+    | "fullStoragePath"
+    | "savedMediaIds"
+  >
+): boolean => {
+  if (output.mediaSource !== "upload") return false;
+  if (hasStorageAuthority(output)) return false;
+  return isLocalPreviewUrl(output.previewUrl) || isLocalPreviewUrl(output.localObjectUrl);
 };
 
 export const resolveRequestedImageIndex = (value: number | null | undefined): number =>

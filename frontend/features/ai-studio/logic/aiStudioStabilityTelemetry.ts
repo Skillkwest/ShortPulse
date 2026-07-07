@@ -87,6 +87,22 @@ const SEVERE_HEAP_RATIO = 0.86;
 
 const nowMs = (): number => Date.now();
 
+const normalizePressureMetadataForBrowserSession = (
+  metadata: StabilityMetadata
+): StabilityMetadata => {
+  const heapUsageRatio = metadata.heap_usage_ratio;
+  const pressureMetadata: StabilityMetadata = {
+    ...metadata,
+  };
+  if (typeof heapUsageRatio === "number" && pressureMetadata.heap_used_to_total_ratio == null) {
+    pressureMetadata.heap_used_to_total_ratio = heapUsageRatio;
+  }
+  if (typeof pressureMetadata.reason === "string" && pressureMetadata.pressure_reason == null) {
+    pressureMetadata.pressure_reason = pressureMetadata.reason;
+  }
+  return pressureMetadata;
+};
+
 const readStoredPressureQuarantine = (): PressureQuarantineRecord | null => {
   if (typeof window === "undefined") return null;
   try {
@@ -250,7 +266,10 @@ export const reportAiStudioStabilityEvent = (
     event === "pressure_quarantine_set" ||
     event === "first_grid_commit"
   ) {
-    reportBrowserSessionHealthEvent("pressure_snapshot", metadata);
+    reportBrowserSessionHealthEvent(
+      "pressure_snapshot",
+      normalizePressureMetadataForBrowserSession(metadata)
+    );
   }
 
   void reportAppError({

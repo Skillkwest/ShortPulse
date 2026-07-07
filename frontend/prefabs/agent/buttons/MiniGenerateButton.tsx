@@ -19,14 +19,8 @@ type MiniGenerateButtonProps = {
  */
 export const MiniGenerateButton = forwardRef<HTMLButtonElement, MiniGenerateButtonProps>(
   (
-    {
-      cost,
-      onClick,
-      disabled = false,
-      ariaLabel = "Generate with current prompt",
-      className = "",
-    },
-    ref,
+    { cost, onClick, disabled = false, ariaLabel = "Generate with current prompt", className = "" },
+    ref
   ) => {
     const dataCost = useMemo(() => {
       if (typeof cost === "number") return cost.toString();
@@ -50,7 +44,7 @@ export const MiniGenerateButton = forwardRef<HTMLButtonElement, MiniGenerateButt
         <Sparkle size={22} weight="fill" aria-hidden className="mini-generate-sparkle" />
       </button>
     );
-  },
+  }
 );
 
 MiniGenerateButton.displayName = "MiniGenerateButton";

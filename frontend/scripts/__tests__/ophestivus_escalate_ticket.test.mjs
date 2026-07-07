@@ -8,9 +8,7 @@ import {
 describe("ophestivus escalate-ticket helper", () => {
   it("prefixes the issue title with the human-review marker once", () => {
     expect(buildHumanReviewTitle("Bad Gateway")).toBe("[HUMAN REVIEW] Bad Gateway");
-    expect(buildHumanReviewTitle("[HUMAN REVIEW] Bad Gateway")).toBe(
-      "[HUMAN REVIEW] Bad Gateway"
-    );
+    expect(buildHumanReviewTitle("[HUMAN REVIEW] Bad Gateway")).toBe("[HUMAN REVIEW] Bad Gateway");
   });
 
   it("builds a compact human-review handoff within board limits", () => {

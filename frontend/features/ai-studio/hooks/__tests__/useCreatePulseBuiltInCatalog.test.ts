@@ -28,7 +28,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
               activationMode: "activate_and_start",
               outputMode: "apply_prompt",
               memoryPolicy: "session",
-              starterAssistantMessage: null,
+              starterAssistantMessage: "Open with the catalog starter.",
               workflowStageHints: null,
               artifactTarget: "image_prompt",
             },
@@ -72,6 +72,61 @@ describe("useCreatePulseBuiltInCatalog", () => {
     expect(result.current.builtInDefinitions[0]).not.toHaveProperty("systemInstructions");
   });
 
+  it("drops control-plane built-ins that cannot show a starter message", async () => {
+    vi.mocked(fetchWithAuth).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          source: "control_plane",
+          degraded: false,
+          builtInDefinitions: [
+            {
+              presetId: "prompt_modifier",
+              label: "Prompt Modifier",
+              description: "Modify prompts.",
+              systemInstructions: "Ask for a source prompt, then return a cleaner version.",
+              runtimeMode: "workflow_gpt",
+              activationMode: "activate_and_start",
+              outputMode: "chat_reply",
+              memoryPolicy: "session",
+              starterAssistantMessage: " ",
+              workflowStageHints: ["Paste prompt"],
+              artifactTarget: "video_prompt",
+            },
+            {
+              presetId: "catalog_test",
+              label: "Catalog Test",
+              description: "Server catalog entry.",
+              systemInstructions: "Use the control-plane catalog.",
+              runtimeMode: "workflow_gpt",
+              activationMode: "activate_and_start",
+              outputMode: "chat_reply",
+              memoryPolicy: "session",
+              starterAssistantMessage: "Open with the catalog starter.",
+              workflowStageHints: null,
+              artifactTarget: "image_prompt",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    const { result } = renderHook(() => useCreatePulseBuiltInCatalog());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.builtInDefinitions.map((definition) => definition.presetId)).toEqual([
+      "catalog_test",
+    ]);
+  });
+
   it("keeps the last loaded catalog when a later refresh fails", async () => {
     vi.mocked(fetchWithAuth)
       .mockResolvedValueOnce(
@@ -89,7 +144,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
                 activationMode: "activate_and_start",
                 outputMode: "chat_reply",
                 memoryPolicy: "session",
-                starterAssistantMessage: null,
+                starterAssistantMessage: "Open with the catalog starter.",
                 workflowStageHints: null,
                 artifactTarget: "image_prompt",
               },
@@ -148,7 +203,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
                 activationMode: "activate_and_start",
                 outputMode: "chat_reply",
                 memoryPolicy: "session",
-                starterAssistantMessage: null,
+                starterAssistantMessage: "Open with the catalog starter.",
                 workflowStageHints: null,
                 artifactTarget: "image_prompt",
               },
@@ -205,7 +260,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
               activationMode: "activate_and_start",
               outputMode: "chat_reply",
               memoryPolicy: "session",
-              starterAssistantMessage: null,
+              starterAssistantMessage: "Open with the catalog starter.",
               workflowStageHints: null,
               artifactTarget: "image_prompt",
             },
@@ -243,7 +298,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
               activationMode: "activate_and_start",
               outputMode: "chat_reply",
               memoryPolicy: "session",
-              starterAssistantMessage: null,
+              starterAssistantMessage: "Open with the catalog starter.",
               workflowStageHints: null,
               artifactTarget: "image_prompt",
             },
@@ -300,7 +355,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
               activationMode: "activate_and_start",
               outputMode: "apply_prompt",
               memoryPolicy: "session",
-              starterAssistantMessage: null,
+              starterAssistantMessage: "Open with the catalog starter.",
               workflowStageHints: null,
               artifactTarget: "image_prompt",
             },

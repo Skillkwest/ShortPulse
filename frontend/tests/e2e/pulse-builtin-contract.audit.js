@@ -130,7 +130,10 @@ async function ensurePulseMode(page) {
   await Promise.any([
     page.getByRole("region", { name: "Pulses", exact: true }).first().waitFor({ timeout: 20_000 }),
     page.getByRole("button", { name: "Pulse Catalog" }).waitFor({ timeout: 20_000 }),
-    page.getByRole("button", { name: /^more pulses$/i }).first().waitFor({ timeout: 20_000 }),
+    page
+      .getByRole("button", { name: /^more pulses$/i })
+      .first()
+      .waitFor({ timeout: 20_000 }),
   ]);
 }
 

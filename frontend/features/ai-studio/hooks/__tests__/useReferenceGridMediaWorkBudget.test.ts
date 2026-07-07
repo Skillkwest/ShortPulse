@@ -16,7 +16,7 @@ describe("resolveReferenceGridMediaWorkBudget", () => {
     expect(budget.imageDecodeBudget).toBe(2);
   });
 
-  it("prioritizes image hydration lanes under pressure level 2", () => {
+  it("uses a conservative image-only budget under pressure level 2", () => {
     const budget = resolveReferenceGridMediaWorkBudget({
       enabled: true,
       pressureLevel: 2,
@@ -25,8 +25,8 @@ describe("resolveReferenceGridMediaWorkBudget", () => {
       desiredVideoAttachSlots: 3,
     });
 
-    expect(budget.totalTokens).toBe(5);
-    expect(budget.videoAttachBudget).toBe(1);
+    expect(budget.totalTokens).toBe(3);
+    expect(budget.videoAttachBudget).toBe(0);
     expect(budget.imageDecodeBudget).toBe(3);
   });
 

@@ -7,7 +7,12 @@ import {
   DEFAULT_ADMIN_ISSUE_REPORT_SUMMARY,
   normalizeAdminReportsResponse,
 } from "./adminReportsApi";
-import type { AdminIssueReportRow, AdminIssueReportSummary, AdminPagination } from "../types";
+import type {
+  AdminIssueReportFilter,
+  AdminIssueReportRow,
+  AdminIssueReportSummary,
+  AdminPagination,
+} from "../types";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -21,10 +26,10 @@ type UseAdminReportsControllerResult = {
   reportsError: string | null;
   reportSummary: AdminIssueReportSummary;
   reportsPagination: AdminPagination;
-  reportStatusFilter: "all" | IssueReportStatus;
+  reportStatusFilter: AdminIssueReportFilter;
   reportSearch: string;
   reportUpdatingId: string | null;
-  handleReportStatusFilterChange: (value: "all" | IssueReportStatus) => void;
+  handleReportStatusFilterChange: (value: AdminIssueReportFilter) => void;
   handleReportSearchChange: (value: string) => void;
   handleReportsPrevPage: () => void;
   handleReportsNextPage: () => void;
@@ -47,9 +52,8 @@ export const useAdminReportsController = ({
   const [reportSummary, setReportSummary] = React.useState<AdminIssueReportSummary>(
     DEFAULT_ADMIN_ISSUE_REPORT_SUMMARY
   );
-  const [reportStatusFilter, setReportStatusFilter] = React.useState<"all" | IssueReportStatus>(
-    "all"
-  );
+  const [reportStatusFilter, setReportStatusFilter] =
+    React.useState<AdminIssueReportFilter>("open");
   const [reportSearch, setReportSearch] = React.useState("");
   const [debouncedReportSearch, setDebouncedReportSearch] = React.useState("");
   const [reportsPage, setReportsPage] = React.useState(1);
@@ -64,7 +68,7 @@ export const useAdminReportsController = ({
   const [reportUpdatingId, setReportUpdatingId] = React.useState<string | null>(null);
 
   const loadReports = React.useCallback(
-    async (overrides?: { page?: number; status?: "all" | IssueReportStatus; search?: string }) => {
+    async (overrides?: { page?: number; status?: AdminIssueReportFilter; search?: string }) => {
       setReportsLoading(true);
       setReportsError(null);
       try {
@@ -122,7 +126,7 @@ export const useAdminReportsController = ({
     });
   }, [debouncedReportSearch, enabled, loadReports, reportStatusFilter]);
 
-  const handleReportStatusFilterChange = React.useCallback((value: "all" | IssueReportStatus) => {
+  const handleReportStatusFilterChange = React.useCallback((value: AdminIssueReportFilter) => {
     setReportStatusFilter(value);
     setReportsPage(1);
   }, []);

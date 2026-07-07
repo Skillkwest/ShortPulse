@@ -297,7 +297,7 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
       ? "workflow_gpt"
       : "custom_gpt";
 
-  if (!presetId || !label || !description) {
+  if (!presetId || !label || !description || !starterAssistantMessage) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {

@@ -68,6 +68,7 @@ const REQUIRED_SIGNATURES = [
   "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
   "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",
   "public.get_credit_grant_summary(uuid)",
+  "public.get_credit_grant_summaries(uuid[])",
   "public.expire_credit_grants(integer)",
   "public.release_generation_reservation_by_id(uuid,text,jsonb)",
 ] as const;
@@ -128,6 +129,7 @@ describe("check_runtime_sql_security_audit.sql", () => {
       "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
       "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",
       "public.get_credit_grant_summary(uuid)",
+      "public.get_credit_grant_summaries(uuid[])",
       "public.expire_credit_grants(integer)",
       "public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)",
       "public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)",

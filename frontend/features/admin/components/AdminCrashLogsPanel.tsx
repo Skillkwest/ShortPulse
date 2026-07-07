@@ -88,9 +88,12 @@ const reviewStatusLabel = (status: AdminCrashSessionReviewStatus): string => {
 };
 
 const evidenceText = (row: AdminCrashSessionRow): string => {
-  const pressure = row.metadata.pressure_level;
+  const pressure = row.metadata.max_pressure_level ?? row.metadata.pressure_level;
   const stall = row.metadata.stall_duration_ms ?? row.metadata.max_input_stall_ms;
-  const heap = row.metadata.heap_usage_ratio;
+  const heap =
+    row.metadata.max_heap_used_to_total_ratio ??
+    row.metadata.heap_used_to_total_ratio ??
+    row.metadata.heap_usage_ratio;
   const parts = [
     typeof pressure === "number" ? `pressure ${pressure}` : null,
     typeof stall === "number" ? `stall ${Math.round(stall)}ms` : null,

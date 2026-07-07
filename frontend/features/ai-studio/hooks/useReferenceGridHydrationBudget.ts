@@ -71,12 +71,8 @@ export const useReferenceGridHydrationBudget = ({
 
     const baseInflight = isConstrainedProfile ? CONSTRAINED_INFLIGHT_LIMIT : DESKTOP_INFLIGHT_LIMIT;
     const pressureAdjustedInflight =
-      pressureLevel >= 2
-        ? Math.min(baseInflight, 2)
-        : pressureLevel >= 1
-          ? Math.min(baseInflight, 4)
-          : baseInflight;
-    const priorityRows = pressureLevel >= 1 ? 2 : 3;
+      pressureLevel >= 2 ? 1 : pressureLevel >= 1 ? Math.min(baseInflight, 4) : baseInflight;
+    const priorityRows = pressureLevel >= 2 ? 1 : pressureLevel >= 1 ? 2 : 3;
 
     return {
       maxInflightHydrations: Math.max(1, pressureAdjustedInflight),

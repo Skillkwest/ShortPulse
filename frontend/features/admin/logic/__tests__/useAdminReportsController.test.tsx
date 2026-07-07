@@ -34,6 +34,7 @@ const buildListResponse = (reports: unknown[], summaryOverrides: Record<string, 
     reports,
     summary: {
       totalCount: 1,
+      openCount: 1,
       newCount: 1,
       reviewingCount: 0,
       resolvedCount: 0,
@@ -54,6 +55,19 @@ describe("useAdminReportsController", () => {
     vi.clearAllMocks();
   });
 
+  it("loads the open queue by default so resolved reports stay in history", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(buildListResponse([buildReport()], {}));
+
+    const { result } = renderHook(() => useAdminReportsController({ enabled: true }));
+
+    await waitFor(() => expect(result.current.reports).toHaveLength(1));
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/admin/reports?page=1&limit=50&status=open",
+      expect.objectContaining({ method: "GET" })
+    );
+  });
+
   it("reapplies the active filters after a report status change", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce(buildListResponse([buildReport()], {}))
@@ -70,6 +84,7 @@ describe("useAdminReportsController", () => {
       .mockResolvedValueOnce(
         buildListResponse([], {
           totalCount: 1,
+          openCount: 0,
           newCount: 0,
           reviewingCount: 0,
           resolvedCount: 1,
@@ -106,6 +121,7 @@ describe("useAdminReportsController", () => {
     );
     expect(result.current.reportSummary).toMatchObject({
       totalCount: 1,
+      openCount: 0,
       newCount: 0,
       reviewingCount: 0,
       resolvedCount: 1,

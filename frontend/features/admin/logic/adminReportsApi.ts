@@ -1,10 +1,15 @@
 import type { IssueReportStatus } from "../../../lib/issueReports";
 import { ISSUE_REPORT_PAGE_SIZE, isIssueReportStatus } from "../../../lib/issueReports";
-import type { AdminIssueReportRow, AdminIssueReportSummary, AdminPagination } from "../types";
+import type {
+  AdminIssueReportFilter,
+  AdminIssueReportRow,
+  AdminIssueReportSummary,
+  AdminPagination,
+} from "../types";
 
 type AdminReportsLoadOverrides = {
   page?: number;
-  status?: "all" | IssueReportStatus;
+  status?: AdminIssueReportFilter;
   search?: string;
 };
 
@@ -16,6 +21,7 @@ type NormalizedAdminReportsResponse = {
 
 export const DEFAULT_ADMIN_ISSUE_REPORT_SUMMARY: AdminIssueReportSummary = {
   totalCount: 0,
+  openCount: 0,
   newCount: 0,
   reviewingCount: 0,
   resolvedCount: 0,
@@ -87,6 +93,7 @@ export const normalizeAdminReportsResponse = (
   }),
   summary: {
     totalCount: toFiniteNumber(data.summary?.totalCount, 0),
+    openCount: toFiniteNumber(data.summary?.openCount, 0),
     newCount: toFiniteNumber(data.summary?.newCount, 0),
     reviewingCount: toFiniteNumber(data.summary?.reviewingCount, 0),
     resolvedCount: toFiniteNumber(data.summary?.resolvedCount, 0),

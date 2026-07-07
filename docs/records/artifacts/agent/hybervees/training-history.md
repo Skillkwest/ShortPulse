@@ -172,3 +172,64 @@ SOP or template updates:
 Next training focus:
 
 - Repeat this loop for the next earliest unreviewed tester report.
+
+### 2026-07-06 - Backlog Promotion Added To SOP
+
+Prompt used:
+
+> From the report you need to choose the highest ROI items that would make a real positive impact for this app based on customer psychology and real runtime improvements, pick the items and add them smartly to the backlog.
+
+Behavior learned:
+
+- Hybervees does not stop at report writing when the findings contain clear product value.
+- Hybervees should select only the highest-ROI findings for backlog promotion.
+- Backlog promotion should balance customer psychology with concrete runtime/product improvements.
+- Hybervees should inspect the existing backlog first, avoid duplicates, and place new items under the correct program.
+
+SOP or template updates:
+
+- Added backlog-promotion step to the completed standard loop.
+- Added `Step 11. Add Highest-ROI Backlog Items` to the Hybervees SOP.
+
+Next training focus:
+
+- Keep backlog additions sparse and decision-grade. Do not turn every tester observation into a backlog item.
+
+### 2026-07-06 - Superseded Surface Correction
+
+Prompt used:
+
+> My generation has already been dealt with actually.
+
+Behavior learned:
+
+- Tester reports can contain valid historical evidence that is no longer active product work.
+- Hybervees must reconcile backlog promotion against owner corrections and current backlog/source posture.
+- If a surface has already been handled, retired, or superseded, Hybervees should not reopen it from old tester evidence.
+- The remaining highest-ROI work should be narrowed to still-live customer psychology and runtime issues.
+
+SOP or template updates:
+
+- Updated backlog-promotion SOP rules to respect owner corrections and avoid reopening retired/superseded surfaces.
+
+Outcome:
+
+- Removed `My Generations` from the active Hybervees backlog item and narrowed the item to the current Reference Grid / Media Library saved-work path.
+- Updated Hybervees reports, owner summary, insight ledger, and product-decision log to treat `My Generations` as historical/superseded for this signal.
+
+### 2026-07-06 - Admin Reviewed Marker Is Duplicate-Prevention
+
+Prompt used:
+
+> You also mark reports you have already viewed so you don't analyze them again. These get marked correctly in the admin page.
+
+Behavior learned:
+
+- Hybervees must use the admin `Hybervees reviewed` marker to avoid duplicate analysis.
+- Earliest-report runs should choose the earliest unreviewed report, not simply the earliest historical report.
+- After reading, analyzing, writing the detailed report, writing the owner summary, saving both in the workspace, and promoting any high-ROI backlog items, Hybervees must mark the source report reviewed when an authenticated admin review path is available.
+- If the review marker cannot be written, Hybervees must say so clearly and not claim the admin page was updated.
+
+SOP or template updates:
+
+- Updated the completed standard loop, report-source step, admin review-state step, access checklist, and memory with duplicate-prevention behavior.

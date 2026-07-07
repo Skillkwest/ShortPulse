@@ -243,8 +243,105 @@ describe("browserCrashSessions", () => {
     expect(supabase.upsertMock.mock.calls[0]?.[0]).not.toHaveProperty("review_status");
   });
 
-  it("maps the needs-review list filter to probable and confirmed crash rows", async () => {
-    const inMock = vi.fn();
+  it("preserves high-water pressure evidence when later heartbeat metadata is calm", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      metadata: {
+        pressure_level: 2,
+        heap_used_to_total_ratio: 0.94,
+        max_input_stall_ms: 1400,
+        pressure_event_count: 1,
+        last_pressure_snapshot_at: "2026-07-05T12:00:20.000Z",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "current-session",
+        route: "/ai-studio?projectId=secret&sid=runtime",
+        occurredAt: "2026-07-05T12:01:00.000Z",
+        metadata: {
+          heap_used_to_limit_ratio: 0.014,
+          heap_usage_ratio: 0.014,
+          used_js_heap_size: 58_109_145,
+          js_heap_size_limit: 4_395_630_592,
+        },
+      },
+    });
+
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).toMatchObject({
+      last_event: "heartbeat",
+      route: "/ai-studio?projectId&sid",
+      metadata: {
+        pressure_level: 2,
+        heap_used_to_total_ratio: 0.94,
+        heap_used_to_limit_ratio: 0.014,
+        heap_usage_ratio: 0.014,
+        max_pressure_level: 2,
+        max_heap_used_to_total_ratio: 0.94,
+        max_input_stall_ms: 1400,
+        pressure_event_count: 1,
+        last_pressure_snapshot_at: "2026-07-05T12:00:20.000Z",
+      },
+    });
+  });
+
+  it("increments pressure snapshot high-water evidence", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      metadata: {
+        pressure_level: 1,
+        max_pressure_level: 1,
+        pressure_event_count: 1,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "pressure_snapshot",
+        sessionId: "current-session",
+        route: "/ai-studio",
+        occurredAt: "2026-07-05T12:02:00.000Z",
+        metadata: {
+          pressure_level: 2,
+          heap_used_to_total_ratio: 0.91,
+        },
+      },
+    });
+
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).toMatchObject({
+      status: "active",
+      confidence: "none",
+      metadata: {
+        pressure_level: 2,
+        max_pressure_level: 2,
+        heap_used_to_total_ratio: 0.91,
+        max_heap_used_to_total_ratio: 0.91,
+        pressure_event_count: 2,
+        last_pressure_snapshot_at: "2026-07-05T12:02:00.000Z",
+      },
+    });
+  });
+
+  it("maps the needs-review list filter to probable, confirmed, and stale active rows", async () => {
+    const orMock = vi.fn();
     const rangeMock = vi.fn().mockResolvedValue({
       data: [
         {
@@ -260,9 +357,9 @@ describe("browserCrashSessions", () => {
     const query = {
       select: vi.fn(),
       order: vi.fn(),
-      in: inMock,
+      in: vi.fn(),
       eq: vi.fn(),
-      or: vi.fn(),
+      or: orMock,
       range: rangeMock,
     };
     query.select.mockReturnValue(query);
@@ -282,7 +379,11 @@ describe("browserCrashSessions", () => {
       search: "",
     });
 
-    expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
+    expect(orMock).toHaveBeenCalledWith(
+      expect.stringContaining("status.in.(probable_freeze_or_crash,confirmed_crash)")
+    );
+    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("status.eq.active"));
+    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("last_seen_at.lt."));
     expect(query.eq).toHaveBeenCalledWith("review_status", "open");
     expect(rangeMock).toHaveBeenCalledWith(0, 49);
     expect(result.pagination.totalCount).toBe(1);
@@ -290,6 +391,53 @@ describe("browserCrashSessions", () => {
       id: "row-1",
       effective_status: "probable_freeze_or_crash",
     });
+  });
+
+  it("maps possible ungraceful exit to stored and stale-active rows", async () => {
+    const orMock = vi.fn();
+    const rangeMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "row-1",
+          status: "active",
+          confidence: "none",
+          last_seen_at: "2026-07-05T12:00:00.000Z",
+        },
+      ],
+      error: null,
+      count: 1,
+    });
+    const query = {
+      select: vi.fn(),
+      order: vi.fn(),
+      in: vi.fn(),
+      eq: vi.fn(),
+      or: orMock,
+      range: rangeMock,
+    };
+    query.select.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.in.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.or.mockReturnValue(query);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn(() => query),
+    });
+
+    await fetchBrowserCrashSessions({
+      page: 1,
+      limit: 50,
+      status: "possible_ungraceful_exit",
+      reviewStatus: "open",
+      search: "",
+    });
+
+    expect(orMock).toHaveBeenCalledWith(
+      expect.stringContaining("status.eq.possible_ungraceful_exit")
+    );
+    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("status.eq.active"));
+    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("last_seen_at.lt."));
+    expect(query.eq).toHaveBeenCalledWith("review_status", "open");
   });
 
   it("maps the reviewed history filter to resolved and ignored review rows", async () => {
@@ -332,7 +480,9 @@ describe("browserCrashSessions", () => {
       search: "",
     });
 
-    expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
+    expect(query.or).toHaveBeenCalledWith(
+      expect.stringContaining("status.in.(probable_freeze_or_crash,confirmed_crash)")
+    );
     expect(inMock).toHaveBeenCalledWith("review_status", ["resolved", "ignored"]);
     expect(query.eq).not.toHaveBeenCalledWith("review_status", "reviewed");
     expect(rangeMock).toHaveBeenCalledWith(0, 49);

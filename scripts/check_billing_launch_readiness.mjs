@@ -490,7 +490,7 @@ select coalesce(json_agg(checks order by check_name), '[]'::json) from checks;
 const checkInternalWorkerFailClosed = async (
   args,
   reporter,
-  { path, checkName, label },
+  { path, checkName, label, allowDisabledNotFound = false },
 ) => {
   const url = new URL(path, `${args.baseUrl}/`);
   const response = await fetch(url, {
@@ -499,17 +499,24 @@ const checkInternalWorkerFailClosed = async (
     body: "{}",
   });
   const body = await response.text();
-  if (response.status !== 401) {
-    reporter.fail(
+  if (response.status === 401) {
+    reporter.pass(
       checkName,
-      `${label} did not fail closed with 401 for unauthenticated POST.`,
-      { status: response.status, body: body.slice(0, 240) },
+      `${label} is deployed and protected from unauthenticated execution.`,
     );
     return;
   }
-  reporter.pass(
+  if (allowDisabledNotFound && response.status === 404) {
+    reporter.pass(
+      checkName,
+      `${label} is deployed in its disabled fail-closed state.`,
+    );
+    return;
+  }
+  reporter.fail(
     checkName,
-    `${label} is deployed and protected from unauthenticated execution.`,
+    `${label} did not fail closed for unauthenticated POST.`,
+    { status: response.status, body: body.slice(0, 240) },
   );
 };
 
@@ -525,6 +532,7 @@ const checkCreditExpirationFailClosed = async (args, reporter) =>
     path: "/api/internal/credit-expirations/run",
     checkName: "credit_expiration_worker_fail_closed",
     label: "Credit expiration worker",
+    allowDisabledNotFound: true,
   });
 
 const checkStripeWebhookEndpoint = async (args, reporter) => {
@@ -598,6 +606,91 @@ const checkStripeWebhookEndpoint = async (args, reporter) => {
   );
 };
 
+const checkSubscriptionCreditGrantReconciliation = async (reporter) => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  const hasSupabaseCredentials = Boolean(
+    (process.env.SHORTPULSE_PRODUCTION_SUPABASE_URL?.trim() ??
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()) &&
+    (process.env.SHORTPULSE_PRODUCTION_SUPABASE_SERVICE_ROLE_KEY?.trim() ??
+      process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+  );
+  if (!stripeSecretKey || !hasSupabaseCredentials) {
+    reporter.warn(
+      "subscription_credit_grant_reconciliation",
+      "Paid invoice to recurring credit grant reconciliation is unproven because Stripe or Supabase read credentials are unavailable locally.",
+      "Expected STRIPE_SECRET_KEY plus production Supabase REST service-role credentials.",
+    );
+    return;
+  }
+
+  const parseDetectorOutput = (stdout) => {
+    const text = String(stdout ?? "").trim();
+    if (!text) return null;
+    return JSON.parse(text);
+  };
+
+  try {
+    const result = await execFileAsync(
+      process.execPath,
+      ["scripts/check_missing_subscription_credit_grants.mjs", "--json"],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        maxBuffer: 20 * 1024 * 1024,
+      },
+    );
+    const payload = parseDetectorOutput(result.stdout);
+    if (Number(payload?.summary?.warnings ?? 0) > 0) {
+      reporter.warn(
+        "subscription_credit_grant_reconciliation",
+        "Paid invoice to recurring credit grant reconciliation completed with warnings.",
+        payload?.summary ?? null,
+      );
+      return;
+    }
+    reporter.pass(
+      "subscription_credit_grant_reconciliation",
+      "Recent paid subscription allocation invoices have matching local recurring credit grants.",
+      payload?.summary ?? null,
+    );
+  } catch (error) {
+    const stdoutPayload = parseDetectorOutput(error?.stdout);
+    if (stdoutPayload?.summary?.missing > 0) {
+      reporter.fail(
+        "subscription_credit_grant_reconciliation",
+        "At least one recent paid subscription allocation invoice is missing a local recurring credit grant.",
+        {
+          summary: stdoutPayload.summary,
+          missing: (stdoutPayload.rows ?? [])
+            .filter((row) => row.status === "missing_credit_grant")
+            .map((row) => ({
+              userId: row.userId,
+              invoiceId: row.invoiceId,
+              sourceRef: row.sourceRef,
+              expectedCreditsCents: row.expectedCreditsCents,
+            })),
+        },
+      );
+      return;
+    }
+
+    const diagnostic = redactSensitiveDiagnostics(
+      error?.stderr || error?.message || error,
+    );
+    if (
+      /Missing (STRIPE_SECRET_KEY|Supabase REST credentials)/i.test(diagnostic)
+    ) {
+      reporter.warn(
+        "subscription_credit_grant_reconciliation",
+        "Paid invoice to recurring credit grant reconciliation is unproven because required read credentials are unavailable locally.",
+        diagnostic,
+      );
+      return;
+    }
+    throw error;
+  }
+};
+
 const printSummary = ({ checks, strict, json }) => {
   const summary = {
     passed: checks.filter((check) => check.status === "pass").length,
@@ -662,6 +755,10 @@ const main = async () => {
     [
       "stripe_webhook_endpoint",
       () => checkStripeWebhookEndpoint(args, reporter),
+    ],
+    [
+      "subscription_credit_grant_reconciliation",
+      () => checkSubscriptionCreditGrantReconciliation(reporter),
     ],
   ];
 

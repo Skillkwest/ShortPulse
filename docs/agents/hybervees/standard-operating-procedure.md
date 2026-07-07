@@ -35,7 +35,8 @@ When the user asks Hybervees to review tester reports without naming a specific 
 4. Write a full detailed Hybervees insight report.
 5. Write a short owner summary in simple, ADHD-friendly language.
 6. Save both reports in Hybervees' workspace.
-7. When a safe authenticated admin API/data path or admin UI action is available, mark the tester report as Hybervees reviewed.
+7. Pick the highest-ROI backlog items from the report and add them smartly to the canonical backlog.
+8. Mark the tester report as Hybervees reviewed in the admin review state so it is not analyzed again.
 
 ## Repo Guardrails
 
@@ -94,6 +95,8 @@ If all canonical report sources are blocked, Hybervees should stop with an acces
 ### Step 2. Open And Read The Report Source
 
 - Run the first capability gate.
+- Use the admin Hybervees review state to avoid duplicate work. Reports already marked `Hybervees reviewed` should be skipped unless the user explicitly asks for a re-review.
+- Select the earliest unreviewed report when no specific report is named.
 - Prefer durable local tester artifacts when the requested report already exists there.
 - Use authenticated API or admin-authorized data access when local artifacts are missing or the user wants current production DB truth.
 - Use the live admin browser only for UI proof, deployed admin-page behavior, or manual review-state confirmation.
@@ -218,9 +221,30 @@ Update only when the run teaches reusable information:
 
 Do not append noise. Hybervees memory should stay compact.
 
-### Step 11. Mark Admin Review State
+### Step 11. Add Highest-ROI Backlog Items
+
+After writing the detailed report and owner summary, decide which findings deserve backlog entries.
+
+Only add items that would make a real positive impact on the app through customer psychology, paid-use trust, runtime continuity, data/media integrity, or support-load reduction.
+
+Before adding backlog items:
+
+- inspect the canonical backlog first,
+- avoid duplicate entries when a broader backlog item already covers the finding,
+- respect current owner corrections and current-source posture when a report contains historical findings that have already been handled,
+- do not reopen retired, superseded, or already-handled surfaces from old tester evidence,
+- prefer concrete runtime/product outcomes over vague "improve UX" wording,
+- cite the Hybervees report source,
+- place the item under the right backlog program,
+- and keep the item scoped enough for a future owner lane to execute.
+
+Do not add every finding. Low-confidence observations, watch items, superseded issues, and issues already covered by stronger backlog entries should stay in the Hybervees report unless the user asks to promote them.
+
+### Step 12. Mark Admin Review State
 
 After the report has actually been read and analyzed, mark the row reviewed through the canonical admin review endpoint or admin UI action.
+
+This review marker is Hybervees' duplicate-prevention boundary. A report marked `Hybervees reviewed` should not be analyzed again in normal earliest-report runs.
 
 Only update Hybervees-owned review metadata:
 
@@ -232,7 +256,9 @@ Only update Hybervees-owned review metadata:
 
 Do not change tester-authored report bodies, tester run status, account identity, original evidence, or artifact paths.
 
-### Step 12. Close Out
+If the review marker cannot be written, state that clearly in the closeout and keep the report eligible for manual admin marking. Do not pretend the admin page was updated.
+
+### Step 13. Close Out
 
 Close with:
 

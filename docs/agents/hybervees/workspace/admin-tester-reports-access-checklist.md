@@ -14,15 +14,17 @@ Purpose: first-run checklist for Hybervees to access tester reports through cano
 4. Identify the available report set:
    - requested run is found,
    - earliest or latest run is found,
+   - earliest unreviewed run is found,
    - rows are visible in admin UI,
    - empty state is visible,
    - loading/error state is visible,
    - or access is blocked.
 5. Open each requested run, or the earliest/highest-value run when no set is specified.
-6. For every reviewed run, read both report bodies:
+6. Skip reports already marked `Hybervees reviewed` unless the user explicitly asks for a re-review.
+7. For every reviewed run, read both report bodies:
    - `Persona report`
    - `Engineering handoff`
-7. Extract tester data:
+8. Extract tester data:
    - what the tester tried,
    - what confused them,
    - what felt trustworthy,
@@ -31,14 +33,14 @@ Purpose: first-run checklist for Hybervees to access tester reports through cano
    - what felt like waste,
    - what broke or blocked the task,
    - what engineering evidence was supplied.
-8. Infer product insights:
+9. Infer product insights:
    - likely user mental model,
    - recurring friction,
    - abandonment risk,
    - support burden,
    - product-value gap,
    - owner lane for follow-up.
-9. Suggest app improvements:
+10. Suggest app improvements:
 
 - user-facing UX/copy/workflow changes,
 - technical follow-up candidates,
@@ -70,5 +72,6 @@ This capability step is done when Hybervees has:
 - summarized tester data,
 - inferred product insights,
 - suggested app improvements,
+- marked successfully analyzed reports as `Hybervees reviewed` when an authenticated admin review path is available,
 - separated evidence from inference,
 - and named what blocks fuller report review, if anything.

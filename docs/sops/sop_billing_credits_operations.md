@@ -156,6 +156,7 @@ Primary path:
 - Paid acquisition Checkout success -> `/ai-studio?checkout=subscription_success&project=new&checkout_session_id={CHECKOUT_SESSION_ID}`. After auth and media consent gates clear, AI Studio creates one saved `Untitled Project` through `POST /api/projects/create`, stores the Stripe session-to-project handoff in browser session storage as a duplicate-navigation guard, and replaces the URL with `/ai-studio?projectId=<uuid>`.
 - `npm -C frontend run billing:launch-readiness` for a read-only production launch-readiness audit of billing-critical Vercel routes/env, signup callback origin, public pricing catalog, production Supabase billing catalog/linkage, the billing renewal worker fail-closed boundary, and optional DB-trigger/Stripe-webhook proof when read credentials are available. The DB-trigger proof accepts `SHORTPULSE_PRODUCTION_DB_URL`, `SHORTPULSE_PRODUCTION_SUPABASE_DB_URL`, or `SUPABASE_DB_URL`, and the Stripe webhook proof requires a live `STRIPE_SECRET_KEY` in the shell/session.
 - `npm -C frontend run billing:contracts:verify -- --limit 25` for batch contract-vs-Stripe reconciliation using service-role Supabase access plus live Stripe subscription reads.
+- `npm -C frontend run billing:credits:verify -- --limit 25 --json` for read-only reconciliation of recent paid Stripe subscription allocation invoices against local `subscription_renewal` credit ledger and grant rows. This verifier detects paid `subscription_create` / `subscription_cycle` invoices that are missing the canonical `invoice:<invoice_id>:monthly_allocation` local grant path.
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
 - `/admin/user-health-fleet` diagnostics -> `/api/admin/user-health-fleet` for hourly active-user triage and risk-ranked escalation into per-user billing/runtime analysis.
 - `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
@@ -194,6 +195,19 @@ Important:
 
 - Treat the SQL packet as an audit surface, not an automatic repair script.
 - Use `billing_subscription_contracts`, `billing_subscription_storage_addons`, and `ai_credit_ledger` as the local billing truth surfaces for this audit, not `billing_profiles`.
+
+## Missing paid subscription credit grant response
+
+Use this sequence when `/admin` billing diagnostics or `npm -C frontend run billing:credits:verify -- --json` reports `missing_paid_invoice_credit_grant` / `missing_credit_grant`.
+
+1. Confirm the Stripe invoice is paid and its `billing_reason` is `subscription_create` or `subscription_cycle`.
+2. Inspect local `ai_credit_ledger` and `ai_credit_grants` together for `source = 'subscription_renewal'` and `source_ref = 'invoice:<invoice_id>:monthly_allocation'`, also checking `metadata.invoice_id`.
+3. Inspect `app_error_events` / `app_error_logs` for the matching `billing/stripe/webhook` event. Subscription grant failures should include `invoice_id`, `subscription_grant_source_ref`, `user_id`, `stripe_customer_id`, and `monthly_credits_cents` when that context was available.
+4. Replay the matching Stripe `invoice.payment_succeeded` event first so the canonical webhook path creates the ledger and grant rows.
+5. Re-run `npm -C frontend run billing:credits:verify -- --user-id <uuid> --json` or the `/admin` billing diagnostics for the affected user.
+6. Consider a manual admin credit adjustment only if event replay is unavailable or insufficient, and only after ruling out an existing ledger/grant for that invoice to avoid double-granting.
+
+Do not add a parallel fallback grant path for this recovery. The Stripe webhook plus idempotent invoice source ref is the canonical source path.
 
 ## Admin pricing command center
 

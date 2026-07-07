@@ -7,6 +7,10 @@ import { PencilSimpleLine } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { type CreatePulsePresetId, type CreatePulseResolvedPreset } from "./createPulsePresets";
+import {
+  CUSTOM_PULSE_HELPER_TEXT,
+  CUSTOM_PULSE_TEXTAREA_PLACEHOLDER,
+} from "./pulsePresetAuthoringGuidance";
 
 export type CreatePulsePresetsSurfaceProps = {
   id: string;
@@ -322,10 +326,7 @@ export const CreatePulsePresetsSurface = ({
                   }
                 }}
               />
-              <p className="tiny subdued helper-text">
-                A custom Pulse is just saved system instructions. If you want reusable prompt or
-                artifact behavior, describe that directly in the instructions.
-              </p>
+              <p className="tiny subdued helper-text">{CUSTOM_PULSE_HELPER_TEXT}</p>
               <label
                 className="create-composer-presets-custom-editor-label"
                 htmlFor="create-pulse-preset-prompt-input"
@@ -337,7 +338,7 @@ export const CreatePulsePresetsSurface = ({
                 className="create-composer-presets-custom-editor-textarea"
                 value={editorDraft.systemInstructions}
                 rows={7}
-                placeholder="Describe how this Pulse should behave, what it should ask for, and what kind of output it should produce."
+                placeholder={CUSTOM_PULSE_TEXTAREA_PLACEHOLDER}
                 onChange={(event) => {
                   setEditorDraft((previous) => ({
                     ...previous,

@@ -81,6 +81,7 @@ describe("AdminReportsPage", () => {
           ],
           summary: {
             totalCount: 1,
+            openCount: 1,
             newCount: path.includes("status=reviewing") ? 0 : 1,
             reviewingCount: path.includes("status=reviewing") ? 1 : 0,
             resolvedCount: 0,
@@ -105,7 +106,7 @@ describe("AdminReportsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/reports?page=1&limit=50",
+        "/api/admin/reports?page=1&limit=50&status=open",
         expect.objectContaining({ method: "GET" })
       );
     });

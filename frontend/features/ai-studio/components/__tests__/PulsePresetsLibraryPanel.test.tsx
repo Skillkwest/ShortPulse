@@ -118,6 +118,12 @@ describe("PulsePresetsLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
 
     expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
+    expect(screen.getByLabelText("Custom Pulse instruction guide")).toBeInTheDocument();
+    expect(screen.getByText("What the Pulse helps with")).toBeInTheDocument();
+    expect(screen.getByText("What it should ask before answering")).toBeInTheDocument();
+    expect(
+      screen.getByText("What kind of finished response or artifact it should produce")
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Pulse Type")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Activate it later from the Create Pulse rail or Pulse Catalog/)
@@ -144,6 +150,13 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByRole("dialog", { name: "Video Prompt Magic details" })).toBeInTheDocument();
     expect(screen.getByText(/Inspecting here does not activate this Pulse\./)).toBeInTheDocument();
     expect(screen.getByText("Built-in guided workflow")).toBeInTheDocument();
+    expect(screen.getByText("Starts with")).toBeInTheDocument();
+    expect(screen.getByText("Workflow")).toBeInTheDocument();
+    expect(screen.getByText("Produces")).toBeInTheDocument();
+    expect(screen.getByText("Video prompt")).toBeInTheDocument();
+    expect(screen.queryByText("Runtime")).not.toBeInTheDocument();
+    expect(screen.queryByText("Activation")).not.toBeInTheDocument();
+    expect(screen.queryByText("Artifact Target")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Duplicate to custom" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Edit Preset" })).not.toBeInTheDocument();
     expect(onSavedPresetsChange).not.toHaveBeenCalled();

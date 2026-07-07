@@ -59,12 +59,16 @@ const stop = () => {
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 process.on("uncaughtException", (error) => {
-  console.error(`[generation-worker] uncaught_exception=${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+  console.error(
+    `[generation-worker] uncaught_exception=${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+  );
   process.exitCode = 1;
   stop();
 });
 process.on("unhandledRejection", (reason) => {
-  console.error(`[generation-worker] unhandled_rejection=${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
+  console.error(
+    `[generation-worker] unhandled_rejection=${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`
+  );
   process.exitCode = 1;
   stop();
 });

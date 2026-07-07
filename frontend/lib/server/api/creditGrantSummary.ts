@@ -4,6 +4,7 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type GrantSummaryRpcRow = {
+  user_id?: string | null;
   spendable_cents?: number | string | null;
   reserved_cents?: number | string | null;
   expiring_cents?: number | string | null;
@@ -57,7 +58,8 @@ export const fetchCreditGrantSummaries = async (
     ) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
   };
 
-  for (const userId of uniqueUserIds) {
+  if (uniqueUserIds.length === 1) {
+    const userId = uniqueUserIds[0] ?? "";
     const { data, error } = await rpcClient.rpc("get_credit_grant_summary", {
       p_user_id: userId,
     });
@@ -66,9 +68,23 @@ export const fetchCreditGrantSummaries = async (
     }
 
     const row = Array.isArray(data) ? (data[0] as GrantSummaryRpcRow | undefined) : null;
-    if (!row) {
-      continue;
+    if (row) {
+      summariesByUserId.set(userId, normalizeGrantSummaryRow(row));
     }
+    return { supported: true, summariesByUserId, error: null };
+  }
+
+  const { data, error } = await rpcClient.rpc("get_credit_grant_summaries", {
+    p_user_ids: uniqueUserIds,
+  });
+  if (error) {
+    return { supported: false, summariesByUserId: new Map(), error };
+  }
+
+  const rows = Array.isArray(data) ? (data as GrantSummaryRpcRow[]) : [];
+  for (const row of rows) {
+    const userId = typeof row?.user_id === "string" ? row.user_id : null;
+    if (!userId) continue;
     summariesByUserId.set(userId, normalizeGrantSummaryRow(row));
   }
 

@@ -85,6 +85,60 @@ describe("GET /api/admin/reports", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "issue report list query failed" });
   });
 
+  it("treats status=open as the active non-resolved queue", async () => {
+    const rangeMock = vi.fn().mockResolvedValue({
+      data: [{ id: "report-1", status: "new" }],
+      count: 1,
+      error: null,
+    });
+    const orderMock = vi.fn(() => ({ range: rangeMock }));
+    const neqMock = vi.fn(() => ({ order: orderMock }));
+    const listQuery = { neq: neqMock, order: orderMock };
+    const eqMock = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1, error: null })
+      .mockResolvedValueOnce({ count: 1, error: null })
+      .mockResolvedValueOnce({ count: 2, error: null });
+    const selectMock = vi.fn((_columns: string, options?: { head?: boolean }) => {
+      if (options?.head) {
+        return {
+          count: 4,
+          error: null,
+          eq: eqMock,
+        };
+      }
+      return listQuery;
+    });
+    const fromMock = vi.fn(() => ({ select: selectMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+
+    const req = { method: "GET", query: { page: "1", status: "open" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(neqMock).toHaveBeenCalledWith("status", "resolved");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      reports: [{ id: "report-1", status: "new" }],
+      summary: {
+        totalCount: 4,
+        openCount: 2,
+        newCount: 1,
+        reviewingCount: 1,
+        resolvedCount: 2,
+      },
+      pagination: {
+        page: 1,
+        perPage: 50,
+        totalCount: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+    });
+  });
+
   it("logs degraded summary count queries while preserving the report list response", async () => {
     const summaryError = { message: "summary count failed" };
     const rangeMock = vi.fn().mockResolvedValue({
@@ -133,6 +187,7 @@ describe("GET /api/admin/reports", () => {
       reports: [{ id: "report-1", status: "new" }],
       summary: {
         totalCount: 0,
+        openCount: 0,
         newCount: 0,
         reviewingCount: 0,
         resolvedCount: 0,

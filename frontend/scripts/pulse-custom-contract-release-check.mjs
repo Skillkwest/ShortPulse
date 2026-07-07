@@ -5,8 +5,7 @@ import { spawn } from "node:child_process";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const port = Number.parseInt(process.env.PULSE_CUSTOM_CONTRACT_PORT || "3101", 10);
 const skipBuild = process.env.PULSE_CUSTOM_CONTRACT_SKIP_BUILD === "true";
-const baseUrl =
-  process.env.PULSE_CUSTOM_CONTRACT_BASE_URL || `http://localhost:${port}`;
+const baseUrl = process.env.PULSE_CUSTOM_CONTRACT_BASE_URL || `http://localhost:${port}`;
 const auditEmail = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 
 if (!auditEmail) {

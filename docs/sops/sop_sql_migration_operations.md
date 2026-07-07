@@ -69,6 +69,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`: harden grant-lot reservation RPC ambiguity without changing customer-facing billing policy.
 - `sql/migrations/203_add_hybervees_tester_report_review.sql`: add Hybervees review metadata to tester report runs for `/admin/tester-reports`.
 - `sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql`: harden grant-lot credit RPC ambiguity without changing customer-facing billing policy.
+- `sql/migrations/205_add_bulk_credit_grant_summary_rpc.sql`: add the service-role-only set-based grant-lot summary RPC used by admin surfaces to avoid per-user RPC fanout.
+- `sql/migrations/206_repair_prompt_modifier_starter.sql`: repair legacy Prompt Modifier built-in rows that are missing the required starter message.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -305,6 +307,8 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `202_harden_credit_grant_lot_reservation_ambiguity.sql`
 - `203_add_hybervees_tester_report_review.sql`
 - `204_harden_credit_grant_lot_credit_rpc_ambiguity.sql`
+- `205_add_bulk_credit_grant_summary_rpc.sql`
+- `206_repair_prompt_modifier_starter.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

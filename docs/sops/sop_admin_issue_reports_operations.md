@@ -32,7 +32,7 @@ Operate the signed-in user issue-report lane built around `/report-issue`, `/adm
 5. Move the report through the manual lifecycle:
    - `new`: untouched
    - `reviewing`: acknowledged and being worked
-   - `resolved`: reviewed and handled
+   - `resolved`: reviewed and handled; cleared from the default open queue but still preserved in History
 6. Capture findings or next actions in `admin_notes`.
 7. Use direct links to user diagnostics when needed:
    - `/admin/user-health?lookup=<userId>&lookupMode=user_id`
@@ -42,7 +42,7 @@ Operate the signed-in user issue-report lane built around `/report-issue`, `/adm
 
 - Treat Supabase as the only source of truth for reports.
 - Do not use Ophestivus as the live intake or review authority in this phase.
-- Do not hard-delete reports during normal review work.
+- Do not hard-delete reports during normal review work. Use `resolved` to clear rows from the open queue while preserving them for history/search.
 - Preserve concise, useful admin notes for future operator context.
 
 ## Error Handling

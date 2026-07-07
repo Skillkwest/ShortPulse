@@ -16,7 +16,7 @@ The review surface also needs to live inside the existing admin workspace so ope
 - Require authenticated user submission through `POST /api/report-issue`; the server snapshots `user_id`, `submitter_email`, request path, and user agent.
 - Keep `user_issue_reports` RLS-enabled with no direct browser policies; all reads and writes flow through trusted server routes using `getSupabaseAdmin`.
 - Expose operator review through `/admin/reports` plus `/api/admin/reports*`, guarded by `requireAdminUser`.
-- Use a small manual status model: `new`, `reviewing`, and `resolved`.
+- Use a small manual status model: `new`, `reviewing`, and `resolved`; the admin UI treats `new` plus `reviewing` as the default open queue and keeps `resolved` rows available as history.
 - Keep Ophestivus out of this runtime lane for now. Future Ophestivus work may read report rows and create derivative artifacts, but Supabase remains the source of truth.
 
 ## Consequences
@@ -30,5 +30,5 @@ The review surface also needs to live inside the existing admin workspace so ope
 
 - Do not expose `user_issue_reports` directly to browser Supabase queries.
 - Do not auto-create Ophestivus tickets or agent-owned workflows from user reports in this phase.
-- Do not hard-delete reports as part of normal operator review; use status and notes instead.
+- Do not hard-delete reports as part of normal operator review; use status and notes instead. Clearing the operator queue means moving a row to `resolved`, not removing it from `user_issue_reports`.
 - Keep report payloads bounded and free of service-role/browser-secret leakage.

@@ -480,6 +480,16 @@ describe("Dashboard actions", () => {
     );
     expect(within(footer).getByRole("button", { name: "Open AI Studio" })).toBeInTheDocument();
     expect(within(footer).queryByRole("link", { name: "Open AI Studio" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(footer).getByRole("button", { name: "Customer Support" }));
+    const supportDialog = await screen.findByRole("dialog", {
+      name: "Contact Customer Support",
+    });
+    expect(supportDialog).toHaveTextContent("Use the email below");
+    expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open email app" })).not.toBeInTheDocument();
+    expect(document.body.contains(supportDialog)).toBe(true);
+    expect(footer.contains(supportDialog)).toBe(false);
   });
 
   it("routes the signed-in footer Open AI Studio action through new project creation", async () => {

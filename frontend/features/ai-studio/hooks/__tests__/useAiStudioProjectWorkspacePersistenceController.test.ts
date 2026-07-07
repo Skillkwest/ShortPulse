@@ -342,6 +342,74 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("enables project autosave when a no-snapshot project first gains durable generated media during bootstrap", async () => {
+    const firstGeneratedSnapshot = {
+      ...createEmptyAiStudioSessionSnapshot({
+        sessionId: "session-1",
+        updatedAt: "2026-04-24T18:00:00.000Z",
+      }),
+      outputs: {
+        active: [
+          {
+            id: "generated:first-generation-1",
+            generationId: "first-generation-1",
+            taskId: "task-first-generation-1",
+            prompt: "First project generation",
+            mode: "image",
+            aspect: "1:1",
+            model: "model-1",
+            mediaSource: "generated",
+            status: "ready",
+            taskState: "success",
+            timestamp: "Just now",
+            previewUrl: "https://cdn.example.com/first-generation.png",
+            resultUrls: ["https://cdn.example.com/first-generation.png"],
+            previewStoragePath: "user-1/generated/first-generation-preview.webp",
+            fullStoragePath: "user-1/generated/first-generation-full.png",
+            savedMediaIds: ["33333333-3333-4333-8333-333333333333"],
+          },
+        ],
+        archived: [],
+        activeOutputId: "generated:first-generation-1",
+        curatedReferenceIds: ["generated:first-generation-1"],
+        removedFromAllRefsIds: [],
+      },
+    } as unknown as AiStudioSessionSnapshot;
+    mockReadyRestoreCandidate(null);
+    const buildSessionSnapshot = vi.fn(() => firstGeneratedSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildBaseSessionSnapshot: buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({
+      buildSnapshot: buildSessionSnapshot as (sessionId: string) => AiStudioSessionSnapshot,
+    });
+    await flushBootstrapVisibilityLatch();
+
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: firstGeneratedSnapshot,
+        enabled: true,
+      })
+    );
+  });
+
   it("keeps autosave locked until restored right-rail layout is visible", async () => {
     const restoreSnapshot = {
       ...createAiStudioProjectWorkspaceSnapshot(createSnapshot()),

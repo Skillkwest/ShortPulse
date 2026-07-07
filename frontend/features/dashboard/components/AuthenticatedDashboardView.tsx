@@ -195,6 +195,7 @@ export function AuthenticatedDashboardView({
         launchAppLabel="Open AI Studio"
         footerPricingLabel="Subscription"
         footerLoginLabel="Account"
+        showCustomerSupport
       />
     </>
   );

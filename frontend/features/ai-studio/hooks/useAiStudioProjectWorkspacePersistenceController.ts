@@ -18,6 +18,7 @@ import {
   PROJECT_WORKSPACE_KEEPALIVE_MAX_SNAPSHOT_BYTES,
 } from "../../../lib/ai-studio-session/projectWorkspaceLimits";
 import {
+  createEmptyAiStudioSessionSnapshot,
   type AiStudioProjectWorkspaceAutosaveCandidateKind,
   type AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
@@ -549,6 +550,16 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     () => resolveProjectAutosaveUnlockSignature(sessionSnapshot),
     [sessionSnapshot]
   );
+  const noSnapshotProjectAutosaveBaselineSignature = useMemo(() => {
+    if (!projectBootstrapSettled || sessionRestoreCandidate.result !== "no_snapshot") return null;
+    return resolveProjectAutosaveUnlockSignature(
+      createEmptyAiStudioSessionSnapshot({
+        sessionId: sessionId ?? undefined,
+      })
+    );
+  }, [projectBootstrapSettled, sessionId, sessionRestoreCandidate.result]);
+  const pendingVisibilityBaselineAutosaveUnlockSignature =
+    noSnapshotProjectAutosaveBaselineSignature ?? autosaveUnlockSignature;
   const projectAutosaveReadyAfterUserEdit =
     Boolean(projectId) &&
     projectBootstrapSettled &&
@@ -770,7 +781,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       !projectBootstrapSettled ||
       !expectedProjectRestoreVisibilitySignature ||
       activeBootstrapVisibilityApplied ||
-      !autosaveUnlockSignature
+      !pendingVisibilityBaselineAutosaveUnlockSignature
     ) {
       queueMicrotask(() => {
         if (cancelled) return;
@@ -794,7 +805,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
           projectId,
           revision: projectRuntimeRevision,
           restoreVisibilitySignature: expectedProjectRestoreVisibilitySignature,
-          autosaveUnlockSignature,
+          autosaveUnlockSignature: pendingVisibilityBaselineAutosaveUnlockSignature,
         };
       });
     });
@@ -803,8 +814,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     };
   }, [
     activeBootstrapVisibilityApplied,
-    autosaveUnlockSignature,
     expectedProjectRestoreVisibilitySignature,
+    pendingVisibilityBaselineAutosaveUnlockSignature,
     projectBootstrapSettled,
     projectId,
     projectRuntimeRevision,

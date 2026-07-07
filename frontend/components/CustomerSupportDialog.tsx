@@ -10,6 +10,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { CUSTOMER_SUPPORT_EMAIL, CUSTOMER_SUPPORT_MAILTO_HREF } from "../lib/customerSupport";
 import { useGuardedBackdropDismiss } from "./useGuardedBackdropDismiss";
 
@@ -122,58 +123,63 @@ export function useCustomerSupportDialog(): CustomerSupportDialogControls {
     }
   }, []);
 
-  const customerSupportDialog = isOpen ? (
-    <div
-      {...backdropDismiss}
-      className="confirm-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-    >
-      <div
-        className="confirm-modal confirm-modal--primary customer-support-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="confirm-modal__copy">
-          <h3 id={titleId} className="confirm-modal__title">
-            Contact Customer Support
-          </h3>
-          <div className="confirm-modal__body">
-            <p>
-              Use the email below. If your browser does not open an email app, copy the address.
-            </p>
-            <p className="customer-support-dialog__email">{CUSTOMER_SUPPORT_EMAIL}</p>
-            {copyState === "copied" ? (
-              <p className="customer-support-dialog__status" role="status">
-                Email copied.
-              </p>
-            ) : null}
-            {copyState === "failed" ? (
-              <p className="customer-support-dialog__status" role="status">
-                Copy failed. Select the email address and copy it manually.
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <div className="confirm-modal__actions">
-          <button
-            type="button"
-            className="confirm-modal__button confirm-modal__button--cancel"
-            onClick={closeDialog}
+  const customerSupportDialog =
+    isOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            {...backdropDismiss}
+            className="confirm-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
           >
-            Close
-          </button>
-          <button
-            type="button"
-            className="confirm-modal__button confirm-modal__button--cancel"
-            onClick={handleCopyEmail}
-          >
-            {copyState === "copied" ? "Copied" : "Copy email"}
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : null;
+            <div
+              className="confirm-modal confirm-modal--primary customer-support-dialog"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="confirm-modal__copy">
+                <h3 id={titleId} className="confirm-modal__title">
+                  Contact Customer Support
+                </h3>
+                <div className="confirm-modal__body">
+                  <p>
+                    Use the email below. If your browser does not open an email app, copy the
+                    address.
+                  </p>
+                  <p className="customer-support-dialog__email">{CUSTOMER_SUPPORT_EMAIL}</p>
+                  {copyState === "copied" ? (
+                    <p className="customer-support-dialog__status" role="status">
+                      Email copied.
+                    </p>
+                  ) : null}
+                  {copyState === "failed" ? (
+                    <p className="customer-support-dialog__status" role="status">
+                      Copy failed. Select the email address and copy it manually.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="confirm-modal__actions">
+                <button
+                  type="button"
+                  className="confirm-modal__button confirm-modal__button--cancel"
+                  onClick={closeDialog}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="confirm-modal__button confirm-modal__button--cancel"
+                  onClick={handleCopyEmail}
+                >
+                  {copyState === "copied" ? "Copied" : "Copy email"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return { customerSupportDialog, openCustomerSupportDialog };
 }

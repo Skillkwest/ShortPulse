@@ -16,6 +16,7 @@ type PublicHomeFooterProps = {
   footerPricingLabel?: string;
   footerLoginLabel?: string;
   communityCtaLabel?: string;
+  showCustomerSupport?: boolean;
 };
 
 /**
@@ -31,6 +32,7 @@ export function PublicHomeFooter({
   footerPricingLabel = "Pricing",
   footerLoginLabel = "Login",
   communityCtaLabel = "Join Free",
+  showCustomerSupport = false,
 }: PublicHomeFooterProps) {
   const { customerSupportDialog, openCustomerSupportDialog } = useCustomerSupportDialog();
 
@@ -75,9 +77,11 @@ export function PublicHomeFooter({
           </div>
           <div>
             <span>Resources</span>
-            <button type="button" onClick={openCustomerSupportDialog}>
-              {CUSTOMER_SUPPORT_LABEL}
-            </button>
+            {showCustomerSupport ? (
+              <button type="button" onClick={openCustomerSupportDialog}>
+                {CUSTOMER_SUPPORT_LABEL}
+              </button>
+            ) : null}
             <Link href="/terms">Terms of Service</Link>
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/refund-policy">Refund Policy</Link>

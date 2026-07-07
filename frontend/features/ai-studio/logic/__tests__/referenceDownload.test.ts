@@ -171,6 +171,7 @@ describe("resolveReferenceDownloadTarget", () => {
         ],
         mediaFileRows: [
           {
+            id: "media-from-publication",
             storage_path: "user-1/generations/images/from-publication.png",
             filename: "from-publication.png",
           },
@@ -181,6 +182,7 @@ describe("resolveReferenceDownloadTarget", () => {
 
     expect(target).toEqual({
       fileRecord: {
+        mediaFileId: "media-from-publication",
         storagePath: "user-1/generations/images/from-publication.png",
         filename: "from-publication.png",
       },
@@ -214,6 +216,7 @@ describe("resolveReferenceDownloadTarget", () => {
 
     expect(target).toEqual({
       fileRecord: {
+        mediaFileId: null,
         storagePath: "user-1/generations/images/from-publication-full.png",
         filename: null,
       },
@@ -256,6 +259,7 @@ describe("resolveReferenceDownloadTarget", () => {
 
     expect(target).toEqual({
       fileRecord: {
+        mediaFileId: null,
         storagePath: "user-1/generations/images/current-full.png",
         filename: null,
       },
@@ -279,6 +283,7 @@ describe("resolveReferenceDownloadTarget", () => {
       supabase: createSupabaseMock({
         mediaFileRows: [
           {
+            id: "media-1",
             storage_path: "user-1/media/full-resolution.png",
             preview_storage_path: "user-1/media/preview-resolution.png",
             filename: "full-resolution.png",
@@ -289,6 +294,7 @@ describe("resolveReferenceDownloadTarget", () => {
 
     expect(target).toEqual({
       fileRecord: {
+        mediaFileId: "media-1",
         storagePath: "user-1/media/full-resolution.png",
         filename: "full-resolution.png",
       },

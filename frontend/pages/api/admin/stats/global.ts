@@ -62,6 +62,25 @@ const toWindow = (total: unknown, last24h: unknown, last7d: unknown) => ({
   last7d: toCount(last7d),
 });
 
+const EMPTY_COUNT_WINDOW = { total: 0, last24h: 0, last7d: 0 };
+
+const buildEmptyGenerationBreakdown = () => ({
+  summary: {
+    acceptedGenerations: { ...EMPTY_COUNT_WINDOW },
+    successfulGenerations: { ...EMPTY_COUNT_WINDOW },
+    failedGenerations: { ...EMPTY_COUNT_WINDOW },
+    imageGenerations: { ...EMPTY_COUNT_WINDOW },
+    videoGenerations: { ...EMPTY_COUNT_WINDOW },
+    audioGenerations: { ...EMPTY_COUNT_WINDOW },
+    unknownGenerations: { ...EMPTY_COUNT_WINDOW },
+    uniqueUsers: 0,
+    uniqueModels: 0,
+    lastGenerationAt: null,
+  },
+  users: [],
+  modelMediaTypes: [],
+});
+
 const normalizeLegacyOverview = (
   row: LegacySummaryRow | null | undefined,
   extras?: {
@@ -208,6 +227,7 @@ const buildLegacyFallbackPayload = async () => {
       : normalizeLegacyModels(
           Array.isArray(modelsResult.data) ? (modelsResult.data as LegacyModelRow[]) : []
         ),
+    generationBreakdown: buildEmptyGenerationBreakdown(),
     workflows: {
       byTool: [],
       byMode: [],
@@ -340,12 +360,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const [statsResult, growthResult] = await Promise.all([
+    const [statsResult, growthResult, generationBreakdownResult] = await Promise.all([
       supabaseAdmin.rpc("get_admin_global_stats_v1"),
       supabaseAdmin.rpc("get_admin_growth_stats_v1"),
+      supabaseAdmin.rpc("get_admin_generation_breakdown_v1"),
     ]);
     const hasRpcGap = isMissingRpcError(statsResult.error, ["get_admin_global_stats_v1"]);
     const hasGrowthRpcGap = isMissingRpcError(growthResult.error, ["get_admin_growth_stats_v1"]);
+    const hasGenerationBreakdownRpcGap = isMissingRpcError(generationBreakdownResult.error, [
+      "get_admin_generation_breakdown_v1",
+    ]);
 
     if (statsResult.error && !hasRpcGap) {
       return res
@@ -357,6 +381,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .status(500)
         .json({ error: growthResult.error.message || "Unable to load admin growth stats." });
     }
+    if (generationBreakdownResult.error && !hasGenerationBreakdownRpcGap) {
+      return res.status(500).json({
+        error:
+          generationBreakdownResult.error.message ||
+          "Unable to load admin generation breakdown stats.",
+      });
+    }
 
     if (hasRpcGap) {
       const fallbackPayload = await buildLegacyFallbackPayload();
@@ -365,6 +396,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       ...(statsResult.data && typeof statsResult.data === "object" ? statsResult.data : {}),
+      generationBreakdown: hasGenerationBreakdownRpcGap
+        ? buildEmptyGenerationBreakdown()
+        : generationBreakdownResult.data && typeof generationBreakdownResult.data === "object"
+          ? generationBreakdownResult.data
+          : buildEmptyGenerationBreakdown(),
       health: {
         degraded: false,
         reason: null,

@@ -108,6 +108,7 @@ describe("DetailModal full-quality media policy", () => {
       .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
       .mockResolvedValue({
         fileRecord: {
+          mediaFileId: null,
           storagePath: "user-1/generations/images/gen-1/output.png",
           filename: "output.png",
         },
@@ -177,6 +178,7 @@ describe("DetailModal full-quality media policy", () => {
       .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
       .mockResolvedValue({
         fileRecord: {
+          mediaFileId: null,
           storagePath: "user-1/generations/images/gen-provider-only/output.png",
           filename: "output.png",
         },
@@ -252,6 +254,7 @@ describe("DetailModal full-quality media policy", () => {
       .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
       .mockResolvedValue({
         fileRecord: {
+          mediaFileId: null,
           storagePath: "user-1/generations/images/gen-stalled/output.png",
           filename: "output.png",
         },
@@ -336,6 +339,7 @@ describe("DetailModal full-quality media policy", () => {
       .spyOn(referenceDownloadModule, "resolveReferenceDownloadTarget")
       .mockResolvedValue({
         fileRecord: {
+          mediaFileId: null,
           storagePath: "user-1/generations/images/gen-2/output.png",
           filename: "output.png",
         },

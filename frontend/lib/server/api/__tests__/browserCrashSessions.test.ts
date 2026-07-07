@@ -113,8 +113,8 @@ describe("browserCrashSessions", () => {
       eventType: "previous_session_abandoned",
     });
     expect(supabase.updatePayloads[0]).toMatchObject({
-      status: "probable_freeze_or_crash",
-      confidence: "medium",
+      status: "possible_ungraceful_exit",
+      confidence: "low",
       last_event: "previous_session_abandoned",
       suspected_at: "2026-07-05T12:00:00.000Z",
     });
@@ -161,6 +161,7 @@ describe("browserCrashSessions", () => {
     });
 
     expect(supabase.updatePayloads[0]).toMatchObject({
+      status: "probable_freeze_or_crash",
       confidence: "high",
       metadata: {
         build_id: "previous-build",
@@ -178,6 +179,52 @@ describe("browserCrashSessions", () => {
       },
     });
     expect(supabase.upsertMock).not.toHaveBeenCalled();
+  });
+
+  it("does not upgrade hidden-document timer stalls to high confidence", async () => {
+    const supabase = createSupabaseMock({
+      id: "previous-row-id",
+      metadata: {
+        client_environment: "production",
+        document_hidden: true,
+        stall_duration_ms: 54130,
+        visibility_state: "hidden",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "previous_session_abandoned",
+        sessionId: "current-session",
+        previousSessionId: "previous-session",
+        route: "/admin/reports",
+        occurredAt: "2026-07-07T21:43:02.165Z",
+        metadata: {
+          last_heartbeat_age_ms: 241166,
+          previous_last_seen_at: "2026-07-07T21:39:00.999Z",
+          status_reason: "previous_session_missing_clean_close",
+        },
+      },
+    });
+
+    expect(supabase.updatePayloads[0]).toMatchObject({
+      status: "possible_ungraceful_exit",
+      confidence: "low",
+      metadata: {
+        client_environment: "production",
+        document_hidden: true,
+        stall_duration_ms: 54130,
+        visibility_state: "hidden",
+      },
+    });
   });
 
   it("records normal current-session starts as active rows", async () => {

@@ -313,10 +313,14 @@ const resolveHeapLimitUsageRatio = (metadata: JsonObject): number | null => {
   return usedJsHeapSize / jsHeapSizeLimit;
 };
 
+const isHiddenDocumentEvidence = (metadata: JsonObject): boolean =>
+  metadata.document_hidden === true || metadata.visibility_state === "hidden";
+
 const hasSevereFreezeEvidence = (metadata: JsonObject): boolean => {
   const pressureLevel = maxMetadataNumber(metadata.pressure_level, metadata.max_pressure_level);
   const stallDurationMs = metadataNumber(metadata, "stall_duration_ms");
   const maxInputStallMs = metadataNumber(metadata, "max_input_stall_ms");
+  const canUseTimingEvidence = !isHiddenDocumentEvidence(metadata);
   const heapPressureRatio = maxMetadataNumber(
     metadata.heap_used_to_total_ratio,
     metadata.max_heap_used_to_total_ratio,
@@ -329,13 +333,20 @@ const hasSevereFreezeEvidence = (metadata: JsonObject): boolean => {
   const longTaskP95Ms = metadataNumber(metadata, "long_task_p95_ms");
   return (
     (pressureLevel !== null && pressureLevel >= 2) ||
-    (stallDurationMs !== null && stallDurationMs >= 2000) ||
-    (maxInputStallMs !== null && maxInputStallMs >= 1000) ||
+    (canUseTimingEvidence && stallDurationMs !== null && stallDurationMs >= 2000) ||
+    (canUseTimingEvidence && maxInputStallMs !== null && maxInputStallMs >= 1000) ||
     (heapPressureRatio !== null && heapPressureRatio >= 0.86) ||
     (heapLimitUsageRatio !== null && heapLimitUsageRatio >= 0.86) ||
-    (longTaskP95Ms !== null && longTaskP95Ms >= 250)
+    (canUseTimingEvidence && longTaskP95Ms !== null && longTaskP95Ms >= 250)
   );
 };
+
+const resolveAbandonedSessionStatus = (
+  metadata: JsonObject
+): { status: BrowserCrashSessionStatus; confidence: BrowserCrashSessionConfidence } =>
+  hasSevereFreezeEvidence(metadata)
+    ? { status: "probable_freeze_or_crash", confidence: "high" }
+    : { status: "possible_ungraceful_exit", confidence: "low" };
 
 const resolveEventType = (value: unknown): BrowserSessionEventType => {
   const normalized = sanitizeText(value, 80);
@@ -350,10 +361,7 @@ const resolveSessionStatus = (
 ): { status: BrowserCrashSessionStatus; confidence: BrowserCrashSessionConfidence } => {
   if (eventType === "crash_report") return { status: "confirmed_crash", confidence: "high" };
   if (eventType === "previous_session_abandoned") {
-    return {
-      status: "probable_freeze_or_crash",
-      confidence: hasSevereFreezeEvidence(metadata) ? "high" : "medium",
-    };
+    return resolveAbandonedSessionStatus(metadata);
   }
   if (eventType === "clean_close") return { status: "clean_closed", confidence: "none" };
   return { status: "active", confidence: "none" };
@@ -662,12 +670,12 @@ const markPreviousSessionAbandoned = async (params: {
   if (!existing || typeof existing.id !== "string") return null;
 
   const metadata = mergePreviousSessionAbandonedMetadata(existing.metadata, params.metadata);
-  const confidence = hasSevereFreezeEvidence(metadata) ? "high" : "medium";
+  const evidenceStatus = resolveAbandonedSessionStatus(metadata);
   const { data, error } = await params.supabaseAdmin
     .from("browser_crash_sessions")
     .update({
-      status: "probable_freeze_or_crash",
-      confidence,
+      status: evidenceStatus.status,
+      confidence: evidenceStatus.confidence,
       last_event: "previous_session_abandoned",
       metadata,
       suspected_at: params.occurredAt,

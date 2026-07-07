@@ -124,7 +124,7 @@ create policy modify_ai_generations_isolation on ai_generations
 create table if not exists media_events (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null default auth.uid(),
-    event_type text not null, -- upload | delete | rename | prompt_saved | generation_saved | generation_failed
+    event_type text not null, -- upload | download | delete | rename | prompt_saved | generation_saved | generation_failed
     entity_type text not null, -- media_file | media_prompt | ai_generation
     entity_id uuid not null,
     metadata jsonb not null default '{}'::jsonb,

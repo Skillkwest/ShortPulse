@@ -21,6 +21,7 @@ type GenerationOutputRow = {
 };
 
 type MediaFileRow = {
+  id?: unknown;
   storage_path?: unknown;
   filename?: unknown;
   preview_storage_path?: unknown;
@@ -36,6 +37,7 @@ type GenerationPublicationRow = {
 
 export type ResolvedReferenceDownloadTarget = {
   fileRecord: {
+    mediaFileId: string | null;
     storagePath: string;
     filename: string | null;
   } | null;
@@ -193,6 +195,7 @@ const resolveOutputStorageFileRecord = (
     asCanonicalStoragePath(asTrimmedString(output.previewStoragePath));
   if (!storagePath) return null;
   return {
+    mediaFileId: null,
     storagePath,
     filename: null,
   };
@@ -204,10 +207,22 @@ const toMediaFileRecord = (
   const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
   return {
+    mediaFileId: asTrimmedString(row?.id),
     storagePath,
     filename: sanitizeFilename(asTrimmedString(row?.filename)),
   };
 };
+
+const toDownloadFileRecord = (
+  record: { mediaFileId?: string | null; storagePath: string; filename: string | null } | null
+): ResolvedReferenceDownloadTarget["fileRecord"] =>
+  record
+    ? {
+        mediaFileId: asTrimmedString(record.mediaFileId) ?? null,
+        storagePath: record.storagePath,
+        filename: record.filename,
+      }
+    : null;
 
 const resolveDirectDownloadUrlCandidates = (
   output: Pick<StudioOutput, "resultUrls" | "previewUrl" | "fullStoragePath" | "previewStoragePath">
@@ -234,7 +249,7 @@ const resolveLatestMediaFileBySavedIds = async (
   if (!ids.length) return null;
   const { data, error } = await supabase
     .from("media_files")
-    .select("storage_path, filename, created_at")
+    .select("id, storage_path, filename, created_at")
     .in("id", ids)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -249,7 +264,13 @@ const resolveMediaFileById = async (
   supabase: SupabaseClient,
   mediaFileId: string
 ): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
-  return await resolveGeneratedMediaFileRecordById({ supabase, mediaFileId });
+  const record = await resolveGeneratedMediaFileRecordById({ supabase, mediaFileId });
+  return record
+    ? {
+        mediaFileId,
+        ...record,
+      }
+    : null;
 };
 
 const resolveLatestMediaFileByGenerationId = async (
@@ -258,7 +279,7 @@ const resolveLatestMediaFileByGenerationId = async (
 ): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
   const { data, error } = await supabase
     .from("media_files")
-    .select("storage_path, filename, created_at")
+    .select("id, storage_path, filename, created_at")
     .eq("source_ref", generationId)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -266,12 +287,14 @@ const resolveLatestMediaFileByGenerationId = async (
     throw new Error(error.message || "Failed to resolve generated media file.");
   }
   const row = (Array.isArray(data) ? data[0] : null) as {
+    id?: unknown;
     storage_path?: unknown;
     filename?: unknown;
   } | null;
   const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
   return {
+    mediaFileId: asTrimmedString(row?.id),
     storagePath,
     filename: sanitizeFilename(asTrimmedString(row?.filename)),
   };
@@ -310,6 +333,7 @@ const toPublicationFileRecord = async (
     asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path));
   if (storagePath) {
     return {
+      mediaFileId: asTrimmedString(row?.owned_media_file_id),
       storagePath,
       filename: null,
     };
@@ -435,7 +459,7 @@ export const resolveReferenceDownloadTarget = async ({
         : await resolveLatestPublishedGenerationMediaFile({
             supabase,
             generationId,
-          });
+          }).then(toDownloadFileRecord);
     } catch {
       publicationFileRecord = null;
     }
@@ -509,7 +533,7 @@ export const resolveReferenceDownloadTarget = async ({
         : await resolveLatestPublishedGenerationMediaFile({
             supabase,
             generationId,
-          });
+          }).then(toDownloadFileRecord);
     } catch {
       publicationFileRecord = null;
     }

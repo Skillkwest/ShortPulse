@@ -738,8 +738,10 @@ a.ai-credit-inline:focus-visible {
   outline-color: rgba(255, 123, 167, 0.72);
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button:focus-visible {
-  outline-color: rgba(255, 123, 167, 0.72);
+.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button:focus-visible,
+.ai-studio-page[data-selected-tool="pulse-presets"] .ai-hero-shortcut-button:focus-visible,
+.ai-studio-page[data-selected-tool="styles"] .ai-hero-shortcut-button:focus-visible {
+  outline-color: rgba(214, 220, 228, 0.72);
 }
 
 .ai-studio-page[data-selected-tool="sound"] .ai-hero-shortcut-button[aria-pressed="true"],
@@ -759,11 +761,9 @@ a.ai-credit-inline:focus-visible {
   color: rgba(247, 239, 224, 0.96);
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgba(255, 77, 151, 0.96);
-}
-
-.ai-studio-page[data-selected-tool="pulse-presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
+.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="pulse-presets"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="styles"] .ai-hero-shortcut-button[aria-pressed="true"] {
   color: rgba(214, 220, 228, 0.94);
 }
 
@@ -1609,15 +1609,7 @@ a.ai-credit-inline:focus-visible {
   --ai-shell-divider-active-handle-glow: rgba(255, 77, 151, 0.24);
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider {
-  --ai-shell-divider-active-color: rgba(255, 77, 151, 0.96);
-  --ai-shell-divider-active-ring: rgba(255, 123, 167, 0.28);
-  --ai-shell-divider-active-handle-start: rgba(255, 214, 229, 0.98);
-  --ai-shell-divider-active-handle-end: rgba(255, 108, 167, 0.9);
-  --ai-shell-divider-active-handle-ring: rgba(255, 123, 167, 0.24);
-  --ai-shell-divider-active-handle-glow: rgba(255, 77, 151, 0.24);
-}
-
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider,
 .ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider {
   --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
   --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
@@ -1678,10 +1670,7 @@ a.ai-credit-inline:focus-visible {
   outline-color: rgba(255, 77, 151, 0.82);
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {
-  outline-color: rgba(255, 77, 151, 0.82);
-}
-
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible,
 .ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider:focus-visible {
   outline-color: rgba(214, 220, 228, 0.82);
 }

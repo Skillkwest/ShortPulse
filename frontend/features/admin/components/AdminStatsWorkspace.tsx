@@ -8,6 +8,7 @@ import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import { AdminGlobalStatsPanel } from "./AdminGlobalStatsPanel";
 import type {
+  AdminGenerationBreakdown,
   AdminGlobalModelUsageRow,
   AdminGlobalStatsAssets,
   AdminGlobalStatsHealth,
@@ -24,6 +25,7 @@ type StatsLens = "product" | "marketing" | "sales";
 type AdminStatsWorkspaceProps = {
   overview: AdminGlobalStatsOverview;
   models: AdminGlobalModelUsageRow[];
+  generationBreakdown: AdminGenerationBreakdown;
   workflows: AdminGlobalStatsWorkflows;
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;
@@ -54,7 +56,6 @@ const LENS_OPTIONS: Array<{
   label: string;
   eyebrow: string;
   description: string;
-  supportingNote: string;
 }> = [
   {
     key: "product",
@@ -62,7 +63,6 @@ const LENS_OPTIONS: Array<{
     eyebrow: "Core product signals",
     description:
       "Keep demand, workflow quality, saved outputs, and project depth in one operator surface.",
-    supportingNote: "Use this lens to decide what to improve, promote, or expand next.",
   },
   {
     key: "marketing",
@@ -70,7 +70,6 @@ const LENS_OPTIONS: Array<{
     eyebrow: "Activation and acquisition",
     description:
       "Read signup quality, time-to-value, retention after activation, and source-level signal.",
-    supportingNote: "Use this lens to understand what messaging and channels produce real value.",
   },
   {
     key: "sales",
@@ -78,7 +77,6 @@ const LENS_OPTIONS: Array<{
     eyebrow: "Intent and monetization",
     description:
       "Track pricing interest, PQL depth, checkout starts, and paid conversion from one view.",
-    supportingNote: "Use this lens to spot high-intent users and monetization friction quickly.",
   },
 ];
 
@@ -514,6 +512,7 @@ const SalesPanel = ({
 export const AdminStatsWorkspace = ({
   overview,
   models,
+  generationBreakdown,
   workflows,
   assets,
   projects,
@@ -551,12 +550,10 @@ export const AdminStatsWorkspace = ({
             </span>
           </div>
           <p className={styles.statsWorkspaceDescription}>{activeLensConfig.description}</p>
-          <p className={styles.statsWorkspaceSupport}>{activeLensConfig.supportingNote}</p>
           <div className={styles.statsWorkspaceMetaRow}>
             <span className={styles.statsWorkspaceMetaPill}>
               Snapshot {generatedAt ? formatDateTime(generatedAt) : "pending first refresh"}
             </span>
-            <span className={styles.statsWorkspaceMetaPill}>Windows All time • 24h • 7d</span>
             {activeLensMetaReason ? (
               <span className={styles.statsWorkspaceMetaPill}>{activeLensMetaReason}</span>
             ) : null}
@@ -578,7 +575,6 @@ export const AdminStatsWorkspace = ({
               onClick={() => setActiveLens(lens.key)}
             >
               <span className={styles.statsLensButtonLabel}>{lens.label}</span>
-              <span className={styles.statsLensButtonDescription}>{lens.description}</span>
             </button>
           ))}
         </div>
@@ -588,6 +584,7 @@ export const AdminStatsWorkspace = ({
         <AdminGlobalStatsPanel
           overview={overview}
           models={models}
+          generationBreakdown={generationBreakdown}
           workflows={workflows}
           assets={assets}
           projects={projects}

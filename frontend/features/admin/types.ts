@@ -570,6 +570,49 @@ export type AdminGlobalStatsProjects = {
   leaderboard: AdminProjectLeaderboardRow[];
 };
 
+export type AdminGenerationBreakdownSummary = {
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  imageGenerations: AdminStatsCountWindow;
+  videoGenerations: AdminStatsCountWindow;
+  audioGenerations: AdminStatsCountWindow;
+  unknownGenerations: AdminStatsCountWindow;
+  uniqueUsers: number;
+  uniqueModels: number;
+  lastGenerationAt: string | null;
+};
+
+export type AdminGenerationBreakdownUserRow = {
+  userId: string;
+  email: string | null;
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  imageGenerations: AdminStatsCountWindow;
+  videoGenerations: AdminStatsCountWindow;
+  audioGenerations: AdminStatsCountWindow;
+  unknownGenerations: AdminStatsCountWindow;
+  uniqueModels: number;
+  lastGenerationAt: string | null;
+};
+
+export type AdminGenerationBreakdownModelMediaTypeRow = {
+  modelId: string;
+  mediaType: "image" | "video" | "audio" | "unknown";
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  uniqueUsers: number;
+  lastGenerationAt: string | null;
+};
+
+export type AdminGenerationBreakdown = {
+  summary: AdminGenerationBreakdownSummary;
+  users: AdminGenerationBreakdownUserRow[];
+  modelMediaTypes: AdminGenerationBreakdownModelMediaTypeRow[];
+};
+
 export type AdminGlobalStatsHealth = {
   degraded: boolean;
   reason: string | null;
@@ -692,6 +735,7 @@ export type AdminGrowthStatsResponse = {
 export type AdminGlobalStatsResponse = {
   overview: AdminGlobalStatsOverview;
   models: AdminGlobalModelUsageRow[];
+  generationBreakdown: AdminGenerationBreakdown;
   workflows: AdminGlobalStatsWorkflows;
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;

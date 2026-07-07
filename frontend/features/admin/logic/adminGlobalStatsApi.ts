@@ -4,6 +4,10 @@
 import type {
   AdminAssetAutosaveSummary,
   AdminAssetEventUsageRow,
+  AdminGenerationBreakdown,
+  AdminGenerationBreakdownModelMediaTypeRow,
+  AdminGenerationBreakdownSummary,
+  AdminGenerationBreakdownUserRow,
   AdminGrowthAttributionCampaignRow,
   AdminGrowthAttributionSourceRow,
   AdminGrowthDurationSummary,
@@ -66,6 +70,25 @@ export const DEFAULT_ADMIN_GLOBAL_STATS_WORKFLOWS: AdminGlobalStatsWorkflows = {
   byTool: [],
   byMode: [],
   highlights: DEFAULT_ADMIN_GLOBAL_STATS_WORKFLOW_HIGHLIGHTS,
+};
+
+export const DEFAULT_ADMIN_GENERATION_BREAKDOWN_SUMMARY: AdminGenerationBreakdownSummary = {
+  acceptedGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  successfulGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  failedGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  imageGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  videoGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  audioGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  unknownGenerations: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
+  uniqueUsers: 0,
+  uniqueModels: 0,
+  lastGenerationAt: null,
+};
+
+export const DEFAULT_ADMIN_GENERATION_BREAKDOWN: AdminGenerationBreakdown = {
+  summary: DEFAULT_ADMIN_GENERATION_BREAKDOWN_SUMMARY,
+  users: [],
+  modelMediaTypes: [],
 };
 
 export const DEFAULT_ADMIN_GLOBAL_STATS_ASSETS: AdminGlobalStatsAssets = {
@@ -238,6 +261,80 @@ const normalizeModels = (value: unknown): AdminGlobalModelUsageRow[] => {
       lastSavedGenerationAt: toTextOrNull(row.lastSavedGenerationAt),
     };
   });
+};
+
+const normalizeGenerationBreakdownSummary = (value: unknown): AdminGenerationBreakdownSummary => {
+  const row = toObject(value);
+  return {
+    acceptedGenerations: normalizeCountWindow(row.acceptedGenerations),
+    successfulGenerations: normalizeCountWindow(row.successfulGenerations),
+    failedGenerations: normalizeCountWindow(row.failedGenerations),
+    imageGenerations: normalizeCountWindow(row.imageGenerations),
+    videoGenerations: normalizeCountWindow(row.videoGenerations),
+    audioGenerations: normalizeCountWindow(row.audioGenerations),
+    unknownGenerations: normalizeCountWindow(row.unknownGenerations),
+    uniqueUsers: toCount(row.uniqueUsers),
+    uniqueModels: toCount(row.uniqueModels),
+    lastGenerationAt: toTextOrNull(row.lastGenerationAt),
+  };
+};
+
+const normalizeGenerationBreakdownUserRows = (
+  value: unknown
+): AdminGenerationBreakdownUserRow[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    return {
+      userId: String(row.userId ?? "unknown"),
+      email: toTextOrNull(row.email),
+      acceptedGenerations: normalizeCountWindow(row.acceptedGenerations),
+      successfulGenerations: normalizeCountWindow(row.successfulGenerations),
+      failedGenerations: normalizeCountWindow(row.failedGenerations),
+      imageGenerations: normalizeCountWindow(row.imageGenerations),
+      videoGenerations: normalizeCountWindow(row.videoGenerations),
+      audioGenerations: normalizeCountWindow(row.audioGenerations),
+      unknownGenerations: normalizeCountWindow(row.unknownGenerations),
+      uniqueModels: toCount(row.uniqueModels),
+      lastGenerationAt: toTextOrNull(row.lastGenerationAt),
+    };
+  });
+};
+
+const normalizeMediaType = (
+  value: unknown
+): AdminGenerationBreakdownModelMediaTypeRow["mediaType"] => {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return normalized === "image" || normalized === "video" || normalized === "audio"
+    ? normalized
+    : "unknown";
+};
+
+const normalizeGenerationBreakdownModelMediaTypeRows = (
+  value: unknown
+): AdminGenerationBreakdownModelMediaTypeRow[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    return {
+      modelId: String(row.modelId ?? "unknown"),
+      mediaType: normalizeMediaType(row.mediaType),
+      acceptedGenerations: normalizeCountWindow(row.acceptedGenerations),
+      successfulGenerations: normalizeCountWindow(row.successfulGenerations),
+      failedGenerations: normalizeCountWindow(row.failedGenerations),
+      uniqueUsers: toCount(row.uniqueUsers),
+      lastGenerationAt: toTextOrNull(row.lastGenerationAt),
+    };
+  });
+};
+
+const normalizeGenerationBreakdown = (value: unknown): AdminGenerationBreakdown => {
+  const row = toObject(value);
+  return {
+    summary: normalizeGenerationBreakdownSummary(row.summary),
+    users: normalizeGenerationBreakdownUserRows(row.users),
+    modelMediaTypes: normalizeGenerationBreakdownModelMediaTypeRows(row.modelMediaTypes),
+  };
 };
 
 const normalizeWorkflowToolRows = (value: unknown): AdminWorkflowToolUsageRow[] => {
@@ -514,6 +611,7 @@ export const normalizeAdminGlobalStatsResponse = (value: unknown): AdminGlobalSt
   return {
     overview: normalizeOverview(data.overview),
     models: normalizeModels(data.models),
+    generationBreakdown: normalizeGenerationBreakdown(data.generationBreakdown),
     workflows: normalizeWorkflows(data.workflows),
     assets: normalizeAssets(data.assets),
     projects: normalizeProjects(data.projects),

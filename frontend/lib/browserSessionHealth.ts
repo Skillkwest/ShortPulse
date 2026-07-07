@@ -544,8 +544,13 @@ const maybeReportPreviousAbandonedSession = (
   );
 };
 
-const installLifecycleListeners = (): (() => void) => {
+const resetStallProbeTick = (state: BrowserSessionMonitorState): void => {
+  state.lastStallTickMs = nowMs();
+};
+
+const installLifecycleListeners = (state: BrowserSessionMonitorState): (() => void) => {
   const onVisibilityChange = () => {
+    resetStallProbeTick(state);
     if (document.visibilityState === "hidden") {
       reportEvent("visibility_hidden");
       return;
@@ -553,15 +558,23 @@ const installLifecycleListeners = (): (() => void) => {
     reportEvent("visibility_visible");
   };
   const onPageHide = (event: PageTransitionEvent) => {
+    resetStallProbeTick(state);
     reportEvent(event.persisted ? "pagehide" : "clean_close", {
       pagehide_persisted: event.persisted,
     });
   };
   const onPageShow = (event: PageTransitionEvent) => {
+    resetStallProbeTick(state);
     reportEvent("pageshow", { pageshow_persisted: event.persisted });
   };
-  const onFreeze = () => reportEvent("freeze");
-  const onResume = () => reportEvent("resume");
+  const onFreeze = () => {
+    resetStallProbeTick(state);
+    reportEvent("freeze");
+  };
+  const onResume = () => {
+    resetStallProbeTick(state);
+    reportEvent("resume");
+  };
 
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("pagehide", onPageHide);
@@ -589,6 +602,10 @@ const installStallProbe = (state: BrowserSessionMonitorState): number | null => 
   state.lastStallTickMs = nowMs();
   return window.setInterval(() => {
     const current = nowMs();
+    if (document.hidden || document.visibilityState !== "visible") {
+      state.lastStallTickMs = current;
+      return;
+    }
     const stallDurationMs = current - state.lastStallTickMs - STALL_PROBE_INTERVAL_MS;
     state.lastStallTickMs = current;
     if (stallDurationMs < MAIN_THREAD_STALL_THRESHOLD_MS) return;
@@ -660,7 +677,7 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
   reportEvent("session_start");
   maybeReportPreviousAbandonedSession(sessionId, tabId, previousSession);
 
-  const cleanupLifecycle = installLifecycleListeners();
+  const cleanupLifecycle = installLifecycleListeners(state);
   const cleanupCrashReportObserver = installCrashReportObserver();
   state.heartbeatId = installHeartbeat();
   state.stallProbeId = installStallProbe(state);

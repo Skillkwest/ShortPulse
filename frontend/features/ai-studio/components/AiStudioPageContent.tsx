@@ -944,19 +944,11 @@ export function AiStudioPageContent({
     [isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
   const effectivePanelVisibility = React.useMemo(() => {
-    const baseVisibility = resolveEffectivePanelVisibility({
+    return resolveEffectivePanelVisibility({
       panelVisibility,
       availability: panelToggleAvailability,
     });
-    if (selectedTool === "styles") {
-      return {
-        quickSlot: false,
-        referenceGrid: true,
-        styles: false,
-      };
-    }
-    return baseVisibility;
-  }, [panelToggleAvailability, panelVisibility, selectedTool]);
+  }, [panelToggleAvailability, panelVisibility]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
   const shouldWarmStylesCatalog =
     isStylesPanelOpen || selectedTool === "styles" || selectedStyleId != null;

@@ -90,7 +90,14 @@ vi.mock("../AiStudioShellFrame", () => ({
     propertiesPanelKey,
     propertiesPanelContent,
   }: {
-    referenceGridProps?: { railCanvasProps?: unknown };
+    referenceGridProps?: {
+      railCanvasProps?: unknown;
+      panelVisibility?: {
+        quickSlot?: boolean;
+        referenceGrid?: boolean;
+        styles?: boolean;
+      };
+    };
     showPreviewRail?: boolean;
     propertiesPanelKey?: string | null;
     propertiesPanelContent?: React.ReactNode;
@@ -98,6 +105,21 @@ vi.mock("../AiStudioShellFrame", () => ({
     <div
       data-testid="ai-studio-shell-frame"
       data-canvas-visible={referenceGridProps?.railCanvasProps ? "true" : "false"}
+      data-quick-slot-visible={
+        referenceGridProps?.panelVisibility?.quickSlot == null
+          ? ""
+          : String(referenceGridProps.panelVisibility.quickSlot)
+      }
+      data-reference-grid-visible={
+        referenceGridProps?.panelVisibility?.referenceGrid == null
+          ? ""
+          : String(referenceGridProps.panelVisibility.referenceGrid)
+      }
+      data-styles-rail-visible={
+        referenceGridProps?.panelVisibility?.styles == null
+          ? ""
+          : String(referenceGridProps.panelVisibility.styles)
+      }
       data-show-preview-rail={showPreviewRail === false ? "false" : "true"}
       data-properties-panel-key={propertiesPanelKey ?? ""}
     >
@@ -748,6 +770,31 @@ describe("AiStudioPageContent header project name", () => {
     expect(useAiStudioStylesRuntimeMock).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: true })
     );
+  });
+
+  it("keeps Styles Library on the global right-rail visibility contract", () => {
+    const rightRailLayout = {
+      ...createDefaultRightRailLayout(),
+      panels: {
+        canvas: false,
+        quickSlot: true,
+        referenceGrid: false,
+      },
+    };
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "styles",
+          rightRailLayout,
+        })}
+      />
+    );
+
+    const shellFrame = screen.getByTestId("ai-studio-shell-frame");
+    expect(shellFrame).toHaveAttribute("data-quick-slot-visible", "true");
+    expect(shellFrame).toHaveAttribute("data-reference-grid-visible", "false");
+    expect(shellFrame).toHaveAttribute("data-styles-rail-visible", "false");
   });
 
   it("passes the route-level media storage block state into the Media Library panel", async () => {

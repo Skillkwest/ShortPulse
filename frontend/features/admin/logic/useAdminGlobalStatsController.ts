@@ -6,6 +6,7 @@ import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   DEFAULT_ADMIN_GROWTH_STATS_RESPONSE,
+  DEFAULT_ADMIN_GENERATION_BREAKDOWN,
   DEFAULT_ADMIN_GLOBAL_STATS_ASSETS,
   DEFAULT_ADMIN_GLOBAL_STATS_HEALTH,
   DEFAULT_ADMIN_GLOBAL_STATS_OVERVIEW,
@@ -15,6 +16,7 @@ import {
 } from "./adminGlobalStatsApi";
 import type {
   AdminGlobalModelUsageRow,
+  AdminGenerationBreakdown,
   AdminGlobalStatsAssets,
   AdminGlobalStatsHealth,
   AdminGlobalStatsOverview,
@@ -32,6 +34,7 @@ type UseAdminGlobalStatsControllerParams = {
 type UseAdminGlobalStatsControllerResult = {
   overview: AdminGlobalStatsOverview;
   models: AdminGlobalModelUsageRow[];
+  generationBreakdown: AdminGenerationBreakdown;
   workflows: AdminGlobalStatsWorkflows;
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;
@@ -51,6 +54,9 @@ export const useAdminGlobalStatsController = ({
 }: UseAdminGlobalStatsControllerParams): UseAdminGlobalStatsControllerResult => {
   const [overview, setOverview] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_OVERVIEW);
   const [models, setModels] = React.useState<AdminGlobalModelUsageRow[]>([]);
+  const [generationBreakdown, setGenerationBreakdown] = React.useState(
+    DEFAULT_ADMIN_GENERATION_BREAKDOWN
+  );
   const [workflows, setWorkflows] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_WORKFLOWS);
   const [assets, setAssets] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_ASSETS);
   const [projects, setProjects] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_PROJECTS);
@@ -74,6 +80,7 @@ export const useAdminGlobalStatsController = ({
       const normalized = normalizeAdminGlobalStatsResponse(data);
       setOverview(normalized.overview);
       setModels(normalized.models);
+      setGenerationBreakdown(normalized.generationBreakdown);
       setWorkflows(normalized.workflows);
       setAssets(normalized.assets);
       setProjects(normalized.projects);
@@ -86,6 +93,7 @@ export const useAdminGlobalStatsController = ({
       );
       setOverview(DEFAULT_ADMIN_GLOBAL_STATS_OVERVIEW);
       setModels([]);
+      setGenerationBreakdown(DEFAULT_ADMIN_GENERATION_BREAKDOWN);
       setWorkflows(DEFAULT_ADMIN_GLOBAL_STATS_WORKFLOWS);
       setAssets(DEFAULT_ADMIN_GLOBAL_STATS_ASSETS);
       setProjects(DEFAULT_ADMIN_GLOBAL_STATS_PROJECTS);
@@ -116,6 +124,7 @@ export const useAdminGlobalStatsController = ({
   return {
     overview,
     models,
+    generationBreakdown,
     workflows,
     assets,
     projects,

@@ -337,6 +337,13 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
+.adminSignalHeroSection {
+  border-color: var(--admin-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    var(--admin-surface-1);
+}
+
 .adminAgentInstructionsPage {
   --agent-instructions-surface-1: rgba(20, 23, 26, 0.96);
   --agent-instructions-surface-2: rgba(25, 29, 33, 0.96);
@@ -1412,6 +1419,186 @@
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
+.adminSignalHero {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.25fr) repeat(2, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.adminSignalCard {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+}
+
+.adminSignalCardAccent {
+  border-color: var(--admin-accent-border);
+  background:
+    linear-gradient(180deg, var(--admin-accent-soft-2), rgba(37, 169, 191, 0.03)),
+    var(--admin-surface-2);
+}
+
+.adminSignalValue {
+  display: block;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--admin-text-strong);
+}
+
+.adminSignalMeta {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.adminSignalMetaGrid,
+.adminPanelMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.adminSignalPill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.adminSignalPill span {
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adminSignalPill strong {
+  color: var(--admin-text-strong);
+  font-size: 13px;
+  text-align: right;
+}
+
+.adminSignalColumns {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.75fr) minmax(420px, 1.35fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.adminSignalColumns > :last-child {
+  grid-column: 1 / -1;
+}
+
+.adminPanel,
+.adminDetails {
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+}
+
+.adminPanel {
+  padding: 12px;
+}
+
+.adminPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.adminPanelStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.adminMixList {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.adminMixRow {
+  display: grid;
+  gap: 6px;
+}
+
+.adminMixRowTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.adminMixRowTop strong {
+  color: var(--admin-text-strong);
+}
+
+.adminMixRowTop small {
+  color: var(--admin-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.adminMixTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.adminMixFill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: var(--admin-accent);
+}
+
+.adminQuietGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.adminDetails {
+  margin-top: 16px;
+  padding: 8px;
+}
+
+.adminDetailsSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--admin-text-strong);
+  font-weight: 700;
+}
+
+.adminDetailsSummary span {
+  color: var(--admin-text-faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .accountControlsHeader {
   display: grid;
   gap: 4px;
@@ -1460,10 +1647,10 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  --admin-support-user-col: minmax(170px, 0.95fr);
+  --admin-support-user-col: minmax(205px, 1.12fr);
   --admin-support-copy-col: 36px;
-  --admin-support-plan-col: minmax(76px, 0.5fr);
-  --admin-support-flags-col: minmax(96px, 0.6fr);
+  --admin-support-plan-col: minmax(68px, 0.42fr);
+  --admin-support-flags-col: minmax(78px, 0.46fr);
   --admin-support-spent-col: minmax(84px, 0.48fr);
   --admin-support-spendable-col: minmax(86px, 0.52fr);
   --admin-support-topups-col: minmax(112px, 0.7fr);
@@ -1542,6 +1729,12 @@
   color: var(--admin-text-faint);
   font-size: 11px;
   line-height: 1.25;
+}
+
+.adminTableFootnote {
+  margin: 4px 2px 0;
+  color: var(--admin-text-faint);
+  font-size: 11px;
 }
 
 .adminTableEmptyRow {
@@ -1671,13 +1864,15 @@
 .adminSupportQueueSignalList {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .adminSupportQueueSignalPill {
   min-width: 0;
-  padding: 4px 8px;
-  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .adminLedgerHead,
@@ -4895,6 +5090,15 @@
 
   .statsLensGrid {
     grid-template-columns: 1fr;
+  }
+
+  .adminSignalHero,
+  .adminSignalColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .adminSignalColumns > :last-child {
+    grid-column: auto;
   }
 
   .adminTableHead {

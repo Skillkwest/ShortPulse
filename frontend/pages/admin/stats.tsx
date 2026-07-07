@@ -23,6 +23,7 @@ export default function AdminStatsPage() {
   const {
     overview,
     models,
+    generationBreakdown,
     workflows,
     assets,
     projects,
@@ -53,6 +54,7 @@ export default function AdminStatsPage() {
       <AdminStatsWorkspace
         overview={overview}
         models={models}
+        generationBreakdown={generationBreakdown}
         workflows={workflows}
         assets={assets}
         projects={projects}

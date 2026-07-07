@@ -57,6 +57,42 @@ describe("adminGlobalStatsApi", () => {
           },
         },
       ],
+      generationBreakdown: {
+        summary: {
+          acceptedGenerations: { total: 8, last24h: 2, last7d: 6 },
+          successfulGenerations: { total: 6, last24h: 2, last7d: 5 },
+          failedGenerations: { total: 2, last24h: 0, last7d: 1 },
+          imageGenerations: { total: 5, last24h: 1, last7d: 4 },
+          videoGenerations: { total: 2, last24h: 1, last7d: 1 },
+          audioGenerations: { total: 1, last24h: 0, last7d: 1 },
+          unknownGenerations: { total: 0, last24h: 0, last7d: 0 },
+          uniqueUsers: 2,
+          uniqueModels: 3,
+          lastGenerationAt: "2026-04-24T00:00:00.000Z",
+        },
+        users: [
+          {
+            userId: "user-1",
+            email: "creator@example.com",
+            acceptedGenerations: { total: 6, last24h: 2, last7d: 5 },
+            imageGenerations: { total: 4, last24h: 1, last7d: 3 },
+            videoGenerations: { total: 1, last24h: 1, last7d: 1 },
+            audioGenerations: { total: 1, last24h: 0, last7d: 1 },
+            uniqueModels: 2,
+            lastGenerationAt: "2026-04-24T00:00:00.000Z",
+          },
+        ],
+        modelMediaTypes: [
+          {
+            modelId: "fal-ai/nano-banana-pro",
+            mediaType: "image",
+            acceptedGenerations: { total: 5, last24h: 1, last7d: 4 },
+            successfulGenerations: { total: 4, last24h: 1, last7d: 3 },
+            uniqueUsers: 2,
+            lastGenerationAt: "2026-04-24T00:00:00.000Z",
+          },
+        ],
+      },
       workflows: {
         byTool: [
           {
@@ -216,6 +252,22 @@ describe("adminGlobalStatsApi", () => {
         successfulGenerations: expect.objectContaining({ total: 4 }),
       })
     );
+    expect(normalized.generationBreakdown.summary.imageGenerations.total).toBe(5);
+    expect(normalized.generationBreakdown.users[0]).toEqual(
+      expect.objectContaining({
+        userId: "user-1",
+        email: "creator@example.com",
+        acceptedGenerations: expect.objectContaining({ total: 6 }),
+        failedGenerations: expect.objectContaining({ total: 0 }),
+      })
+    );
+    expect(normalized.generationBreakdown.modelMediaTypes[0]).toEqual(
+      expect.objectContaining({
+        modelId: "fal-ai/nano-banana-pro",
+        mediaType: "image",
+        uniqueUsers: 2,
+      })
+    );
     expect(normalized.workflows.byTool[0]?.toolKey).toBe("create");
     expect(normalized.assets.events[0]?.eventType).toBe("generation_saved");
     expect(normalized.projects.summary.projectsCreated.total).toBe(2);
@@ -242,6 +294,8 @@ describe("adminGlobalStatsApi", () => {
     expect(normalized.overview.generateClicks.total).toBe(0);
     expect(normalized.overview.acceptedGenerations.total).toBe(0);
     expect(normalized.models).toEqual([]);
+    expect(normalized.generationBreakdown.users).toEqual([]);
+    expect(normalized.generationBreakdown.summary.acceptedGenerations.total).toBe(0);
     expect(normalized.workflows.byTool).toEqual([]);
     expect(normalized.assets.events).toEqual([]);
     expect(normalized.projects.leaderboard).toEqual([]);

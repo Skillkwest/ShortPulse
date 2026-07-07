@@ -5,6 +5,7 @@
 import { useCallback, useRef } from "react";
 import { resolveMediaRowKind } from "../../../lib/mediaRowKind";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { logMediaEvent } from "../../media-library/logic/mediaLibraryDataEffects";
 import {
   BUCKET,
   resolveMediaAudioPresentation,
@@ -307,6 +308,11 @@ export const useMediaLibraryPanelItemInteractions = ({
         .then((blob) => {
           if (blob) {
             downloadBlobToFile(blob, filename);
+            void logMediaEvent("download", "media_file", file.id, {
+              storage_path: file.storage_path,
+              source: "blob",
+              surface: "ai-studio-media-library-panel",
+            });
             return;
           }
           const signedUrl = (file.signedUrl ?? "").trim();
@@ -318,6 +324,10 @@ export const useMediaLibraryPanelItemInteractions = ({
           document.body.appendChild(anchor);
           anchor.click();
           anchor.remove();
+          void logMediaEvent("download", "media_file", file.id, {
+            source: "signed_url",
+            surface: "ai-studio-media-library-panel",
+          });
         })
         .finally(() => {
           mediaDownloadInFlightRef.current[file.id] = false;

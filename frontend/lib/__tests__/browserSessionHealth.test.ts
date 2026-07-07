@@ -40,6 +40,17 @@ const dispatchPageHide = (persisted: boolean) => {
   window.dispatchEvent(event);
 };
 
+const setDocumentVisibility = (visibilityState: DocumentVisibilityState, hidden: boolean) => {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    value: visibilityState,
+  });
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    value: hidden,
+  });
+};
+
 describe("browserSessionHealth", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -51,6 +62,7 @@ describe("browserSessionHealth", () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true }) as never;
     (window as Partial<Window>).ReportingObserver = undefined;
     (window as Partial<Window>).crashReport = undefined;
+    setDocumentVisibility("visible", false);
     setStorageEstimate(null);
   });
 
@@ -301,6 +313,31 @@ describe("browserSessionHealth", () => {
         }),
       })
     );
+    cleanup();
+  });
+
+  it("does not report hidden-tab timer throttling as a main-thread stall", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-07T21:39:00.000Z"));
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    setDocumentVisibility("hidden", true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    vi.setSystemTime(new Date("2026-07-07T21:40:01.000Z"));
+    vi.advanceTimersByTime(1000);
+    await flushPromises();
+
+    const bodies = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+    expect(bodies.some((body) => body.eventType === "main_thread_stall")).toBe(false);
     cleanup();
   });
 

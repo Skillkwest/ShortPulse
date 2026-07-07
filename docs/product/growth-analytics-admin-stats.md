@@ -18,6 +18,8 @@ This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider 
 
 - `Signup`: `billing_profiles.created_at`
 - `Activated`: first `media_events.event_type='generation_saved'` or first `project_generation_items.created_at`, whichever happens first within 7 days of signup
+- `Media downloads`: `media_events.event_type='download'`; the Product `Assets` table in `/admin/stats` reports total download events plus distinct downloading users through `uniqueUsers`
+- `Generation breakdown`: `ai_generations` grouped fleet-wide, per user, and by `model_id` plus media type (`image`, `video`, `audio`, or `unknown`) through service-role-only `get_admin_generation_breakdown_v1()`
 - `Time-to-value`:
   - signup -> first generate click
   - signup -> first successful generation

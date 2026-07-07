@@ -105,12 +105,15 @@ const createSupabaseMock = ({
   const createProjectionSelectBuilder = (result: MockQueryResult) => {
     const builder = {
       eq: vi.fn(),
+      order: vi.fn(),
       limit: vi.fn(),
     } as {
       eq: ReturnType<typeof vi.fn>;
+      order: ReturnType<typeof vi.fn>;
       limit: ReturnType<typeof vi.fn>;
     };
     builder.eq.mockReturnValue(builder);
+    builder.order.mockReturnValue(builder);
     builder.limit.mockReturnValue({
       maybeSingle: async () => ({
         data: Array.isArray(result.data) ? (result.data[0] ?? null) : result.data,
@@ -120,7 +123,9 @@ const createSupabaseMock = ({
     return builder;
   };
 
+  const mediaEventInsert = vi.fn(async () => ({ error: null }));
   const from = vi.fn((table: string) => ({
+    insert: table === "media_events" ? mediaEventInsert : vi.fn(async () => ({ error: null })),
     select: vi.fn(() => {
       if (table === "generation_projection") {
         return createProjectionSelectBuilder(
@@ -161,6 +166,7 @@ const createSupabaseMock = ({
     from,
     storageFrom,
     storageDownload,
+    mediaEventInsert,
   };
 };
 
@@ -225,7 +231,7 @@ describe("useAiStudioReferenceAssetActions", () => {
   });
 
   it("downloads media via generation id when saved ids are absent", async () => {
-    const { supabase, from, storageDownload } = createSupabaseMock({
+    const { supabase, from, storageDownload, mediaEventInsert } = createSupabaseMock({
       generationOutputResults: [
         {
           data: [
@@ -271,7 +277,19 @@ describe("useAiStudioReferenceAssetActions", () => {
 
     expect(from).toHaveBeenCalledWith("media_files");
     expect(from).toHaveBeenCalledWith("ai_generation_outputs");
+    expect(from).toHaveBeenCalledWith("media_events");
     expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/by-generation.jpg");
+    expect(mediaEventInsert).toHaveBeenCalledWith({
+      user_id: "user-1",
+      event_type: "download",
+      entity_type: "media_file",
+      entity_id: "media-generation-output-1",
+      metadata: {
+        output_id: "out-2",
+        storage_path: "user-1/generations/images/by-generation.jpg",
+        surface: "ai-studio-reference",
+      },
+    });
     expect(click).toHaveBeenCalledTimes(1);
   });
 

@@ -75,6 +75,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/207_exclude_unpaid_from_paid_access_statuses.sql`: exclude Stripe `unpaid` subscriptions from paid-access and current storage-add-on status sets while keeping `past_due` as the recovery grace state.
 - `sql/migrations/208_repair_model_pricing_policy_version_sequence.sql`: repair model-pricing policy-version and event identity sequence drift that can block `/admin/pricing` saves with duplicate primary keys.
 - `sql/migrations/209_update_storage_addon_ladder_20260707.sql`: repair the recurring storage add-on ladder to the July 7 `50/100/250 GB/1 TB` self-serve set, retire `10 GB` from active self-serve metadata, and keep `500 GB` inactive for non-self-serve handling.
+- `sql/migrations/210_add_admin_generation_breakdown_stats.sql`: add the service-role-only generation breakdown helper used by `/admin/stats` for per-user and model/media-type generation analytics.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -316,6 +317,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `207_exclude_unpaid_from_paid_access_statuses.sql`
 - `208_repair_model_pricing_policy_version_sequence.sql`
 - `209_update_storage_addon_ladder_20260707.sql`
+- `210_add_admin_generation_breakdown_stats.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

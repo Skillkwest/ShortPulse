@@ -7,6 +7,9 @@ import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import type {
+  AdminGenerationBreakdown,
+  AdminGenerationBreakdownModelMediaTypeRow,
+  AdminGenerationBreakdownUserRow,
   AdminAssetEventUsageRow,
   AdminGlobalModelUsageRow,
   AdminGlobalStatsAssets,
@@ -23,6 +26,7 @@ import type {
 type AdminGlobalStatsPanelProps = {
   overview: AdminGlobalStatsOverview;
   models: AdminGlobalModelUsageRow[];
+  generationBreakdown: AdminGenerationBreakdown;
   workflows: AdminGlobalStatsWorkflows;
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;
@@ -48,6 +52,8 @@ const TABLE_WIDE_STYLE: React.CSSProperties = {
 const TABLE_MEDIUM_STYLE: React.CSSProperties = {
   minWidth: 640,
 };
+
+const TOP_TABLE_ROW_LIMIT = 8;
 
 const formatCount = (value: number): string => value.toLocaleString();
 
@@ -75,12 +81,20 @@ const formatSuccessRate = (successful: number, total: number): string => {
   return `${Math.round((successful / total) * 100)}%`;
 };
 
+const formatPercent = (part: number, total: number): string => {
+  if (total <= 0) return "0%";
+  return `${Math.round((part / total) * 100)}%`;
+};
+
 const humanizeKey = (value: string): string =>
   value
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (character) => character.toUpperCase()) || "Unknown";
+
+const formatMediaType = (value: string): string =>
+  value === "audio" ? "Audio / sound" : humanizeKey(value);
 
 const formatHealthSource = (value: string): string =>
   value === "rpc" ? "RPC" : value === "legacy_fallback" ? "Legacy fallback" : "Unavailable";
@@ -104,6 +118,53 @@ const MetricCard = ({ label, value, meta }: { label: string; value: string; meta
   </article>
 );
 
+const SignalCard = ({
+  label,
+  value,
+  meta,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  meta: string;
+  accent?: boolean;
+}) => (
+  <article
+    className={
+      accent ? `${styles.adminSignalCard} ${styles.adminSignalCardAccent}` : styles.adminSignalCard
+    }
+  >
+    <span className={styles.adminLabel}>{label}</span>
+    <strong className={styles.adminSignalValue}>{value}</strong>
+    <span className={styles.adminSignalMeta}>{meta}</span>
+  </article>
+);
+
+const SignalPill = ({ label, value }: { label: string; value: string }) => (
+  <div className={styles.adminSignalPill}>
+    <span>{label}</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+const MixRow = ({ label, value, total }: { label: string; value: number; total: number }) => {
+  const percent = formatPercent(value, total);
+
+  return (
+    <div className={styles.adminMixRow}>
+      <div className={styles.adminMixRowTop}>
+        <span>{label}</span>
+        <strong>
+          {formatCount(value)} <small>{percent}</small>
+        </strong>
+      </div>
+      <div className={styles.adminMixTrack} aria-hidden="true">
+        <span className={styles.adminMixFill} style={{ width: percent }} />
+      </div>
+    </div>
+  );
+};
+
 const TableShell = ({ children }: { children: React.ReactNode }) => (
   <div className={styles.adminTableShell}>
     <div className={styles.adminTableScroller}>{children}</div>
@@ -125,83 +186,208 @@ const ModelsTable = ({
 }: {
   rows: AdminGlobalModelUsageRow[];
   selectedWindow: CountWindowKey;
-}) => (
-  <TableShell>
-    <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
-      <div
-        className={styles.adminTableHead}
-        style={{
-          gridTemplateColumns: "minmax(0, 1.8fr) 0.75fr 0.8fr 1fr 0.95fr 0.9fr 1.15fr",
-        }}
-      >
-        <span>Model</span>
-        <span>Clicks</span>
-        <span>Accepted</span>
-        <span>Success rate</span>
-        <span>Saved</span>
-        <span>Users</span>
-        <span>Last used</span>
+}) => {
+  const visibleRows = rows.slice(0, TOP_TABLE_ROW_LIMIT);
+
+  return (
+    <TableShell>
+      <div className={styles.adminTable} style={{ minWidth: 760 }}>
+        <div
+          className={styles.adminTableHead}
+          style={{
+            gridTemplateColumns: "minmax(0, 1.8fr) 0.85fr 0.85fr 0.85fr 0.75fr 1fr",
+          }}
+        >
+          <span>Model</span>
+          <span>Runs</span>
+          <span>Success rate</span>
+          <span>Saved</span>
+          <span>Users</span>
+          <span>Last used</span>
+        </div>
+        {visibleRows.length ? (
+          visibleRows.map((row) => {
+            const accepted = row.acceptedGenerations[selectedWindow];
+            const successful = row.successfulGenerations[selectedWindow];
+            return (
+              <div
+                key={row.modelId}
+                className={styles.adminTableRow}
+                style={{
+                  gridTemplateColumns: "minmax(0, 1.8fr) 0.85fr 0.85fr 0.85fr 0.75fr 1fr",
+                }}
+              >
+                <span className={styles.adminMonoCell}>{row.modelId}</span>
+                <span>
+                  {formatCountWindowValue(row.acceptedGenerations, selectedWindow)}
+                  <small className={styles.adminInlineMeta}>
+                    clicks {formatCountWindowValue(row.generateClicks, selectedWindow)}
+                  </small>
+                </span>
+                <span>
+                  {formatSuccessRate(successful, accepted)}
+                  <small className={styles.adminInlineMeta}>
+                    {formatCount(successful)} success •{" "}
+                    {formatCount(row.failedGenerations[selectedWindow])} fail
+                  </small>
+                </span>
+                <span>{formatCountWindowValue(row.savedGenerations, selectedWindow)}</span>
+                <span>{formatCount(row.uniqueGenerationUsers)}</span>
+                <span>{formatDateTime(row.lastGenerationAt ?? row.lastGenerateClickAt)}</span>
+              </div>
+            );
+          })
+        ) : (
+          <EmptyTableRow message="No model usage stats are available yet." />
+        )}
+        {rows.length > visibleRows.length ? (
+          <p className={styles.adminTableFootnote}>
+            Showing top {visibleRows.length} of {formatCount(rows.length)} model rows.
+          </p>
+        ) : null}
       </div>
-      {rows.length ? (
-        rows.map((row) => {
-          const accepted = row.acceptedGenerations[selectedWindow];
-          const successful = row.successfulGenerations[selectedWindow];
-          return (
+    </TableShell>
+  );
+};
+
+const GenerationUsersTable = ({
+  rows,
+  selectedWindow,
+}: {
+  rows: AdminGenerationBreakdownUserRow[];
+  selectedWindow: CountWindowKey;
+}) => {
+  const visibleRows = rows.slice(0, TOP_TABLE_ROW_LIMIT);
+
+  return (
+    <TableShell>
+      <div className={styles.adminTable} style={{ minWidth: 820 }}>
+        <div
+          className={styles.adminTableHead}
+          style={{
+            gridTemplateColumns: "minmax(0, 1.7fr) 0.8fr 1.25fr 0.85fr 0.75fr 1fr",
+          }}
+        >
+          <span>User</span>
+          <span>Runs</span>
+          <span>Mix</span>
+          <span>Success</span>
+          <span>Models</span>
+          <span>Last run</span>
+        </div>
+        {visibleRows.length ? (
+          visibleRows.map((row) => (
             <div
-              key={row.modelId}
+              key={row.userId}
               className={styles.adminTableRow}
               style={{
-                gridTemplateColumns: "minmax(0, 1.8fr) 0.75fr 0.8fr 1fr 0.95fr 0.9fr 1.15fr",
+                gridTemplateColumns: "minmax(0, 1.7fr) 0.8fr 1.25fr 0.85fr 0.75fr 1fr",
               }}
             >
-              <span className={styles.adminMonoCell}>{row.modelId}</span>
               <span>
-                {formatCountWindowValue(row.generateClicks, selectedWindow)}
-                <small className={styles.adminInlineMeta}>
-                  {formatCountWindowMeta(row.generateClicks)}
-                </small>
+                {row.email ?? "Unknown email"}
+                <small className={styles.adminInlineMeta}>{row.userId}</small>
               </span>
               <span>
                 {formatCountWindowValue(row.acceptedGenerations, selectedWindow)}
                 <small className={styles.adminInlineMeta}>
-                  pending {formatCount(row.pendingGenerations)} • running{" "}
-                  {formatCount(row.runningGenerations)}
+                  {formatCountWindowMeta(row.acceptedGenerations)}
                 </small>
               </span>
               <span>
-                {formatSuccessRate(successful, accepted)}
+                Image {formatCountWindowValue(row.imageGenerations, selectedWindow)}
                 <small className={styles.adminInlineMeta}>
-                  {formatCount(successful)} success •{" "}
-                  {formatCount(row.failedGenerations[selectedWindow])} fail
+                  Video {formatCountWindowValue(row.videoGenerations, selectedWindow)} • Audio{" "}
+                  {formatCountWindowValue(row.audioGenerations, selectedWindow)}
                 </small>
               </span>
               <span>
-                {formatCountWindowValue(row.savedGenerations, selectedWindow)}
+                {formatCountWindowValue(row.successfulGenerations, selectedWindow)}
                 <small className={styles.adminInlineMeta}>
-                  savers {formatCount(row.uniqueSavingUsers)}
+                  failed {formatCountWindowValue(row.failedGenerations, selectedWindow)}
                 </small>
               </span>
-              <span>
-                {formatCount(row.uniqueGenerationUsers)}
-                <small className={styles.adminInlineMeta}>
-                  clickers {formatCount(row.uniqueClickUsers)}
-                </small>
-              </span>
-              <span>
-                {formatDateTime(row.lastGenerationAt ?? row.lastGenerateClickAt)}
-                <small className={styles.adminInlineMeta}>
-                  saved {formatDateTime(row.lastSavedGenerationAt)}
-                </small>
-              </span>
+              <span>{formatCount(row.uniqueModels)}</span>
+              <span>{formatDateTime(row.lastGenerationAt)}</span>
             </div>
-          );
-        })
-      ) : (
-        <EmptyTableRow message="No model usage stats are available yet." />
-      )}
-    </div>
-  </TableShell>
-);
+          ))
+        ) : (
+          <EmptyTableRow message="No per-user generation stats are available yet." />
+        )}
+        {rows.length > visibleRows.length ? (
+          <p className={styles.adminTableFootnote}>
+            Showing top {visibleRows.length} of {formatCount(rows.length)} user rows.
+          </p>
+        ) : null}
+      </div>
+    </TableShell>
+  );
+};
+
+const ModelMediaTypeTable = ({
+  rows,
+  selectedWindow,
+}: {
+  rows: AdminGenerationBreakdownModelMediaTypeRow[];
+  selectedWindow: CountWindowKey;
+}) => {
+  const visibleRows = rows.slice(0, TOP_TABLE_ROW_LIMIT);
+
+  return (
+    <TableShell>
+      <div className={styles.adminTable} style={{ minWidth: 780 }}>
+        <div
+          className={styles.adminTableHead}
+          style={{
+            gridTemplateColumns: "minmax(0, 1.7fr) 0.8fr 0.85fr 0.9fr 0.75fr 1fr",
+          }}
+        >
+          <span>Model</span>
+          <span>Type</span>
+          <span>Runs</span>
+          <span>Success</span>
+          <span>Users</span>
+          <span>Last run</span>
+        </div>
+        {visibleRows.length ? (
+          visibleRows.map((row) => (
+            <div
+              key={`${row.modelId}:${row.mediaType}`}
+              className={styles.adminTableRow}
+              style={{
+                gridTemplateColumns: "minmax(0, 1.7fr) 0.8fr 0.85fr 0.9fr 0.75fr 1fr",
+              }}
+            >
+              <span className={styles.adminMonoCell}>{row.modelId}</span>
+              <span>{formatMediaType(row.mediaType)}</span>
+              <span>
+                {formatCountWindowValue(row.acceptedGenerations, selectedWindow)}
+                <small className={styles.adminInlineMeta}>
+                  {formatCountWindowMeta(row.acceptedGenerations)}
+                </small>
+              </span>
+              <span>
+                {formatCountWindowValue(row.successfulGenerations, selectedWindow)}
+                <small className={styles.adminInlineMeta}>
+                  failed {formatCountWindowValue(row.failedGenerations, selectedWindow)}
+                </small>
+              </span>
+              <span>{formatCount(row.uniqueUsers)}</span>
+              <span>{formatDateTime(row.lastGenerationAt)}</span>
+            </div>
+          ))
+        ) : (
+          <EmptyTableRow message="No model/media type generation stats are available yet." />
+        )}
+        {rows.length > visibleRows.length ? (
+          <p className={styles.adminTableFootnote}>
+            Showing top {visibleRows.length} of {formatCount(rows.length)} model/type rows.
+          </p>
+        ) : null}
+      </div>
+    </TableShell>
+  );
+};
 
 const WorkflowToolTable = ({
   rows,
@@ -436,6 +622,7 @@ const ProjectLeaderboardTable = ({
 export function AdminGlobalStatsPanel({
   overview,
   models,
+  generationBreakdown,
   workflows,
   assets,
   projects,
@@ -448,17 +635,26 @@ export function AdminGlobalStatsPanel({
   const [selectedWindow, setSelectedWindow] = React.useState<CountWindowKey>("total");
   const selectedWindowLabel =
     WINDOW_OPTIONS.find((option) => option.key === selectedWindow)?.label ?? "All time";
+  const acceptedRuns = overview.acceptedGenerations[selectedWindow];
+  const successfulRuns = overview.successfulGenerations[selectedWindow];
+  const savedRuns = overview.savedGenerations[selectedWindow];
+  const attachedRuns = overview.projectAttachedGenerations[selectedWindow];
+  const inFlightRuns = overview.pendingGenerations + overview.runningGenerations;
+  const generationSummary = generationBreakdown.summary;
+  const mediaTypeTotal = generationSummary.acceptedGenerations[selectedWindow];
+  const downloadEvents = assets.events.find((row) => row.eventType === "download");
+  const downloadCount = downloadEvents?.count[selectedWindow] ?? 0;
 
   return (
     <>
-      <section className={styles.adminSection}>
+      <section className={`${styles.adminSection} ${styles.adminSignalHeroSection}`}>
         <div className={styles.adminSectionHead}>
           <div>
             <p className={styles.adminSectionEyebrow}>Product health</p>
-            <h2 className={styles.adminSectionTitle}>Product signal health</h2>
+            <h2 className={styles.adminSectionTitle}>Product signals</h2>
             <p className={styles.adminSubtext}>
-              Monitor the live contract powering model, workflow, asset, and project analytics for
-              this workspace.
+              The fastest read on demand, generation quality, and whether outputs are turning into
+              saved work.
             </p>
           </div>
           <div className={styles.adminToolbar}>
@@ -504,268 +700,292 @@ export function AdminGlobalStatsPanel({
           </AppMessage>
         ) : null}
 
-        <section className={styles.adminGrid} aria-label="Stats data health">
-          <MetricCard
-            label="Coverage"
-            value={health.degraded ? "Degraded" : "Healthy"}
-            meta={
-              health.degraded && health.reason
-                ? health.reason
-                : "All shipped v1 sections are available from the live admin stats contract."
-            }
+        <div className={styles.adminSignalHero}>
+          <SignalCard
+            label="Generation demand"
+            value={formatCount(acceptedRuns)}
+            meta={`${formatCountWindowValue(overview.generateClicks, selectedWindow)} generate clicks in ${selectedWindowLabel}`}
+            accent
           />
-          <MetricCard
-            label="Overview source"
-            value={formatHealthSource(health.overviewSource)}
-            meta={`Models ${formatHealthSource(health.modelsSource)} • Workflows ${formatHealthSource(
-              health.workflowsSource
-            )}`}
+          <SignalCard
+            label="Generation quality"
+            value={formatSuccessRate(successfulRuns, acceptedRuns)}
+            meta={`${formatCount(successfulRuns)} success • ${formatCount(
+              overview.failedGenerations[selectedWindow]
+            )} failed`}
           />
-          <MetricCard
-            label="Assets source"
-            value={formatHealthSource(health.assetsSource)}
-            meta={`Projects ${formatHealthSource(health.projectsSource)} • Window ${selectedWindowLabel}`}
+          <SignalCard
+            label="Saved value"
+            value={formatPercent(savedRuns, acceptedRuns)}
+            meta={`${formatCount(savedRuns)} saved • ${formatCount(attachedRuns)} project-attached`}
           />
-        </section>
+        </div>
+
+        <div className={styles.adminSignalMetaGrid} aria-label="Product signal context">
+          <SignalPill
+            label="Generation users"
+            value={formatCount(overview.uniqueGenerationUsers)}
+          />
+          <SignalPill label="Active models" value={formatCount(overview.uniqueModels)} />
+          <SignalPill label="Downloads" value={formatCount(downloadCount)} />
+          <SignalPill label="In flight" value={formatCount(inFlightRuns)} />
+          <SignalPill
+            label="Data contract"
+            value={health.degraded ? "Degraded" : formatHealthSource(health.overviewSource)}
+          />
+        </div>
       </section>
 
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <p className={styles.adminSectionEyebrow}>Core metrics</p>
-            <h2 className={styles.adminSectionTitle}>Overview</h2>
+            <p className={styles.adminSectionEyebrow}>Generation volume</p>
+            <h2 className={styles.adminSectionTitle}>Generation breakdown</h2>
             <p className={styles.adminSubtext}>
-              Global usage totals show demand, conversion, and retained value for the current
-              window.
+              Fleet-wide runs by media type, plus the highest-signal user and model slices.
             </p>
           </div>
         </div>
 
-        <section className={styles.adminGrid} aria-label="Global stats overview">
-          <MetricCard
-            label="Generate clicks"
-            value={formatCountWindowValue(overview.generateClicks, selectedWindow)}
-            meta={formatCountWindowMeta(overview.generateClicks)}
-          />
-          <MetricCard
-            label="Accepted runs"
-            value={formatCountWindowValue(overview.acceptedGenerations, selectedWindow)}
-            meta={formatCountWindowMeta(overview.acceptedGenerations)}
-          />
-          <MetricCard
-            label="Success rate"
-            value={formatSuccessRate(
-              overview.successfulGenerations[selectedWindow],
-              overview.acceptedGenerations[selectedWindow]
-            )}
-            meta={`Success ${formatCountWindowValue(
-              overview.successfulGenerations,
-              selectedWindow
-            )} • Fail ${formatCountWindowValue(overview.failedGenerations, selectedWindow)}`}
-          />
-          <MetricCard
-            label="Saved generations"
-            value={formatCountWindowValue(overview.savedGenerations, selectedWindow)}
-            meta={formatCountWindowMeta(overview.savedGenerations)}
-          />
-          <MetricCard
-            label="Project-attached"
-            value={formatCountWindowValue(overview.projectAttachedGenerations, selectedWindow)}
-            meta={formatCountWindowMeta(overview.projectAttachedGenerations)}
-          />
-          <MetricCard
-            label="Unique users"
-            value={formatCount(overview.uniqueGenerationUsers)}
-            meta={`Clickers ${formatCount(overview.uniqueClickUsers)} • Savers ${formatCount(
-              overview.uniqueSavingUsers
-            )}`}
-          />
-          <MetricCard
-            label="In-flight"
-            value={formatCount(overview.pendingGenerations + overview.runningGenerations)}
-            meta={`Pending ${formatCount(overview.pendingGenerations)} • Running ${formatCount(
-              overview.runningGenerations
-            )}`}
-          />
-          <MetricCard
-            label="Unique models"
-            value={formatCount(overview.uniqueModels)}
-            meta={`Runs ${formatDateTime(overview.lastGenerationAt)} • Clicks ${formatDateTime(
-              overview.lastGenerateClickAt
-            )}`}
-          />
-        </section>
+        <div className={styles.adminSignalColumns}>
+          <article className={styles.adminPanel}>
+            <div className={styles.adminPanelHeader}>
+              <div>
+                <h3 className={styles.adminSectionTitle}>Media mix</h3>
+                <p className={styles.adminSubtext}>
+                  Accepted generations for {selectedWindowLabel.toLowerCase()}.
+                </p>
+              </div>
+            </div>
+            <div className={styles.adminMixList}>
+              <MixRow
+                label="Image"
+                value={generationSummary.imageGenerations[selectedWindow]}
+                total={mediaTypeTotal}
+              />
+              <MixRow
+                label="Video"
+                value={generationSummary.videoGenerations[selectedWindow]}
+                total={mediaTypeTotal}
+              />
+              <MixRow
+                label="Audio / sound"
+                value={generationSummary.audioGenerations[selectedWindow]}
+                total={mediaTypeTotal}
+              />
+              <MixRow
+                label="Unknown"
+                value={generationSummary.unknownGenerations[selectedWindow]}
+                total={mediaTypeTotal}
+              />
+            </div>
+            <div className={styles.adminPanelMetaGrid}>
+              <SignalPill label="Users" value={formatCount(generationSummary.uniqueUsers)} />
+              <SignalPill label="Models" value={formatCount(generationSummary.uniqueModels)} />
+              <SignalPill
+                label="Last run"
+                value={formatDateTime(generationSummary.lastGenerationAt)}
+              />
+            </div>
+          </article>
+
+          <article className={styles.adminPanel}>
+            <div className={styles.adminPanelHeader}>
+              <div>
+                <h3 className={styles.adminSectionTitle}>Top users</h3>
+                <p className={styles.adminSubtext}>Who is generating the most output.</p>
+              </div>
+            </div>
+            <GenerationUsersTable
+              rows={generationBreakdown.users}
+              selectedWindow={selectedWindow}
+            />
+          </article>
+
+          <article className={styles.adminPanel}>
+            <div className={styles.adminPanelHeader}>
+              <div>
+                <h3 className={styles.adminSectionTitle}>Top model/type pairs</h3>
+                <p className={styles.adminSubtext}>Where generation volume is concentrating.</p>
+              </div>
+            </div>
+            <ModelMediaTypeTable
+              rows={generationBreakdown.modelMediaTypes}
+              selectedWindow={selectedWindow}
+            />
+          </article>
+        </div>
       </section>
 
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
             <p className={styles.adminSectionEyebrow}>Model mix</p>
-            <h2 className={styles.adminSectionTitle}>Models</h2>
+            <h2 className={styles.adminSectionTitle}>Top models</h2>
             <p className={styles.adminSubtext}>
-              Per-model demand and value retention combine explicit generate clicks with
-              server-authoritative accepted runs and saves.
+              Demand, reliability, and saved output by model. Debug-only columns are intentionally
+              left out of the main read.
             </p>
           </div>
         </div>
         <ModelsTable rows={models} selectedWindow={selectedWindow} />
       </section>
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Workflow depth</p>
-            <h2 className={styles.adminSectionTitle}>Workflows</h2>
-            <p className={styles.adminSubtext}>
-              Workflow analytics use generate-click telemetry for intent and `generation_projection`
-              for style, character, and reference-assisted generation context.
-            </p>
-          </div>
-        </div>
+      <details className={styles.adminDetails}>
+        <summary className={styles.adminDetailsSummary}>
+          Secondary diagnostics
+          <span>Workflow, asset, project, and source-health tables</span>
+        </summary>
 
-        <section className={styles.adminGrid} aria-label="Workflow highlights">
-          <MetricCard
-            label="Style-applied runs"
-            value={formatCountWindowValue(
-              workflows.highlights.styleAppliedGenerations,
-              selectedWindow
-            )}
-            meta={formatCountWindowMeta(workflows.highlights.styleAppliedGenerations)}
-          />
-          <MetricCard
-            label="Character runs"
-            value={formatCountWindowValue(
-              workflows.highlights.characterModeGenerations,
-              selectedWindow
-            )}
-            meta={formatCountWindowMeta(workflows.highlights.characterModeGenerations)}
-          />
-          <MetricCard
-            label="Reference runs"
-            value={formatCountWindowValue(
-              workflows.highlights.referenceAssistedGenerations,
-              selectedWindow
-            )}
-            meta={formatCountWindowMeta(workflows.highlights.referenceAssistedGenerations)}
-          />
-          <MetricCard
-            label="Style clicks"
-            value={formatCountWindowValue(workflows.highlights.styleClicks, selectedWindow)}
-            meta={formatCountWindowMeta(workflows.highlights.styleClicks)}
-          />
-          <MetricCard
-            label="Character clicks"
-            value={formatCountWindowValue(workflows.highlights.characterModeClicks, selectedWindow)}
-            meta={formatCountWindowMeta(workflows.highlights.characterModeClicks)}
-          />
-          <MetricCard
-            label="Reference clicks"
-            value={formatCountWindowValue(
-              workflows.highlights.referenceAssistedClicks,
-              selectedWindow
-            )}
-            meta={formatCountWindowMeta(workflows.highlights.referenceAssistedClicks)}
-          />
-        </section>
-
-        <div className={styles.adminSection}>
+        <section className={styles.adminSection}>
           <div className={styles.adminSectionHead}>
             <div>
-              <h3 className={styles.adminSectionTitle}>By tool</h3>
+              <p className={styles.adminSectionEyebrow}>Workflow depth</p>
+              <h2 className={styles.adminSectionTitle}>Workflows</h2>
               <p className={styles.adminSubtext}>
-                Click-based workflow intent broken down by the active AI Studio tool.
+                Use this when intent source or workflow features need diagnosis.
               </p>
             </div>
           </div>
-          <WorkflowToolTable rows={workflows.byTool} selectedWindow={selectedWindow} />
-        </div>
 
-        <div className={styles.adminSection}>
+          <section className={styles.adminQuietGrid} aria-label="Workflow highlights">
+            <MetricCard
+              label="Style-applied runs"
+              value={formatCountWindowValue(
+                workflows.highlights.styleAppliedGenerations,
+                selectedWindow
+              )}
+              meta={formatCountWindowMeta(workflows.highlights.styleAppliedGenerations)}
+            />
+            <MetricCard
+              label="Character runs"
+              value={formatCountWindowValue(
+                workflows.highlights.characterModeGenerations,
+                selectedWindow
+              )}
+              meta={formatCountWindowMeta(workflows.highlights.characterModeGenerations)}
+            />
+            <MetricCard
+              label="Reference runs"
+              value={formatCountWindowValue(
+                workflows.highlights.referenceAssistedGenerations,
+                selectedWindow
+              )}
+              meta={formatCountWindowMeta(workflows.highlights.referenceAssistedGenerations)}
+            />
+          </section>
+
+          <div className={styles.adminPanelStack}>
+            <article className={styles.adminPanel}>
+              <div className={styles.adminPanelHeader}>
+                <h3 className={styles.adminSectionTitle}>By tool</h3>
+              </div>
+              <WorkflowToolTable rows={workflows.byTool} selectedWindow={selectedWindow} />
+            </article>
+
+            <article className={styles.adminPanel}>
+              <div className={styles.adminPanelHeader}>
+                <h3 className={styles.adminSectionTitle}>By mode</h3>
+              </div>
+              <WorkflowModeTable rows={workflows.byMode} selectedWindow={selectedWindow} />
+            </article>
+          </div>
+        </section>
+
+        <section className={styles.adminSection}>
           <div className={styles.adminSectionHead}>
             <div>
-              <h3 className={styles.adminSectionTitle}>By mode</h3>
+              <p className={styles.adminSectionEyebrow}>Retained outputs</p>
+              <h2 className={styles.adminSectionTitle}>Assets</h2>
               <p className={styles.adminSubtext}>
-                Accepted runs and enriched workflow context grouped by studio mode.
+                Media event metrics are behavioral signals, not audit-grade accounting.
               </p>
             </div>
           </div>
-          <WorkflowModeTable rows={workflows.byMode} selectedWindow={selectedWindow} />
-        </div>
-      </section>
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Retained outputs</p>
-            <h2 className={styles.adminSectionTitle}>Assets</h2>
-            <p className={styles.adminSubtext}>
-              Media event metrics are best for behavioral insight, not audit-grade truth, because
-              some events are emitted from client interaction hooks.
-            </p>
-          </div>
-        </div>
+          <section className={styles.adminQuietGrid} aria-label="Autosave overview">
+            <MetricCard
+              label="Autosave persisted"
+              value={formatCountWindowValue(assets.autosave.autoPersisted, selectedWindow)}
+              meta={formatCountWindowMeta(assets.autosave.autoPersisted)}
+            />
+            <MetricCard
+              label="Autosave skipped"
+              value={formatCountWindowValue(assets.autosave.autosaveSkipped, selectedWindow)}
+              meta={formatCountWindowMeta(assets.autosave.autosaveSkipped)}
+            />
+          </section>
 
-        <section className={styles.adminGrid} aria-label="Autosave overview">
-          <MetricCard
-            label="Autosave persisted"
-            value={formatCountWindowValue(assets.autosave.autoPersisted, selectedWindow)}
-            meta={formatCountWindowMeta(assets.autosave.autoPersisted)}
-          />
-          <MetricCard
-            label="Autosave skipped"
-            value={formatCountWindowValue(assets.autosave.autosaveSkipped, selectedWindow)}
-            meta={formatCountWindowMeta(assets.autosave.autosaveSkipped)}
-          />
+          <AssetEventsTable rows={assets.events} selectedWindow={selectedWindow} />
         </section>
 
-        <AssetEventsTable rows={assets.events} selectedWindow={selectedWindow} />
-      </section>
-
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className={styles.adminSectionEyebrow}>Serious work</p>
-            <h2 className={styles.adminSectionTitle}>Projects</h2>
-            <p className={styles.adminSubtext}>
-              Project association tables show whether generated work is making it into durable,
-              organized product usage.
-            </p>
+        <section className={styles.adminSection}>
+          <div className={styles.adminSectionHead}>
+            <div>
+              <p className={styles.adminSectionEyebrow}>Serious work</p>
+              <h2 className={styles.adminSectionTitle}>Projects</h2>
+              <p className={styles.adminSubtext}>
+                Whether generated work is becoming durable, organized product usage.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <section className={styles.adminGrid} aria-label="Project usage summary">
-          <MetricCard
-            label="Projects created"
-            value={formatCountWindowValue(projects.summary.projectsCreated, selectedWindow)}
-            meta={formatCountWindowMeta(projects.summary.projectsCreated)}
-          />
-          <MetricCard
-            label="Active projects"
-            value={formatCountWindowValue(
-              projects.summary.activeProjectsWithGenerations,
-              selectedWindow
-            )}
-            meta={formatCountWindowMeta(projects.summary.activeProjectsWithGenerations)}
-          />
-          <MetricCard
-            label="Attached generations"
-            value={formatCountWindowValue(projects.summary.attachedGenerations, selectedWindow)}
-            meta={formatCountWindowMeta(projects.summary.attachedGenerations)}
-          />
-          <MetricCard
-            label="Attached media"
-            value={formatCountWindowValue(projects.summary.attachedMedia, selectedWindow)}
-            meta={formatCountWindowMeta(projects.summary.attachedMedia)}
-          />
-          <MetricCard
-            label="Attached prompts"
-            value={formatCountWindowValue(projects.summary.attachedPrompts, selectedWindow)}
-            meta={formatCountWindowMeta(projects.summary.attachedPrompts)}
-          />
+          <section className={styles.adminQuietGrid} aria-label="Project usage summary">
+            <MetricCard
+              label="Projects created"
+              value={formatCountWindowValue(projects.summary.projectsCreated, selectedWindow)}
+              meta={formatCountWindowMeta(projects.summary.projectsCreated)}
+            />
+            <MetricCard
+              label="Active projects"
+              value={formatCountWindowValue(
+                projects.summary.activeProjectsWithGenerations,
+                selectedWindow
+              )}
+              meta={formatCountWindowMeta(projects.summary.activeProjectsWithGenerations)}
+            />
+            <MetricCard
+              label="Attached generations"
+              value={formatCountWindowValue(projects.summary.attachedGenerations, selectedWindow)}
+              meta={formatCountWindowMeta(projects.summary.attachedGenerations)}
+            />
+          </section>
+
+          <ProjectLeaderboardTable rows={projects.leaderboard} selectedWindow={selectedWindow} />
         </section>
 
-        <ProjectLeaderboardTable rows={projects.leaderboard} selectedWindow={selectedWindow} />
-      </section>
+        <section className={styles.adminSection}>
+          <div className={styles.adminSectionHead}>
+            <div>
+              <p className={styles.adminSectionEyebrow}>Data contract</p>
+              <h2 className={styles.adminSectionTitle}>Source health</h2>
+            </div>
+          </div>
+          <section className={styles.adminQuietGrid} aria-label="Stats data health">
+            <MetricCard
+              label="Coverage"
+              value={health.degraded ? "Degraded" : "Healthy"}
+              meta={
+                health.degraded && health.reason
+                  ? health.reason
+                  : "All shipped v1 sections are available."
+              }
+            />
+            <MetricCard
+              label="Overview source"
+              value={formatHealthSource(health.overviewSource)}
+              meta={`Models ${formatHealthSource(
+                health.modelsSource
+              )} • Workflows ${formatHealthSource(health.workflowsSource)}`}
+            />
+            <MetricCard
+              label="Assets source"
+              value={formatHealthSource(health.assetsSource)}
+              meta={`Projects ${formatHealthSource(health.projectsSource)}`}
+            />
+          </section>
+        </section>
+      </details>
     </>
   );
 }

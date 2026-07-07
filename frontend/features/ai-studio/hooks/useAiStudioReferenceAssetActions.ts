@@ -6,6 +6,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import { MEDIA_STORAGE_FULL_USER_MESSAGE } from "../../../lib/mediaStorageQuota";
 import { requestMediaStorageQuotaSummaryRefresh } from "../../billing/useMediaStorageQuotaSummary";
+import { logMediaEvent } from "../../media-library/logic/mediaLibraryDataEffects";
 import {
   downloadBlobToFile,
   downloadUrlToFile,
@@ -69,6 +70,19 @@ export const useAiStudioReferenceAssetActions = ({
             mode: target.mode,
           });
           downloadBlobToFile(blob, downloadFilename);
+          if (resolvedTarget.fileRecord.mediaFileId) {
+            void logMediaEvent("download", "media_file", resolvedTarget.fileRecord.mediaFileId, {
+              output_id: target.id,
+              storage_path: resolvedTarget.fileRecord.storagePath,
+              surface: "ai-studio-reference",
+            });
+          } else if (resolvedTarget.generationId) {
+            void logMediaEvent("download", "ai_generation", resolvedTarget.generationId, {
+              output_id: target.id,
+              storage_path: resolvedTarget.fileRecord.storagePath,
+              surface: "ai-studio-reference",
+            });
+          }
           return;
         }
 
@@ -92,6 +106,13 @@ export const useAiStudioReferenceAssetActions = ({
               mode: target.mode,
             });
             downloadBlobToFile(blob, downloadFilename);
+            if (resolvedTarget.generationId) {
+              void logMediaEvent("download", "ai_generation", resolvedTarget.generationId, {
+                output_id: target.id,
+                source: "provider_url",
+                surface: "ai-studio-reference",
+              });
+            }
             return;
           }
 
@@ -105,6 +126,13 @@ export const useAiStudioReferenceAssetActions = ({
           const startedDownload = downloadUrlToFile(directUrl, downloadFilename);
           if (!startedDownload) {
             throw new Error("No media available to download.");
+          }
+          if (resolvedTarget.generationId) {
+            void logMediaEvent("download", "ai_generation", resolvedTarget.generationId, {
+              output_id: target.id,
+              source: "direct_url",
+              surface: "ai-studio-reference",
+            });
           }
           return;
         }

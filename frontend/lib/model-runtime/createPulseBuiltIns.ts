@@ -23,6 +23,7 @@ import {
   type CreatePulseBuiltInPresetDefinition as CreatePulseBuiltInPresetMetadata,
   type CreatePulseMemoryPolicy,
   type CreatePulseOutputMode,
+  type CreatePulsePublicationStatus,
   type CreatePulsePresetKind,
   type CreatePulseRetiredPresetId,
   type CreatePulseRuntimeMode,
@@ -55,6 +56,9 @@ const isCreatePulseActivationMode = (value: string): value is CreatePulseActivat
 const isCreatePulseOutputMode = (value: string): value is CreatePulseOutputMode =>
   value === "chat_reply" || value === "apply_prompt";
 
+const isCreatePulsePublicationStatus = (value: string): value is CreatePulsePublicationStatus =>
+  value === "published" || value === "draft";
+
 const isCreatePulseArtifactTarget = (value: string): value is CreatePulseArtifactTarget =>
   value === "image_prompt" ||
   value === "video_prompt" ||
@@ -73,6 +77,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage = null,
   workflowStageHints = null,
   artifactTarget,
+  publicationStatus = "published",
 }: {
   presetId: string;
   label: string;
@@ -85,6 +90,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage?: string | null;
   workflowStageHints?: readonly string[] | null;
   artifactTarget: CreatePulseArtifactTarget;
+  publicationStatus?: CreatePulsePublicationStatus;
 }): CreatePulseBuiltInPresetDefinition => ({
   presetId,
   label,
@@ -100,6 +106,7 @@ const createBuiltInPulseDefinition = ({
     workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
   artifactTarget,
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+  publicationStatus,
 });
 
 export const CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS = [
@@ -164,6 +171,10 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { outputMode?: unknown }).outputMode === "string"
       ? (value as { outputMode: string }).outputMode.trim()
       : "";
+  const publicationStatusRaw =
+    typeof (value as { publicationStatus?: unknown }).publicationStatus === "string"
+      ? (value as { publicationStatus: string }).publicationStatus.trim()
+      : "";
   const pulseKind = isCreatePulsePresetKind(pulseKindRaw)
     ? pulseKindRaw
     : CREATE_PULSE_GUIDED_AUTHORING_KIND;
@@ -203,6 +214,9 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
       ? artifactTargetRaw
       : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
+    publicationStatus: isCreatePulsePublicationStatus(publicationStatusRaw)
+      ? publicationStatusRaw
+      : "published",
   });
 };
 
@@ -228,6 +242,13 @@ export const resolveCreatePulseBuiltInPresetDefinitions = (
     ? normalizeCreatePulseBuiltInPresetDefinitions(builtInDefinitions)
     : [...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS];
 
+export const filterPublishedCreatePulseBuiltInPresetDefinitions = (
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulseBuiltInPresetDefinition[] =>
+  resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions).filter(
+    (definition) => definition.publicationStatus !== "draft"
+  );
+
 export {
   CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
   CREATE_PULSE_CUSTOM_AUTHORING_KIND,
@@ -245,6 +266,7 @@ export type {
   CreatePulseBuiltInPresetId,
   CreatePulseMemoryPolicy,
   CreatePulseOutputMode,
+  CreatePulsePublicationStatus,
   CreatePulsePresetKind,
   CreatePulseRetiredPresetId,
   CreatePulseRuntimeMode,

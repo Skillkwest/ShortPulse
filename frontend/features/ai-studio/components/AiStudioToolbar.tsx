@@ -10,6 +10,7 @@ import {
   Globe,
   FlowArrow,
   ImageSquare,
+  LockSimple,
   type IconProps,
   Palette,
   Person,
@@ -227,6 +228,9 @@ function AiStudioToolbarComponent({
                     {workflowPlanAccessCta.label}
                   </span>
                 </div>
+                <span className="toolbar-plan-lock-icon" aria-hidden="true">
+                  <LockSimple size={13} weight="bold" />
+                </span>
               </a>
             );
           }

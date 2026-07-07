@@ -30,6 +30,12 @@ policy_stats as (
         max(version) as max_policy_version
     from public.model_pricing_policy_versions
 ),
+policy_event_stats as (
+    select
+        count(*) as policy_event_count,
+        max(id) as max_policy_event_id
+    from public.model_pricing_policy_events
+),
 policy_id_sequence as (
     select
         pg_get_serial_sequence('public.model_pricing_policy_versions', 'id') as sequence_name,
@@ -40,6 +46,17 @@ policy_id_sequence as (
             else sequence_state.last_value
         end as next_policy_id
     from public.model_pricing_policy_versions_id_seq sequence_state
+),
+policy_event_sequence as (
+    select
+        pg_get_serial_sequence('public.model_pricing_policy_events', 'id') as sequence_name,
+        sequence_state.last_value,
+        sequence_state.is_called,
+        case
+            when sequence_state.is_called then sequence_state.last_value + 1
+            else sequence_state.last_value
+        end as next_policy_event_id
+    from public.model_pricing_policy_events_id_seq sequence_state
 )
 select
     exists(select 1 from runtime) as has_runtime_row,
@@ -51,6 +68,13 @@ select
     policy_id_sequence.is_called as policy_id_sequence_is_called,
     policy_id_sequence.next_policy_id as policy_id_sequence_next_policy_id,
     policy_id_sequence.next_policy_id > coalesce(policy_stats.max_policy_id, 0) as policy_id_sequence_ready,
+    policy_event_stats.policy_event_count,
+    policy_event_stats.max_policy_event_id,
+    policy_event_sequence.sequence_name as policy_event_sequence_name,
+    policy_event_sequence.last_value as policy_event_sequence_last_value,
+    policy_event_sequence.is_called as policy_event_sequence_is_called,
+    policy_event_sequence.next_policy_event_id as policy_event_sequence_next_policy_event_id,
+    policy_event_sequence.next_policy_event_id > coalesce(policy_event_stats.max_policy_event_id, 0) as policy_event_sequence_ready,
     active_policy.version as active_policy_version,
     active_policy.policy #>> '{global,creditUsdScale}' as active_credit_usd_scale,
     runtime.updated_at as runtime_updated_at,
@@ -60,4 +84,6 @@ select
 from runtime
 left join active_policy on true
 cross join policy_stats
-cross join policy_id_sequence;
+cross join policy_event_stats
+cross join policy_id_sequence
+cross join policy_event_sequence;

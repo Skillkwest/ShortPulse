@@ -68,6 +68,7 @@ describe("GET /api/ai/create-pulse-builtins", () => {
           presetId: "image",
           label: "Video Prompt Magic",
           systemInstructions: "Use the published built-in prompt.",
+          publicationStatus: "published",
         },
       ],
       source: "control_plane",
@@ -88,7 +89,69 @@ describe("GET /api/ai/create-pulse-builtins", () => {
           presetId: "image",
           label: "Video Prompt Magic",
           systemInstructions: "Use the published built-in prompt.",
+          publicationStatus: "published",
         },
+      ],
+      source: "control_plane",
+      updatedAt: "2026-05-05T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      degraded: false,
+    });
+  });
+
+  it("filters admin draft built-ins out of the live runtime catalog response", async () => {
+    resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [
+        {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          description: "Live helper.",
+          systemInstructions: "Use the published built-in prompt.",
+          starterAssistantMessage: "Tell me what you want to make.",
+          workflowStageHints: null,
+          artifactTarget: "video_prompt",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          schemaVersion: 2,
+          publicationStatus: "published",
+        },
+        {
+          presetId: "draft_prompt_helper",
+          label: "Draft Prompt Helper",
+          description: "Admin-only helper.",
+          systemInstructions: "Draft instructions.",
+          starterAssistantMessage: "Draft starter.",
+          workflowStageHints: null,
+          artifactTarget: "text_artifact",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          schemaVersion: 2,
+          publicationStatus: "draft",
+        },
+      ],
+      source: "control_plane",
+      updatedAt: "2026-05-05T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      degraded: false,
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      builtInDefinitions: [
+        expect.objectContaining({
+          presetId: "image",
+          publicationStatus: "published",
+        }),
       ],
       source: "control_plane",
       updatedAt: "2026-05-05T18:00:00.000Z",

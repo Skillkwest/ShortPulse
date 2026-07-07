@@ -28,6 +28,7 @@ import {
   type CreatePulseBuiltInPresetDefinition,
   type CreatePulseMemoryPolicy,
   type CreatePulseOutputMode,
+  type CreatePulsePublicationStatus,
   type CreatePulsePresetKind,
   type CreatePulseRuntimeMode,
 } from "../../../lib/model-runtime/createPulseBuiltIns";
@@ -61,6 +62,7 @@ type AdminPulseDraft = {
   outputMode: CreatePulseOutputMode;
   memoryPolicy: CreatePulseMemoryPolicy;
   schemaVersion: number;
+  publicationStatus: CreatePulsePublicationStatus;
 };
 type SaveState = "idle" | "saving" | "saved" | "error";
 type AdminEditPresetDraft = {
@@ -143,6 +145,7 @@ const buildPulseDraftFromDefinition = (
   outputMode: definition.outputMode,
   memoryPolicy: definition.memoryPolicy,
   schemaVersion: definition.schemaVersion,
+  publicationStatus: definition.publicationStatus ?? "published",
 });
 
 const buildPulseDraftsFromDefinitions = (
@@ -163,6 +166,7 @@ const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, s
   ...(draft.presetId.trim() ? { presetId: draft.presetId.trim() } : {}),
   title: draft.label.trim(),
   prompt: draft.systemInstructions.trim(),
+  publicationStatus: draft.publicationStatus,
 });
 
 const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
@@ -180,6 +184,7 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   outputMode: "chat_reply",
   memoryPolicy: "session",
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+  publicationStatus: "published",
 });
 
 const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boolean =>
@@ -195,7 +200,8 @@ const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boo
   left.activationMode === right.activationMode &&
   left.outputMode === right.outputMode &&
   left.memoryPolicy === right.memoryPolicy &&
-  left.schemaVersion === right.schemaVersion;
+  left.schemaVersion === right.schemaVersion &&
+  left.publicationStatus === right.publicationStatus;
 
 const arePulseDraftListsEqual = (
   left: readonly AdminPulseDraft[],
@@ -2177,11 +2183,15 @@ export function AdminAgentInstructionsSection() {
               const cardTitle =
                 draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
               const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
+              const publicationLabel =
+                draft.publicationStatus === "draft" ? "Admin draft" : "Live app";
               const validationIssue = resolvePulseDraftValidationIssue(draft);
               const note = stored
                 ? isDirty
                   ? "This slot differs from the stored global Pulse set."
-                  : "Matches the stored global Pulse set."
+                  : draft.publicationStatus === "draft"
+                    ? "Stored as an admin draft and excluded from the live Pulse catalog."
+                    : "Matches the stored global Pulse set."
                 : "New slot. Save applies it to the shared built-in Pulse catalog.";
               const canSaveCard =
                 !pulseLoading &&
@@ -2191,6 +2201,7 @@ export function AdminAgentInstructionsSection() {
                 isPulseDraftPersistable(draft);
               const copyValue = [
                 `Title: ${draft.label}`,
+                `Publication: ${publicationLabel}`,
                 "",
                 "Prompt:",
                 draft.systemInstructions,
@@ -2226,6 +2237,13 @@ export function AdminAgentInstructionsSection() {
                         >
                           {statusLabel}
                         </span>
+                        <span
+                          className={`${styles.pill} ${
+                            draft.publicationStatus === "draft" ? styles.pillWarn : styles.pillOk
+                          }`}
+                        >
+                          {publicationLabel}
+                        </span>
                       </div>
                       <p className={styles.agentInstructionDescription}>
                         Create the built-in Pulse title and prompt. Required runtime metadata is
@@ -2233,6 +2251,21 @@ export function AdminAgentInstructionsSection() {
                       </p>
                     </div>
                     <div className={styles.agentInstructionActions}>
+                      <label className={styles.agentInstructionPublicationToggle}>
+                        <span>Draft</span>
+                        <input
+                          type="checkbox"
+                          checked={draft.publicationStatus === "draft"}
+                          onChange={(event) =>
+                            updatePulseDraft(
+                              draft.localId,
+                              "publicationStatus",
+                              event.target.checked ? "draft" : "published"
+                            )
+                          }
+                          aria-label={`Keep ${cardTitle} in admin as a draft`}
+                        />
+                      </label>
                       <button
                         type="button"
                         className="ghost-btn mini"

@@ -25,8 +25,10 @@ The closest user-facing mental model for custom Pulses is ChatGPT custom GPTs:
 the user chooses a Pulse, it starts immediately, and the agent follows that
 Pulse's saved instructions without rewriting the visible Create composer.
 
-Built-in guided workflows remain available inside the same surface for now, but
-they are not the same behavioral contract as custom Pulses.
+Published built-in guided workflows remain available inside the same surface for
+now, but they are not the same behavioral contract as custom Pulses. Built-ins
+marked as admin drafts stay in the admin control plane for review and editing,
+but they must not appear in the live Pulse catalog or start at runtime.
 
 It is not:
 

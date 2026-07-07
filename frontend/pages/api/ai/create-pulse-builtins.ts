@@ -36,8 +36,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         degraded: builtInCatalog.degraded,
       });
     }
+    const publishedBuiltInDefinitions = builtInCatalog.builtInDefinitions.filter(
+      (definition) => definition.publicationStatus !== "draft"
+    );
     return res.status(200).json({
-      builtInDefinitions: builtInCatalog.builtInDefinitions,
+      builtInDefinitions: publishedBuiltInDefinitions,
       source: builtInCatalog.source,
       updatedAt: builtInCatalog.updatedAt,
       updatedByEmail: builtInCatalog.updatedByEmail,

@@ -214,6 +214,8 @@ describe("AiStudioToolbar current mode", () => {
     expect(soundPlanLink.querySelector(".toolbar-label-default")).toHaveTextContent("Sound");
     expect(videoPlanLink.querySelector(".toolbar-label-plan-cta")).toHaveTextContent("View plans");
     expect(soundPlanLink.querySelector(".toolbar-label-plan-cta")).toHaveTextContent("View plans");
+    expect(videoPlanLink.querySelector(".toolbar-plan-lock-icon")).not.toBeNull();
+    expect(soundPlanLink.querySelector(".toolbar-plan-lock-icon")).not.toBeNull();
 
     fireEvent.click(videoPlanLink);
     fireEvent.click(soundPlanLink);

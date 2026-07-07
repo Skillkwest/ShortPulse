@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterPublishedCreatePulseBuiltInPresetDefinitions as filterPublishedPublicBuiltInDefinitions,
   normalizeCreatePulseBuiltInPresetDefinitions as normalizePublicBuiltInDefinitions,
   type CreatePulseBuiltInPresetDefinition as PublicBuiltInDefinition,
 } from "../createPulsePresetDomain";
 import {
+  filterPublishedCreatePulseBuiltInPresetDefinitions as filterPublishedServerBuiltInDefinitions,
   normalizeCreatePulseBuiltInPresetDefinitions as normalizeServerBuiltInDefinitions,
   type CreatePulseBuiltInPresetDefinition as ServerBuiltInDefinition,
 } from "../createPulseBuiltIns";
@@ -12,6 +14,7 @@ const publicPromptModifierDefinition: PublicBuiltInDefinition = {
   presetId: "prompt_modifier",
   label: "Prompt Modifier",
   description: "Modify prompts.",
+  systemInstructions: "",
   pulseKind: "guided_workflow",
   runtimeMode: "workflow_gpt",
   activationMode: "activate_and_start",
@@ -21,6 +24,7 @@ const publicPromptModifierDefinition: PublicBuiltInDefinition = {
   workflowStageHints: ["Paste prompt"],
   artifactTarget: "video_prompt",
   schemaVersion: 2,
+  publicationStatus: "published",
 };
 
 const serverPromptModifierDefinition: ServerBuiltInDefinition = {
@@ -51,5 +55,32 @@ describe("Create Pulse built-in catalog normalization", () => {
         serverPromptModifierDefinition,
       ])
     ).toEqual([serverPromptModifierDefinition]);
+  });
+
+  it("defaults missing publication status to published", () => {
+    const legacyDefinition: Partial<ServerBuiltInDefinition> = {
+      ...serverPromptModifierDefinition,
+    };
+    delete legacyDefinition.publicationStatus;
+
+    expect(normalizeServerBuiltInDefinitions([legacyDefinition])).toEqual([
+      serverPromptModifierDefinition,
+    ]);
+  });
+
+  it("preserves draft built-ins for admin normalization and filters them from runtime catalogs", () => {
+    const draftDefinition = {
+      ...serverPromptModifierDefinition,
+      presetId: "draft_prompt_modifier",
+      publicationStatus: "draft" as const,
+    };
+
+    expect(normalizeServerBuiltInDefinitions([draftDefinition])).toEqual([draftDefinition]);
+    expect(
+      filterPublishedServerBuiltInDefinitions([serverPromptModifierDefinition, draftDefinition])
+    ).toEqual([serverPromptModifierDefinition]);
+    expect(
+      filterPublishedPublicBuiltInDefinitions([publicPromptModifierDefinition, draftDefinition])
+    ).toEqual([publicPromptModifierDefinition]);
   });
 });

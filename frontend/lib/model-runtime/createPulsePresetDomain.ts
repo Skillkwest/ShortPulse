@@ -20,6 +20,7 @@ export type CreatePulseRuntimeMode = "workflow_gpt" | "custom_gpt";
 export type CreatePulseActivationMode = "activate_and_start" | "activate_only";
 export type CreatePulseOutputMode = "chat_reply" | "apply_prompt";
 export type CreatePulseMemoryPolicy = "session";
+export type CreatePulsePublicationStatus = "published" | "draft";
 export type CreatePulseArtifactTarget =
   | "image_prompt"
   | "video_prompt"
@@ -64,6 +65,7 @@ export type CreatePulseBuiltInPresetDefinition = {
   workflowStageHints: CreatePulseWorkflowStageHints | null;
   artifactTarget: CreatePulseArtifactTarget;
   schemaVersion: number;
+  publicationStatus?: CreatePulsePublicationStatus;
 };
 
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
@@ -97,6 +99,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage = null,
   workflowStageHints = null,
   artifactTarget,
+  publicationStatus = "published",
 }: {
   presetId: string;
   label: string;
@@ -109,6 +112,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage?: string | null;
   workflowStageHints?: readonly string[] | null;
   artifactTarget: CreatePulseArtifactTarget;
+  publicationStatus?: CreatePulsePublicationStatus;
 }): CreatePulseBuiltInPresetDefinition => ({
   presetId,
   label,
@@ -124,6 +128,7 @@ const createBuiltInPulseDefinition = ({
     workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
   artifactTarget,
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+  publicationStatus,
 });
 
 const CREATE_PULSE_SEEDED_BUILT_IN_SYSTEM_INSTRUCTIONS = [
@@ -253,6 +258,9 @@ const isCreatePulseActivationMode = (value: string): value is CreatePulseActivat
 const isCreatePulseOutputMode = (value: string): value is CreatePulseOutputMode =>
   value === "chat_reply" || value === "apply_prompt";
 
+const isCreatePulsePublicationStatus = (value: string): value is CreatePulsePublicationStatus =>
+  value === "published" || value === "draft";
+
 const buildCreatePulseBuiltInPresetIdIndex = (
   builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[]
 ) => new Map(builtInDefinitions.map((definition, index) => [definition.presetId, index] as const));
@@ -311,6 +319,10 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { outputMode?: unknown }).outputMode === "string"
       ? (value as { outputMode: string }).outputMode.trim()
       : "";
+  const publicationStatusRaw =
+    typeof (value as { publicationStatus?: unknown }).publicationStatus === "string"
+      ? (value as { publicationStatus: string }).publicationStatus.trim()
+      : "";
   const pulseKind = isCreatePulsePresetKind(pulseKindRaw)
     ? pulseKindRaw
     : CREATE_PULSE_BUILT_IN_KIND;
@@ -345,6 +357,9 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
       ? artifactTargetRaw
       : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
+    publicationStatus: isCreatePulsePublicationStatus(publicationStatusRaw)
+      ? publicationStatusRaw
+      : "published",
   });
 };
 
@@ -369,6 +384,13 @@ export const resolveCreatePulseBuiltInPresetDefinitions = (
   Array.isArray(builtInDefinitions)
     ? normalizeCreatePulseBuiltInPresetDefinitions(builtInDefinitions)
     : [...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS];
+
+export const filterPublishedCreatePulseBuiltInPresetDefinitions = (
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulseBuiltInPresetDefinition[] =>
+  resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions).filter(
+    (definition) => definition.publicationStatus !== "draft"
+  );
 
 const normalizeCreatePulseSavedPresetRecord = (
   value: unknown,

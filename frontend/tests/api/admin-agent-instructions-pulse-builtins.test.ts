@@ -169,6 +169,7 @@ describe("admin pulse built-ins API", () => {
       outputMode: "chat_reply",
       memoryPolicy: "session",
       schemaVersion: 2,
+      publicationStatus: "published",
     };
     saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
       builtInDefinitions: [inferredPromptModifierDefinition],
@@ -287,6 +288,7 @@ describe("admin pulse built-ins API", () => {
       outputMode: "chat_reply",
       memoryPolicy: "session",
       schemaVersion: 2,
+      publicationStatus: "published",
     };
     saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
       builtInDefinitions: [inferredDefinition],
@@ -317,6 +319,60 @@ describe("admin pulse built-ins API", () => {
       actorEmail: "admin@example.com",
     });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("persists admin draft built-in Pulses without publishing them", async () => {
+    const draftDefinition: CreatePulseBuiltInPresetDefinition = {
+      ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+      publicationStatus: "draft",
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [draftDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [draftDefinition],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [draftDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("rejects invalid Pulse publication statuses", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+            publicationStatus: "archived",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Pulse "image" publication status must be "published" or "draft".',
+    });
   });
 
   it("rejects non-guided built-in Pulse runtime contracts", async () => {

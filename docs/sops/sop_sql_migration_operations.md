@@ -73,7 +73,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/205_add_bulk_credit_grant_summary_rpc.sql`: add the service-role-only set-based grant-lot summary RPC used by admin surfaces to avoid per-user RPC fanout.
 - `sql/migrations/206_repair_prompt_modifier_starter.sql`: repair legacy Prompt Modifier built-in rows that are missing the required starter message.
 - `sql/migrations/207_exclude_unpaid_from_paid_access_statuses.sql`: exclude Stripe `unpaid` subscriptions from paid-access and current storage-add-on status sets while keeping `past_due` as the recovery grace state.
-- `sql/migrations/208_repair_model_pricing_policy_version_sequence.sql`: repair model-pricing policy-version identity sequence drift that can block `/admin/pricing` saves with duplicate primary keys.
+- `sql/migrations/208_repair_model_pricing_policy_version_sequence.sql`: repair model-pricing policy-version and event identity sequence drift that can block `/admin/pricing` saves with duplicate primary keys.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.

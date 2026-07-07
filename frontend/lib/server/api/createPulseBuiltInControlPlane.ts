@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+  filterPublishedCreatePulseBuiltInPresetDefinitions,
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../model-runtime/createPulseBuiltIns";
@@ -125,7 +126,7 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
 
   const resolvedCatalog = await resolveControlPlaneCatalogForAdmin({
     fetchActiveCatalog: () => fetchActiveCreatePulseBuiltInCatalog({ supabaseAdmin }),
-    buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogResolution,
+    buildControlPlaneResolution: buildControlPlaneCreatePulseBuiltInCatalogAdminResolution,
     buildSeedResolution: (degraded) =>
       runtimeBuiltInCatalogCache.current
         ? buildDegradedCreatePulseBuiltInCatalogResolutionFromPrevious(
@@ -133,7 +134,12 @@ export const resolveCreatePulseBuiltInCatalogForAdmin = async ({
           )
         : buildSeedCreatePulseBuiltInCatalogResolution(degraded),
   });
-  rememberCreatePulseBuiltInCatalogResolution(resolvedCatalog);
+  rememberCreatePulseBuiltInCatalogResolution({
+    ...resolvedCatalog,
+    builtInDefinitions: filterPublishedCreatePulseBuiltInPresetDefinitions(
+      resolvedCatalog.builtInDefinitions
+    ),
+  });
   return resolvedCatalog;
 };
 
@@ -187,6 +193,18 @@ export const saveCreatePulseBuiltInCatalog = async ({
 const buildControlPlaneCreatePulseBuiltInCatalogResolution = (
   activeCatalog: ActiveCreatePulseBuiltInCatalog
 ): RuntimeCreatePulseBuiltInCatalogResolution => ({
+  builtInDefinitions: filterPublishedCreatePulseBuiltInPresetDefinitions(
+    activeCatalog.builtInDefinitions
+  ),
+  updatedAt: activeCatalog.updatedAt,
+  updatedByEmail: activeCatalog.updatedByEmail,
+  source: "control_plane",
+  degraded: false,
+});
+
+const buildControlPlaneCreatePulseBuiltInCatalogAdminResolution = (
+  activeCatalog: ActiveCreatePulseBuiltInCatalog
+): RuntimeCreatePulseBuiltInCatalogAdminResolution => ({
   builtInDefinitions: activeCatalog.builtInDefinitions,
   updatedAt: activeCatalog.updatedAt,
   updatedByEmail: activeCatalog.updatedByEmail,

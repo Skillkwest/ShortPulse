@@ -12,6 +12,7 @@ import {
   isValidCreatePulseBuiltInPresetId,
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseArtifactTarget,
+  type CreatePulsePublicationStatus,
 } from "../../../../lib/model-runtime/createPulseBuiltIns";
 
 const VALID_ARTIFACT_TARGETS: ReadonlySet<string> = new Set([
@@ -25,6 +26,9 @@ const readTrimmedString = (record: Record<string, unknown>, key: string): string
   const value = record[key];
   return typeof value === "string" ? value.trim() : "";
 };
+
+const isCreatePulsePublicationStatus = (value: string): value is CreatePulsePublicationStatus =>
+  value === "published" || value === "draft";
 
 const createSafePulsePresetId = (label: string): string =>
   label
@@ -144,6 +148,13 @@ const normalizeAdminBuiltInDefinitionRecord = (
   if (suppliedArtifactTarget && !VALID_ARTIFACT_TARGETS.has(suppliedArtifactTarget)) {
     return { ok: false, message: `Pulse "${presetId}" needs a valid artifact target.` };
   }
+  const suppliedPublicationStatus = readTrimmedString(record, "publicationStatus");
+  if (suppliedPublicationStatus && !isCreatePulsePublicationStatus(suppliedPublicationStatus)) {
+    return {
+      ok: false,
+      message: `Pulse "${presetId}" publication status must be "published" or "draft".`,
+    };
+  }
 
   return {
     ok: true,
@@ -162,6 +173,7 @@ const normalizeAdminBuiltInDefinitionRecord = (
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
+      publicationStatus: suppliedPublicationStatus || "published",
     },
   };
 };

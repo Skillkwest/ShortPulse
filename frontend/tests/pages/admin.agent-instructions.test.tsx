@@ -300,6 +300,7 @@ describe("Admin agent instructions page", () => {
       presetId: "image",
       title: "Global Prompt Director",
       prompt: "Draft pulse instructions.",
+      publicationStatus: "published",
     });
 
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
@@ -376,6 +377,7 @@ describe("Admin agent instructions page", () => {
     expect(payload.builtInDefinitions[3]).toMatchObject({
       title: "Prompt Modifier",
       prompt: "Ask for the source prompt, then return a cleaner version.",
+      publicationStatus: "published",
     });
   }, 10_000);
 
@@ -639,12 +641,83 @@ describe("Admin agent instructions page", () => {
     expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
     expect(payload.builtInDefinitions[0]?.title).toBe("Global Prompt Director");
     expect(payload.builtInDefinitions[1]?.title).toBe("Multi Sequence Video Prompt");
+    expect(payload.builtInDefinitions[0]?.publicationStatus).toBe("published");
+    expect(payload.builtInDefinitions[1]?.publicationStatus).toBe("published");
 
     expect(within(firstCard).getByText("Stored")).toBeInTheDocument();
     expect(within(secondCard).getByText("Unsaved edits")).toBeInTheDocument();
     expect(within(secondCard).getByRole("textbox", { name: "Title" })).toHaveValue(
       "Do Not Publish Yet"
     );
+  });
+
+  it("marks a stored built-in Pulse as an admin draft before saving", async () => {
+    fetchWithAuthMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          if (init?.method === "PUT") {
+            return buildCatalogResponse([
+              {
+                ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+                publicationStatus: "draft",
+              },
+              ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS.slice(1),
+            ]);
+          }
+          return buildCatalogResponse();
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
+    if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
+    fireEvent.click(
+      within(pulseCard).getByRole("checkbox", {
+        name: "Keep Video Prompt Magic in admin as a draft",
+      })
+    );
+    expect(within(pulseCard).getByText("Admin draft")).toBeInTheDocument();
+
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/pulse-builtins",
+        expect.objectContaining({
+          method: "PUT",
+        })
+      );
+    });
+
+    const saveRequest = fetchWithAuthMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
+    );
+    const payload = JSON.parse(String(saveRequest?.[1]?.body)) as {
+      builtInDefinitions: Array<Record<string, unknown>>;
+    };
+
+    expect(payload.builtInDefinitions[0]).toMatchObject({
+      presetId: "image",
+      title: "Video Prompt Magic",
+      publicationStatus: "draft",
+    });
   });
 
   it("blocks global Pulse set saves while a new slot is blank or incomplete", async () => {

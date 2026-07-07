@@ -39,6 +39,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Ledger insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Credit grant-lot migration: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
 - Credit grant-lot reservation ambiguity hotfix: `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`.
+- Credit grant-lot credit RPC ambiguity hotfix: `sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql`.
 - Credit expiration scheduler: `sql/configure_credit_expiration_scheduler_supabase.sql`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
@@ -109,16 +110,17 @@ Legacy `ref_id`-only ledger deployments are not supported by generation or admin
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
 10. Run `sql/migrations/200_add_credit_grant_lot_expiration.sql` before enabling subscription rollover/expiration behavior.
 11. Run `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql` after migration 200 so grant-lot reservation and settlement RPCs retain `#variable_conflict use_column`.
-12. Confirm `sql/check_runtime_sql_security_audit.sql` reports the retired `reserve_generation_credits(...)` RPC absent, the grant-aware RPCs executable only by `service_role`, and the reservation RPC ambiguity guards present.
-13. Apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after the migration is present and the target Vault URL points at `/api/internal/credit-expirations/run`.
-14. Run `sql/audit_billing_credit_rls.sql` and confirm no failing billing/credit integrity rows.
-15. Verify admin credit adjustment in `/admin` succeeds.
-16. Verify Fal/Kie reservation submit paths no longer return ambiguous SQL errors:
+12. Run `sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql` after migration 200 so grant-lot credit RPCs retain `#variable_conflict use_column`.
+13. Confirm `sql/check_runtime_sql_security_audit.sql` reports the retired `reserve_generation_credits(...)` RPC absent, the grant-aware RPCs executable only by `service_role`, and the grant-lot credit/reservation RPC ambiguity guards present.
+14. Apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after the migration is present and the target Vault URL points at `/api/internal/credit-expirations/run`.
+15. Run `sql/audit_billing_credit_rls.sql` and confirm no failing billing/credit integrity rows.
+16. Verify admin credit adjustment in `/admin` succeeds.
+17. Verify Fal/Kie reservation submit paths no longer return ambiguous SQL errors:
 
 - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
 - Confirm `/api/fal/kie-seedance-2-submit` does not return `GENERATION_ADMISSION_UNAVAILABLE` with `reservation_rpc_ambiguous_column`.
 
-17. Verify reservation RPC hardening checks are present in staged function bodies and grants:
+18. Verify grant-lot RPC hardening checks are present in staged function bodies and grants:
 
 - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
 - explicit `revoke ... from public, anon, authenticated`
@@ -453,22 +455,33 @@ limit 20;
 
 ## Stripe webhook replay runbook (failed-first recovery)
 
-Use this when a Stripe webhook was accepted into `stripe_event_log` but side effects (credit grant or subscription state update) may not have completed.
+Use this when a Stripe webhook failed or was accepted into `stripe_event_log` but side effects (credit grant or subscription state update) may not have completed. Fix the webhook/RPC source problem first, then replay the Stripe event; do not repair missed Stripe-owned subscription credits with an unrelated manual admin adjustment unless a separate reviewed billing exception is approved.
 
 1. Identify impacted event(s) from logs or Stripe Dashboard (`event.id`, `event.type`, `created`).
 2. Verify ingestion and current side effects in Supabase:
 
 ```sql
--- Event claim existence
+-- Event claim existence. This row can be absent when the webhook released
+-- the claim for retry after a failed side effect.
 select id, event_type, received_at
 from stripe_event_log
 where id = '<stripe_event_id>';
 
--- Checkout grant idempotency target
+-- One-time Checkout/top-up grant idempotency target.
 select user_id, source, source_ref, change_cents, created_at
 from ai_credit_ledger
 where source_ref = '<stripe_event_id>'
 order by created_at desc;
+
+-- Subscription monthly allocation idempotency target for invoice events.
+-- The source_ref is invoice-based when Stripe provides an invoice id:
+-- invoice:<stripe_invoice_id>:monthly_allocation
+select l.user_id, l.source, l.source_ref, l.change_cents, l.created_at, g.id as grant_id, g.credit_kind, g.expires_at
+from ai_credit_ledger l
+left join ai_credit_grants g on g.ledger_id = l.id
+where l.source = 'subscription_renewal'
+  and l.source_ref = 'invoice:<stripe_invoice_id>:monthly_allocation'
+order by l.created_at desc;
 
 -- Subscription profile state (for subscription/invoice events)
 select user_id, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, updated_at
@@ -489,6 +502,7 @@ order by created_at desc;
    - Webhook response is `200`.
    - Duplicate replays are safe (`duplicate: true` can appear) and must not create duplicate ledger rows.
    - `ai_credit_ledger` remains unique on `(user_id, source, source_ref)`.
+   - Subscription invoice grants create exactly one `subscription_renewal` ledger row and one `subscription_allocation` grant lot with the expected `monthly_credits_cents` amount and 60-day expiry.
    - Subscription/profile state reflects latest expected status for subscription events.
 5. If replay still fails:
    - Inspect server logs for route `billing/stripe/webhook`.

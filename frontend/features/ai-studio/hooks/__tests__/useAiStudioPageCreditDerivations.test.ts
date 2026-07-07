@@ -70,6 +70,38 @@ describe("useAiStudioPageCreditDerivations", () => {
     expect(result.current.effectiveBalanceCredits).toBe(1);
   });
 
+  it("continues subtracting optimistic holds when the spendable snapshot still covers them", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageCreditDerivations({
+        optimisticDebitEntries: [{ credits: 7, outputId: "out-1" }],
+        inFlightOutputIds: new Set(["out-1"]),
+        balanceReservedCents: 0,
+        balanceCredits: 8,
+        referenceGridPreconnectHintsEnabled: false,
+      })
+    );
+
+    expect(result.current.optimisticUncoveredDebitCredits).toBe(7);
+    expect(result.current.pendingHoldCredits).toBe(7);
+    expect(result.current.effectiveBalanceCredits).toBe(1);
+  });
+
+  it("preserves low settled balances when a stale optimistic hold is larger than the snapshot", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageCreditDerivations({
+        optimisticDebitEntries: [{ credits: 7, outputId: "out-1" }],
+        inFlightOutputIds: new Set(["out-1"]),
+        balanceReservedCents: 0,
+        balanceCredits: 3,
+        referenceGridPreconnectHintsEnabled: false,
+      })
+    );
+
+    expect(result.current.optimisticUncoveredDebitCredits).toBe(7);
+    expect(result.current.pendingHoldCredits).toBe(7);
+    expect(result.current.effectiveBalanceCredits).toBe(3);
+  });
+
   it("derives the preconnect origin only when enabled and the Supabase URL is valid", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co/storage/v1");
 

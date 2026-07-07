@@ -45,6 +45,9 @@ export const useAiStudioPageCreditDerivations = ({
 
   const effectiveBalanceCredits = useMemo(() => {
     if (balanceCredits == null) return null;
+    // If the server spendable snapshot is already below the local optimistic hold,
+    // the snapshot has likely caught up to the debit/reservation. Do not subtract
+    // the same in-flight generation again in the header balance.
     const safeOptimisticHoldCredits =
       optimisticUncoveredDebitCredits > balanceCredits ? 0 : optimisticUncoveredDebitCredits;
     return Math.max(0, balanceCredits - safeOptimisticHoldCredits);

@@ -11,6 +11,10 @@ const reservationAmbiguityHotfixPath = path.join(
   repoRoot,
   "sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql"
 );
+const creditRpcAmbiguityHotfixPath = path.join(
+  repoRoot,
+  "sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql"
+);
 const auditPath = path.join(repoRoot, "sql/audit_billing_credit_rls.sql");
 const schedulerConfigurePath = path.join(
   repoRoot,
@@ -102,7 +106,29 @@ describe("credit grant-lot SQL scripts", () => {
     expect(hotfixSql).toContain("pg_get_functiondef(to_regprocedure(target_function.signature))");
     expect(runtimeAuditSql).toContain("variable_conflict_use_column");
     expect(runtimeAuditSql).toContain(
-      "reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity"
+      "grant-lot credit/reservation RPCs must prefer column names to avoid PL/pgSQL ambiguity"
+    );
+
+    for (const signature of protectedSignatures) {
+      expect(hotfixSql).toContain(signature);
+      expect(runtimeAuditSql).toContain(signature);
+    }
+  });
+
+  it("guards grant-lot credit RPCs against ledger output-name ambiguity", () => {
+    const hotfixSql = fs.readFileSync(creditRpcAmbiguityHotfixPath, "utf8");
+    const runtimeAuditSql = fs.readFileSync(runtimeSecurityAuditPath, "utf8");
+    const protectedSignatures = [
+      "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
+      "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",
+      "public.get_credit_grant_summary(uuid)",
+      "public.expire_credit_grants(integer)",
+    ];
+
+    expect(hotfixSql).toContain("#variable_conflict use_column");
+    expect(hotfixSql).toContain("pg_get_functiondef(to_regprocedure(target_function.signature))");
+    expect(runtimeAuditSql).toContain(
+      "grant-lot credit/reservation RPCs must prefer column names to avoid PL/pgSQL ambiguity"
     );
 
     for (const signature of protectedSignatures) {

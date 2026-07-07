@@ -218,7 +218,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 87. `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`
 88. `sql/migrations/088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`
 
-Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expiration.sql` after the ordered baseline set when enabling 60-day expiring subscription credit lots, non-expiring paid top-up lots, and grant-aware reservation/debit allocation. Scheduler enablement remains separate: apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after migration 200 is present, the Vault URL targets `/api/internal/credit-expirations/run`, and `sql/audit_billing_credit_rls.sql` plus `sql/check_control_plane_scheduler_health.sql` produce clean target-environment proof.
+Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expiration.sql`, `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`, and `sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql` after the ordered baseline set when enabling 60-day expiring subscription credit lots, non-expiring paid top-up lots, and grant-aware reservation/debit allocation. Scheduler enablement remains separate: apply `sql/configure_credit_expiration_scheduler_supabase.sql` only after migration 200 is present, the Vault URL targets `/api/internal/credit-expirations/run`, and `sql/audit_billing_credit_rls.sql` plus `sql/check_control_plane_scheduler_health.sql` produce clean target-environment proof.
 
 89. `sql/migrations/089_add_projects_foundation.sql`
 90. `sql/migrations/090_add_user_preferences_ai_studio_style_panel_ids.sql`
@@ -334,6 +334,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 200.  `sql/migrations/201_harden_paid_media_library_access_contract_authority.sql`
 201.  `sql/migrations/202_harden_credit_grant_lot_reservation_ambiguity.sql`
 202.  `sql/migrations/203_add_hybervees_tester_report_review.sql`
+203.  `sql/migrations/204_harden_credit_grant_lot_credit_rpc_ambiguity.sql`
       Rollback files:
 
 
@@ -582,6 +583,7 @@ Billing safety note:
 - Migration `201_harden_paid_media_library_access_contract_authority.sql` hardens `user_has_paid_media_library_access(uuid)` so Media Library and Reference Grid inserts trust only a current non-free `billing_subscription_contracts` row; `billing_profiles` remains a projection and profile-only paid state is drift to repair. Hosted apply remains a separate approved Supabase operation.
 - Migration `202_harden_credit_grant_lot_reservation_ambiguity.sql` hardens grant-lot reservation RPC ambiguity without changing customer-facing billing policy. Hosted apply remains a separate approved Supabase operation.
 - Migration `203_add_hybervees_tester_report_review.sql` adds Hybervees review metadata to `tester_report_runs` so `/admin/tester-reports` can show whether an insight review happened without changing the tester-run result status. Hosted apply remains a separate approved Supabase operation.
+- Migration `204_harden_credit_grant_lot_credit_rpc_ambiguity.sql` hardens grant-lot credit RPC ambiguity without changing customer-facing billing policy. Hosted apply remains a separate approved Supabase operation.
 - Migration `175_enforce_storage_addon_no_stack.sql` updates base plan storage to `0/5/25/75/150 GB`, refreshes recurring storage add-on metadata to `10/50/100/250 GB` self-serve plus `500 GB` manual review, closes old public storage add-on offers until matching Stripe Prices are activated, clamps add-on quota math to one unit, and adds the database guard for one current billable recurring storage add-on per user with quantity exactly one; run `sql/check_billing_storage_addon_no_stack_drift.sql` before applying it.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

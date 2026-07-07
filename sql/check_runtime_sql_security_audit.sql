@@ -313,6 +313,10 @@ expected_variable_conflict_functions as (
     select *
     from (
         values
+            ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)'::text),
+            ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)'::text),
+            ('public.get_credit_grant_summary(uuid)'::text),
+            ('public.expire_credit_grants(integer)'::text),
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),
             ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text),
@@ -331,7 +335,7 @@ function_body_checks(signature, check_name, check_pass, detail) as (
                 in lower(pg_get_functiondef(to_regprocedure(f.signature)))
             ) > 0
         end as check_pass,
-        'reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
+        'grant-lot credit/reservation RPCs must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
     from expected_variable_conflict_functions f
 ),
 all_checks as (
@@ -663,6 +667,10 @@ expected_variable_conflict_functions as (
     select *
     from (
         values
+            ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)'::text),
+            ('public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)'::text),
+            ('public.get_credit_grant_summary(uuid)'::text),
+            ('public.expire_credit_grants(integer)'::text),
             ('public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)'::text),
             ('public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)'::text),
             ('public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)'::text),
@@ -681,7 +689,7 @@ function_body_checks(signature, check_name, check_pass, detail) as (
                 in lower(pg_get_functiondef(to_regprocedure(f.signature)))
             ) > 0
         end as check_pass,
-        'reservation RPCs returning source_ref must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
+        'grant-lot credit/reservation RPCs must prefer column names to avoid PL/pgSQL ambiguity'::text as detail
     from expected_variable_conflict_functions f
 ),
 all_checks as (

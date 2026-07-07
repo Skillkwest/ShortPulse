@@ -121,4 +121,28 @@ describe("check_runtime_sql_security_audit.sql", () => {
     expect(sql).toContain("count(*) filter (where check_pass)::integer as passing_checks");
     expect(sql).toContain("count(*) filter (where not check_pass)::integer as failing_checks");
   });
+
+  it("requires PL/pgSQL ambiguity guards on grant-lot credit and reservation RPCs", () => {
+    const sql = fs.readFileSync(auditScriptPath, "utf8");
+    const guardedSignatures = [
+      "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
+      "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",
+      "public.get_credit_grant_summary(uuid)",
+      "public.expire_credit_grants(integer)",
+      "public.admit_and_reserve_generation_credits(uuid,text,text,integer,text,jsonb,text,integer,text,integer,integer)",
+      "public.release_generation_reservation_by_source_ref(uuid,text,text,jsonb)",
+      "public.release_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+      "public.release_generation_reservation_by_id(uuid,text,jsonb)",
+      "public.capture_generation_reservation_by_provider_request(uuid,text,text,jsonb)",
+    ];
+
+    expect(sql).toContain("expected_variable_conflict_functions as (");
+    expect(sql).toContain("'variable_conflict_use_column'::text as check_name");
+    expect(sql).toContain(
+      "grant-lot credit/reservation RPCs must prefer column names to avoid PL/pgSQL ambiguity"
+    );
+    for (const signature of guardedSignatures) {
+      expect(sql).toContain(signature);
+    }
+  });
 });

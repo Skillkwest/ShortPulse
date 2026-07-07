@@ -6,6 +6,7 @@
 const NEXT_STATIC_CHUNK_PATTERN =
   /(?:https?:\/\/[^\s"')]+)?(\/_next\/static\/chunks\/[^\s"')]+?\.js)(?:\?[^\s"')]+)?/;
 const NEXT_ROUTE_LOAD_TIMEOUT_PATTERN = /^Route did not complete loading:\s*(\/\S*)/i;
+const NEXT_OUTDATED_DEPLOYMENT_PATTERN = /loaded static props were from an outdated deployment/i;
 
 /**
  * Extracts a normalized message from an unknown chunk-load error payload.
@@ -46,6 +47,14 @@ export const extractFailedNextChunk = (value: string): string | null => {
  */
 export const hasNextRouteLoadTimeoutText = (value: string): boolean => {
   return NEXT_ROUTE_LOAD_TIMEOUT_PATTERN.test(value.trim());
+};
+
+/**
+ * Detects the expected Next.js deploy-skew recovery where the router hard
+ * reloads because static props came from a different deployment id.
+ */
+export const hasNextOutdatedDeploymentText = (value: string): boolean => {
+  return NEXT_OUTDATED_DEPLOYMENT_PATTERN.test(value.trim());
 };
 
 /**

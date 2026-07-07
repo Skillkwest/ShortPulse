@@ -17,7 +17,7 @@ describe("ProfileStorageSection", () => {
             stripeSubscriptionItemId: "si_123",
             storageLimitBytes: 100 * 1024 * 1024 * 1024,
             quantity: 1,
-            recurringPriceCents: 5900,
+            recurringPriceCents: 2000,
             status: "active",
           },
         ]}
@@ -31,14 +31,14 @@ describe("ProfileStorageSection", () => {
             id: "storage_100gb",
             display_name: "100 GB add-on",
             storage_limit_bytes: 100 * 1024 * 1024 * 1024,
-            monthly_price_cents: 5900,
+            monthly_price_cents: 2000,
             sort_order: 1,
           },
           {
             id: "storage_250gb",
             display_name: "250 GB add-on",
             storage_limit_bytes: 250 * 1024 * 1024 * 1024,
-            monthly_price_cents: 14900,
+            monthly_price_cents: 3000,
             sort_order: 2,
           },
         ]}
@@ -52,15 +52,16 @@ describe("ProfileStorageSection", () => {
     );
 
     expect(screen.getAllByText("100 GB add-on").length).toBeGreaterThan(0);
-    expect(screen.getByText("$59.00")).toBeInTheDocument();
+    expect(screen.getByText("$20.00")).toBeInTheDocument();
     expect(screen.getByText("Active add-on")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
     expect(
       screen.getByText("You can keep one recurring storage add-on active at a time.")
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove current add-on first" })).toBeDisabled();
+    expect(screen.getByText("Replaces your current recurring storage add-on")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch to 250 GB" })).toBeEnabled();
     expect(
-      screen.getByText("Need 500 GB or more? Contact support for a storage review.")
+      screen.getByText("Need more than 1 TB? Contact support for a storage review.")
     ).toBeInTheDocument();
   });
 
@@ -78,17 +79,17 @@ describe("ProfileStorageSection", () => {
         storageAddonManagementState="eligible"
         storageAddons={[
           {
-            id: "storage_10gb",
-            display_name: "Extra 10 GB",
-            storage_limit_bytes: 10 * 1024 * 1024 * 1024,
-            monthly_price_cents: 700,
-            sort_order: 1,
-          },
-          {
             id: "storage_50gb",
             display_name: "Extra 50 GB",
             storage_limit_bytes: 50 * 1024 * 1024 * 1024,
-            monthly_price_cents: 2900,
+            monthly_price_cents: 1000,
+            sort_order: 1,
+          },
+          {
+            id: "storage_100gb",
+            display_name: "Extra 100 GB",
+            storage_limit_bytes: 100 * 1024 * 1024 * 1024,
+            monthly_price_cents: 2000,
             sort_order: 2,
           },
         ]}
@@ -101,8 +102,8 @@ describe("ProfileStorageSection", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Add 10 GB" })).toBeEnabled();
-    expect(screen.getByText("Extra 50 GB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add 50 GB" })).toBeEnabled();
+    expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
     expect(screen.getByText("Available on Media plan and above")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Requires Media plan" })).toBeDisabled();
   });

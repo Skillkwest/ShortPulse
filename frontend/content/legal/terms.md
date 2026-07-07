@@ -1,6 +1,6 @@
 # ShortPulse Terms of Service
 
-Last updated: June 21, 2026
+Last updated: July 7, 2026
 
 These Terms of Service ("Terms") govern your access to and use of ShortPulse, including our websites, applications, AI Studio tools, media library, project workspace, billing features, support features, and related services (collectively, the "Service").
 
@@ -8,16 +8,11 @@ By creating an account, subscribing, buying credits, uploading media, generating
 
 ## 1. Who We Are
 
-"ShortPulse," "we," "us," and "our" refer to ShortPulse, the operator of the Service.
+"ShortPulse," "we," "us," and "our" refer to Arc Creative Enterprises LLC, doing business as ShortPulse, the operator of the Service.
 
 Contact:
 
-- Support: support@shortpulse.ai
-- Billing: billing@shortpulse.ai
-- Privacy: privacy@shortpulse.ai
-- Legal notices: legal@shortpulse.ai
-- Copyright notices: copyright@shortpulse.ai
-- Safety and abuse reports: safety@shortpulse.ai
+- Support, billing, privacy, legal notices, copyright notices, and safety or abuse reports: service@shortpulse.co
 
 ## 2. Eligibility
 
@@ -160,7 +155,7 @@ If you send us feedback, suggestions, bug reports, ideas, feature requests, or o
 
 ## 16. Copyright And Rights Takedown Requests
 
-If you believe content in ShortPulse infringes your copyright or other rights, contact us at copyright@shortpulse.ai with enough information for us to review the request.
+If you believe content in ShortPulse infringes your copyright or other rights, contact us at service@shortpulse.co with enough information for us to review the request.
 
 Copyright notices should include:
 
@@ -181,15 +176,15 @@ Counter-notices should include:
 
 ShortPulse's copyright intake contact is:
 
-ShortPulse Copyright Agent
+Arc Creative Enterprises LLC copyright intake
 
-copyright@shortpulse.ai
+service@shortpulse.co
 
 DMCA safe-harbor protection requires a qualifying service provider to publish designated-agent contact information and register the same agent information with the U.S. Copyright Office's online DMCA Designated Agent Directory. This Terms page provides ShortPulse's copyright intake path, but ShortPulse should not claim registered DMCA safe-harbor status until the operator completes and maintains the Copyright Office registration.
 
 We may remove or disable access to material alleged to infringe rights, notify the affected user where appropriate, process counter-notices where legally required, terminate repeat infringers, and preserve records needed for legal compliance, safety, fraud prevention, or dispute handling.
 
-You may also report non-consensual intimate imagery, child-safety concerns, impersonation, privacy violations, or other abuse at safety@shortpulse.ai.
+You may also report non-consensual intimate imagery, child-safety concerns, impersonation, privacy violations, or other abuse at service@shortpulse.co.
 
 ## 17. Disclaimers
 
@@ -236,4 +231,4 @@ Your continued use of ShortPulse after updated Terms become effective means you 
 
 ## 22. Contact
 
-Questions about these Terms should be sent to legal@shortpulse.ai or support@shortpulse.ai.
+Questions about these Terms should be sent to service@shortpulse.co.

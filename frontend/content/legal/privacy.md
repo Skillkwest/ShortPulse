@@ -1,10 +1,10 @@
 # ShortPulse Privacy Policy
 
-Last updated: June 21, 2026
+Last updated: July 7, 2026
 
 This Privacy Policy explains how ShortPulse collects, uses, shares, retains, and protects information when you use our websites, applications, AI Studio tools, media library, billing features, profile features, support channels, and related services (collectively, the "Service").
 
-"ShortPulse," "we," "us," and "our" mean ShortPulse, the operator of the Service.
+"ShortPulse," "we," "us," and "our" mean Arc Creative Enterprises LLC, doing business as ShortPulse, the operator of the Service.
 
 This Privacy Policy applies to ShortPulse's processing of personal information. It does not replace our Terms of Service, Refund Policy, media-rights requirements, provider terms, or any separate agreement that expressly applies to a specific feature or business relationship.
 
@@ -155,7 +155,7 @@ No online service, AI provider, payment processor, storage system, or transmissi
 
 ShortPulse is intended for users who are at least 18 years old. ShortPulse is not intended for children.
 
-We do not knowingly collect personal information from children under 13. If you believe a child has provided personal information to ShortPulse, contact us at privacy@shortpulse.ai so we can review and respond.
+We do not knowingly collect personal information from children under 13. If you believe a child has provided personal information to ShortPulse, contact us at service@shortpulse.co so we can review and respond.
 
 ## 10. Your Choices And Privacy Rights
 
@@ -163,11 +163,11 @@ Depending on where you live, you may have rights to request access to, correctio
 
 You can use product controls to update some account information, manage billing, cancel subscriptions, delete certain media or projects, or change workspace settings.
 
-To make a privacy request, contact privacy@shortpulse.ai. You may also contact support@shortpulse.ai if you cannot access the privacy address. We may need to verify your identity and account before responding. We will not discriminate against you for exercising privacy rights where applicable law prohibits discrimination.
+To make a privacy request, contact service@shortpulse.co. We may need to verify your identity and account before responding. We will not discriminate against you for exercising privacy rights where applicable law prohibits discrimination.
 
 Some information may be exempt from deletion or access requests, including records we need for security, fraud prevention, legal compliance, billing, tax, accounting, dispute resolution, service integrity, backup recovery, rights enforcement, or safety response.
 
-If applicable law requires an appeal process and we deny your privacy request, you may appeal by replying to our decision email or contacting privacy@shortpulse.ai with "Privacy Appeal" in the subject line.
+If applicable law requires an appeal process and we deny your privacy request, you may appeal by replying to our decision email or contacting service@shortpulse.co with "Privacy Appeal" in the subject line.
 
 ## 11. California Privacy Notice
 
@@ -189,7 +189,7 @@ We may disclose these categories to the provider categories described in Section
 
 ShortPulse does not sell personal information for money and is not currently designed to sell or share personal information for cross-context behavioral advertising. If that changes, we will update this policy and provide any required "Do Not Sell or Share My Personal Information" link, global privacy control handling, or related notice.
 
-California residents may have rights to know/access, delete, correct, opt out of sale/share, limit certain sensitive personal information uses, and non-discrimination, subject to legal exceptions. If ShortPulse is an online-only business and applicable law allows email-only intake, privacy@shortpulse.ai is the designated request method. If additional intake methods become required, ShortPulse will update this policy and the public privacy controls.
+California residents may have rights to know/access, delete, correct, opt out of sale/share, limit certain sensitive personal information uses, and non-discrimination, subject to legal exceptions. If ShortPulse is an online-only business and applicable law allows email-only intake, service@shortpulse.co is the designated request method. If additional intake methods become required, ShortPulse will update this policy and the public privacy controls.
 
 ## 12. Other U.S. State Privacy Rights
 
@@ -217,4 +217,4 @@ We may update this Privacy Policy from time to time. If we make material changes
 
 ## 16. Contact
 
-Questions or privacy requests should be sent to privacy@shortpulse.ai or support@shortpulse.ai.
+Questions or privacy requests should be sent to service@shortpulse.co.

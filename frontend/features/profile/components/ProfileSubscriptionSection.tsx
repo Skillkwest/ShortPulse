@@ -28,6 +28,12 @@ import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
+type PendingStorageCarryoverUpgrade = {
+  planId: string;
+  planDisplayName: string;
+  billingInterval: BillingInterval;
+};
+
 const formatHeroConcurrentGenerationsValue = (value: number, planId: string): string => {
   const normalizedValue = Math.max(0, Math.round(value));
   if (planId === "starter") {
@@ -87,6 +93,8 @@ export function ProfileSubscriptionSection({
   const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>(
     currentSubscriptionBillingInterval
   );
+  const [pendingStorageCarryoverUpgrade, setPendingStorageCarryoverUpgrade] =
+    useState<PendingStorageCarryoverUpgrade | null>(null);
   const visibleBillingPlans = useMemo(
     () => filterPublicSubscriptionPlans(billingPlans),
     [billingPlans]
@@ -126,6 +134,10 @@ export function ProfileSubscriptionSection({
   useEffect(() => {
     setSelectedBillingInterval(currentSubscriptionBillingInterval);
   }, [currentSubscriptionBillingInterval]);
+
+  useEffect(() => {
+    setPendingStorageCarryoverUpgrade(null);
+  }, [selectedBillingInterval, currentSubscriptionBillingInterval, activeAddonStorageBytes]);
 
   return (
     <>
@@ -238,6 +250,28 @@ export function ProfileSubscriptionSection({
                   selectedBillingInterval === "year"
                     ? "Upgrade to annual billing"
                     : "Downgrade to monthly billing";
+                const requiresStorageCarryoverConfirmation =
+                  activeAddonStorageBytes > 0 &&
+                  currentSubscriptionPriceCents > 0 &&
+                  !isInternalCompContract &&
+                  isHigherTier &&
+                  selectedBillingInterval === currentSubscriptionBillingInterval;
+                const handlePlanChangeClick = () => {
+                  if (requiresStorageCarryoverConfirmation) {
+                    setPendingStorageCarryoverUpgrade({
+                      planId: plan.id,
+                      planDisplayName: planView.displayName,
+                      billingInterval: selectedBillingInterval,
+                    });
+                    return;
+                  }
+                  onRequestPlanChange(plan.id, selectedBillingInterval);
+                };
+                const higherTierLoadingLabel = requiresStorageCarryoverConfirmation
+                  ? "Updating plan..."
+                  : paidPlanLabel
+                    ? "Starting billing flow…"
+                    : "Opening Stripe…";
                 const actionButton = isCurrentBillingInterval ? (
                   <button
                     type="button"
@@ -284,13 +318,11 @@ export function ProfileSubscriptionSection({
                   <button
                     type="button"
                     className={profileClass("profile-button", "primary-btn")}
-                    onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
+                    onClick={handlePlanChangeClick}
                     disabled={isActionLoading}
                   >
                     {isActionLoading
-                      ? paidPlanLabel
-                        ? "Starting billing flow…"
-                        : "Opening Stripe…"
+                      ? higherTierLoadingLabel
                       : paidPlanLabel
                         ? `Choose ${planView.displayName}`
                         : `Upgrade to ${planView.displayName}`}
@@ -329,6 +361,44 @@ export function ProfileSubscriptionSection({
               })
             )}
           </div>
+
+          {pendingStorageCarryoverUpgrade ? (
+            <aside className={profileClass("profile-callout")}>
+              <WarningCircle size={18} />
+              <div>
+                <p className="tiny">
+                  Confirm upgrade to {pendingStorageCarryoverUpgrade.planDisplayName}. Your +
+                  {formatStorageBytes(activeAddonStorageBytes)} recurring storage add-on stays
+                  active.
+                </p>
+                <div className={profileClass("profile-actions")}>
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "primary-btn")}
+                    onClick={() =>
+                      onRequestPlanChange(
+                        pendingStorageCarryoverUpgrade.planId,
+                        pendingStorageCarryoverUpgrade.billingInterval
+                      )
+                    }
+                    disabled={planChangeLoadingPlanId === pendingStorageCarryoverUpgrade.planId}
+                  >
+                    {planChangeLoadingPlanId === pendingStorageCarryoverUpgrade.planId
+                      ? "Updating plan..."
+                      : "Confirm upgrade"}
+                  </button>
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "ghost-btn")}
+                    onClick={() => setPendingStorageCarryoverUpgrade(null)}
+                    disabled={planChangeLoadingPlanId === pendingStorageCarryoverUpgrade.planId}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </aside>
+          ) : null}
         </ProfilePanel>
       )}
 

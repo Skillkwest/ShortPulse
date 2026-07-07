@@ -403,14 +403,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
     }
 
-    if (action === "add" && activeAddonRows.length > 0) {
-      const sameAddonAlreadyActive = targetActiveAddonRows.length > 0;
+    if (action === "add" && targetActiveAddonRows.length > 0) {
       return failStorageAddonMutation(
         409,
-        sameAddonAlreadyActive
-          ? `${addon.display_name} is already active on this workspace.`
-          : STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE,
-        sameAddonAlreadyActive ? "same_addon_active" : "different_addon_active"
+        `${addon.display_name} is already active on this workspace.`,
+        "same_addon_active"
+      );
+    }
+
+    if (action === "add" && activeAddonRows.length > 1) {
+      return failStorageAddonMutation(
+        409,
+        STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE,
+        "multiple_addons_active"
       );
     }
 
@@ -461,17 +466,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const liveStorageAddonItems = liveItems.filter(
         (item) => item.price?.id && storageAddonStripePriceIds.has(item.price.id)
       );
-      if (liveStorageAddonItems.length > 0) {
-        const addonAlreadyLiveInStripe = liveStorageAddonItems.some(
-          (item) => item.price?.id === offer!.stripe_price_id
-        );
+      const currentAddonRow = activeAddonRows.length === 1 ? activeAddonRows[0] : null;
+      const currentAddonLiveItem = currentAddonRow?.stripe_subscription_item_id
+        ? (liveItems.find((item) => item.id === currentAddonRow.stripe_subscription_item_id) ??
+          null)
+        : null;
+      const addonAlreadyLiveInStripe =
+        liveStorageAddonItems.some((item) => item.price?.id === offer!.stripe_price_id) ||
+        currentAddonLiveItem?.price?.id === offer!.stripe_price_id;
+      if (addonAlreadyLiveInStripe) {
         return failStorageAddonMutation(
           409,
-          addonAlreadyLiveInStripe
-            ? `${addon.display_name} is already active on this workspace.`
-            : STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE,
-          addonAlreadyLiveInStripe ? "same_addon_live_in_stripe" : "different_addon_live_in_stripe"
+          `${addon.display_name} is already active on this workspace.`,
+          "same_addon_live_in_stripe"
         );
+      }
+
+      const replaceItemId = currentAddonLiveItem?.id ?? liveStorageAddonItems[0]?.id ?? null;
+      if (currentAddonRow && replaceItemId) {
+        await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {
+          ...buildSubscriptionUpdatePayload([
+            {
+              id: replaceItemId,
+              price: offer!.stripe_price_id!,
+              quantity: 1,
+            },
+          ]),
+          payment_behavior: "error_if_incomplete",
+        });
+
+        await writeMutationTelemetry("storage_addon_request_succeeded", undefined, 200);
+        return res.status(200).json({
+          ok: true,
+          message: `${addon.display_name} selected. Your workspace storage is syncing now.`,
+        });
+      }
+
+      if (currentAddonRow || liveStorageAddonItems.length > 0) {
+        const reason = currentAddonRow
+          ? "current_addon_live_item_missing"
+          : "different_addon_live_in_stripe";
+
+        return failStorageAddonMutation(409, STORAGE_ADDON_ALREADY_ACTIVE_MESSAGE, reason);
       }
 
       await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {

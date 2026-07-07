@@ -23,27 +23,27 @@ export const normalizeBillingPlanId = (planId: string | null | undefined): strin
 };
 
 export const SELF_SERVE_STORAGE_ADDON_IDS = [
-  "storage_10gb",
   "storage_50gb",
   "storage_100gb",
   "storage_250gb",
+  "storage_1tb",
 ] as const;
 
 export const MANUAL_REVIEW_STORAGE_ADDON_IDS = ["storage_500gb"] as const;
 export const CURRENT_BILLABLE_STORAGE_ADDON_STATUSES = PAID_ACCESS_SUBSCRIPTION_STATUSES;
 
 const SELF_SERVE_STORAGE_ADDONS_BY_PLAN: Record<string, readonly string[]> = {
-  starter: ["storage_10gb"],
-  media: ["storage_10gb", "storage_50gb"],
-  studio: ["storage_10gb", "storage_50gb", "storage_100gb"],
-  business: ["storage_10gb", "storage_50gb", "storage_100gb", "storage_250gb"],
+  starter: ["storage_50gb"],
+  media: ["storage_50gb", "storage_100gb"],
+  studio: ["storage_50gb", "storage_100gb", "storage_250gb"],
+  business: ["storage_50gb", "storage_100gb", "storage_250gb", "storage_1tb"],
 };
 
 export const MINIMUM_SELF_SERVE_STORAGE_ADDON_PLAN_BY_ID: Record<string, string> = {
-  storage_10gb: "starter",
-  storage_50gb: "media",
-  storage_100gb: "studio",
-  storage_250gb: "business",
+  storage_50gb: "starter",
+  storage_100gb: "media",
+  storage_250gb: "studio",
+  storage_1tb: "business",
 };
 
 export const STORAGE_ADDON_LIMIT_BYTES_BY_ID: Record<string, number> = {
@@ -53,6 +53,7 @@ export const STORAGE_ADDON_LIMIT_BYTES_BY_ID: Record<string, number> = {
   storage_100gb: 100 * BYTES_PER_GIB,
   storage_250gb: 250 * BYTES_PER_GIB,
   storage_500gb: 500 * BYTES_PER_GIB,
+  storage_1tb: 1024 * BYTES_PER_GIB,
 };
 
 export type StorageAddonEligibilityReason =

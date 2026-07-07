@@ -92,6 +92,15 @@ function pickPositiveNumber(...values: Array<number | null | undefined>): number
   return null;
 }
 
+function formatRecurringPriceLabel(
+  valueCents: number | null | undefined,
+  billingInterval: "month" | "year" | null | undefined,
+  formatUsd: (value: number | null) => string
+): string | null {
+  if (valueCents == null) return null;
+  return `${formatUsd(valueCents / 100)}/${billingInterval === "year" ? "yr" : "mo"}`;
+}
+
 function formatCompactDate(value: string | null | undefined): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString(undefined, {
@@ -212,10 +221,11 @@ export function AdminSupportQueueSection({
   const deleteConfirmationMatches =
     deleteConfirmationTarget.length > 0 &&
     deleteConfirmationValue.trim() === deleteConfirmationTarget;
-  const selectedUserPriceLabel =
-    selectedUser?.recurringPriceCents == null
-      ? null
-      : `${formatUsd(selectedUser.recurringPriceCents / 100)}/mo`;
+  const selectedUserPriceLabel = formatRecurringPriceLabel(
+    selectedUser?.recurringPriceCents,
+    selectedUser?.billingInterval,
+    formatUsd
+  );
   const billingFindings = billingDiagnostics?.findings ?? [];
   const adminIdentityEmail =
     currentAdminEmail.trim() ||
@@ -250,7 +260,13 @@ export function AdminSupportQueueSection({
   const snapshotPriceLabel =
     billingDiagnostics?.stripeSubscription?.subscriptionId &&
     billingDiagnostics.stripeSubscription.recurringPriceCents != null
-      ? `${formatUsd(billingDiagnostics.stripeSubscription.recurringPriceCents / 100)}/mo`
+      ? formatRecurringPriceLabel(
+          billingDiagnostics.stripeSubscription.recurringPriceCents,
+          billingDiagnostics.stripeSubscription.billingInterval ??
+            billingDiagnostics.currentContract?.billingInterval ??
+            selectedUser?.billingInterval,
+          formatUsd
+        )
       : selectedUserPriceLabel;
   const snapshotStatusLabel = formatStatusLabel(snapshotStatus);
   const snapshotCreditsHelper = [
@@ -1158,7 +1174,11 @@ export function AdminSupportQueueSection({
                           {row.contractSource !== "internal_comp" &&
                           row.recurringPriceCents != null ? (
                             <span className={styles.adminCreditMeta}>
-                              {formatUsd(row.recurringPriceCents / 100)}/mo
+                              {formatRecurringPriceLabel(
+                                row.recurringPriceCents,
+                                row.billingInterval,
+                                formatUsd
+                              )}
                             </span>
                           ) : null}
                         </span>

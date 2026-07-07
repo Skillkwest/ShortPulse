@@ -107,6 +107,9 @@ export type StripeSubscriptionResponse = {
         id?: string | null;
         unit_amount?: number | null;
         currency?: string | null;
+        recurring?: {
+          interval?: string | null;
+        } | null;
       } | null;
     }>;
   } | null;
@@ -296,6 +299,10 @@ export const mapStripeSubscriptionSnapshot = (params: {
     subscriptionId: params.subscription?.id ?? null,
     status: params.subscription?.status ?? null,
     priceId: price?.id ?? null,
+    billingInterval:
+      price?.recurring?.interval === "month" || price?.recurring?.interval === "year"
+        ? price.recurring.interval
+        : null,
     recurringPriceCents:
       typeof price?.unit_amount === "number" && Number.isFinite(price.unit_amount)
         ? price.unit_amount

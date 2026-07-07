@@ -19,6 +19,7 @@ type AdminUserRow = {
   offerId: string | null;
   stripePriceId: string | null;
   contractSource: "stripe" | "internal_comp" | null;
+  billingInterval: "month" | "year" | null;
   recurringPriceCents: number | null;
   monthlyCreditsCents: number | null;
   billingSource: "billing_profile" | "subscription_contract";
@@ -42,6 +43,7 @@ type BillingSubscriptionContractRow = {
   offer_id: string | null;
   stripe_price_id: string | null;
   contract_source: "stripe" | "internal_comp" | null;
+  billing_interval: "month" | "year" | null;
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
   status: string | null;
@@ -213,7 +215,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "user_id, plan_id, offer_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, status"
+          "user_id, plan_id, offer_id, stripe_price_id, contract_source, billing_interval, recurring_price_cents, monthly_credits_cents, status"
         )
         .in("user_id", userIds)
         .is("ended_at", null),
@@ -281,6 +283,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         offerId: (contract?.offer_id as string | undefined) ?? null,
         stripePriceId: (contract?.stripe_price_id as string | undefined) ?? null,
         contractSource: contract?.contract_source ?? null,
+        billingInterval: contract?.billing_interval ?? null,
         recurringPriceCents:
           contract?.recurring_price_cents == null ? null : Number(contract.recurring_price_cents),
         monthlyCreditsCents:

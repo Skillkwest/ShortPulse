@@ -14,6 +14,7 @@ export type AdminUserRow = {
   offerId: string | null;
   stripePriceId: string | null;
   contractSource: "stripe" | "internal_comp" | null;
+  billingInterval: "month" | "year" | null;
   recurringPriceCents: number | null;
   monthlyCreditsCents: number | null;
   billingSource: "billing_profile" | "subscription_contract";
@@ -115,6 +116,7 @@ export type AdminStripeSubscriptionSnapshot = {
   subscriptionId: string | null;
   status: string | null;
   priceId: string | null;
+  billingInterval: "month" | "year" | null;
   recurringPriceCents: number | null;
   currency: string | null;
   currentPeriodEnd: string | null;

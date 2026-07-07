@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractFailedNextChunk,
   hasNextChunkLoadFailureText,
+  hasNextOutdatedDeploymentText,
   toChunkLoadErrorMessage,
 } from "../chunkLoadErrors";
 
@@ -28,5 +29,14 @@ describe("chunk load error helpers", () => {
     expect(toChunkLoadErrorMessage({ message: "network failed" })).toBe("network failed");
     expect(hasNextChunkLoadFailureText("network failed")).toBe(false);
     expect(extractFailedNextChunk("network failed")).toBeNull();
+  });
+
+  it("detects Next.js outdated-deployment hard reload recovery", () => {
+    expect(
+      hasNextOutdatedDeploymentText(
+        "Loaded static props were from an outdated deployment, forcing a hard reload"
+      )
+    ).toBe(true);
+    expect(hasNextOutdatedDeploymentText("network failed")).toBe(false);
   });
 });

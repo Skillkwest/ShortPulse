@@ -551,13 +551,13 @@ describe("Admin pricing page", () => {
     const state = buildPricingState();
     state.storageAddons = [
       {
-        storageAddonId: "storage_10gb",
-        displayName: "Extra 10 GB",
-        offerId: "storage_10gb__month__stripe_20260701",
+        storageAddonId: "storage_50gb",
+        displayName: "Extra 50 GB",
+        offerId: "storage_50gb__month__stripe_20260707",
         activeAccountCount: 12,
-        storageLimitBytes: 10737418240,
-        recurringPriceCents: 700,
-        stripePriceId: "price_storage_10",
+        storageLimitBytes: 53687091200,
+        recurringPriceCents: 1000,
+        stripePriceId: "price_storage_50",
         acquisitionEnabled: true,
         isActive: true,
         effectiveStartAt: "2026-07-01T15:53:26.000Z",
@@ -580,19 +580,19 @@ describe("Admin pricing page", () => {
     expect(storageSection).not.toBeNull();
     const storageAddons = within(storageSection as HTMLElement);
 
-    expect(storageAddons.getByText("Extra 10 GB")).toBeInTheDocument();
+    expect(storageAddons.getByText("Extra 50 GB")).toBeInTheDocument();
     expect(storageAddons.getByText("Active accounts")).toBeInTheDocument();
     expect(storageAddons.getByText("12")).toBeInTheDocument();
-    expect(storageAddons.getByText("$7.00")).toBeInTheDocument();
-    expect(storageAddons.getByText("10 GB")).toBeInTheDocument();
+    expect(storageAddons.getByText("$10.00")).toBeInTheDocument();
+    expect(storageAddons.getByText("50 GB")).toBeInTheDocument();
     expect(storageAddons.queryByText("Offer id")).not.toBeInTheDocument();
     expect(storageAddons.queryByText("Stripe price")).not.toBeInTheDocument();
     expect(storageAddons.queryByText("Effective")).not.toBeInTheDocument();
     expect(storageAddons.queryByText("Action")).not.toBeInTheDocument();
     expect(
-      storageAddons.queryByText("storage_10gb__month__stripe_20260701")
+      storageAddons.queryByText("storage_50gb__month__stripe_20260707")
     ).not.toBeInTheDocument();
-    expect(storageAddons.queryByText("price_storage_10")).not.toBeInTheDocument();
+    expect(storageAddons.queryByText("price_storage_50")).not.toBeInTheDocument();
     expect(storageAddons.queryByRole("button", { name: "Create next" })).not.toBeInTheDocument();
   });
 

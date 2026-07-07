@@ -296,7 +296,7 @@ describe("Profile storage actions", () => {
           stripe_subscription_item_id: "si_storage_100",
           storage_limit_bytes: 107374182400,
           quantity: 1,
-          recurring_price_cents: 1500,
+          recurring_price_cents: 2000,
           status: "active",
         },
       ],
@@ -367,14 +367,12 @@ describe("Profile storage actions", () => {
     expect((await screen.findAllByText("100 GB add-on")).length).toBeGreaterThan(1);
     expect(await screen.findByText("Active add-on")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Remove" })).toBeEnabled();
-    expect(
-      await screen.findByRole("button", { name: "Remove current add-on first" })
-    ).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Switch to 250 GB" })).toBeEnabled();
     expect(
       screen.getByText("You can keep one recurring storage add-on active at a time.")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Need 500 GB or more? Contact support for a storage review.")
+      screen.getByText("Need more than 1 TB? Contact support for a storage review.")
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Recent storage payments" })).toBeInTheDocument();
     expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
@@ -452,12 +450,11 @@ describe("Profile storage actions", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByText("Extra 10 GB")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add 10 GB" })).toBeEnabled();
-    expect(screen.getByText("Extra 50 GB")).toBeInTheDocument();
+    expect(await screen.findByText("Extra 50 GB")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add 50 GB" })).toBeEnabled();
     expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
     expect(screen.getByText("Extra 250 GB")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Requires Media plan" })).toBeDisabled();
+    expect(screen.getByText("Extra 1 TB")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Requires Studio plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Requires Business plan" })).toBeDisabled();
   });
@@ -500,7 +497,7 @@ describe("Profile storage actions", () => {
         return {
           ok: true,
           json: async () => ({
-            message: "Extra 10 GB added. Your workspace storage is syncing now.",
+            message: "Extra 50 GB added. Your workspace storage is syncing now.",
           }),
         };
       }
@@ -525,7 +522,7 @@ describe("Profile storage actions", () => {
 
     render(<ProfilePage />);
 
-    const addButton = await screen.findByRole("button", { name: "Add 10 GB" });
+    const addButton = await screen.findByRole("button", { name: "Add 50 GB" });
     let resolveRefresh: ((value: Awaited<ReturnType<typeof buildAccountSummary>>) => void) | null =
       null;
     const pendingRefresh = new Promise<Awaited<ReturnType<typeof buildAccountSummary>>>(
@@ -544,7 +541,7 @@ describe("Profile storage actions", () => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storageAddonId: "storage_10gb", action: "add" }),
+        body: JSON.stringify({ storageAddonId: "storage_50gb", action: "add" }),
       });
     });
 
@@ -616,8 +613,9 @@ describe("Profile storage actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
-    expect(screen.getByText("Extra 10 GB")).toBeInTheDocument();
+    expect(screen.getByText("Extra 50 GB")).toBeInTheDocument();
     expect(screen.getByText("Extra 250 GB")).toBeInTheDocument();
+    expect(screen.getByText("Extra 1 TB")).toBeInTheDocument();
     expect(screen.queryByText("No recurring storage add-ons are configured yet.")).toBeNull();
     expect(
       screen.getByText(

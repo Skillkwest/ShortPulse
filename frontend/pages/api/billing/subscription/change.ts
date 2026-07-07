@@ -43,6 +43,7 @@ type BillingContractRow = {
   plan_id: string | null;
   offer_id: string | null;
   billing_interval: "month" | "year" | null;
+  recurring_price_cents: number | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
@@ -54,6 +55,7 @@ type BillingPlanRow = {
   id: string;
   display_name: string;
   is_active: boolean;
+  sort_order: number | null;
 };
 
 type BillingPlanOfferRow = {
@@ -82,9 +84,14 @@ type StripeCheckoutSession = {
 type BillingSubscriptionStorageAddonRow = {
   id: string;
   storage_addon_id: string | null;
+  stripe_subscription_item_id: string | null;
   quantity: number | null;
   status: string | null;
 };
+
+type StripeSubscriptionItem = NonNullable<
+  NonNullable<StripeSubscriptionResponse["items"]>["data"]
+>[number];
 
 const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
   keyPrefix: "billing-subscription-change",
@@ -94,6 +101,8 @@ const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
 const PLAN_UNAVAILABLE_MESSAGE = "This plan is temporarily unavailable. Try again later.";
 const PLAN_CHANGE_UNAVAILABLE_MESSAGE =
   "This plan change is temporarily unavailable. Try again later.";
+const STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE =
+  "Remove or change your active storage add-on before downgrading or changing billing intervals.";
 const STRIPE_PORTAL_SUBSCRIPTION_UPDATE_DISABLED_PATTERN =
   /subscription update feature in the portal configuration is disabled/i;
 
@@ -176,6 +185,22 @@ const resolveErrorMessage = (error: unknown): string => {
 const isStripePortalSubscriptionUpdateDisabledError = (error: unknown): boolean =>
   STRIPE_PORTAL_SUBSCRIPTION_UPDATE_DISABLED_PATTERN.test(resolveErrorMessage(error));
 
+const normalizePlanSortOrder = (value: unknown): number | null => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const isHigherPlanUpgradeBySortOrder = (
+  activePlanSortOrder: number | null,
+  targetPlanSortOrder: number | null
+): boolean => {
+  return (
+    typeof activePlanSortOrder === "number" &&
+    typeof targetPlanSortOrder === "number" &&
+    targetPlanSortOrder > activePlanSortOrder
+  );
+};
+
 const resolveStripeSubscriptionCustomerId = (
   subscription: StripeSubscriptionResponse
 ): string | null => {
@@ -235,7 +260,7 @@ const loadBillingState = async (userId: string) => {
     supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "id, plan_id, offer_id, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, contract_source"
+        "id, plan_id, offer_id, billing_interval, recurring_price_cents, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, contract_source"
       )
       .eq("user_id", userId)
       .is("ended_at", null)
@@ -263,7 +288,7 @@ const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "
   const [planResult, offersResult] = await Promise.all([
     supabaseAdmin
       .from("billing_plans")
-      .select("id, display_name, is_active")
+      .select("id, display_name, is_active, sort_order")
       .eq("id", targetPlanId)
       .maybeSingle(),
     supabaseAdmin
@@ -298,13 +323,33 @@ const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "
   return { plan, offer: currentOffer };
 };
 
+const loadPlanSortOrder = async (planId: string): Promise<number | null> => {
+  const normalizedPlanId = normalizePlanId(planId);
+  if (!normalizedPlanId) return null;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("billing_plans")
+    .select("id, sort_order, is_active")
+    .eq("id", normalizedPlanId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Failed to load active plan ordering.");
+  }
+
+  const plan = data as Pick<BillingPlanRow, "id" | "is_active" | "sort_order"> | null;
+  if (!plan || !plan.is_active) return null;
+  return normalizePlanSortOrder(plan.sort_order);
+};
+
 const loadActiveStorageAddonRows = async (
   userId: string
 ): Promise<BillingSubscriptionStorageAddonRow[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("billing_subscription_storage_addons")
-    .select("id, storage_addon_id, quantity, status")
+    .select("id, storage_addon_id, stripe_subscription_item_id, quantity, status")
     .eq("user_id", userId)
     .is("ended_at", null)
     .in("status", [...CURRENT_BILLABLE_STORAGE_ADDON_STATUSES]);
@@ -314,6 +359,26 @@ const loadActiveStorageAddonRows = async (
   }
 
   return Array.isArray(data) ? (data as BillingSubscriptionStorageAddonRow[]) : [];
+};
+
+const canCarryKnownStorageAddonItem = ({
+  activeStorageAddons,
+  baseItemId,
+  liveItems,
+}: {
+  activeStorageAddons: BillingSubscriptionStorageAddonRow[];
+  baseItemId: string | null;
+  liveItems: StripeSubscriptionItem[];
+}): boolean => {
+  if (!baseItemId || activeStorageAddons.length !== 1 || liveItems.length !== 2) {
+    return false;
+  }
+
+  const storageItemId = activeStorageAddons[0]?.stripe_subscription_item_id?.trim() ?? "";
+  if (!storageItemId || storageItemId === baseItemId) return false;
+
+  const liveItemIds = new Set(liveItems.map((item) => item.id).filter(Boolean));
+  return liveItemIds.has(baseItemId) && liveItemIds.has(storageItemId);
 };
 
 const resolveIncompatibleStorageAddonForPlan = (
@@ -587,6 +652,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subscription: verifiedSubscription,
         contractStripePriceId: billingContract?.stripe_price_id ?? null,
       });
+      const liveItems = Array.isArray(verifiedSubscription.items?.data)
+        ? verifiedSubscription.items.data
+        : [];
 
       try {
         await validateTargetPlanStripePrice({
@@ -601,6 +669,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         }
         throw error;
+      }
+
+      if (baseItem.itemCount > 1) {
+        if (billingInterval !== activeBillingInterval) {
+          return res.status(409).json({
+            error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
+          });
+        }
+        const activePlanSortOrder = await loadPlanSortOrder(activePlanId);
+        const isHigherPlanUpgrade = isHigherPlanUpgradeBySortOrder(
+          activePlanSortOrder,
+          normalizePlanSortOrder(targetPlan.sort_order)
+        );
+        if (!isHigherPlanUpgrade) {
+          return res.status(409).json({
+            error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
+          });
+        }
+        const canCarryStorageAddonItem = canCarryKnownStorageAddonItem({
+          activeStorageAddons: activeStorageAddonRows,
+          baseItemId: baseItem.itemId,
+          liveItems,
+        });
+        if (!canCarryStorageAddonItem) {
+          return res.status(409).json({
+            error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
+          });
+        }
+        if (!baseItem.itemId || !targetOffer.stripe_price_id) {
+          return res.status(409).json({
+            error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
+          });
+        }
+
+        await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {
+          proration_behavior: "create_prorations",
+          payment_behavior: "error_if_incomplete",
+          "items[0][id]": baseItem.itemId,
+          "items[0][price]": targetOffer.stripe_price_id,
+          "items[0][quantity]": baseItem.quantity,
+          "metadata[user_id]": user.id,
+          "metadata[billing_plan_id]": targetPlanId,
+          "metadata[billing_offer_id]": targetOffer.id,
+          "metadata[billing_interval]": billingInterval,
+          "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
+        });
+
+        return res.status(200).json({
+          redirectUrl: resolveProfileReturnUrl("updated"),
+          mode: "app",
+        });
       }
 
       if (baseItem.itemCount === 1 && baseItem.itemId && targetOffer.stripe_price_id) {

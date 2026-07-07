@@ -82,17 +82,16 @@ Public entry-plan note:
 
 ### Recurring storage add-ons
 
-- `storage_10gb`: `$7/month`, `+10 GB`
-- `storage_50gb`: `$29/month`, `+50 GB`
-- `storage_100gb`: `$59/month`, `+100 GB`
-- `storage_250gb`: `$149/month`, `+250 GB`
-- `storage_500gb`: `$299/month`, `+500 GB`, manual review only
+- `storage_50gb`: `$10/month`, `+50 GB`
+- `storage_100gb`: `$20/month`, `+100 GB`
+- `storage_250gb`: `$30/month`, `+250 GB`
+- `storage_1tb`: `$89/month`, `+1 TB`
 
 Public self-serve recurring storage is additionally gated by `frontend/lib/billing/storageAddonEligibility.ts`.
 Only eligible self-serve add-ons for the subscriber's current paid plan may be shown in `/profile?section=storage` or submitted to `/api/billing/storage-addon/change`.
-`storage_500gb` is manual-review only, and recurring storage add-ons must not stack or use quantity greater than one.
-`storage_25gb` is retired from self-serve catalog eligibility and must not render purchase cards or be reactivated as a public offer.
-New recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/catalog` activates the storage offer; SQL bootstrap and migration seeds keep missing-Stripe offers non-public by default.
+`storage_10gb`, `storage_25gb`, and `storage_500gb` are retired from self-serve catalog eligibility and must not render purchase cards or be reactivated as public offers.
+Recurring storage add-ons must not stack or use quantity greater than one. Self-serve add-on changes may replace the one active recurring storage add-on with a different eligible add-on.
+Future recurring storage add-ons are not acquisition-enabled until the matching Stripe recurring Price exists and `/admin/catalog` activates the storage offer; SQL bootstrap keeps missing-Stripe offers non-public by default.
 
 ### Credit packs
 

@@ -271,7 +271,7 @@ describe("Profile transactions actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Recent transactions" })).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "Recent transactions" })).toHaveLength(1);
     expect(await screen.findByText("Credit top-up · 2,500 credits")).toBeInTheDocument();
     expect(await screen.findByText("Subscription + storage")).toBeInTheDocument();
     expect(await screen.findByText(/Ref cs_test_123/)).toBeInTheDocument();

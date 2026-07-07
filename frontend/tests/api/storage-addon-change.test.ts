@@ -221,7 +221,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -262,7 +262,100 @@ describe("POST /api/billing/storage-addon/change", () => {
     });
   });
 
-  it("blocks adding a different storage add-on when any current billable local add-on already exists", async () => {
+  it("replaces the current recurring storage add-on when a different eligible add-on is selected", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+          subscription_status: "active",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "business",
+          stripe_subscription_id: "sub_123",
+          contract_source: "stripe",
+          status: "active",
+        },
+        storageAddon: {
+          id: "storage_250gb",
+          display_name: "Extra 250 GB",
+          is_active: true,
+        },
+        storageAddonOffers: [
+          {
+            id: "storage_100gb__current",
+            storage_addon_id: "storage_100gb",
+            stripe_price_id: "price_storage_100",
+            recurring_price_cents: 2000,
+            storage_limit_bytes: 107374182400,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-03-01T00:00:00.000Z",
+            created_at: "2026-03-01T00:00:00.000Z",
+          },
+          {
+            id: "storage_250gb__current",
+            storage_addon_id: "storage_250gb",
+            stripe_price_id: "price_storage_250",
+            recurring_price_cents: 3000,
+            storage_limit_bytes: 268435456000,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        activeStorageAddonRows: [
+          {
+            id: "addon_row_1",
+            storage_addon_id: "storage_100gb",
+            offer_id: "storage_100gb__current",
+            stripe_subscription_item_id: "si_stale_storage_100",
+            stripe_price_id: "price_storage_100",
+            quantity: 1,
+            status: "past_due",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [
+          { id: "si_base", quantity: 1, price: { id: "price_business" } },
+          { id: "si_storage_100", quantity: 1, price: { id: "price_storage_100" } },
+        ],
+      },
+    });
+    stripePostFormMock.mockResolvedValue({ id: "sub_123" });
+
+    const req = {
+      method: "POST",
+      body: { storageAddonId: "storage_250gb", action: "add" },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenCalledWith("/subscriptions/sub_123", {
+      proration_behavior: "create_prorations",
+      "items[0][id]": "si_storage_100",
+      "items[0][price]": "price_storage_250",
+      "items[0][quantity]": 1,
+      payment_behavior: "error_if_incomplete",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      message: "Extra 250 GB selected. Your workspace storage is syncing now.",
+    });
+  });
+
+  it("replaces the current storage subscription item even when the old price is no longer in the catalog", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {
@@ -289,7 +382,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_250gb__current",
             storage_addon_id: "storage_250gb",
             stripe_price_id: "price_storage_250",
-            recurring_price_cents: 2500,
+            recurring_price_cents: 3000,
             storage_limit_bytes: 268435456000,
             acquisition_enabled: true,
             is_active: true,
@@ -299,17 +392,28 @@ describe("POST /api/billing/storage-addon/change", () => {
         ],
         activeStorageAddonRows: [
           {
-            id: "addon_row_1",
+            id: "addon_row_legacy",
             storage_addon_id: "storage_100gb",
-            offer_id: "storage_100gb__current",
-            stripe_subscription_item_id: "si_storage_100",
-            stripe_price_id: "price_storage_100",
+            offer_id: "storage_100gb__retired",
+            stripe_subscription_item_id: "si_storage_legacy",
+            stripe_price_id: "price_storage_legacy",
             quantity: 1,
-            status: "past_due",
+            status: "active",
           },
         ],
       })
     );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [
+          { id: "si_base", quantity: 1, price: { id: "price_business" } },
+          { id: "si_storage_legacy", quantity: 1, price: { id: "price_storage_legacy" } },
+        ],
+      },
+    });
+    stripePostFormMock.mockResolvedValue({ id: "sub_123" });
 
     const req = {
       method: "POST",
@@ -319,12 +423,17 @@ describe("POST /api/billing/storage-addon/change", () => {
 
     await handler(req as never, res as never);
 
-    expect(readVerifiedStripeSubscriptionForUserMock).not.toHaveBeenCalled();
-    expect(stripePostFormMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(409);
+    expect(stripePostFormMock).toHaveBeenCalledWith("/subscriptions/sub_123", {
+      proration_behavior: "create_prorations",
+      "items[0][id]": "si_storage_legacy",
+      "items[0][price]": "price_storage_250",
+      "items[0][quantity]": 1,
+      payment_behavior: "error_if_incomplete",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      error:
-        "You already have an active storage add-on. Remove it before adding a different storage package.",
+      ok: true,
+      message: "Extra 250 GB selected. Your workspace storage is syncing now.",
     });
   });
 
@@ -346,17 +455,17 @@ describe("POST /api/billing/storage-addon/change", () => {
           status: "active",
         },
         storageAddon: {
-          id: "storage_250gb",
-          display_name: "Extra 250 GB",
+          id: "storage_1tb",
+          display_name: "Extra 1 TB",
           is_active: true,
         },
         storageAddonOffers: [
           {
-            id: "storage_250gb__current",
-            storage_addon_id: "storage_250gb",
-            stripe_price_id: "price_storage_250",
-            recurring_price_cents: 2500,
-            storage_limit_bytes: 268435456000,
+            id: "storage_1tb__current",
+            storage_addon_id: "storage_1tb",
+            stripe_price_id: "price_storage_1tb",
+            recurring_price_cents: 8900,
+            storage_limit_bytes: 1099511627776,
             acquisition_enabled: true,
             is_active: true,
             effective_start_at: "2026-04-01T00:00:00.000Z",
@@ -369,7 +478,7 @@ describe("POST /api/billing/storage-addon/change", () => {
 
     const req = {
       method: "POST",
-      body: { storageAddonId: "storage_250gb", action: "add" },
+      body: { storageAddonId: "storage_1tb", action: "add" },
     };
     const res = createMockResponse();
 
@@ -466,7 +575,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -606,7 +715,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -705,7 +814,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -760,7 +869,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -835,7 +944,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_250gb__current",
             storage_addon_id: "storage_250gb",
             stripe_price_id: "price_storage_250",
-            recurring_price_cents: 2500,
+            recurring_price_cents: 3000,
             storage_limit_bytes: 268435456000,
             acquisition_enabled: true,
             is_active: true,
@@ -900,7 +1009,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,
@@ -964,7 +1073,7 @@ describe("POST /api/billing/storage-addon/change", () => {
             id: "storage_100gb__current",
             storage_addon_id: "storage_100gb",
             stripe_price_id: "price_storage_100",
-            recurring_price_cents: 1500,
+            recurring_price_cents: 2000,
             storage_limit_bytes: 107374182400,
             acquisition_enabled: true,
             is_active: true,

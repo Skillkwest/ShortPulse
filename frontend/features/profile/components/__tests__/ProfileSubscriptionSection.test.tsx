@@ -80,28 +80,32 @@ const billingPlans: BillingPlanRecord[] = [
 
 const renderSubscriptionSection = ({
   activePlanId = "starter",
+  activeAddonStorageBytes = 0,
   currentSubscriptionBillingInterval,
   currentSubscriptionCreditsCents = activePlanId === "free" ? 0 : 350,
   currentSubscriptionMaxConcurrentGenerations = 1,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes = activePlanId === "free" ? 0 : GIB,
   onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>(),
+  planChangeLoadingPlanId = null,
   showLegacyPlanChangeNotice = false,
 }: {
   activePlanId?: string;
+  activeAddonStorageBytes?: number;
   currentSubscriptionBillingInterval: BillingInterval;
   currentSubscriptionCreditsCents?: number;
   currentSubscriptionMaxConcurrentGenerations?: number;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes?: number;
   onRequestPlanChange?: (planId: string, billingInterval: BillingInterval) => void;
+  planChangeLoadingPlanId?: string | null;
   showLegacyPlanChangeNotice?: boolean;
 }) => {
   render(
     <ProfileSubscriptionSection
       activePlan={buildPlanView({ planId: activePlanId, plans: billingPlans })}
       activePlanRank={billingPlans.find((plan) => plan.id === activePlanId)?.sort_order ?? 0}
-      activeAddonStorageBytes={0}
+      activeAddonStorageBytes={activeAddonStorageBytes}
       currentSubscriptionCreditsCents={currentSubscriptionCreditsCents}
       currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
       currentSubscriptionPriceCents={currentSubscriptionPriceCents}
@@ -119,7 +123,7 @@ const renderSubscriptionSection = ({
       billingPlansLoading={false}
       isInternalCompContract={false}
       showLegacyPlanChangeNotice={showLegacyPlanChangeNotice}
-      planChangeLoadingPlanId={null}
+      planChangeLoadingPlanId={planChangeLoadingPlanId}
       subscriptionTransactions={[]}
       subscriptionTransactionsLoading={false}
       subscriptionTransactionsError={null}
@@ -161,6 +165,38 @@ describe("ProfileSubscriptionSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Upgrade to annual billing" }));
 
     expect(onRequestPlanChange).toHaveBeenCalledWith("starter", "year");
+  });
+
+  it("confirms higher-plan upgrades before carrying over an active storage add-on", () => {
+    const onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>();
+    renderSubscriptionSection({
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionPriceCents: 1500,
+      activeAddonStorageBytes: 50 * GIB,
+      onRequestPlanChange,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Upgrade to Media" }));
+
+    expect(onRequestPlanChange).not.toHaveBeenCalled();
+    expect(screen.getByText(/Confirm upgrade to Media/)).toBeInTheDocument();
+    expect(screen.getByText(/\+50 GB recurring storage add-on stays active/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm upgrade" }));
+
+    expect(onRequestPlanChange).toHaveBeenCalledWith("media", "month");
+  });
+
+  it("labels storage-carryover upgrade loading as an in-app plan update", () => {
+    renderSubscriptionSection({
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionPriceCents: 1500,
+      activeAddonStorageBytes: 50 * GIB,
+      planChangeLoadingPlanId: "media",
+    });
+
+    expect(screen.getByRole("button", { name: "Updating plan..." })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Opening Stripe…" })).not.toBeInTheDocument();
   });
 
   it("offers monthly billing on the current annual plan when monthly is selected", () => {

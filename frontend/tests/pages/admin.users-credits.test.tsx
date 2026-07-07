@@ -103,6 +103,7 @@ describe("Admin users and credits overview", () => {
               offerId: "studio__legacy_10",
               stripePriceId: "price_legacy_studio",
               contractSource: "stripe",
+              billingInterval: "month",
               recurringPriceCents: 1000,
               monthlyCreditsCents: 4000,
               billingSource: "subscription_contract",
@@ -119,6 +120,7 @@ describe("Admin users and credits overview", () => {
               offerId: "business__current",
               stripePriceId: "price_current_business",
               contractSource: "stripe",
+              billingInterval: "year",
               recurringPriceCents: 3000,
               monthlyCreditsCents: 10000,
               billingSource: "subscription_contract",
@@ -135,6 +137,7 @@ describe("Admin users and credits overview", () => {
               offerId: "business__current",
               stripePriceId: "price_current_business",
               contractSource: "stripe",
+              billingInterval: "month",
               recurringPriceCents: 3000,
               monthlyCreditsCents: 10000,
               billingSource: "subscription_contract",
@@ -212,6 +215,7 @@ describe("Admin users and credits overview", () => {
                   stripePriceId: "price_current_business",
                   contractSource: "stripe",
                   stripeSubscriptionId: "sub_test",
+                  billingInterval: "year",
                   recurringPriceCents: 3000,
                   monthlyCreditsCents: 10000,
                   storageLimitBytes: 536870912000,
@@ -227,6 +231,7 @@ describe("Admin users and credits overview", () => {
                     stripePriceId: "price_legacy_studio",
                     contractSource: "stripe",
                     stripeSubscriptionId: "sub_test",
+                    billingInterval: "month",
                     recurringPriceCents: 1000,
                     monthlyCreditsCents: 4000,
                     storageLimitBytes: 107374182400,
@@ -323,6 +328,7 @@ describe("Admin users and credits overview", () => {
                   subscriptionId: "sub_test",
                   status: "inactive",
                   priceId: "price_current_business",
+                  billingInterval: "year",
                   recurringPriceCents: 3000,
                   currency: "usd",
                   currentPeriodEnd: "2026-04-30T12:00:00.000Z",
@@ -333,6 +339,7 @@ describe("Admin users and credits overview", () => {
                   subscriptionId: "sub_test",
                   status: "active",
                   priceId: "price_legacy_studio",
+                  billingInterval: "month",
                   recurringPriceCents: 1000,
                   currency: "usd",
                   currentPeriodEnd: "2026-04-30T12:00:00.000Z",
@@ -528,6 +535,7 @@ describe("Admin users and credits overview", () => {
             offerId: "studio__legacy_10",
             stripePriceId: "price_legacy_studio",
             contractSource: "stripe",
+            billingInterval: "month",
             recurringPriceCents: 1000,
             monthlyCreditsCents: 4000,
             billingSource: "subscription_contract",
@@ -544,6 +552,7 @@ describe("Admin users and credits overview", () => {
             offerId: "business__current",
             stripePriceId: "price_current_business",
             contractSource: "stripe",
+            billingInterval: "year",
             recurringPriceCents: 3000,
             monthlyCreditsCents: 10000,
             billingSource: "subscription_contract",
@@ -560,6 +569,7 @@ describe("Admin users and credits overview", () => {
             offerId: "business__current",
             stripePriceId: "price_current_business",
             contractSource: "stripe",
+            billingInterval: "month",
             recurringPriceCents: 3000,
             monthlyCreditsCents: 10000,
             billingSource: "subscription_contract",
@@ -632,7 +642,7 @@ describe("Admin users and credits overview", () => {
     );
     expect(screen.getByText("ref: ticket-2")).toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
-    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/mo");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/yr");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Inactive");
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();

@@ -164,10 +164,10 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        storageAddonId: "storage_10gb",
-        offerName: "Extra 10 GB Admin Offer",
-        storageLimitBytes: 10737418240,
-        recurringPriceCents: 700,
+        storageAddonId: "storage_50gb",
+        offerName: "Extra 50 GB Admin Offer",
+        storageLimitBytes: 53687091200,
+        recurringPriceCents: 1000,
         stripePriceId: "price_storage_admin",
       },
     };
@@ -558,7 +558,7 @@ describe("admin pricing mutation routes", () => {
       data: [
         {
           status: "activated",
-          offer_id: "storage_10gb__month__extra_10_gb_admin_offer__abc",
+          offer_id: "storage_1tb__month__extra_1_tb_admin_offer__abc",
           message: "Storage add-on offer created and activated.",
         },
       ],
@@ -568,11 +568,11 @@ describe("admin pricing mutation routes", () => {
       id: "price_storage_admin",
       active: true,
       currency: "usd",
-      unit_amount: 700,
+      unit_amount: 8900,
       recurring: { interval: "month" },
       metadata: {
         shortpulse_catalog_type: "storage_addon",
-        shortpulse_storage_addon_id: "storage_10gb",
+        shortpulse_storage_addon_id: "storage_1tb",
       },
       product: { id: "prod_storage", metadata: {} },
     });
@@ -584,12 +584,12 @@ describe("admin pricing mutation routes", () => {
     const req = {
       method: "POST",
       body: {
-        storageAddonId: "storage_10gb",
-        offerName: "Extra 10 GB Admin Offer",
-        storageLimitBytes: 10737418240,
-        recurringPriceCents: 700,
+        storageAddonId: "storage_1tb",
+        offerName: "Extra 1 TB Admin Offer",
+        storageLimitBytes: 1099511627776,
+        recurringPriceCents: 8900,
         stripePriceId: "price_storage_admin",
-        expectedCurrentOfferId: "storage_10gb__current",
+        expectedCurrentOfferId: "storage_1tb__current",
       },
     };
     const res = createMockResponse();
@@ -602,11 +602,11 @@ describe("admin pricing mutation routes", () => {
     expect(activateStorageOffer).toHaveBeenCalledWith(
       "activate_billing_storage_addon_offer",
       expect.objectContaining({
-        p_storage_addon_id: "storage_10gb",
-        p_offer_name: "Extra 10 GB Admin Offer",
-        p_recurring_price_cents: 700,
+        p_storage_addon_id: "storage_1tb",
+        p_offer_name: "Extra 1 TB Admin Offer",
+        p_recurring_price_cents: 8900,
         p_stripe_price_id: "price_storage_admin",
-        p_expected_current_offer_id: "storage_10gb__current",
+        p_expected_current_offer_id: "storage_1tb__current",
         p_expected_current_offer_absent: false,
       })
     );

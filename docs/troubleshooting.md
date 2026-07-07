@@ -199,6 +199,7 @@ Symptoms:
 
 - Console shows `Route change failed: Failed to load script: /_next/static/...`.
 - UI may jump or fail on navigation.
+- Console or Admin Event Stream shows `Loaded static props were from an outdated deployment, forcing a hard reload`.
 
 Checklist:
 
@@ -210,6 +211,7 @@ Mitigation:
 
 - Repoint affected traffic to a known-good deployment and rerun parity checks.
 - Hard-refresh the browser after deploy/failover.
+- Treat the outdated-deployment hard-reload signature as expected deploy-skew recovery when the current production alias passes route parity and the target route/data route returns `200`. That signature is telemetry-only; do not create operator work from it unless it repeats after the alias has settled or pairs with fresh missing assets/API failures.
 
 ### `/api/elevenlabs/voices` shows repeated 503
 

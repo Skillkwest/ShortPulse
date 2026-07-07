@@ -64,10 +64,10 @@ describe("public legal policy pages", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "ShortPulse Terms of Service" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Last updated: June 21, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Last updated: July 7, 2026")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "1. Who We Are" })).toBeInTheDocument();
     expect(
-      screen.getByText(/refer to ShortPulse, the operator of the Service/i)
+      screen.getByText(/refer to Arc Creative Enterprises LLC, doing business as ShortPulse/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Plain English: you may use Output for commercial purposes/i)

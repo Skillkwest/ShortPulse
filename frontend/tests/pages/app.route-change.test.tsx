@@ -197,6 +197,29 @@ describe("App route-change recovery", () => {
     userAgentSpy.mockRestore();
   });
 
+  it("keeps Next outdated-deployment hard reload recovery telemetry-only", () => {
+    renderApp();
+    const routeChangeError = routeEvents.get("routeChangeError");
+    expect(routeChangeError).toBeTypeOf("function");
+
+    routeChangeError?.(
+      new Error("Loaded static props were from an outdated deployment, forcing a hard reload"),
+      "/dashboard"
+    );
+
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.route_change.outdated_deployment",
+        endpoint: "/dashboard",
+        severity: "low",
+        metadata: expect.objectContaining({
+          route_change_recovery: "outdated_deployment_hard_reload",
+          route_change_target: "/dashboard",
+        }),
+      })
+    );
+  });
+
   it("does not recover when navigation was cancelled", () => {
     const assignSpy = vi.fn();
     const restoreLocationAssign = withMockedLocationAssign(assignSpy);

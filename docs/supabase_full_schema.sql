@@ -1306,11 +1306,12 @@ insert into billing_storage_addons (
     sort_order
 )
 values
-    ('storage_10gb', 'Extra 10 GB', 10::bigint * 1024 * 1024 * 1024, 700, null, true, 10),
-    ('storage_50gb', 'Extra 50 GB', 50::bigint * 1024 * 1024 * 1024, 2900, null, true, 20),
-    ('storage_100gb', 'Extra 100 GB', 100::bigint * 1024 * 1024 * 1024, 5900, null, true, 30),
-    ('storage_250gb', 'Extra 250 GB', 250::bigint * 1024 * 1024 * 1024, 14900, null, true, 40),
-    ('storage_500gb', 'Extra 500 GB', 500::bigint * 1024 * 1024 * 1024, 29900, null, true, 50)
+    ('storage_10gb', 'Extra 10 GB', 10::bigint * 1024 * 1024 * 1024, 700, null, false, 90),
+    ('storage_50gb', 'Extra 50 GB', 50::bigint * 1024 * 1024 * 1024, 1000, 'price_1TqfqJHutZQpiTlZYwp39cuI', true, 10),
+    ('storage_100gb', 'Extra 100 GB', 100::bigint * 1024 * 1024 * 1024, 2000, 'price_1TqfqJHutZQpiTlZvjJgFFVm', true, 20),
+    ('storage_250gb', 'Extra 250 GB', 250::bigint * 1024 * 1024 * 1024, 3000, 'price_1TqfqJHutZQpiTlZ2RU1in26', true, 30),
+    ('storage_1tb', 'Extra 1 TB', 1024::bigint * 1024 * 1024 * 1024, 8900, 'price_1TqfqKHutZQpiTlZx2xKmABF', true, 40),
+    ('storage_500gb', 'Extra 500 GB', 500::bigint * 1024 * 1024 * 1024, 29900, null, false, 100)
 on conflict (id) do update
 set display_name = excluded.display_name,
     storage_limit_bytes = excluded.storage_limit_bytes,
@@ -1371,7 +1372,7 @@ select
     addon.monthly_price_cents,
     addon.stripe_price_id,
     addon.is_active
-        and addon.id in ('storage_10gb', 'storage_50gb', 'storage_100gb', 'storage_250gb')
+        and addon.id in ('storage_50gb', 'storage_100gb', 'storage_250gb', 'storage_1tb')
         and addon.stripe_price_id is not null,
     addon.is_active,
     now()

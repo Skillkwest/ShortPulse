@@ -1,10 +1,10 @@
 # ShortPulse Refund Policy
 
-Last updated: June 21, 2026
+Last updated: July 7, 2026
 
 This Refund Policy explains how ShortPulse handles refunds, credits, subscriptions, credit packs, storage add-ons, generation charges, and billing disputes.
 
-"ShortPulse," "we," "us," and "our" mean ShortPulse, the operator of the Service.
+"ShortPulse," "we," "us," and "our" mean Arc Creative Enterprises LLC, doing business as ShortPulse, the operator of the Service.
 
 This Refund Policy is part of our Terms of Service. If this Refund Policy conflicts with a non-waivable consumer-protection law that applies to you, that law controls.
 
@@ -26,7 +26,7 @@ ShortPulse subscriptions renew automatically until canceled. You can cancel thro
 
 Canceling stops future subscription renewals according to the active billing configuration. It does not automatically refund past payments, current-period payments, one-time credit packs, storage add-ons, taxes, or already-used credits.
 
-If checkout is canceled before payment completes, no purchase should be created from that checkout session. If checkout errors after a charge is created and ShortPulse does not deliver the purchased subscription access, storage add-on, or credits, contact billing@shortpulse.ai for review.
+If checkout is canceled before payment completes, no purchase should be created from that checkout session. If checkout errors after a charge is created and ShortPulse does not deliver the purchased subscription access, storage add-on, or credits, contact service@shortpulse.co for review.
 
 ## 3. Subscriptions
 
@@ -92,7 +92,7 @@ If a purchase included both used and unused credits, access, storage, or benefit
 
 ## 8. How To Request A Refund Or Billing Review
 
-To request a refund, credit restoration, or billing review, contact billing@shortpulse.ai or support@shortpulse.ai.
+To request a refund, credit restoration, or billing review, contact service@shortpulse.co.
 
 Include:
 
@@ -145,4 +145,4 @@ We may update this Refund Policy from time to time. If we make material changes,
 
 ## 15. Contact
 
-Refund and billing questions should be sent to billing@shortpulse.ai or support@shortpulse.ai.
+Refund and billing questions should be sent to service@shortpulse.co.

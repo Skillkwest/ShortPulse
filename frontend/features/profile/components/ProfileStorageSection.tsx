@@ -221,7 +221,7 @@ export function ProfileStorageSection({
                   const isActive = activeQuantity > 0;
                   const blocksPlanEligibility =
                     isStorageAddonManagementAvailable && !isActive && !eligibility.isEligible;
-                  const blocksDifferentAddon = hasActiveStorageAddon && !isActive;
+                  const switchesActiveAddon = hasActiveStorageAddon && !isActive;
                   const isLoading = storageAddonChangeLoadingId === addon.id;
                   const isBusy = storageAddonChangeLoadingId !== null;
                   const minimumPlanLabel = resolveStorageAddonMinimumPlanLabel(addon.id);
@@ -233,8 +233,8 @@ export function ProfileStorageSection({
                       actionLabel = "Remove";
                     } else if (blocksPlanEligibility) {
                       actionLabel = `Requires ${minimumPlanLabel}`;
-                    } else if (blocksDifferentAddon) {
-                      actionLabel = "Remove current add-on first";
+                    } else if (switchesActiveAddon) {
+                      actionLabel = `Switch to ${formatStorageBytes(addon.storage_limit_bytes)}`;
                     } else {
                       actionLabel = `Add ${formatStorageBytes(addon.storage_limit_bytes)}`;
                     }
@@ -253,8 +253,8 @@ export function ProfileStorageSection({
                             : "Active and renewing with your subscription"
                           : blocksPlanEligibility
                             ? `Available on ${minimumPlanLabel} and above`
-                            : blocksDifferentAddon
-                              ? "Remove your active add-on before choosing a different package"
+                            : switchesActiveAddon
+                              ? "Replaces your current recurring storage add-on"
                               : "Renews with your subscription"}
                       </p>
 
@@ -268,14 +268,9 @@ export function ProfileStorageSection({
                               action: isActive ? "remove" : "add",
                             })
                           }
-                          aria-disabled={
-                            blocksPlanEligibility || blocksDifferentAddon ? true : undefined
-                          }
+                          aria-disabled={blocksPlanEligibility ? true : undefined}
                           disabled={
-                            !isStorageAddonManagementAvailable ||
-                            isBusy ||
-                            blocksPlanEligibility ||
-                            blocksDifferentAddon
+                            !isStorageAddonManagementAvailable || isBusy || blocksPlanEligibility
                           }
                         >
                           {actionLabel}
@@ -288,7 +283,7 @@ export function ProfileStorageSection({
             ))
           )}
         </div>
-        <p className="tiny subdued">Need 500 GB or more? Contact support for a storage review.</p>
+        <p className="tiny subdued">Need more than 1 TB? Contact support for a storage review.</p>
 
         {billingContractLoading ? (
           <p className="tiny subdued">Syncing active storage entitlements…</p>

@@ -14,6 +14,7 @@ import {
   extractNextRouteLoadTimeoutRoute,
   extractFailedNextChunk,
   hasNextChunkLoadFailureText,
+  hasNextOutdatedDeploymentText,
   hasNextRouteLoadTimeoutText,
   toChunkLoadErrorMessage,
 } from "../lib/chunkLoadErrors";
@@ -96,6 +97,7 @@ export default function App({ Component, pageProps }: AppProps) {
       const telemetryRouteChangeTarget = redactUrlForTelemetry(url);
       const hasScriptLoadFailure = hasNextChunkLoadFailureText(routeErrorMessage);
       const hasRouteLoadTimeout = hasNextRouteLoadTimeoutText(routeErrorMessage);
+      const hasOutdatedDeploymentReload = hasNextOutdatedDeploymentText(routeErrorMessage);
 
       addBreadcrumb({
         type: "route",
@@ -143,6 +145,25 @@ export default function App({ Component, pageProps }: AppProps) {
             route_change_target: telemetryRouteChangeTarget,
             route_change_timeout_route: extractNextRouteLoadTimeoutRoute(routeErrorMessage),
             route_change_automated_browser: automatedBrowser,
+          },
+        });
+        return;
+      }
+
+      if (hasOutdatedDeploymentReload) {
+        void reportAppError({
+          source: "telemetry.route_change.outdated_deployment",
+          scope: "app",
+          severity: "low",
+          message: routeErrorMessage
+            ? `Route change recovered by hard reload: ${routeErrorMessage}`
+            : "Route change recovered by hard reload",
+          stack: routeError?.stack ?? null,
+          route: typeof window !== "undefined" ? window.location.pathname : null,
+          endpoint: telemetryRouteChangeTarget,
+          metadata: {
+            route_change_target: telemetryRouteChangeTarget,
+            route_change_recovery: "outdated_deployment_hard_reload",
           },
         });
         return;

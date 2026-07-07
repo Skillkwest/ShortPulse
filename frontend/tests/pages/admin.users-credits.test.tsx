@@ -406,7 +406,7 @@ describe("Admin users and credits overview", () => {
       }
       if (path === "/api/admin/billing/contracts/update") {
         expect(options?.method).toBe("POST");
-        return jsonResponse({ ok: true, creditsGrantedCents: 12000 });
+        return jsonResponse({ ok: true, creditsGrantedCents: 8000 });
       }
       if (path === "/api/admin/billing/portal") {
         expect(options?.method).toBe("POST");
@@ -729,7 +729,7 @@ describe("Admin users and credits overview", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("Payment-exempt access saved and 12,000 credits were seeded.")
+        screen.getByText("Payment-exempt access saved and 8,000 credits were seeded.")
       ).toBeInTheDocument()
     );
 

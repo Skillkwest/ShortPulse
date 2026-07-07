@@ -35,6 +35,7 @@ export type BillingAccountProfileState = {
 
 const BILLING_ACCOUNT_SUMMARY_RETRY_BACKOFF_MS = 10_000;
 const BILLING_ACCOUNT_SUMMARY_CACHE_TTL_MS = 30_000;
+const BILLING_ACCOUNT_SUMMARY_REQUEST_TIMEOUT_MS = 15_000;
 
 let billingAccountSummaryInFlightByKey = new Map<string, Promise<BillingAccountSummary | null>>();
 let billingAccountSummaryCacheByUserId = new Map<
@@ -290,6 +291,7 @@ export const fetchBillingAccountSummary = async (options?: {
             pragma: "no-cache",
           },
           shortpulseSkipErrorLogging: true,
+          shortpulseRequestTimeoutMs: BILLING_ACCOUNT_SUMMARY_REQUEST_TIMEOUT_MS,
         }
       );
       if (!response.ok) {

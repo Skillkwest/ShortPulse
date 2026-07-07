@@ -18,7 +18,7 @@ describe("aiStudioWorkflowEntitlements", () => {
       code: AI_STUDIO_WORKFLOW_PLAN_REQUIRED_CODE,
       workflow: "video",
       planId: "starter",
-      ctaHref: "/pricing",
+      ctaHref: "/profile?section=subscription",
       ctaLabel: "View plans",
     });
 

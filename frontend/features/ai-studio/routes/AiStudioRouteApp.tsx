@@ -12,13 +12,13 @@ import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosave
 import { resolveAiStudioRuntimeScopeKey } from "../logic/aiStudioRuntimeScopeKey";
 import {
   AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE,
-  AI_STUDIO_PLAN_CTA,
   resolveGenerationAccessCta,
 } from "../logic/generationAccessCta";
 import {
   AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE,
   resolveAiStudioWorkflowNavigationAccess,
   resolveAiStudioWorkflowPlanAccess,
+  type AiStudioWorkflowPlanAccess,
 } from "../../../lib/billing/aiStudioWorkflowEntitlements";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
@@ -69,6 +69,17 @@ type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRu
 type CreateRuntimeRootSharedProps = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
+};
+
+const WORKFLOW_PLAN_ACCESS_CTA_ARIA_LABEL = "View subscription plans";
+
+const resolveWorkflowPlanAccessCta = (access: AiStudioWorkflowPlanAccess) => {
+  if (access.allowed || !access.restriction) return null;
+  return {
+    label: access.restriction.ctaLabel,
+    href: access.restriction.ctaHref,
+    ariaLabel: WORKFLOW_PLAN_ACCESS_CTA_ARIA_LABEL,
+  };
 };
 
 type AiStudioRouteDebugWindow = Window & {
@@ -260,7 +271,7 @@ const AiStudioPageRuntimeBody = ({
       planId: resolvedPlan.id,
       mode: "video",
     });
-    return access.allowed ? null : AI_STUDIO_PLAN_CTA;
+    return resolveWorkflowPlanAccessCta(access);
   }, [resolvedPlan, resolvedPlanStatus]);
   const workflowNavigationAccessCta = React.useMemo(() => {
     if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
@@ -268,7 +279,7 @@ const AiStudioPageRuntimeBody = ({
       planId: resolvedPlan.id,
       mode: "video",
     });
-    return access.allowed ? null : AI_STUDIO_PLAN_CTA;
+    return resolveWorkflowPlanAccessCta(access);
   }, [resolvedPlan, resolvedPlanStatus]);
   const [isMediaPlanNoticeVisible, setIsMediaPlanNoticeVisible] = useState(false);
   const [isWorkflowPlanNoticeVisible, setIsWorkflowPlanNoticeVisible] = useState(false);

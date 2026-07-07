@@ -118,7 +118,10 @@ export type StripeSubscriptionListResponse = {
 
 export type StripeInvoiceResponse = {
   id: string;
+  amount_due?: number | null;
   amount_paid?: number | null;
+  amount_remaining?: number | null;
+  number?: string | null;
   paid?: boolean;
   status?: string | null;
   billing_reason?: string | null;

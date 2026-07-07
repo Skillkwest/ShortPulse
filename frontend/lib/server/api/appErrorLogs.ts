@@ -381,6 +381,16 @@ const shouldSkipLog = (params: {
     return true;
   }
 
+  const isProjectWorkspaceStaleRouteClientNoise =
+    params.scope === "app" &&
+    params.source === "client.api_response" &&
+    (params.statusCode === 400 || params.statusCode === 404) &&
+    /^\/api\/projects\/[^/?]+\/workspace(?:\?|$)/.test(endpointText);
+
+  if (isProjectWorkspaceStaleRouteClientNoise) {
+    return true;
+  }
+
   const isResizeObserverLoopNoise =
     params.source.startsWith("client.") &&
     (messageText === "resizeobserver loop completed with undelivered notifications." ||

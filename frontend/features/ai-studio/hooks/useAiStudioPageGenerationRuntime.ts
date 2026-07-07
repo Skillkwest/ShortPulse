@@ -281,6 +281,7 @@ export const useAiStudioPageGenerationRuntime = ({
     prompt: promptForViewModel,
     referenceImageUrl: effectiveReferenceImageUrl,
     activeOutput,
+    outputs,
     selectedTool,
     useReferenceImageIndicator,
     getDefaultDurationSeconds,

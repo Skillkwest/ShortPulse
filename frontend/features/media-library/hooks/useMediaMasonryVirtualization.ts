@@ -67,7 +67,6 @@ export const useMediaMasonryVirtualization = <TItem>({
   );
   const [viewportTop, setViewportTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
-
   const sourceItems = useMemo<MediaVirtualItem[]>(
     () =>
       items.map((item) => ({

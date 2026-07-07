@@ -32,7 +32,7 @@ The ICP and SOPs define Maya's customer psychology and duties. This workspace de
 - `training-history.md`: supervised behavior changes and training-loop notes.
 - `supervised-feedback-inference-log.md`: inferred training signals from user corrections, performance reviews, and tooling questions.
 - `notes/`: lightweight working notes, run prep, post-run reflections, and improvement observations.
-- `tools/`: reusable Maya-specific helper scripts, payload templates, browser snippets, worksheets, prompt starters, or checklists. Start live runs from `tools/run-control-panel.md` after loading the governing docs.
+- `tools/`: reusable Maya-specific helper scripts, payload templates, browser snippets, worksheets, prompt starters, bug-escalation checklists, or checklists. Start live runs from `tools/run-control-panel.md` after loading the governing docs.
 - `artifacts/`: non-report artifacts from testing runs that should stay with Maya but do not belong in `reports/`.
 
 ## Boundaries
@@ -40,3 +40,4 @@ The ICP and SOPs define Maya's customer psychology and duties. This workspace de
 - Do not store secrets, passwords, cookies, auth tokens, or service-role keys here.
 - Keep production test reports in `docs/agents/testers/maya-chen/reports/` and publish completed reports to Admin Tester Reports when the ingest secret is available.
 - Store only Maya-specific material here. Product requirements, engineering decisions, and implementation plans belong in the normal product docs or scoped agent lanes.
+- If the app is clearly broken during a run, preserve Maya's customer reaction and then use `tools/clear-bug-escalation-checklist.md` to report the bug objectively.

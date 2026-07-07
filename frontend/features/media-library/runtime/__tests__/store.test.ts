@@ -296,6 +296,79 @@ describe("media runtime store", () => {
     expect(selectSurfaceAggregateMediaRows(state, "panel")[1]?.filename).toBe("video-1-fresh.mp4");
   });
 
+  it("prunes stale preview state during aggregate panel row replacement", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      mediaIds: ["image-1", "image-2"],
+      rowsByTab: {
+        uploaded_images: [makeMediaRow("image-1"), makeMediaRow("image-2")],
+        uploaded_videos: [],
+        private: [],
+        ai_generations: [],
+      },
+    });
+    state = setSurfaceSignedUrls(state, {
+      surface: "panel",
+      signedUrlById: new Map([
+        ["image-1", "https://signed/image-1.png"],
+        ["image-2", "https://signed/image-2.png"],
+      ]),
+    });
+    state = setSurfaceAspectRatio(state, {
+      surface: "panel",
+      mediaId: "image-1",
+      aspectRatio: 4 / 3,
+    });
+    state = setSurfaceAspectRatio(state, {
+      surface: "panel",
+      mediaId: "image-2",
+      aspectRatio: 16 / 9,
+    });
+    state = {
+      ...state,
+      surfaceStateByKind: {
+        ...state.surfaceStateByKind,
+        panel: {
+          ...state.surfaceStateByKind.panel,
+          preview: {
+            ...state.surfaceStateByKind.panel.preview,
+            previewErrorById: {
+              "image-1": 1,
+              "image-2": 2,
+            },
+            visibleIds: new Set(["image-1", "image-2"]),
+          },
+        },
+      },
+    };
+
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      mediaIds: ["image-2"],
+      rowsByTab: {
+        uploaded_images: [makeMediaRow("image-2")],
+        uploaded_videos: [],
+        private: [],
+        ai_generations: [],
+      },
+    });
+
+    expect(state.surfaceStateByKind.panel.preview.signedUrlById).toEqual({
+      "image-2": "https://signed/image-2.png",
+    });
+    expect(state.surfaceStateByKind.panel.preview.aspectRatioById).toEqual({
+      "image-2": 16 / 9,
+    });
+    expect(state.surfaceStateByKind.panel.preview.previewErrorById).toEqual({
+      "image-2": 2,
+    });
+    expect([...state.surfaceStateByKind.panel.preview.visibleIds]).toEqual(["image-2"]);
+    expect(selectSurfaceAggregateMediaRows(state, "panel")[0]?.signedUrl).toBe(
+      "https://signed/image-2.png"
+    );
+  });
+
   it("appends panel media rows without rebuilding unrelated tab order", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaRowsByTabs(state, {

@@ -65,7 +65,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_subscription_contracts.next_credit_grant_at` tracks the next monthly allocation due inside the active annual term
   - annual monthly allocations are processed by the secured billing renewal runner rather than by annual Stripe invoices alone
 
-## Current catalog (2026-07-04)
+## Current catalog (2026-07-07)
 
 Public entry-plan note:
 
@@ -78,7 +78,7 @@ Public entry-plan note:
 - `starter`: `$15/month` or `$180/year`, `350` credits/month, `5 GB`, `1` active generation
 - `media`: `$49/month` or `$588/year`, `1,200` credits/month, `25 GB`, `2` active generations
 - `studio`: `$129/month` or `$1,188/year`, `3,200` credits/month, `75 GB`, `4` active generations
-- `business`: `$299/month` or `$2,748/year`, `7,500` credits/month, `150 GB`, `8` active generations
+- `business`: `$299/month` or `$2,748/year`, `8,000` credits/month, `150 GB`, `8` active generations
 
 ### Recurring storage add-ons
 

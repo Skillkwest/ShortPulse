@@ -159,12 +159,6 @@ export const useAiStudioStabilityLifecycleTelemetry = ({
         pageshow_persisted: event.persisted,
       });
     };
-    const handleBeforeUnload = () => {
-      emitLifecycleEvent("beforeunload");
-    };
-    const handleUnload = () => {
-      emitLifecycleEvent("unload");
-    };
     const handleWindowBlur = () => {
       emitLifecycleEvent("window_blur");
     };
@@ -175,16 +169,12 @@ export const useAiStudioStabilityLifecycleTelemetry = ({
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("pagehide", handlePageHide);
     window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("unload", handleUnload);
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("unload", handleUnload);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
     };

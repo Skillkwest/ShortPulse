@@ -82,11 +82,18 @@ const CURRENT_SESSION_STORAGE_KEY = "shortpulse.browser_session.current.v1";
 const LAST_SESSION_STORAGE_KEY = "shortpulse.browser_session.last.v1";
 const TAB_ID_STORAGE_KEY = "shortpulse.browser_session.tab_id.v1";
 const ACTIVE_TABS_STORAGE_KEY = "shortpulse.browser_session.active_tabs.v1";
+const TERMINAL_SESSION_EVENTS = new Set<BrowserSessionEventType>([
+  "visibility_hidden",
+  "pagehide",
+  "clean_close",
+]);
 
 let activeMonitor: BrowserSessionMonitorState | null = null;
 let crashReportContextInitialized = false;
 let crashReportContextInitialization: Promise<void> | null = null;
 let pendingCrashReportContext: { sessionId: string; metadata: JsonObject } | null = null;
+let latestBrowserStorageEstimateMetadata: JsonObject = {};
+let browserStorageEstimateRefreshInFlight: Promise<void> | null = null;
 
 const nowMs = (): number => Date.now();
 
@@ -369,6 +376,56 @@ const readDeviceMetadata = (): JsonObject => {
   };
 };
 
+const roundMetadataRatio = (value: number): number => Math.round(value * 1000) / 1000;
+
+const buildBrowserStorageEstimateMetadata = (estimate: StorageEstimate): JsonObject => {
+  const output: JsonObject = {};
+  const usage =
+    typeof estimate.usage === "number" && Number.isFinite(estimate.usage)
+      ? Math.max(0, Math.round(estimate.usage))
+      : null;
+  const quota =
+    typeof estimate.quota === "number" && Number.isFinite(estimate.quota)
+      ? Math.max(0, Math.round(estimate.quota))
+      : null;
+
+  if (usage !== null) output.storage_estimate_usage_bytes = usage;
+  if (quota !== null) output.storage_estimate_quota_bytes = quota;
+  if (usage !== null && quota !== null) {
+    output.storage_estimate_available_bytes = Math.max(0, Math.round(quota - usage));
+    if (quota > 0) output.storage_estimate_usage_to_quota_ratio = roundMetadataRatio(usage / quota);
+  }
+  return output;
+};
+
+const refreshBrowserStorageEstimateMetadata = async (): Promise<void> => {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.storage ||
+    typeof navigator.storage.estimate !== "function"
+  ) {
+    return;
+  }
+  if (browserStorageEstimateRefreshInFlight) return browserStorageEstimateRefreshInFlight;
+
+  browserStorageEstimateRefreshInFlight = navigator.storage
+    .estimate()
+    .then((estimate) => {
+      latestBrowserStorageEstimateMetadata = buildBrowserStorageEstimateMetadata(estimate);
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      browserStorageEstimateRefreshInFlight = null;
+    });
+  return browserStorageEstimateRefreshInFlight;
+};
+
+const maybeRefreshBrowserStorageEstimateMetadata = (eventType: BrowserSessionEventType): void => {
+  if (!TERMINAL_SESSION_EVENTS.has(eventType)) {
+    void refreshBrowserStorageEstimateMetadata();
+  }
+};
+
 const readRuntimeMetadata = (): JsonObject => {
   const nextData =
     typeof window === "undefined"
@@ -401,6 +458,7 @@ const sendBrowserSessionEvent = async (params: {
 }): Promise<void> => {
   const token = readCachedSupabaseAccessToken();
   if (!token) return;
+  maybeRefreshBrowserStorageEstimateMetadata(params.eventType);
 
   await fetch("/api/log/browser-session", {
     method: "POST",
@@ -416,6 +474,7 @@ const sendBrowserSessionEvent = async (params: {
       occurredAt: new Date().toISOString(),
       metadata: {
         ...readRuntimeMetadata(),
+        ...latestBrowserStorageEstimateMetadata,
         ...(params.metadata ?? {}),
       },
     }),
@@ -622,4 +681,6 @@ export const resetBrowserSessionHealthMonitorForTests = (): void => {
   crashReportContextInitialized = false;
   crashReportContextInitialization = null;
   pendingCrashReportContext = null;
+  latestBrowserStorageEstimateMetadata = {};
+  browserStorageEstimateRefreshInFlight = null;
 };

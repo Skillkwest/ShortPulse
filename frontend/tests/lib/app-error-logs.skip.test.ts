@@ -98,6 +98,46 @@ describe("appErrorLogs skip rules", () => {
     expect(result).toEqual({ ok: true, skipped: true, id: null });
   });
 
+  it("skips expected stale project workspace route client response noise", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_response",
+      scope: "app",
+      severity: "low",
+      message: "API 404 response from /api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      endpoint: "/api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      statusCode: 404,
+      route: "/ai-studio",
+      stack: null,
+      metadata: {
+        method: "GET",
+        host: "www.shortpulse.ai",
+        client_environment: "production",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: true, id: null });
+  });
+
+  it("keeps project workspace server response failures actionable", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_response",
+      scope: "app",
+      severity: "medium",
+      message: "API 500 response from /api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      endpoint: "/api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      statusCode: 500,
+      route: "/ai-studio",
+      stack: null,
+      metadata: {
+        method: "GET",
+        host: "www.shortpulse.ai",
+        client_environment: "production",
+      },
+    });
+
+    expect(result).toEqual({ ok: false, skipped: false, id: null });
+  });
+
   it("skips hidden-tab local workspace fetch noise", async () => {
     const result = await writeAppErrorLog({
       source: "client.api_network",

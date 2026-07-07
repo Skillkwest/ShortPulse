@@ -39,6 +39,7 @@ Use this after the browser run and before publishing anything to Admin Tester Re
 - Keeps observed behavior separate from Maya's interpretation.
 - Names production route or surface.
 - Includes a short `Decision impact` near the summary.
+- Includes a `BUG OVERRIDE` packet when clear product breakage occurred, using `clear-bug-escalation-checklist.md`.
 - Lists reproduction steps.
 - Includes expected behavior and actual behavior.
 - Includes behavior metrics.

@@ -304,6 +304,71 @@ describe("POST /api/billing/subscription/change", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("returns a controlled unavailable response when Stripe Portal subscription updates are disabled", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [{ id: "si_base", quantity: 1, price: { id: "price_media" } }],
+      },
+    });
+    stripePostFormMock.mockRejectedValueOnce(
+      new Error(
+        "This subscription cannot be updated because the subscription update feature in the portal configuration is disabled."
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "This plan change is temporarily unavailable. Try again later.",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
   it("uses the portal update flow for a legacy Stripe paid profile without a contract row", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({

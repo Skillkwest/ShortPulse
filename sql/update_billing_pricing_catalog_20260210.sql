@@ -1,8 +1,8 @@
 -- Billing pricing catalog refresh (2026-02-10)
 -- Historical catalog refresh script. Current top-up rows follow the July 2026
 -- numeric credit ladder; runtime model debit pricing remains separate.
+-- Do not use this script as current pricing authority for live catalog updates.
 -- Plan renames: pro → studio, creative_suite → business
--- Safe to run multiple times.
 
 update billing_plans
 set monthly_price_cents = case id

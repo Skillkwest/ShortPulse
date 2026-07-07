@@ -89,7 +89,7 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
           user_id: "user-1",
           plan_id: "business",
           stripe_customer_id: "cus_123",
-          monthly_credits_cents: 12000,
+          monthly_credits_cents: 8000,
           current_period_start: "2026-03-01T00:00:00.000Z",
           current_period_end: "2026-04-01T00:00:00.000Z",
           status: "active",
@@ -154,7 +154,7 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        amountCents: 12000,
+        amountCents: 8000,
         source: "internal_contract_renewal",
         creditKind: "subscription_allocation",
         expiresAt: "2026-06-01T00:00:00.000Z",

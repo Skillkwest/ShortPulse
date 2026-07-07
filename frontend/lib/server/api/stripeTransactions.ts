@@ -53,7 +53,9 @@ export type StripeInvoiceResponse = {
   number?: string | null;
   status?: string | null;
   currency?: string | null;
+  amount_due?: number | null;
   amount_paid?: number | null;
+  amount_remaining?: number | null;
   created?: number | null;
   paid?: boolean;
   billing_reason?: string | null;
@@ -107,6 +109,17 @@ const invoiceUnixToIso = (value: number | null | undefined): string | null => {
 };
 
 const resolveInvoiceTitle = (invoice: StripeInvoiceResponse): string => {
+  const invoiceStatus = typeof invoice.status === "string" ? invoice.status : null;
+  if (invoiceStatus === "open" || invoiceStatus === "uncollectible") {
+    if (invoice.billing_reason === "subscription_create") {
+      return "Initial subscription payment needs attention";
+    }
+    if (invoice.billing_reason === "subscription_cycle") {
+      return "Subscription renewal payment needs attention";
+    }
+    return "Subscription payment needs attention";
+  }
+
   const description = typeof invoice.description === "string" ? invoice.description.trim() : "";
   if (description.length > 0) return description;
 
@@ -120,6 +133,16 @@ const resolveInvoiceTitle = (invoice: StripeInvoiceResponse): string => {
     return "Plan change adjustment";
   }
   return "Subscription payment";
+};
+
+const resolveInvoiceDisplayAmountCents = (invoice: StripeInvoiceResponse): number => {
+  const amountPaid = Math.max(0, Number(invoice.amount_paid ?? 0) || 0);
+  if (amountPaid > 0 || invoice.paid === true || invoice.status === "paid") {
+    return amountPaid;
+  }
+  const amountRemaining = Math.max(0, Number(invoice.amount_remaining ?? 0) || 0);
+  if (amountRemaining > 0) return amountRemaining;
+  return Math.max(0, Number(invoice.amount_due ?? 0) || 0);
 };
 
 export const resolveTransactionKindFilter = (value: unknown): TransactionKindFilter => {
@@ -202,6 +225,27 @@ export const listPaidInvoices = async (
   return (Array.isArray(invoiceList.data) ? invoiceList.data : []).filter((invoice) => {
     const amountPaid = Number(invoice.amount_paid ?? 0);
     return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
+  });
+};
+
+export const listBillingInvoices = async (
+  stripeCustomerId: string
+): Promise<StripeInvoiceResponse[]> => {
+  const invoiceList = await stripeGet<StripeInvoiceListResponse>("/invoices", {
+    customer: stripeCustomerId,
+    limit: 12,
+    "expand[0]": "data.lines",
+  });
+
+  return (Array.isArray(invoiceList.data) ? invoiceList.data : []).filter((invoice) => {
+    const amountPaid = Number(invoice.amount_paid ?? 0);
+    const amountDue = Number(invoice.amount_due ?? invoice.amount_remaining ?? 0);
+    return (
+      amountPaid > 0 ||
+      invoice.paid === true ||
+      invoice.status === "paid" ||
+      ((invoice.status === "open" || invoice.status === "uncollectible") && amountDue > 0)
+    );
   });
 };
 
@@ -324,7 +368,7 @@ export const buildSubscriptionTransaction = (
 ): BillingPaymentTransaction => ({
   id: invoice.id,
   invoiceNumber: typeof invoice.number === "string" ? invoice.number : null,
-  amountPaidCents: Math.max(0, Number(invoice.amount_paid ?? 0) || 0),
+  amountPaidCents: resolveInvoiceDisplayAmountCents(invoice),
   currency: typeof invoice.currency === "string" ? invoice.currency : null,
   status: typeof invoice.status === "string" ? invoice.status : null,
   title: resolveInvoiceTitle(invoice),
@@ -351,7 +395,7 @@ export const buildUnifiedInvoiceTransaction = (
   const baseTransaction = {
     id: invoice.id,
     invoiceNumber: typeof invoice.number === "string" ? invoice.number : null,
-    amountPaidCents: Math.max(0, Number(invoice.amount_paid ?? 0) || 0),
+    amountPaidCents: resolveInvoiceDisplayAmountCents(invoice),
     currency: typeof invoice.currency === "string" ? invoice.currency : null,
     status: typeof invoice.status === "string" ? invoice.status : null,
     createdAt: invoiceUnixToIso(invoice.created),

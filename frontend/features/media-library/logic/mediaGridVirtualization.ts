@@ -108,6 +108,26 @@ const createVirtualLayoutFrame = ({
   ),
 });
 
+export const reuseStableMediaVirtualItems = (
+  previousItems: MediaVirtualItem[] | null,
+  nextItems: MediaVirtualItem[]
+): MediaVirtualItem[] => {
+  if (!previousItems || previousItems.length !== nextItems.length) {
+    return nextItems;
+  }
+  for (let index = 0; index < nextItems.length; index += 1) {
+    const previousItem = previousItems[index];
+    const nextItem = nextItems[index];
+    if (
+      previousItem.id !== nextItem.id ||
+      !Object.is(previousItem.aspectRatio, nextItem.aspectRatio)
+    ) {
+      return nextItems;
+    }
+  }
+  return previousItems;
+};
+
 /**
  * Computes absolute-positioned masonry coordinates for the full item set.
  */

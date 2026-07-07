@@ -30,9 +30,9 @@ describe("profilePageModel billing helpers", () => {
       formatAccountCreditsSummary({
         balanceCents: 12_500,
         balanceLoading: false,
-        planCreditsCents: 7_500,
+        planCreditsCents: 8_000,
       })
-    ).toBe("12,500 / 7,500");
+    ).toBe("12,500 / 8,000");
   });
 
   it("marks account summary credits as surplus only above the plan allowance", () => {

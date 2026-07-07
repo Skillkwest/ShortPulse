@@ -213,6 +213,44 @@ describe("fetchWithAuth auth-session timeout", () => {
     }
   });
 
+  it("aborts the network request when a request timeout is configured", async () => {
+    vi.useFakeTimers();
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = (init as RequestInit | undefined)?.signal;
+          signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        })
+    );
+
+    try {
+      const pending = fetchWithAuth("/api/billing/account-summary", {
+        method: "GET",
+        shortpulseRequestTimeoutMs: 25,
+      }).catch((error) => error);
+
+      await vi.advanceTimersByTimeAsync(25);
+      const error = await pending;
+
+      expect(error).toBeInstanceOf(DOMException);
+      expect((error as DOMException).name).toBe("AbortError");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(reportAppErrorMock).not.toHaveBeenCalled();
+      expect(addBreadcrumbMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "info",
+          message: "fetch_aborted",
+        })
+      );
+    } finally {
+      fetchSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("retries recoverable network failures once without reporting when retry succeeds", async () => {
     readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
     const fetchSpy = vi

@@ -56,6 +56,8 @@ type AiStudioToolbarProps = {
 
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
+const DASHBOARD_HREF = "/dashboard";
+
 const SoundEffectsWaveformIcon = React.forwardRef<SVGSVGElement, IconProps>(
   function SoundEffectsWaveformIcon(
     { color = "currentColor", size = "1em", mirrored = false, weight, ...restProps },
@@ -141,7 +143,7 @@ function AiStudioToolbarComponent({
       className="panel ai-panel ai-toolbar ai-toolbar-floating"
       data-primary-active={activePrimary || undefined}
     >
-      <div className="toolbar-logo">
+      <a href={DASHBOARD_HREF} className="toolbar-logo" aria-label="Go to dashboard">
         <Image
           src={AI_STUDIO_TOOLBAR_LOGO_SRC}
           alt="AI Studio logo"
@@ -149,7 +151,7 @@ function AiStudioToolbarComponent({
           height={150}
           priority
         />
-      </div>
+      </a>
       <DashboardNavPrefab className="toolbar-back-link" navigationMode="assign" />
       <button
         type="button"
@@ -204,8 +206,29 @@ function AiStudioToolbarComponent({
                 : tool.id === "edit"
                   ? isEditSelected
                   : selectedTool === tool.id;
-          if (isWorkflowPlanRestrictedTool) {
-            return null;
+          if (isWorkflowPlanRestrictedTool && workflowPlanAccessCta) {
+            return (
+              <a
+                key={tool.id}
+                className={`toolbar-item toolbar-item-workflow-plan-restricted ${
+                  isActive ? "is-active" : ""
+                }`}
+                data-tool-id={tool.id}
+                href={workflowPlanAccessCta.href}
+                aria-label={`${tool.label}: ${workflowPlanAccessCta.ariaLabel}`}
+                onClick={onWorkflowPlanAccessAttempt}
+              >
+                {IconComponent ? <IconComponent size={18} weight="regular" /> : null}
+                <div className="toolbar-copy">
+                  <span className="toolbar-label toolbar-label-default" aria-hidden="true">
+                    {tool.label}
+                  </span>
+                  <span className="toolbar-label toolbar-label-plan-cta" aria-hidden="true">
+                    {workflowPlanAccessCta.label}
+                  </span>
+                </div>
+              </a>
+            );
           }
           return (
             <React.Fragment key={tool.id}>
@@ -261,19 +284,6 @@ function AiStudioToolbarComponent({
             </React.Fragment>
           );
         })}
-        {workflowPlanAccessCta ? (
-          <a
-            className="toolbar-item toolbar-item-plan-cta"
-            data-tool-id="workflow-plan"
-            href={workflowPlanAccessCta.href}
-            aria-label={workflowPlanAccessCta.ariaLabel}
-            onClick={onWorkflowPlanAccessAttempt}
-          >
-            <div className="toolbar-copy">
-              <span className="toolbar-label">{workflowPlanAccessCta.label}</span>
-            </div>
-          </a>
-        ) : null}
         <div className="toolbar-divider" aria-hidden="true" />
         <div className="toolbar-lower toolbar-libraries">
           <p className="toolbar-section-label">Libraries</p>

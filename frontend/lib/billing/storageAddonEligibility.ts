@@ -2,6 +2,11 @@
  * Shared recurring storage entitlement and add-on eligibility rules.
  * Keep this matrix in sync with the billing catalog guardrails before exposing new add-ons.
  */
+import {
+  PAID_ACCESS_SUBSCRIPTION_STATUSES,
+  isPaidAccessSubscriptionStatus,
+} from "./subscriptionStatusPolicy";
+
 export const BYTES_PER_GIB = 1024 * 1024 * 1024;
 
 export const PLAN_STORAGE_LIMIT_BYTES_BY_ID: Record<string, number> = {
@@ -25,12 +30,7 @@ export const SELF_SERVE_STORAGE_ADDON_IDS = [
 ] as const;
 
 export const MANUAL_REVIEW_STORAGE_ADDON_IDS = ["storage_500gb"] as const;
-export const CURRENT_BILLABLE_STORAGE_ADDON_STATUSES = [
-  "active",
-  "trialing",
-  "past_due",
-  "unpaid",
-] as const;
+export const CURRENT_BILLABLE_STORAGE_ADDON_STATUSES = PAID_ACCESS_SUBSCRIPTION_STATUSES;
 
 const SELF_SERVE_STORAGE_ADDONS_BY_PLAN: Record<string, readonly string[]> = {
   starter: ["storage_10gb"],
@@ -77,9 +77,7 @@ export const normalizeStorageAddonId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
 
 export const isCurrentBillableStorageAddonStatus = (status: string | null | undefined): boolean => {
-  return CURRENT_BILLABLE_STORAGE_ADDON_STATUSES.includes(
-    String(status ?? "").toLowerCase() as (typeof CURRENT_BILLABLE_STORAGE_ADDON_STATUSES)[number]
-  );
+  return isPaidAccessSubscriptionStatus(status);
 };
 
 export const isPaidStorageAddonPlan = (planId: string | null | undefined): boolean => {

@@ -13,6 +13,8 @@ Authentic Maya questions before credit spend: `<count / not applicable>`
 Baseline comparison completed: `<yes / no / not needed>`
 Supervised feedback intake needed: `<yes / no>`
 If yes, `post-run-learning-intake.md` completed: `<yes / no>`
+Clear bug escalation triggered: `<yes / no>`
+If yes, `clear-bug-escalation-checklist.md` completed: `<yes / no>`
 
 | Parameter                   | Score          | Notes                                                                                                                                    |
 | --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -24,6 +26,7 @@ If yes, `post-run-learning-intake.md` completed: `<yes / no>`
 | Evidence quality            | `<1-10>`       | Were screenshots/files meaningful and not excessive?                                                                                     |
 | Behavior metrics quality    | `<1-10>`       | Did I capture useful human behavior signals?                                                                                             |
 | Report usefulness           | `<1-10>`       | Can the user and next engineering agent act on the reports?                                                                              |
+| Bug recognition             | `<1-10 / n/a>` | Did I correctly distinguish objective product breakage from ordinary customer confusion and produce a bug packet when needed?            |
 | Admin publish completion    | `<1-10 / n/a>` | Was the run published to Admin Tester Reports when possible?                                                                             |
 | Workspace memory hygiene    | `<1-10>`       | Did I add durable learning only when needed?                                                                                             |
 | Stop/resume discipline      | `<1-10 / n/a>` | Did I handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
@@ -50,6 +53,7 @@ Non-negotiable fail conditions triggered:
 - Do not inflate scores to be polite.
 - Use `n/a` only when the category truly did not apply.
 - If persona fidelity, human realism, question-first behavior, credit discipline, report usefulness, or stop/resume discipline is below `7`, name the exact correction for the next run.
+- If clear product breakage occurred and no `BUG OVERRIDE` packet was created, Bug recognition cannot score above `4` and Report usefulness cannot score above `6`.
 - If the human nuance card was not loaded or no live note included taste/social-stakes/pride/embarrassment/temptation/trust-shift, score human realism strictly and name the missing cue.
 - If Admin publish completion is below `7` and not `n/a`, name whether the blocker was missing access, missing secret, failed ingest, failed verification, or operator error.
 - If the same weak score appears in two consecutive runs, update `workspace/memory.md`, `training-history.md`, or the relevant SOP/tool so the correction becomes durable.
@@ -68,6 +72,7 @@ Persona report:
 
 Engineering handoff:
 
+- BUG OVERRIDE packet included when clear breakage occurred: `<yes / no / not needed>`
 - Decision impact included: `<yes / no>`
 - Agent fix packet included for primary issue: `<yes / no / not needed>`
 - Acceptance criteria included: `<yes / no / not needed>`

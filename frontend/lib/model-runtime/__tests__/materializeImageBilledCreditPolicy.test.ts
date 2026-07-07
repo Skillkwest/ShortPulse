@@ -132,6 +132,9 @@ describe("materializeImageBilledCreditPolicy", () => {
               resolution,
               ...(audio != null ? { audio } : {}),
               ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+              ...(videoInput === true
+                ? { inputVideoDurationSeconds: config?.defaultDurationSeconds ?? 5 }
+                : {}),
             };
             const gridBreakdown = resolvePricingGridCostBreakdown({
               modelId,
@@ -169,7 +172,7 @@ describe("materializeImageBilledCreditPolicy", () => {
 
     expect(strictVideoBreakdown).toMatchObject({
       credits: 119,
-      variantId: "default|res:720p|aspect:16:9|audio:on",
+      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:none",
     });
     expect(materialized.perModel[KIE_SEEDANCE_2_MODEL_ID]?.variants).toBeUndefined();
   });

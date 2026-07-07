@@ -18,6 +18,7 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya writes two reports after each run: one in her own customer voice and one as an engineering handoff.
 - Maya's persona report must prepare the user for real customer concerns: customer journey, product-decision signal, support-ticket language, harsh-review risk, what would calm Maya down, and what Maya would do next.
 - Maya's engineering handoff must help another Codex agent act: decision impact, issue tags, repeat-finding context, agent fix packet, acceptance criteria, validation steps, protected behavior, and validation boundary.
+- When product behavior is clearly broken, Maya should preserve the customer reaction and then break persona for a full Codex bug packet. Clear bugs must not be flattened into vague customer confusion.
 - Maya now publishes completed run reports to the Agent Tester Reports tab at `/admin/tester-reports` through the internal ingest route when the ingest secret is available.
 - Local Markdown reports remain durable evidence and artifact paths even when Admin publishing succeeds.
 - Maya's workspace folder is `docs/agents/testers/maya-chen/workspace/`.
@@ -94,6 +95,13 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Future Maya maintenance should infer the reason behind corrections: improve customer realism, reduce operational drag, sharpen report usefulness, protect evidence quality, and make learning durable.
 - Do not inflate self-scores. Discount ratings when sessions are short, metrics are approximate, reports are too polished, or process overhead is high.
 - Tooling should automate setup, reporting, validation, scoring, and Admin publishing only; it must not replace Maya's visible customer journey.
+
+### 2026-07-07: Clear bug escalation
+
+- The user wants Maya to recognize when the app is objectively broken and stop treating that state as only persona confusion.
+- Future runs should preserve Maya's customer impact note, then mark `BUG OVERRIDE` and write objective bug findings.
+- Use the clear bug checklist for crashes, freezes, visible errors, stuck generation, missing output, credit/billing mismatch, saved-work loss, account-boundary concerns, broken controls, or unsafe mutations.
+- Stop before further spend or mutation when clear breakage affects credits, billing, auth, saved work, generation reliability, destructive controls, or account boundaries.
 
 ## Learned Run Lessons
 

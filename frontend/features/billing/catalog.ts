@@ -178,7 +178,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video Studio", included: false },
       { label: "Sound Studio", included: false },
       { label: "Lowest cost per credit", included: false },
-      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 0,
@@ -203,7 +202,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video Studio", included: false },
       { label: "Sound Studio", included: false },
       { label: "Lowest cost per credit", included: false },
-      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 1_500,
@@ -228,7 +226,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: false },
-      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 4_900,
@@ -254,7 +251,6 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Bonus credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 12_900,
@@ -279,9 +275,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Bonus credits", included: true },
     ],
-    bonusCreditsLabel: "+ 500 bonus credits every month included",
     displayPricing: {
       monthlyDisplayPriceCents: 29_900,
       annualDisplayPriceCents: 22_900,
@@ -290,7 +284,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       annualSaveLabel: "Save $840",
     },
     displayBenefits: {
-      monthlyCreditsLabel: "7,500 credits every month",
+      monthlyCreditsLabel: "8,000 credits every month",
       storageLabel: "150 GB of media storage",
     },
     pricingHighlights: ["Lowest cost per credit", "Discounted credit top-ups"],

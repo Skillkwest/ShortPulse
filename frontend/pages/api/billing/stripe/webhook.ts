@@ -399,7 +399,11 @@ const getWebhookErrorMetadata = (error: unknown): Record<string, unknown> => {
 };
 
 const recordBillingTelemetrySafely = async (params: {
-  source: "telemetry.billing.checkout_completed";
+  source:
+    | "telemetry.billing.checkout_completed"
+    | "telemetry.billing.checkout_async_payment_failed"
+    | "telemetry.billing.invoice_payment_action_required"
+    | "telemetry.billing.invoice_payment_failed";
   message: string;
   userId?: string | null;
   metadata?: Record<string, unknown>;
@@ -421,6 +425,73 @@ const recordBillingTelemetrySafely = async (params: {
   } catch {
     // Webhook success must not depend on telemetry persistence.
   }
+};
+
+const resolveFailureTelemetryUserIdSafely = async (
+  stripeCustomerId: string | null
+): Promise<string | null> => {
+  if (!stripeCustomerId) return null;
+  try {
+    const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
+    return profile?.user_id ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const processCheckoutAsyncPaymentFailed = async (session: JsonObject, eventId: string) => {
+  const stripeCustomerId = normalizeString(session.customer);
+  const userId = await resolveFailureTelemetryUserIdSafely(stripeCustomerId);
+  const metadata = toRecord(session.metadata);
+
+  await recordBillingTelemetrySafely({
+    source: "telemetry.billing.checkout_async_payment_failed",
+    message: "checkout_async_payment_failed",
+    userId,
+    metadata: {
+      checkout_session_id: session.id ?? null,
+      stripe_customer_id: stripeCustomerId,
+      stripe_event_id: eventId,
+      credit_package_id: normalizeString(metadata.credit_package_id),
+      payment_status: normalizeString(session.payment_status),
+    },
+  });
+};
+
+const processInvoicePaymentIssue = async (
+  invoice: JsonObject,
+  eventId: string,
+  source:
+    | "telemetry.billing.invoice_payment_action_required"
+    | "telemetry.billing.invoice_payment_failed",
+  message: "invoice_payment_action_required" | "invoice_payment_failed"
+) => {
+  const stripeCustomerId = normalizeString(invoice.customer);
+  const userId = await resolveFailureTelemetryUserIdSafely(stripeCustomerId);
+
+  await recordBillingTelemetrySafely({
+    source,
+    message,
+    userId,
+    metadata: {
+      invoice_id: invoice.id ?? null,
+      stripe_customer_id: stripeCustomerId,
+      stripe_subscription_id: normalizeString(invoice.subscription),
+      stripe_event_id: eventId,
+      billing_reason: normalizeString(invoice.billing_reason),
+      invoice_status: normalizeString(invoice.status),
+      amount_due_cents: Number.isFinite(Number(invoice.amount_due))
+        ? Number(invoice.amount_due)
+        : null,
+      attempt_count: Number.isFinite(Number(invoice.attempt_count))
+        ? Number(invoice.attempt_count)
+        : null,
+      next_payment_attempt: Number.isFinite(Number(invoice.next_payment_attempt))
+        ? invoice.next_payment_attempt
+        : null,
+      hosted_invoice_url: normalizeString(invoice.hosted_invoice_url),
+    },
+  });
 };
 
 const recordStorageAddonProjectionDriftSafely = async (params: {
@@ -1235,6 +1306,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ) {
         await processCheckoutCompleted(object, event.id);
       }
+      if (event.type === "checkout.session.async_payment_failed") {
+        await processCheckoutAsyncPaymentFailed(object, event.id);
+      }
       if (
         event.type === "customer.subscription.created" ||
         event.type === "customer.subscription.updated" ||
@@ -1244,6 +1318,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (event.type === "invoice.payment_succeeded") {
         await processInvoicePaymentSucceeded(object, event.id);
+      }
+      if (event.type === "invoice.payment_failed") {
+        await processInvoicePaymentIssue(
+          object,
+          event.id,
+          "telemetry.billing.invoice_payment_failed",
+          "invoice_payment_failed"
+        );
+      }
+      if (event.type === "invoice.payment_action_required") {
+        await processInvoicePaymentIssue(
+          object,
+          event.id,
+          "telemetry.billing.invoice_payment_action_required",
+          "invoice_payment_action_required"
+        );
       }
     } catch (processingError) {
       const releaseResult = await releaseStripeEventClaim(event);

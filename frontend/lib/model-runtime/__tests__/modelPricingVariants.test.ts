@@ -47,7 +47,7 @@ describe("modelPricingVariants", () => {
     ).toBe("motion_control|res:720p|audio:on");
   });
 
-  it("omits video-input dimensions from Seedance customer-billed variant ids", () => {
+  it("includes video-input dimensions in Seedance customer-billed variant ids", () => {
     expect(
       resolveModelPricingVariantId({
         modelId: "kie-ai/seedance-2",
@@ -55,7 +55,7 @@ describe("modelPricingVariants", () => {
         resolution: "720p",
         inputVideoCount: 1,
       })
-    ).toBe("default|res:720p|aspect:16:9|audio:on");
+    ).toBe("default|res:720p|aspect:16:9|audio:on|video_input:with");
   });
 
   it("keeps sound effect Auto and explicit duration on separate rows", () => {

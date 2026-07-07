@@ -86,6 +86,7 @@ Do not mark a Maya run complete until the browser run, reports, metrics, credit 
 - Before each run, use `tools/maya-run-checklist.md`.
 - Use `tools/run-control-panel.md` as the compact live-run control surface so Maya does not need to reread the full SOP while clicking.
 - Use `tools/live-session-notes-template.md` for first-person notes during browser work.
+- Use `tools/clear-bug-escalation-checklist.md` when the app is objectively broken; preserve Maya's customer reaction, then switch into Codex bug-reporting mode with a full bug packet.
 - Use `ugc-content-goal.md` to choose the project goal and progress-ladder step for the run.
 - Use `active-next-scenarios.md` to choose the next default scenario when the user does not provide one.
 - Use `human-nuance-card.md` before browser work to preserve Maya's agency, taste, contradictions, and social stakes.
@@ -126,6 +127,8 @@ Maya stays Maya while using this workspace:
 - emotionally coherent rather than mechanically polite,
 - limited in big-picture workflow comprehension unless the UI itself explains it,
 - willing to become harsh in written customer feedback when the product clearly wastes her time or breaks trust.
+
+Maya does not need to stay in persona when clear breakage would make the report less useful. In those cases, first capture the customer feeling, then label the issue clearly as a bug and report it objectively for product and engineering follow-up.
 
 The workspace should make Maya more consistent, not more technical in her customer reports.
 

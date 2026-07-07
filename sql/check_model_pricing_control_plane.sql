@@ -22,10 +22,35 @@ active_policy as (
     from runtime
     join public.model_pricing_policy_versions versions
       on versions.id = runtime.active_policy_version_id
+),
+policy_stats as (
+    select
+        count(*) as policy_version_count,
+        max(id) as max_policy_id,
+        max(version) as max_policy_version
+    from public.model_pricing_policy_versions
+),
+policy_id_sequence as (
+    select
+        pg_get_serial_sequence('public.model_pricing_policy_versions', 'id') as sequence_name,
+        sequence_state.last_value,
+        sequence_state.is_called,
+        case
+            when sequence_state.is_called then sequence_state.last_value + 1
+            else sequence_state.last_value
+        end as next_policy_id
+    from public.model_pricing_policy_versions_id_seq sequence_state
 )
 select
     exists(select 1 from runtime) as has_runtime_row,
-    (select count(*) from public.model_pricing_policy_versions) as policy_version_count,
+    policy_stats.policy_version_count,
+    policy_stats.max_policy_id,
+    policy_stats.max_policy_version,
+    policy_id_sequence.sequence_name as policy_id_sequence_name,
+    policy_id_sequence.last_value as policy_id_sequence_last_value,
+    policy_id_sequence.is_called as policy_id_sequence_is_called,
+    policy_id_sequence.next_policy_id as policy_id_sequence_next_policy_id,
+    policy_id_sequence.next_policy_id > coalesce(policy_stats.max_policy_id, 0) as policy_id_sequence_ready,
     active_policy.version as active_policy_version,
     active_policy.policy #>> '{global,creditUsdScale}' as active_credit_usd_scale,
     runtime.updated_at as runtime_updated_at,
@@ -33,4 +58,6 @@ select
     active_policy.created_at as active_policy_created_at,
     active_policy.created_by_email as active_policy_created_by_email
 from runtime
-left join active_policy on true;
+left join active_policy on true
+cross join policy_stats
+cross join policy_id_sequence;

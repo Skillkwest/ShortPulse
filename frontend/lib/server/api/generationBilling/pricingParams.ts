@@ -129,6 +129,25 @@ const resolveInputVideoCount = (payload: JsonObject): number | undefined => {
   return count >= 0 ? count : undefined;
 };
 
+const resolveInputVideoDurationSeconds = (
+  payload: JsonObject,
+  context?: JsonObject | null
+): number | undefined => {
+  const direct =
+    asNumber(payload.input_video_duration_seconds) ??
+    asNumber(context?.input_video_duration_seconds) ??
+    asNumber(context?.seedance_input_video_duration_seconds);
+  if (direct && direct > 0) return Number(direct.toFixed(3));
+
+  const durationMs =
+    asNumber(payload.input_video_duration_ms) ??
+    asNumber(context?.input_video_duration_ms) ??
+    asNumber(context?.seedance_input_video_duration_ms);
+  if (durationMs && durationMs > 0) return Number((durationMs / 1000).toFixed(3));
+
+  return undefined;
+};
+
 const resolveMaskPresent = (payload: JsonObject): boolean | undefined => {
   const directMaskPresent = asBoolean(payload.mask_present);
   if (directMaskPresent !== undefined) return directMaskPresent;
@@ -419,6 +438,16 @@ export const buildPricingParams = (
   if (inputImageCount) params.inputImageCount = inputImageCount;
   const inputVideoCount = resolveInputVideoCount(payload);
   if (inputVideoCount !== undefined) params.inputVideoCount = inputVideoCount;
+  const inputVideoDurationSeconds = resolveInputVideoDurationSeconds(
+    payload,
+    options?.shortpulseContext
+  );
+  if (inputVideoDurationSeconds !== undefined) {
+    params.inputVideoDurationSeconds = inputVideoDurationSeconds;
+    if (!params.sourceDurationSeconds) {
+      params.sourceDurationSeconds = inputVideoDurationSeconds;
+    }
+  }
   const maskPresent = resolveMaskPresent(payload);
   if (maskPresent !== undefined) params.maskPresent = maskPresent;
 

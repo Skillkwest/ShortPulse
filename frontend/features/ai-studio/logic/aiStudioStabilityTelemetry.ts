@@ -11,8 +11,6 @@ export type AiStudioStabilityEvent =
   | "visibility_visible"
   | "pagehide"
   | "pageshow"
-  | "beforeunload"
-  | "unload"
   | "window_blur"
   | "window_focus"
   | "first_grid_commit"

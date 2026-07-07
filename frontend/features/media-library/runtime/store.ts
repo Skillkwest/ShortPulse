@@ -191,6 +191,61 @@ const dedupeRowsById = <TRow extends { id: string }>(rows: TRow[]): TRow[] => {
   return changed ? nextRows : rows;
 };
 
+const pruneRecordToIds = <TValue>(
+  record: Record<string, TValue>,
+  mediaIds: Set<string>
+): Record<string, TValue> => {
+  let changed = false;
+  const nextRecord: Record<string, TValue> = {};
+  for (const [mediaId, value] of Object.entries(record)) {
+    if (!mediaIds.has(mediaId)) {
+      changed = true;
+      continue;
+    }
+    nextRecord[mediaId] = value;
+  }
+  return changed ? nextRecord : record;
+};
+
+const pruneSetToIds = (values: Set<string>, mediaIds: Set<string>): Set<string> => {
+  let changed = false;
+  const nextValues = new Set<string>();
+  for (const mediaId of values) {
+    if (!mediaIds.has(mediaId)) {
+      changed = true;
+      continue;
+    }
+    nextValues.add(mediaId);
+  }
+  return changed ? nextValues : values;
+};
+
+const pruneSurfacePreviewStateToMediaIds = (
+  preview: MediaLibrarySurfaceState["preview"],
+  mediaIds: string[]
+): MediaLibrarySurfaceState["preview"] => {
+  const mediaIdSet = new Set(mediaIds);
+  const signedUrlById = pruneRecordToIds(preview.signedUrlById, mediaIdSet);
+  const aspectRatioById = pruneRecordToIds(preview.aspectRatioById, mediaIdSet);
+  const previewErrorById = pruneRecordToIds(preview.previewErrorById, mediaIdSet);
+  const visibleIds = pruneSetToIds(preview.visibleIds, mediaIdSet);
+  if (
+    signedUrlById === preview.signedUrlById &&
+    aspectRatioById === preview.aspectRatioById &&
+    previewErrorById === preview.previewErrorById &&
+    visibleIds === preview.visibleIds
+  ) {
+    return preview;
+  }
+  return {
+    ...preview,
+    signedUrlById,
+    aspectRatioById,
+    previewErrorById,
+    visibleIds,
+  };
+};
+
 const areTabCacheStatesEqual = (
   left: MediaLibraryTabCacheState,
   right: MediaLibraryTabCacheState
@@ -352,6 +407,7 @@ export const replaceSurfaceMediaRowsByTabs = <
     mediaIdsByTab: nextMediaIdsByTab,
   };
   surfaceState.cacheByTab = mergedCacheByTab;
+  surfaceState.preview = pruneSurfacePreviewStateToMediaIds(surfaceState.preview, nextMediaIds);
   return next;
 };
 

@@ -23,7 +23,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("AdminPageHeader", () => {
-  it("renders Storage after Model Pricing in the admin nav", () => {
+  it("renders Customer Support first in the admin nav", () => {
     render(
       <AdminPageHeader
         title="Dashboard"
@@ -36,21 +36,21 @@ describe("AdminPageHeader", () => {
     const nav = screen.getByRole("navigation", { name: "Admin pages" });
     const links = within(nav).getAllByRole("link");
 
-    expect(links[0]).toHaveTextContent("Dashboard");
-    expect(links[0]).toHaveAttribute("href", "/admin/announcements");
-    expect(links[0]).toHaveAttribute("aria-current", "page");
-    expect(links[1]).toHaveTextContent("Agent Instructions");
-    expect(links[1]).toHaveAttribute("href", "/admin/agent-instructions");
-    expect(links[2]).toHaveTextContent("Model Pricing");
-    expect(links[2]).toHaveAttribute("href", "/admin/pricing");
-    expect(links[3]).toHaveTextContent("Storage");
-    expect(links[3]).toHaveAttribute("href", "/admin/storage");
-    expect(links[4]).toHaveTextContent("Product Catalog");
-    expect(links[4]).toHaveAttribute("href", "/admin/catalog");
-    expect(links[5]).toHaveTextContent("Offers");
-    expect(links[5]).toHaveAttribute("href", "/admin/offers");
-    expect(links[6]).toHaveTextContent("Customer Support");
-    expect(links[6]).toHaveAttribute("href", "/admin");
+    expect(links[0]).toHaveTextContent("Customer Support");
+    expect(links[0]).toHaveAttribute("href", "/admin");
+    expect(links[1]).toHaveTextContent("Dashboard");
+    expect(links[1]).toHaveAttribute("href", "/admin/announcements");
+    expect(links[1]).toHaveAttribute("aria-current", "page");
+    expect(links[2]).toHaveTextContent("Agent Instructions");
+    expect(links[2]).toHaveAttribute("href", "/admin/agent-instructions");
+    expect(links[3]).toHaveTextContent("Model Pricing");
+    expect(links[3]).toHaveAttribute("href", "/admin/pricing");
+    expect(links[4]).toHaveTextContent("Storage");
+    expect(links[4]).toHaveAttribute("href", "/admin/storage");
+    expect(links[5]).toHaveTextContent("Product Catalog");
+    expect(links[5]).toHaveAttribute("href", "/admin/catalog");
+    expect(links[6]).toHaveTextContent("Offers");
+    expect(links[6]).toHaveAttribute("href", "/admin/offers");
     expect(links[7]).toHaveTextContent("Analytics");
     expect(links[7]).toHaveAttribute("href", "/admin/stats");
     expect(links[8]).toHaveTextContent("Agent Tester Reports");

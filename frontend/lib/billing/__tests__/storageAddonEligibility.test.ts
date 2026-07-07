@@ -83,7 +83,7 @@ describe("storage add-on eligibility", () => {
     expect(isCurrentBillableStorageAddonStatus("active")).toBe(true);
     expect(isCurrentBillableStorageAddonStatus("trialing")).toBe(true);
     expect(isCurrentBillableStorageAddonStatus("past_due")).toBe(true);
-    expect(isCurrentBillableStorageAddonStatus("unpaid")).toBe(true);
+    expect(isCurrentBillableStorageAddonStatus("unpaid")).toBe(false);
     expect(isCurrentBillableStorageAddonStatus("canceled")).toBe(false);
     expect(isCurrentBillableStorageAddonStatus("inactive")).toBe(false);
     expect(isCurrentBillableStorageAddonStatus(null)).toBe(false);

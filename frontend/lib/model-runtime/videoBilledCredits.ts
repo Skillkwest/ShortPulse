@@ -51,6 +51,12 @@ export const normalizeVideoBilledPricingParams = (
   ) {
     normalized.inputVideoCount = Math.max(0, Math.trunc(normalized.inputVideoCount));
   }
+  if (
+    typeof normalized.inputVideoDurationSeconds === "number" &&
+    Number.isFinite(normalized.inputVideoDurationSeconds)
+  ) {
+    normalized.inputVideoDurationSeconds = Math.max(0, normalized.inputVideoDurationSeconds);
+  }
 
   return normalized;
 };

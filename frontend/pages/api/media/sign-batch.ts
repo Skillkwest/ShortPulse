@@ -310,10 +310,15 @@ export default async function handler(
       urls[path] = null;
     }
 
-    const existingPaths = await resolveExistingStorageObjectPaths({
-      supabaseAdmin,
-      paths,
-    });
+    let existingPaths: Set<string>;
+    try {
+      existingPaths = await resolveExistingStorageObjectPaths({
+        supabaseAdmin,
+        paths,
+      });
+    } catch {
+      existingPaths = new Set();
+    }
     const signablePaths = paths.filter((path) => existingPaths.has(path));
 
     if (signablePaths.length) {

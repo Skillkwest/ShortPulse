@@ -8,7 +8,7 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
   buildUnifiedInvoiceTransaction,
   listCreditPurchaseTransactions,
-  listPaidInvoices,
+  listBillingInvoices,
   resolveStorageCatalog,
   resolveStripeCustomerBillingState,
 } from "../../../../lib/server/api/stripeTransactions";
@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? resolveStorageCatalog()
         : Promise.resolve(null),
       process.env.STRIPE_SECRET_KEY && !billingState.isInternalComp && billingState.stripeCustomerId
-        ? listPaidInvoices(billingState.stripeCustomerId)
+        ? listBillingInvoices(billingState.stripeCustomerId)
         : Promise.resolve([]),
     ]);
 

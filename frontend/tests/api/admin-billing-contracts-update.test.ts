@@ -105,7 +105,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
             id: "business__internal_comp",
             plan_id: "business",
             recurring_price_cents: 0,
-            monthly_credits_cents: 12000,
+            monthly_credits_cents: 8000,
             storage_limit_bytes: 536870912000,
           },
           error: null,
@@ -166,14 +166,14 @@ describe("POST /api/admin/billing/contracts/update", () => {
         offer_id: "business__internal_comp",
         contract_source: "internal_comp",
         recurring_price_cents: 0,
-        monthly_credits_cents: 12000,
+        monthly_credits_cents: 8000,
         storage_limit_bytes: 536870912000,
       })
     );
     expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        amountCents: 12000,
+        amountCents: 8000,
         source: "internal_contract_initial",
         creditKind: "subscription_allocation",
         expiresAt: "2026-06-14T12:00:00.000Z",
@@ -185,7 +185,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
         ok: true,
         action: "granted_internal_comp",
         planId: "business",
-        creditsGrantedCents: 12000,
+        creditsGrantedCents: 8000,
       })
     );
   });
@@ -220,7 +220,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
                   stripe_customer_id: "cus_123",
                   stripe_subscription_id: null,
                   recurring_price_cents: 0,
-                  monthly_credits_cents: 12000,
+                  monthly_credits_cents: 8000,
                   status: "active",
                   current_period_start: "2026-04-01T00:00:00.000Z",
                   current_period_end: "2026-05-01T00:00:00.000Z",
@@ -315,7 +315,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
                   stripe_customer_id: null,
                   stripe_subscription_id: null,
                   recurring_price_cents: 0,
-                  monthly_credits_cents: 12000,
+                  monthly_credits_cents: 8000,
                   storage_limit_bytes: 0,
                   status: "active",
                   current_period_start: "2026-04-01T00:00:00.000Z",
@@ -336,7 +336,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
             id: "business__internal_comp",
             plan_id: "business",
             recurring_price_cents: 0,
-            monthly_credits_cents: 12000,
+            monthly_credits_cents: 8000,
             storage_limit_bytes: 536870912000,
           },
           error: null,
@@ -398,7 +398,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
         user_id: "user-1",
         plan_id: "business",
         contract_source: "internal_comp",
-        monthly_credits_cents: 12000,
+        monthly_credits_cents: 8000,
         storage_limit_bytes: 536870912000,
       })
     );
@@ -443,7 +443,7 @@ describe("POST /api/admin/billing/contracts/update", () => {
                   stripe_customer_id: "cus_123",
                   stripe_subscription_id: "sub_123",
                   recurring_price_cents: 12900,
-                  monthly_credits_cents: 12000,
+                  monthly_credits_cents: 8000,
                   status: "active",
                   current_period_start: "2026-04-01T00:00:00.000Z",
                   current_period_end: "2026-05-01T00:00:00.000Z",

@@ -452,6 +452,132 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
+  it("logs async checkout payment failures without granting top-up credits", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: { user_id: "user_123", plan_id: "media" },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_async_failed",
+        type: "checkout.session.async_payment_failed",
+        data: {
+          object: {
+            id: "cs_async_failed_1",
+            customer: "cus_123",
+            payment_status: "unpaid",
+            metadata: {
+              credit_package_id: "pkg_starter",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.billing.checkout_async_payment_failed",
+        userId: "user_123",
+        metadata: expect.objectContaining({
+          event_name: "checkout_async_payment_failed",
+          checkout_session_id: "cs_async_failed_1",
+          credit_package_id: "pkg_starter",
+        }),
+      })
+    );
+  });
+
+  it("logs failed subscription invoice payments without granting monthly credits", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: { user_id: "user_123", plan_id: "media" },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_failed",
+        type: "invoice.payment_failed",
+        data: {
+          object: {
+            id: "in_failed_1",
+            customer: "cus_123",
+            subscription: "sub_123",
+            billing_reason: "subscription_cycle",
+            status: "open",
+            amount_due: 4900,
+            attempt_count: 2,
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.billing.invoice_payment_failed",
+        userId: "user_123",
+        metadata: expect.objectContaining({
+          event_name: "invoice_payment_failed",
+          invoice_id: "in_failed_1",
+          stripe_subscription_id: "sub_123",
+          amount_due_cents: 4900,
+          attempt_count: 2,
+        }),
+      })
+    );
+  });
+
+  it("logs subscription invoices that require payment action without granting monthly credits", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: { user_id: "user_123", plan_id: "media" },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_action_required",
+        type: "invoice.payment_action_required",
+        data: {
+          object: {
+            id: "in_action_1",
+            customer: "cus_123",
+            subscription: "sub_123",
+            billing_reason: "subscription_cycle",
+            status: "open",
+            hosted_invoice_url: "https://invoice.stripe.test/in_action_1",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.billing.invoice_payment_action_required",
+        userId: "user_123",
+        metadata: expect.objectContaining({
+          event_name: "invoice_payment_action_required",
+          invoice_id: "in_action_1",
+          hosted_invoice_url: "https://invoice.stripe.test/in_action_1",
+        }),
+      })
+    );
+  });
+
   it("treats duplicate ledger source_ref writes as idempotent success", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
@@ -1087,7 +1213,7 @@ describe("POST /api/billing/stripe/webhook", () => {
           plan_id: "business",
           stripe_price_id: "price_business",
           recurring_price_cents: 12900,
-          monthly_credits_cents: 12000,
+          monthly_credits_cents: 8000,
           storage_limit_bytes: 536870912000,
         },
         billingContract: {
@@ -1097,7 +1223,7 @@ describe("POST /api/billing/stripe/webhook", () => {
           stripe_subscription_id: "sub_123",
           stripe_price_id: "price_business",
           recurring_price_cents: 12900,
-          monthly_credits_cents: 12000,
+          monthly_credits_cents: 8000,
           storage_limit_bytes: 536870912000,
         },
         onBillingProfileUpdate: billingProfileUpdateSpy,
@@ -1124,7 +1250,7 @@ describe("POST /api/billing/stripe/webhook", () => {
                     id: "price_business",
                     unit_amount: 12900,
                     metadata: {
-                      monthly_credits_cents: "12000",
+                      monthly_credits_cents: "8000",
                     },
                   },
                 },

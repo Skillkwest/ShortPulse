@@ -35,6 +35,7 @@ export type PricingParams = {
   quality?: string;
   inputImageCount?: number;
   inputVideoCount?: number;
+  inputVideoDurationSeconds?: number;
   inputFidelity?: string;
   maskPresent?: boolean;
   inputTokens?: number;

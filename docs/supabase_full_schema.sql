@@ -887,7 +887,7 @@ values
     ('starter', 'Starter', 1500, 350, 5::bigint * 1024 * 1024 * 1024, null, null, 10, true),
     ('media', 'Media', 4900, 1200, 25::bigint * 1024 * 1024 * 1024, null, null, 20, true),
     ('studio', 'Studio', 12900, 3200, 75::bigint * 1024 * 1024 * 1024, null, null, 30, true),
-    ('business', 'Business', 29900, 7500, 150::bigint * 1024 * 1024 * 1024, null, null, 40, true)
+    ('business', 'Business', 29900, 8000, 150::bigint * 1024 * 1024 * 1024, null, null, 40, true)
 on conflict (id) do update
 set display_name = excluded.display_name,
     monthly_price_cents = excluded.monthly_price_cents,
@@ -983,7 +983,7 @@ insert into billing_plan_offers (
 values
     ('media__internal_comp', 'media', 'Media Internal Comp', 0, 1200, 25::bigint * 1024 * 1024 * 1024, 2, null, false, true, now()),
     ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3200, 75::bigint * 1024 * 1024 * 1024, 4, null, false, true, now()),
-    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 7500, 150::bigint * 1024 * 1024 * 1024, 8, null, false, true, now())
+    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 8000, 150::bigint * 1024 * 1024 * 1024, 8, null, false, true, now())
 on conflict (id) do update
 set offer_name = excluded.offer_name,
     recurring_price_cents = excluded.recurring_price_cents,
@@ -1158,7 +1158,7 @@ as $$
             where c.user_id = target_user_id
                 and c.ended_at is null
                 and lower(coalesce(c.plan_id, 'free')) <> 'free'
-                and lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')
+                and lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due')
         );
 $$;
 
@@ -1445,7 +1445,7 @@ create unique index if not exists ux_billing_subscription_storage_addons_current
 create unique index if not exists billing_subscription_storage_addons_one_current_per_user_idx
     on billing_subscription_storage_addons (user_id)
     where ended_at is null
-      and lower(status) in ('active', 'trialing', 'past_due', 'unpaid');
+      and lower(status) in ('active', 'trialing', 'past_due');
 
 alter table billing_subscription_storage_addons
     drop constraint if exists billing_subscription_storage_addons_current_quantity_one_check;
@@ -1453,7 +1453,7 @@ alter table billing_subscription_storage_addons
     add constraint billing_subscription_storage_addons_current_quantity_one_check
     check (
         ended_at is not null
-        or lower(status) not in ('active', 'trialing', 'past_due', 'unpaid')
+        or lower(status) not in ('active', 'trialing', 'past_due')
         or quantity = 1
     );
 
@@ -1540,7 +1540,7 @@ begin
     from billing_subscription_storage_addons addon
     where addon.user_id = p_user_id
       and addon.ended_at is null
-      and lower(addon.status) in ('active', 'trialing', 'past_due', 'unpaid');
+      and lower(addon.status) in ('active', 'trialing', 'past_due');
 
     return greatest(coalesce(v_limit, 0), 0);
 end;

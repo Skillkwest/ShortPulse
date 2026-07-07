@@ -191,7 +191,7 @@ describe("Dashboard guest route", () => {
     restoreNavigatorPerformanceHints();
   });
 
-  it("renders a public dashboard with compact pricing, login, and signup guest CTAs", () => {
+  it("renders a public dashboard with compact pricing, login, and signup guest CTAs", async () => {
     render(
       <DashboardPage
         billingCatalog={{
@@ -219,7 +219,7 @@ describe("Dashboard guest route", () => {
               display_name: "Business",
               sort_order: 30,
               monthly_price_cents: 12900,
-              monthly_credits_cents: 12000,
+              monthly_credits_cents: 8000,
               storage_limit_bytes: 536870912000,
               is_active: true,
             },
@@ -245,10 +245,7 @@ describe("Dashboard guest route", () => {
     expect(screen.queryByText("Offer 3")).not.toBeInTheDocument();
     expect(screen.queryByText("Offer 4")).not.toBeInTheDocument();
     const footer = screen.getByRole("contentinfo", { name: "ShortPulse footer" });
-    expect(within(footer).getByRole("link", { name: "Customer Support" })).toHaveAttribute(
-      "href",
-      "mailto:service@shortpulse.co"
-    );
+    expect(within(footer).getByRole("button", { name: "Customer Support" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
       "href",
       "/terms"
@@ -261,12 +258,17 @@ describe("Dashboard guest route", () => {
       "href",
       "/refund-policy"
     );
-    const footerLinkLabels = within(footer)
-      .getAllByRole("link")
-      .map((link) => link.textContent?.trim() ?? "");
-    expect(footerLinkLabels.indexOf("Customer Support")).toBeLessThan(
-      footerLinkLabels.indexOf("Terms of Service")
+    const footerNavLabels = Array.from(
+      footer.querySelectorAll(".public-home-footer-nav a, .public-home-footer-nav button")
+    ).map((item) => item.textContent?.trim() ?? "");
+    expect(footerNavLabels.indexOf("Customer Support")).toBeLessThan(
+      footerNavLabels.indexOf("Terms of Service")
     );
+    fireEvent.click(within(footer).getByRole("button", { name: "Customer Support" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Contact Customer Support" })
+    ).toHaveTextContent("Use the email below");
+    expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
     expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
       "href",
       SHORTPULSE_COMMUNITY_URL

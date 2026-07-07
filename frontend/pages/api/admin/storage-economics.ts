@@ -7,6 +7,7 @@ import {
   isCurrentBillableStorageAddonStatus,
   isManualReviewStorageAddon,
 } from "../../../lib/billing/storageAddonEligibility";
+import { isPaidAccessSubscriptionStatus } from "../../../lib/billing/subscriptionStatusPolicy";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
   buildAdminStorageProviderUsage,
@@ -226,12 +227,10 @@ const estimateMarginPct = (mrrCents: number, costCents: number): number | null =
   return ((mrrCents - costCents) / mrrCents) * 100;
 };
 
-const CURRENT_BILLABLE_CONTRACT_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"]);
-
 const isCurrentStripeContract = (contract: BillingContractRow | null): boolean => {
   if (!contract) return false;
   if (contract.contract_source !== "stripe") return false;
-  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+  return isPaidAccessSubscriptionStatus(contract.status);
 };
 
 const isPaymentExemptContract = (contract: BillingContractRow | null): boolean => {
@@ -244,7 +243,7 @@ const isPaymentExemptContract = (contract: BillingContractRow | null): boolean =
 
 const isCurrentBillableContract = (contract: BillingContractRow | null): boolean => {
   if (!contract) return false;
-  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+  return isPaidAccessSubscriptionStatus(contract.status);
 };
 
 const contractTimestamp = (contract: BillingContractRow): number => {

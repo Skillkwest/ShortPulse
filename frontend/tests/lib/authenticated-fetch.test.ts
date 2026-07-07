@@ -60,6 +60,46 @@ describe("fetchWithAuth telemetry", () => {
     expect(addBreadcrumbMock).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report expected stale project workspace route misses", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"error":"Project not found"}', { status: 404 })
+    );
+
+    const response = await fetchWithAuth(
+      "/api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      {
+        method: "GET",
+      }
+    );
+
+    expect(response.status).toBe(404);
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+    expect(addBreadcrumbMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports project workspace server failures", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('{"error":"Failed to load project workspace"}', { status: 500 })
+    );
+
+    const response = await fetchWithAuth(
+      "/api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+      {
+        method: "GET",
+      }
+    );
+
+    expect(response.status).toBe(500);
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.api_response",
+        endpoint: "/api/projects/710c6d45-a6db-436d-9163-04e1b06b8342/workspace",
+        statusCode: 500,
+        severity: "medium",
+      })
+    );
+  });
+
   it("still reports admin server failures (500)", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 500 }));
 

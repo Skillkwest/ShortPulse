@@ -240,6 +240,10 @@
   color: var(--color-ash);
 }
 
+.toolbar-account-menu button.toolbar-account-menu__support-action {
+  color: rgba(232, 251, 255, 0.9);
+}
+
 .toolbar-account-menu a:hover,
 .toolbar-account-menu a:focus-visible,
 .toolbar-account-menu button:hover,

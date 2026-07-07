@@ -43,6 +43,7 @@ import {
   isCurrentBillableStorageAddonStatus,
   isSelfServeStorageAddon,
 } from "../../../../lib/billing/storageAddonEligibility";
+import { isPaidAccessSubscriptionStatus } from "../../../../lib/billing/subscriptionStatusPolicy";
 import { compactAdminPricingCustomRowsDocument } from "../../../../lib/model-runtime/adminPricingCustomRows";
 import {
   getModelPricingPolicySnapshot,
@@ -122,7 +123,6 @@ const RETIRED_LEGACY_CREDIT_PACKAGE_IDS = new Set([
 const PAYMENT_EXEMPT_PLAN_ID = "payment_exempt";
 const PAYMENT_EXEMPT_PLAN_LABEL = "Payment exempt testers";
 const PAYMENT_EXEMPT_PLAN_SORT_ORDER = 999;
-const CURRENT_BILLABLE_CONTRACT_STATUSES = new Set(["active", "trialing", "past_due", "unpaid"]);
 
 type BillingStorageAddonMetadataRow = {
   id: string;
@@ -225,7 +225,7 @@ const isCurrentBillableContract = (
   contract: BillingSubscriptionContractCountRow | null
 ): boolean => {
   if (!contract) return false;
-  return CURRENT_BILLABLE_CONTRACT_STATUSES.has(String(contract.status ?? "").toLowerCase());
+  return isPaidAccessSubscriptionStatus(contract.status);
 };
 
 const contractTimestamp = (contract: BillingSubscriptionContractCountRow): number => {

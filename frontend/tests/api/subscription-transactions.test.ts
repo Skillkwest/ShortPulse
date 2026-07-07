@@ -153,6 +153,70 @@ describe("GET /api/billing/stripe/subscription-transactions", () => {
     });
   });
 
+  it("returns open Stripe invoices that need customer payment recovery", async () => {
+    maybeSingleQueue.push(
+      { data: { stripe_customer_id: "cus_123" }, error: null },
+      {
+        data: { contract_source: "stripe", stripe_customer_id: "cus_123" },
+        error: null,
+      }
+    );
+    stripeGetMock.mockImplementation(async (path: string) => {
+      if (path === "/customers/cus_123") {
+        return {
+          id: "cus_123",
+          email: "user@example.com",
+          metadata: { user_id: "user-1" },
+        };
+      }
+      if (path === "/invoices") {
+        return {
+          data: [
+            {
+              id: "in_open_123",
+              number: "OPEN123",
+              status: "open",
+              currency: "usd",
+              amount_due: 4900,
+              amount_remaining: 4900,
+              amount_paid: 0,
+              created: 1772323200,
+              paid: false,
+              billing_reason: "subscription_cycle",
+              hosted_invoice_url: "https://stripe.test/invoices/in_open_123",
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected Stripe path ${path}`);
+    });
+
+    const req = { method: "GET", body: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      transactions: [
+        {
+          id: "in_open_123",
+          invoiceNumber: "OPEN123",
+          amountPaidCents: 4900,
+          currency: "usd",
+          status: "open",
+          title: "Subscription renewal payment needs attention",
+          createdAt: "2026-03-01T00:00:00.000Z",
+          paidAt: null,
+          receiptUrl: "https://stripe.test/invoices/in_open_123",
+          kind: "subscription",
+          kindLabel: "Subscription",
+          reference: "OPEN123",
+        },
+      ],
+    });
+  });
+
   it("returns an empty list for internal-comp accounts without hitting Stripe", async () => {
     maybeSingleQueue.push(
       { data: { stripe_customer_id: null }, error: null },

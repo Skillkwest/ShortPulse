@@ -1462,6 +1462,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         resolution: "1080p",
         audio: false,
         inputVideoCount: 1,
+        inputVideoDurationSeconds: 4,
       }),
       credits: 44,
     });
@@ -1474,6 +1475,19 @@ describe("useAiStudioViewModel motion guardrails", () => {
         motionReferenceVideoUrl: null,
         seedance2InputMode: "multimodal",
         seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
+        outputs: [
+          {
+            id: "reference-video",
+            prompt: "",
+            mode: "video",
+            aspect: "16:9",
+            model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+            status: "ready",
+            timestamp: "Ready",
+            previewUrl: "https://example.com/reference.mp4",
+            durationMs: 4_000,
+          },
+        ],
         costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID),
         pricingPolicy: videoPricingPolicy,
       })
@@ -1627,6 +1641,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
         resolution: "1080p",
         audio: false,
         inputVideoCount: 1,
+        inputVideoDurationSeconds: 4,
       }),
       credits: 44,
     });
@@ -1646,6 +1661,19 @@ describe("useAiStudioViewModel motion guardrails", () => {
             frontalImageUrl: "",
             referenceImageUrls: "",
             videoUrl: "https://example.com/steamtrain.mp4",
+          },
+        ],
+        outputs: [
+          {
+            id: "steamtrain-video",
+            prompt: "",
+            mode: "video",
+            aspect: "16:9",
+            model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+            status: "ready",
+            timestamp: "Ready",
+            previewUrl: "https://example.com/steamtrain.mp4",
+            durationMs: 4_000,
           },
         ],
         costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID),

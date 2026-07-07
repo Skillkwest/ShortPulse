@@ -10,7 +10,7 @@ with current_storage_addons as (
         ended_at
     from public.billing_subscription_storage_addons
     where ended_at is null
-      and lower(status) in ('active', 'trialing', 'past_due', 'unpaid')
+      and lower(status) in ('active', 'trialing', 'past_due')
 ),
 storage_addon_counts as (
     select
@@ -33,7 +33,7 @@ select
     coalesce(max(quantity), 0)::bigint as max_current_quantity
 from public.billing_subscription_storage_addons
 where ended_at is null
-  and lower(status) in ('active', 'trialing', 'past_due', 'unpaid');
+  and lower(status) in ('active', 'trialing', 'past_due');
 
 select
     'current_missing_stripe_item' as check_name,
@@ -46,7 +46,7 @@ select
     )::bigint as rows_missing_stripe_price_id
 from public.billing_subscription_storage_addons
 where ended_at is null
-  and lower(status) in ('active', 'trialing', 'past_due', 'unpaid');
+  and lower(status) in ('active', 'trialing', 'past_due');
 
 with current_storage_addons as (
     select
@@ -60,7 +60,7 @@ with current_storage_addons as (
     left join public.billing_profiles bp
       on bp.user_id = bssa.user_id
     where bssa.ended_at is null
-      and lower(bssa.status) in ('active', 'trialing', 'past_due', 'unpaid')
+      and lower(bssa.status) in ('active', 'trialing', 'past_due')
 ),
 eligibility as (
     select

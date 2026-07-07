@@ -69,7 +69,7 @@ describe("useAiStudioStabilityLifecycleTelemetry", () => {
     expect(installAiStudioCrashEvidenceHandleMock).toHaveBeenCalledTimes(1);
   });
 
-  it("reports visible return, page transition, unload, and focus breadcrumbs", () => {
+  it("reports visible return, page transition, and focus breadcrumbs without unload listeners", () => {
     renderHook(() =>
       useAiStudioStabilityLifecycleTelemetry({
         projectId: null,
@@ -119,11 +119,11 @@ describe("useAiStudioStabilityLifecycleTelemetry", () => {
       "pageshow",
       expect.objectContaining({ pageshow_persisted: true })
     );
-    expect(reportAiStudioStabilityEventMock).toHaveBeenCalledWith(
+    expect(reportAiStudioStabilityEventMock).not.toHaveBeenCalledWith(
       "beforeunload",
       expect.any(Object)
     );
-    expect(reportAiStudioStabilityEventMock).toHaveBeenCalledWith("unload", expect.any(Object));
+    expect(reportAiStudioStabilityEventMock).not.toHaveBeenCalledWith("unload", expect.any(Object));
     expect(reportAiStudioStabilityEventMock).toHaveBeenCalledWith(
       "window_blur",
       expect.any(Object)

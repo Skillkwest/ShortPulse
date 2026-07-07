@@ -22,6 +22,7 @@ import type { DashboardTutorial } from "./DashboardTutorialGrid";
 import { DashboardAppBar } from "./DashboardAppBar";
 import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useCustomerSupportDialog } from "../../../components/CustomerSupportDialog";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -172,6 +173,7 @@ export function AuthenticatedDashboardRoute({
   const { balanceCents, balanceLoading } = useCredits({ enabled: true });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { customerSupportDialog, openCustomerSupportDialog } = useCustomerSupportDialog();
   const [resolvedPlan, setResolvedPlan] = useState<{
     id: string;
     label: string;
@@ -472,13 +474,17 @@ export function AuthenticatedDashboardRoute({
                     ))}
                   </div>
                   <div className="toolbar-account-menu__actions">
-                    <a
-                      href={CUSTOMER_SUPPORT_MENU_LINK.href}
+                    <button
+                      type="button"
                       role="menuitem"
-                      onClick={() => setProfileMenuOpen(false)}
+                      className="toolbar-account-menu__support-action"
+                      onClick={(event) => {
+                        setProfileMenuOpen(false);
+                        openCustomerSupportDialog(event);
+                      }}
                     >
                       {CUSTOMER_SUPPORT_MENU_LINK.label}
-                    </a>
+                    </button>
                     <Link
                       href="/report-issue?from=%2Fdashboard"
                       role="menuitem"
@@ -599,6 +605,7 @@ export function AuthenticatedDashboardRoute({
           }}
         />
       ) : null}
+      {customerSupportDialog}
     </>
   );
 }

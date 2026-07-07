@@ -48,5 +48,7 @@ Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveats, la
 - `2026-07-07-maya-credits-renewal-confidence-owner-summary.md`
 - `2026-07-07-maya-find-both-assets-later-insight-review.md`
 - `2026-07-07-maya-find-both-assets-later-owner-summary.md`
+- `2026-07-07-maya-reference-grid-understanding-insight-review.md`
+- `2026-07-07-maya-reference-grid-understanding-owner-summary.md`
 - `2026-07-07-maya-second-image-variant-insight-review.md`
 - `2026-07-07-maya-second-image-variant-owner-summary.md`

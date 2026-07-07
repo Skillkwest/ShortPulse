@@ -1,0 +1,4 @@
+-- No automatic rollback is provided for migration 208.
+-- Advancing the model-pricing policy version identity sequence is a monotonic
+-- repair that prevents duplicate primary keys on future admin pricing saves.
+-- Rewinding this sequence could recreate the production collision.

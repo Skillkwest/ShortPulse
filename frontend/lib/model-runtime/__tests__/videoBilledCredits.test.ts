@@ -136,6 +136,7 @@ describe("videoBilledCredits", () => {
       durationSeconds: 10,
       resolution: "720p",
       inputVideoCount: 1,
+      inputVideoDurationSeconds: 2,
     };
     const explicitPolicy = withVideoBilledCreditsOverride({
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -151,8 +152,52 @@ describe("videoBilledCredits", () => {
       }).breakdown
     ).toMatchObject({
       credits: 44,
-      variantId: "default|res:720p|aspect:16:9|audio:on",
+      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:with",
     });
+  });
+
+  it("keeps Seedance client lookup and server debit lookup on the video-input row", () => {
+    const clientParams = {
+      aspect: "16:9",
+      durationSeconds: 10,
+      resolution: "720p",
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 2,
+    };
+    const explicitPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: clientParams,
+      credits: 44,
+    });
+    const clientLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: clientParams,
+      pricingPolicy: explicitPolicy,
+    });
+    const serverLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      params: buildPricingParams(
+        KIE_SEEDANCE_2_FAST_MODEL_ID,
+        {
+          duration_seconds: 10,
+          resolution: "720p",
+          reference_video_urls: ["https://example.com/reference.mp4"],
+        },
+        {
+          shortpulseContext: {
+            input_video_duration_seconds: 2,
+          },
+        }
+      ),
+      pricingPolicy: explicitPolicy,
+    });
+
+    expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
+    expect(clientLookup.breakdown?.variantId).toBe(
+      "default|res:720p|aspect:16:9|audio:on|video_input:with"
+    );
+    expect(clientLookup.breakdown?.credits).toBe(serverLookup.breakdown?.credits);
+    expect(clientLookup.breakdown?.credits).toBe(44);
   });
 
   it("keeps client Lip Sync lookup and server debit lookup on the same OmniHuman row", () => {

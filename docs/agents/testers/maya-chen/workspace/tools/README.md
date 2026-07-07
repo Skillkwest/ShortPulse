@@ -15,6 +15,7 @@ Tools must not contain credentials, cookies, service-role keys, or ingest secret
 - `maya-run-checklist.md`: required pre-run, live-cadence, generation, and post-run checklist.
 - `run-control-panel.md`: compact live-run control surface for timebox, status, Admin publish availability, and final gate.
 - `live-session-notes-template.md`: first-person Maya notes sheet for browser runs.
+- `clear-bug-escalation-checklist.md`: boundary and bug-packet template for objective product breakage during Maya runs.
 - `behavior-metrics-template.md`: reusable human behavior metrics table.
 - `credit-budget-worksheet.md`: pre/post generation credit tracking worksheet.
 - `evidence-manifest-template.md`: per-run evidence manifest template.

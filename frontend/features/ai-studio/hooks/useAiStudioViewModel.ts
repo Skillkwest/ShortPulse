@@ -46,6 +46,7 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromFrameInputs,
 } from "../logic/referenceInputs";
+import { resolveSeedanceInputVideoDurationSeconds } from "../logic/seedanceVideoPricing";
 import {
   resolveEffectiveEditSubmitModelId,
   normalizeEditSubmitIntent,
@@ -95,6 +96,7 @@ type ViewModelInput = {
   prompt: string;
   referenceImageUrl: string | null;
   activeOutput: StudioOutput | null;
+  outputs?: readonly StudioOutput[] | null;
   selectedTool: ToolId | null;
   useReferenceImageIndicator: boolean;
   getDefaultDurationSeconds: (modelId: string | null) => number;
@@ -140,9 +142,9 @@ export const useAiStudioViewModel = ({
   prompt,
   referenceImageUrl,
   activeOutput,
+  outputs = [],
   selectedTool,
   useReferenceImageIndicator,
-  getDefaultDurationSeconds,
   videoDurationSeconds,
   videoResolution,
   videoReferenceMode,
@@ -260,6 +262,30 @@ export const useAiStudioViewModel = ({
     seedance2UsesMultimodalReferences,
     seedanceLinkedElementEligibilities,
   ]);
+  const seedance2PricingReferenceVideoUrls = useMemo(
+    () =>
+      seedance2UsesMultimodalReferences
+        ? Array.from(
+            new Set([
+              ...seedance2ReferenceVideoUrls.map((value) => value.trim()).filter(Boolean),
+              ...seedanceLinkedElementEligibilities.flatMap((eligibility) => eligibility.videoUrls),
+            ])
+          )
+        : [],
+    [
+      seedance2ReferenceVideoUrls,
+      seedance2UsesMultimodalReferences,
+      seedanceLinkedElementEligibilities,
+    ]
+  );
+  const seedance2InputVideoDurationSeconds = useMemo(
+    () =>
+      resolveSeedanceInputVideoDurationSeconds({
+        referenceVideoUrls: seedance2PricingReferenceVideoUrls,
+        outputs,
+      }),
+    [outputs, seedance2PricingReferenceVideoUrls]
+  );
   const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
     (eligibility) => eligibility.isSubmittable
   );
@@ -318,12 +344,20 @@ export const useAiStudioViewModel = ({
       ...(resolvedVideoLane === "motion"
         ? { variantBaseId: KIE_KLING_30_MOTION_CONTROL_VARIANT_ID }
         : {}),
-      ...(isSeedance2PricingModel ? { inputVideoCount: seedance2VideoInputCount } : {}),
+      ...(isSeedance2PricingModel
+        ? {
+            inputVideoCount: seedance2VideoInputCount,
+            ...(seedance2InputVideoDurationSeconds != null
+              ? { inputVideoDurationSeconds: seedance2InputVideoDurationSeconds }
+              : {}),
+          }
+        : {}),
     }),
     [
       isSeedance2PricingModel,
       lipSyncAudio.durationMs,
       resolvedVideoLane,
+      seedance2InputVideoDurationSeconds,
       seedance2VideoInputCount,
       videoDurationSeconds,
       videoGenerateAudio,
@@ -480,7 +514,7 @@ export const useAiStudioViewModel = ({
         if (isPricingPolicyUnavailable) return null;
         return resolveVideoBilledCreditLookup({
           modelId: model,
-          params: costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
+          params: costParamsForModel(model, videoPricingParams),
           pricingPolicy,
         }).breakdown;
       }
@@ -533,7 +567,6 @@ export const useAiStudioViewModel = ({
     currentCreatePricingTarget,
     isDescribeMode,
     costParamsForModel,
-    getDefaultDurationSeconds,
     mode,
     model,
     effectiveVideoPricingModelId,
@@ -549,6 +582,7 @@ export const useAiStudioViewModel = ({
     pricingPolicy,
     pricingImageResolution,
     isPricingPolicyUnavailable,
+    videoPricingParams,
   ]);
 
   const currentCostCredits = characterModeReferenceReadiness.shouldBlockGenerate

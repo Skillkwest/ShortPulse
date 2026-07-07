@@ -184,6 +184,11 @@ Key indicators:
   - `media.grid.render.commit`
   - `media.grid.longtask.sample`
   - `media.grid.memory.sample`
+- browser origin storage-pressure snapshots in `/admin/crashes` / `browser_crash_sessions` when supported:
+  - `storage_estimate_usage_bytes`
+  - `storage_estimate_quota_bytes`
+  - `storage_estimate_available_bytes`
+  - `storage_estimate_usage_to_quota_ratio`
 - AI Studio stability events via `app_error_events` source filters:
   - `telemetry.ai_studio.stability.session_started`
   - `telemetry.ai_studio.stability.visibility_hidden`

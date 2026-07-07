@@ -41,7 +41,7 @@ function extractMigrationReferences(text) {
 
 function extractAllMentionedMigrationFiles(text) {
   const refs = new Set();
-  const pattern = /(\d{3}_[a-z0-9_]+\.sql)/gi;
+  const pattern = /(?<![a-z0-9_])(\d{3}_[a-z0-9_]+\.sql)/gi;
   let match = pattern.exec(text);
   while (match) {
     refs.add(match[1]);

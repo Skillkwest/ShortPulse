@@ -228,7 +228,7 @@ describe("POST /api/elevenlabs/music", () => {
         code: "WORKFLOW_PLAN_REQUIRED",
         workflow: "audio",
         planId: "starter",
-        ctaHref: "/pricing",
+        ctaHref: "/profile?section=subscription",
         ctaLabel: "View plans",
       })
     );

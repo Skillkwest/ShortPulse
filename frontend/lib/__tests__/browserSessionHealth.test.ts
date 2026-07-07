@@ -18,6 +18,28 @@ const flushPromises = async () => {
   await Promise.resolve();
 };
 
+const setStorageEstimate = (estimate: StorageEstimate | Promise<StorageEstimate> | null) => {
+  const estimateMock = vi.fn(() => Promise.resolve(estimate));
+  Object.defineProperty(navigator, "storage", {
+    configurable: true,
+    value: estimate
+      ? {
+          estimate: estimateMock,
+        }
+      : undefined,
+  });
+  return estimate ? estimateMock : null;
+};
+
+const dispatchPageHide = (persisted: boolean) => {
+  const event = new Event("pagehide");
+  Object.defineProperty(event, "persisted", {
+    configurable: true,
+    value: persisted,
+  });
+  window.dispatchEvent(event);
+};
+
 describe("browserSessionHealth", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -29,6 +51,7 @@ describe("browserSessionHealth", () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true }) as never;
     (window as Partial<Window>).ReportingObserver = undefined;
     (window as Partial<Window>).crashReport = undefined;
+    setStorageEstimate(null);
   });
 
   it("does not send session events without a cached access token", async () => {
@@ -71,6 +94,102 @@ describe("browserSessionHealth", () => {
         client_environment: "test",
       })
     );
+    cleanup();
+  });
+
+  it("adds cached browser storage estimate metadata after the background estimate resolves", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    setStorageEstimate({
+      usage: 250_000_000,
+      quota: 1_000_000_000,
+    });
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    reportBrowserSessionHealthEvent("pressure_snapshot");
+    await flushPromises();
+
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(body.metadata).toEqual(
+      expect.objectContaining({
+        storage_estimate_usage_bytes: 250_000_000,
+        storage_estimate_quota_bytes: 1_000_000_000,
+        storage_estimate_available_bytes: 750_000_000,
+        storage_estimate_usage_to_quota_ratio: 0.25,
+      })
+    );
+    cleanup();
+  });
+
+  it("does not wait for storage estimate before sending session or terminal pagehide evidence", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    let resolveEstimate: (estimate: StorageEstimate) => void = () => undefined;
+    setStorageEstimate(
+      new Promise<StorageEstimate>((resolve) => {
+        resolveEstimate = resolve;
+      })
+    );
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    dispatchPageHide(false);
+    await flushPromises();
+
+    const bodies = vi
+      .mocked(fetch)
+      .mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>);
+    expect(bodies).toContainEqual(expect.objectContaining({ eventType: "session_start" }));
+    expect(bodies).toContainEqual(expect.objectContaining({ eventType: "clean_close" }));
+
+    resolveEstimate({ usage: 1, quota: 2 });
+    await flushPromises();
+    cleanup();
+  });
+
+  it("does not start overlapping browser storage estimate refreshes", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    let resolveEstimate: (estimate: StorageEstimate) => void = () => undefined;
+    const estimateMock = setStorageEstimate(
+      new Promise<StorageEstimate>((resolve) => {
+        resolveEstimate = resolve;
+      })
+    );
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    reportBrowserSessionHealthEvent("pressure_snapshot");
+    reportBrowserSessionHealthEvent("main_thread_stall");
+    await flushPromises();
+
+    expect(estimateMock).toHaveBeenCalledTimes(1);
+
+    resolveEstimate({ usage: 1, quota: 2 });
+    await flushPromises();
+    cleanup();
+  });
+
+  it("omits incomplete browser storage estimate metadata instead of emitting nulls", async () => {
+    readCachedSupabaseAccessTokenMock.mockReturnValue("token-1");
+    setStorageEstimate({
+      quota: 1_000_000_000,
+    });
+
+    const cleanup = installBrowserSessionHealthMonitor();
+    await flushPromises();
+    vi.mocked(fetch).mockClear();
+
+    reportBrowserSessionHealthEvent("pressure_snapshot");
+    await flushPromises();
+
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(body.metadata).toEqual(
+      expect.objectContaining({
+        storage_estimate_quota_bytes: 1_000_000_000,
+      })
+    );
+    expect(body.metadata).not.toHaveProperty("storage_estimate_usage_bytes");
+    expect(body.metadata).not.toHaveProperty("storage_estimate_available_bytes");
+    expect(body.metadata).not.toHaveProperty("storage_estimate_usage_to_quota_ratio");
     cleanup();
   });
 

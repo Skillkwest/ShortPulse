@@ -427,3 +427,23 @@ Outcome:
 - Saved a detailed insight report and short owner summary.
 - Added one Program 1 backlog item for customer-visible generation credit usage history.
 - Updated the insight ledger and product-decision log with the credit-auditability decision.
+
+### 2026-07-07 - Sixth `run sop` Review Refined Existing Right-Rail Backlog
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- `2026-07-06-reference-grid-understanding` confirmed a real customer psychology issue, but it overlapped with an existing global right-rail behavior backlog item.
+- Hybervees should refine an existing backlog item when the new evidence improves the problem statement, acceptance criteria, validation, or non-goals.
+- Reference Grid confusion should not be solved by forking right-rail state. ADR 0083 remains authority: Reference Grid, Quick Slot Inventory, and Canvas are workspace-global surfaces.
+- Positive saved-work evidence should be preserved while sharpening reuse-workflow clarity.
+
+Outcome:
+
+- Reviewed `2026-07-06-reference-grid-understanding`.
+- Saved a detailed insight report and short owner summary.
+- Refined the existing global right-rail behavior backlog item instead of adding a duplicate Reference Grid item.
+- Updated the insight ledger and product-decision log with the stronger Reference Grid / Quick Slot / Media Library mental-model evidence.

@@ -3,6 +3,7 @@
  * Baseline AI Studio access can open the workspace, but cannot create library rows.
  */
 import { normalizeBillingPlanId } from "../../billing/storageAddonEligibility";
+import { isPaidAccessSubscriptionStatus } from "../../billing/subscriptionStatusPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export const MEDIA_LIBRARY_PAID_PLAN_REQUIRED_MESSAGE =
@@ -25,11 +26,6 @@ export class MediaLibraryPaidAccessError extends Error {
 const isPaidPlanId = (planId: string | null | undefined): boolean =>
   normalizeBillingPlanId(planId) !== "free";
 
-const hasCurrentSubscriptionStatus = (status: string | null | undefined): boolean => {
-  const normalizedStatus = (status ?? "active").trim().toLowerCase();
-  return ["active", "trialing", "past_due", "unpaid"].includes(normalizedStatus);
-};
-
 /**
  * Resolves whether the user has a non-baseline plan for media-library writes.
  */
@@ -49,7 +45,7 @@ export const hasPaidMediaLibraryAccess = async (userId: string): Promise<boolean
   }
 
   const contract = (contractResult.data as BillingContractAccessRow | null) ?? null;
-  return isPaidPlanId(contract?.plan_id) && hasCurrentSubscriptionStatus(contract?.status);
+  return isPaidPlanId(contract?.plan_id) && isPaidAccessSubscriptionStatus(contract?.status);
 };
 
 /**

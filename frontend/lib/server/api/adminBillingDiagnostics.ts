@@ -12,6 +12,7 @@ import {
   isCurrentBillableStorageAddonStatus,
   resolveStorageAddonEligibility,
 } from "../../billing/storageAddonEligibility";
+import { isPaidAccessSubscriptionStatus } from "../../billing/subscriptionStatusPolicy";
 import {
   asCents,
   asDate,
@@ -262,6 +263,7 @@ export const resolveAdminBillingDiagnostics = async ({
   let liveStripeCustomer: StripeCustomerResponse | null = null;
   let liveStripeSubscription: StripeSubscriptionResponse | null = null;
   let livePaidInvoices: StripeInvoiceResponse[] = [];
+  let liveOpenRecoveryInvoices: StripeInvoiceResponse[] = [];
   const stripeLookupFailures: StripeLookupFailure[] = [];
   if (stripeConfigured) {
     if (billingProfile?.stripe_customer_id) {
@@ -349,12 +351,19 @@ export const resolveAdminBillingDiagnostics = async ({
           customer: billingProfile.stripe_customer_id,
           limit: 12,
         });
-        livePaidInvoices = (Array.isArray(invoiceList.data) ? invoiceList.data : []).filter(
-          (invoice) => {
-            const amountPaid = Number(invoice.amount_paid ?? 0);
-            return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
-          }
-        );
+        const liveInvoices = Array.isArray(invoiceList.data) ? invoiceList.data : [];
+        livePaidInvoices = liveInvoices.filter((invoice) => {
+          const amountPaid = Number(invoice.amount_paid ?? 0);
+          return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
+        });
+        liveOpenRecoveryInvoices = liveInvoices.filter((invoice) => {
+          const amountDue = Number(invoice.amount_due ?? invoice.amount_remaining ?? 0);
+          return (
+            (invoice.status === "open" || invoice.status === "uncollectible") &&
+            Number.isFinite(amountDue) &&
+            amountDue > 0
+          );
+        });
       } catch (error) {
         await logStripeLookupException?.({
           error,
@@ -638,9 +647,7 @@ export const resolveAdminBillingDiagnostics = async ({
   const activePaidProfile =
     billingProfile?.plan_id != null &&
     billingProfile.plan_id !== "free" &&
-    ["active", "trialing", "past_due", "unpaid"].includes(
-      String(billingProfile.subscription_status ?? "").toLowerCase()
-    );
+    isPaidAccessSubscriptionStatus(billingProfile.subscription_status);
 
   if (activePaidProfile && !currentContract) {
     pushFinding(findings, {
@@ -815,6 +822,47 @@ export const resolveAdminBillingDiagnostics = async ({
         "Inspect the matching Stripe invoice and local ai_credit_ledger / ai_credit_grants rows together.",
         "Replay the Stripe invoice.payment_succeeded event first so the canonical webhook path creates the grant.",
         "Use a manual adjustment only if replay is unavailable or insufficient, and only after ruling out an existing grant for the invoice.",
+      ],
+    });
+  }
+
+  if (
+    currentContract?.contract_source === "stripe" &&
+    currentContract.plan_id !== "free" &&
+    liveOpenRecoveryInvoices.length > 0
+  ) {
+    pushFinding(findings, {
+      code: "open_stripe_invoice_requires_recovery",
+      severity: "warning",
+      confidence: "high",
+      summary: "Stripe has an open or uncollectible invoice for this subscriber.",
+      details: `Recent invoice(s) still needing payment recovery: ${liveOpenRecoveryInvoices
+        .map((invoice) => invoice.number ?? invoice.id)
+        .join(", ")}.`,
+      recommendedActions: [
+        "Ask the customer to update their payment method or pay the hosted Stripe invoice.",
+        "Confirm Stripe subscription status has moved back to active before expecting new recurring credits.",
+        "Do not add manual recurring credits unless a paid invoice event replay is unavailable and separately approved.",
+      ],
+    });
+  }
+
+  if (
+    currentContract?.contract_source === "stripe" &&
+    currentContract.plan_id !== "free" &&
+    String(currentContract.status ?? billingProfile?.subscription_status ?? "").toLowerCase() ===
+      "unpaid"
+  ) {
+    pushFinding(findings, {
+      code: "unpaid_subscription_access_revoked",
+      severity: "warning",
+      confidence: "high",
+      summary: "Stripe subscription is unpaid and paid access should be paused.",
+      details:
+        "The subscriber has moved beyond recoverable past_due retry/grace into unpaid. Paid media/storage access and new recurring credits should remain paused until Stripe returns the subscription to active.",
+      recommendedActions: [
+        "Send the customer to the Stripe Billing Portal or hosted invoice to update payment.",
+        "Verify the next customer.subscription.updated event moves the local contract back to active after payment recovery.",
       ],
     });
   }

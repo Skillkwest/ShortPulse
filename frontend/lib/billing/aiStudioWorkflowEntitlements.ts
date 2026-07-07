@@ -23,7 +23,7 @@ export type AiStudioWorkflowPlanAccess = {
 export const AI_STUDIO_WORKFLOW_PLAN_REQUIRED_CODE = "WORKFLOW_PLAN_REQUIRED";
 export const AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE =
   "Choose a higher plan to use Video and Sound workflows.";
-export const AI_STUDIO_WORKFLOW_PLAN_CTA_HREF = "/pricing";
+export const AI_STUDIO_WORKFLOW_PLAN_CTA_HREF = "/profile?section=subscription";
 export const AI_STUDIO_WORKFLOW_PLAN_CTA_LABEL = "View plans";
 
 const RESTRICTED_WORKFLOW_GENERATION_PLAN_IDS = new Set(["free", "starter"]);

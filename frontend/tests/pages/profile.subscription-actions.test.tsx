@@ -640,7 +640,7 @@ describe("Profile subscription actions", () => {
       stripe_subscription_id: null,
       contract_source: "internal_comp",
       recurring_price_cents: 0,
-      monthly_credits_cents: 12000,
+      monthly_credits_cents: 8000,
       storage_limit_bytes: 536870912000,
       status: "active",
       current_period_start: "2026-04-01T00:00:00.000Z",

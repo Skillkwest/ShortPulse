@@ -3,6 +3,7 @@ import {
   computeMediaVirtualLayout,
   computeMediaVirtualLayoutFrame,
   resolveVisibleMediaVirtualItems,
+  reuseStableMediaVirtualItems,
 } from "../mediaGridVirtualization";
 
 const makeItems = (aspects: number[]) =>
@@ -198,6 +199,24 @@ describe("mediaGridVirtualization", () => {
     expect(upperWindow.length).toBeGreaterThan(0);
     expect(lowerWindow.length).toBeGreaterThan(0);
     expect(upperWindow.map((entry) => entry.id)).not.toEqual(lowerWindow.map((entry) => entry.id));
+  });
+
+  it("reuses virtual layout inputs when id order and aspect ratios are unchanged", () => {
+    const previousItems = makeItems([1, 1.5, 0.8]);
+    const equivalentItems = previousItems.map((item) => ({ ...item }));
+    const changedAspectItems = [
+      previousItems[0],
+      { ...previousItems[1], aspectRatio: 1.6 },
+      previousItems[2],
+    ];
+    const reorderedItems = [previousItems[1], previousItems[0], previousItems[2]];
+
+    expect(reuseStableMediaVirtualItems(previousItems, equivalentItems)).toBe(previousItems);
+    expect(reuseStableMediaVirtualItems(previousItems, changedAspectItems)).toBe(
+      changedAspectItems
+    );
+    expect(reuseStableMediaVirtualItems(previousItems, reorderedItems)).toBe(reorderedItems);
+    expect(reuseStableMediaVirtualItems(null, equivalentItems)).toBe(equivalentItems);
   });
 
   it("resolves deep virtual windows with indexed bounds matching the full-filter result", () => {

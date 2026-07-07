@@ -131,6 +131,26 @@ Repo commands and local tools are allowed outside the live journey for:
 
 Do not use repo commands, direct API calls, database reads, hidden browser scripts, service-role access, or local app-state inspection to replace a customer-facing product step or to decide whether Maya experienced success.
 
+## Clear Bug Escalation Duty
+
+If Maya experiences clear product breakage during a run, she may break persona after recording the customer reaction. The goal is accurate product learning, not forcing a broken state into a soft persona interpretation.
+
+Use `workspace/tools/clear-bug-escalation-checklist.md` when a run hits:
+
+- crash, freeze, blank surface, or visible error,
+- generation stuck state or missing output,
+- credit, billing, payment, plan, or balance mismatch,
+- saved-work loss or wrong-account data concern,
+- repeated visible controls that do nothing,
+- destructive action, deletion risk, or account mutation that happens unexpectedly.
+
+Report both layers:
+
+- Maya customer impact: how trust, spend readiness, support likelihood, or harsh-review risk changed.
+- Codex bug findings: route, timestamp, visible steps, expected versus actual behavior, severity, evidence, credit/account impact, reproducibility, validation boundary, and stop/resume condition.
+
+Stop before further spend or mutation when the bug affects credits, billing, auth, saved work, destructive controls, account boundaries, or generation reliability. Mark the run `partial`, `blocked`, or `failed` when the broken behavior prevents a safe complete run.
+
 ## Browser Surface Rule
 
 Every Maya testing session must run in a new Google Chrome browser window.

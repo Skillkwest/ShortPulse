@@ -2,12 +2,12 @@ import {
   BILLING_CONTRACT_SOURCE_INTERNAL_COMP,
   BILLING_CONTRACT_SOURCE_STRIPE,
 } from "./billingContracts";
+import { isCreditTopUpEligibleSubscriptionStatus } from "../../billing/subscriptionStatusPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export const CREDIT_TOP_UP_REQUIRES_SUBSCRIPTION_MESSAGE =
   "Choose a paid subscription plan before buying credit top-ups.";
 
-const CREDIT_TOP_UP_ELIGIBLE_STATUSES = new Set<string>(["active", "trialing"]);
 const CREDIT_TOP_UP_ELIGIBLE_SOURCES = new Set<string>([
   BILLING_CONTRACT_SOURCE_STRIPE,
   BILLING_CONTRACT_SOURCE_INTERNAL_COMP,
@@ -61,7 +61,7 @@ export async function resolveCreditTopUpEligibilityForUser(
   const planId = normalizeContractValue(contract.plan_id);
   const contractSource = normalizeContractValue(contract.contract_source);
 
-  if (!CREDIT_TOP_UP_ELIGIBLE_STATUSES.has(status)) {
+  if (!isCreditTopUpEligibleSubscriptionStatus(status)) {
     return { eligible: false, reason: "inactive_subscription_contract" };
   }
   if (!planId || planId === "free") {

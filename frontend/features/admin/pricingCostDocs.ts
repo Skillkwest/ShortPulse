@@ -143,14 +143,16 @@ const getProviderPricingDocLines = (
     case "seedance-2-per-second":
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
-        "Seedance 2.0 customer billing is priced by output resolution and duration; video references do not reduce billed credits.",
-        "1080p: 102 credits/sec. 720p: 41 credits/sec. 480p: 19 credits/sec.",
+        "No video input: unit price × output duration. With video input: unit price × (input video duration + output duration).",
+        "No video input: 1080p 102 credits/sec, 720p 41 credits/sec, 480p 19 credits/sec.",
+        "With video input: 1080p 62 credits/sec, 720p 25 credits/sec, 480p 11.5 credits/sec.",
       ];
     case "seedance-2-fast-per-second":
       return [
         "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
-        "Seedance 2.0 Fast customer billing is priced by output resolution and duration; video references do not reduce billed credits.",
-        "720p: 33 credits/sec. 480p: 15.5 credits/sec.",
+        "No video input: unit price × output duration. With video input: unit price × (input video duration + output duration).",
+        "No video input: 720p 33 credits/sec, 480p 15.5 credits/sec.",
+        "With video input: 720p 20 credits/sec, 480p 9 credits/sec.",
       ];
     case "elevenlabs-music-per-minute":
       return [
@@ -406,12 +408,17 @@ export const buildDraftPricingPreviewVariants = (
                 model,
                 options.usageAmount ?? null
               );
+              const inputVideoDurationSeconds =
+                videoInput === true
+                  ? (usageOverrides.durationSeconds ?? model.defaultDurationSeconds ?? null)
+                  : null;
               const params = buildDefaultPricingParams(model.id, {
                 variantBaseId: variant.id,
                 ...(aspect ? { aspect } : {}),
                 ...(resolution ? { resolution } : {}),
                 ...(audio != null ? { audio } : {}),
                 ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+                ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
                 ...usageOverrides,
                 ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
               });
@@ -426,6 +433,7 @@ export const buildDraftPricingPreviewVariants = (
                   ...(resolution ? { resolution } : {}),
                   ...(audio != null ? { audio } : {}),
                   ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+                  ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
                   ...(variant.id === "edit"
                     ? {
                         inputImageCount: 1,

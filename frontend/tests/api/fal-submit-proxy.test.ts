@@ -380,7 +380,7 @@ describe("createFalSubmitHandler", () => {
         code: "WORKFLOW_PLAN_REQUIRED",
         workflow: "video",
         planId: "starter",
-        ctaHref: "/pricing",
+        ctaHref: "/profile?section=subscription",
         ctaLabel: "View plans",
       })
     );

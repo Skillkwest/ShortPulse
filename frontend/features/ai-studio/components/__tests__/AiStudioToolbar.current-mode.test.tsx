@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
-import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import {
   librariesToolList,
   primaryToolList,
@@ -11,6 +10,12 @@ import {
   workflowToolList,
 } from "../../constants";
 import type { ToolId } from "../../types";
+
+const WORKFLOW_PLAN_CTA = {
+  label: "View plans",
+  href: "/profile?section=subscription",
+  ariaLabel: "View subscription plans",
+};
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useResolvedProtectedSessionStateMock = vi.hoisted(() => vi.fn());
@@ -128,6 +133,14 @@ describe("AiStudioToolbar current mode", () => {
     vi.restoreAllMocks();
   });
 
+  it("links the left-rail logo to the dashboard", () => {
+    renderToolbar();
+
+    const logoLink = screen.getByRole("link", { name: "Go to dashboard" });
+
+    expect(logoLink).toHaveAttribute("href", "/dashboard");
+  });
+
   it("renders account controls instead of retired mode-toggle chrome", () => {
     const { container } = render(
       <AiStudioToolbar
@@ -164,7 +177,7 @@ describe("AiStudioToolbar current mode", () => {
     expect(onSelectTool).toHaveBeenCalledWith("create");
   });
 
-  it("replaces Starter-restricted Video and Sound workflow buttons with one View plans link", () => {
+  it("keeps Starter-restricted Video and Sound in place as plan links", () => {
     const onSelectTool = vi.fn();
     const onWorkflowPlanAccessAttempt = vi.fn();
 
@@ -172,7 +185,7 @@ describe("AiStudioToolbar current mode", () => {
       <AiStudioToolbar
         selectedTool={null}
         showCreateTools={false}
-        workflowPlanAccessCta={AI_STUDIO_PLAN_CTA}
+        workflowPlanAccessCta={WORKFLOW_PLAN_CTA}
         onOpenProjects={vi.fn()}
         onSelectTool={onSelectTool}
         onWorkflowPlanAccessAttempt={onWorkflowPlanAccessAttempt}
@@ -186,16 +199,26 @@ describe("AiStudioToolbar current mode", () => {
     expect(screen.queryByRole("button", { name: "Music" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sound Effects" })).toBeNull();
 
-    const planLink = screen.getByRole("link", {
-      name: "View subscription plans",
+    const videoPlanLink = screen.getByRole("link", {
+      name: "Video: View subscription plans",
+    });
+    const soundPlanLink = screen.getByRole("link", {
+      name: "Sound: View subscription plans",
     });
 
-    expect(screen.getAllByRole("link", { name: "View subscription plans" })).toHaveLength(1);
-    expect(planLink).toHaveAttribute("href", "/pricing");
+    expect(videoPlanLink).toHaveAttribute("href", "/profile?section=subscription");
+    expect(soundPlanLink).toHaveAttribute("href", "/profile?section=subscription");
+    expect(videoPlanLink).toHaveAttribute("data-tool-id", "video");
+    expect(soundPlanLink).toHaveAttribute("data-tool-id", "sound");
+    expect(videoPlanLink.querySelector(".toolbar-label-default")).toHaveTextContent("Video");
+    expect(soundPlanLink.querySelector(".toolbar-label-default")).toHaveTextContent("Sound");
+    expect(videoPlanLink.querySelector(".toolbar-label-plan-cta")).toHaveTextContent("View plans");
+    expect(soundPlanLink.querySelector(".toolbar-label-plan-cta")).toHaveTextContent("View plans");
 
-    fireEvent.click(planLink);
+    fireEvent.click(videoPlanLink);
+    fireEvent.click(soundPlanLink);
 
-    expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(1);
+    expect(onWorkflowPlanAccessAttempt).toHaveBeenCalledTimes(2);
     expect(onSelectTool).not.toHaveBeenCalled();
   });
 
@@ -302,10 +325,7 @@ describe("AiStudioToolbar current mode", () => {
       "href",
       "/profile?section=transactions"
     );
-    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toHaveAttribute(
-      "href",
-      "mailto:service@shortpulse.co"
-    );
+    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(
       "href",
       "/report-issue?from=%2Fai-studio%3FprojectId%3Dproject-1"
@@ -317,6 +337,12 @@ describe("AiStudioToolbar current mode", () => {
       menuItemLabels.indexOf("Report an issue")
     );
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Customer Support" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Contact Customer Support" })
+    ).toHaveTextContent("Use the email below");
+    expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
   });
 
   it("falls back to email when account metadata is not a usable display name", async () => {

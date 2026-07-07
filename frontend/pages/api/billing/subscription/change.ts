@@ -94,6 +94,8 @@ const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
 const PLAN_UNAVAILABLE_MESSAGE = "This plan is temporarily unavailable. Try again later.";
 const PLAN_CHANGE_UNAVAILABLE_MESSAGE =
   "This plan change is temporarily unavailable. Try again later.";
+const STRIPE_PORTAL_SUBSCRIPTION_UPDATE_DISABLED_PATTERN =
+  /subscription update feature in the portal configuration is disabled/i;
 
 const normalizePlanId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -161,6 +163,18 @@ const resolveActivePlanId = (
 
 const hasStripeSubscriptionId = (value: string | null | undefined): value is string =>
   typeof value === "string" && value.trim().length > 0;
+
+const resolveErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === "string" ? message : "";
+  }
+  return "";
+};
+
+const isStripePortalSubscriptionUpdateDisabledError = (error: unknown): boolean =>
+  STRIPE_PORTAL_SUBSCRIPTION_UPDATE_DISABLED_PATTERN.test(resolveErrorMessage(error));
 
 const resolveStripeSubscriptionCustomerId = (
   subscription: StripeSubscriptionResponse
@@ -683,6 +697,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mode: "checkout",
     });
   } catch (error) {
+    if (isStripePortalSubscriptionUpdateDisabledError(error)) {
+      return res.status(409).json({
+        error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
+      });
+    }
+
     await logApiRouteException({
       req,
       error,

@@ -1107,7 +1107,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `started_at` (timestamptz): Add-on start timestamp.
 - `ended_at` (timestamptz, nullable): Add-on end timestamp; `null` means current/open row.
 - `created_at` / `updated_at` (timestamptz)
-- Constraints/indexes: current billable rows (`ended_at is null` and status in `active`, `trialing`, `past_due`, or `unpaid`) must have `quantity = 1`; at most one current billable recurring storage add-on row may exist per user.
+- Constraints/indexes: current billable rows (`ended_at is null` and status in `active`, `trialing`, or `past_due`) must have `quantity = 1`; at most one current billable recurring storage add-on row may exist per user. `unpaid` rows remain historical/recovery evidence but do not count as current paid storage entitlement.
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open row per Stripe subscription item.
 
 ### ai_credit_balance

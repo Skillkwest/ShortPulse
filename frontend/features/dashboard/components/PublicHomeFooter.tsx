@@ -3,7 +3,8 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { CUSTOMER_SUPPORT_LABEL, CUSTOMER_SUPPORT_MAILTO_HREF } from "../../../lib/customerSupport";
+import { useCustomerSupportDialog } from "../../../components/CustomerSupportDialog";
+import { CUSTOMER_SUPPORT_LABEL } from "../../../lib/customerSupport";
 
 type PublicHomeFooterProps = {
   createProjectHref: string;
@@ -31,6 +32,8 @@ export function PublicHomeFooter({
   footerLoginLabel = "Login",
   communityCtaLabel = "Join Free",
 }: PublicHomeFooterProps) {
+  const { customerSupportDialog, openCustomerSupportDialog } = useCustomerSupportDialog();
+
   return (
     <footer className="public-home-footer" aria-label="ShortPulse footer">
       <div className="public-home-footer-shell">
@@ -72,7 +75,9 @@ export function PublicHomeFooter({
           </div>
           <div>
             <span>Resources</span>
-            <a href={CUSTOMER_SUPPORT_MAILTO_HREF}>{CUSTOMER_SUPPORT_LABEL}</a>
+            <button type="button" onClick={openCustomerSupportDialog}>
+              {CUSTOMER_SUPPORT_LABEL}
+            </button>
             <Link href="/terms">Terms of Service</Link>
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/refund-policy">Refund Policy</Link>
@@ -90,6 +95,7 @@ export function PublicHomeFooter({
       <div className="public-home-footer-bottom">
         <p>&copy; 2026 ShortPulse.</p>
       </div>
+      {customerSupportDialog}
     </footer>
   );
 }

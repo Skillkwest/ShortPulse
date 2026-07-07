@@ -76,14 +76,23 @@ const SEEDANCE_RESOLUTION_MAP = {
   "720p": { width: 1280, height: 720 },
   "480p": { width: 854, height: 480 },
 };
-const SEEDANCE_2_STANDARD_CREDITS_PER_SECOND = {
+const SEEDANCE_2_STANDARD_NO_VIDEO_CREDITS_PER_SECOND = {
   "1080p": 102,
   "720p": 41,
   "480p": 19,
 } as const;
-const SEEDANCE_2_FAST_CREDITS_PER_SECOND = {
+const SEEDANCE_2_STANDARD_WITH_VIDEO_CREDITS_PER_SECOND = {
+  "1080p": 62,
+  "720p": 25,
+  "480p": 11.5,
+} as const;
+const SEEDANCE_2_FAST_NO_VIDEO_CREDITS_PER_SECOND = {
   "720p": 33,
   "480p": 15.5,
+} as const;
+const SEEDANCE_2_FAST_WITH_VIDEO_CREDITS_PER_SECOND = {
+  "720p": 20,
+  "480p": 9,
 } as const;
 const OMNIHUMAN_V15_USD_PER_SECOND = 0.16;
 
@@ -669,15 +678,33 @@ const resolveSeedanceResolutionKey = (
   return "480p";
 };
 
+const resolveSeedanceInputVideoDurationSeconds = (params: PricingParams): number | null => {
+  const value = params.inputVideoDurationSeconds ?? params.sourceDurationSeconds;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return value;
+};
+
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   const duration = resolveSeedance2Duration(params.durationSeconds ?? undefined);
   const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const resolutionKey = resolveSeedanceResolutionKey(params, isSeedanceFast ? "720p" : "1080p");
   const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
   if (!resolution) return null;
-  const pricingTable = isSeedanceFast
-    ? SEEDANCE_2_FAST_CREDITS_PER_SECOND
-    : SEEDANCE_2_STANDARD_CREDITS_PER_SECOND;
+  const hasInputVideo =
+    typeof params.inputVideoCount === "number" &&
+    Number.isFinite(params.inputVideoCount) &&
+    params.inputVideoCount > 0;
+  const inputVideoDurationSeconds = hasInputVideo
+    ? resolveSeedanceInputVideoDurationSeconds(params)
+    : null;
+  if (hasInputVideo && inputVideoDurationSeconds == null) return null;
+  const pricingTable = hasInputVideo
+    ? isSeedanceFast
+      ? SEEDANCE_2_FAST_WITH_VIDEO_CREDITS_PER_SECOND
+      : SEEDANCE_2_STANDARD_WITH_VIDEO_CREDITS_PER_SECOND
+    : isSeedanceFast
+      ? SEEDANCE_2_FAST_NO_VIDEO_CREDITS_PER_SECOND
+      : SEEDANCE_2_STANDARD_NO_VIDEO_CREDITS_PER_SECOND;
   const resolutionPricing =
     pricingTable[
       (isSeedanceFast && resolutionKey === "1080p"
@@ -685,7 +712,8 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
         : resolutionKey) as keyof typeof pricingTable
     ];
   if (!resolutionPricing) return null;
-  const usdRaw = kieCreditsToUsd(resolutionPricing * duration);
+  const billableDuration = duration + (inputVideoDurationSeconds ?? 0);
+  const usdRaw = kieCreditsToUsd(resolutionPricing * billableDuration);
   return toCostBreakdown({
     modelId: params.modelId,
     usdRaw,
@@ -697,6 +725,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
       baseVariantId: "default",
       aspect: params.aspect ?? getModelConfig(params.modelId)?.defaultAspect ?? null,
       resolution: resolutionKey,
+      videoInput: hasInputVideo,
     }),
   });
 };

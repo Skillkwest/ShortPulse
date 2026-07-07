@@ -34,6 +34,8 @@ import { DeadlineExceededError } from "../logic/withDeadline";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
@@ -83,6 +85,8 @@ import {
   getDurableLipSyncAudioUrl,
   getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
+import { resolveSeedanceElementProviderEligibility } from "../logic/klingElements";
+import { resolveSeedanceInputVideoDurationSeconds } from "../logic/seedanceVideoPricing";
 import type { GenerationFailureContext } from "./generationFailureReporting";
 import type {
   AiStudioTaskSubmissionOptions,
@@ -136,6 +140,7 @@ export const useAiStudioTaskSubmission = ({
   setUiError,
   setUiNotice,
   setOutputs,
+  outputs = [],
   setSaved,
   getDefaultDurationSeconds,
   notifyGenerationFailure,
@@ -218,6 +223,25 @@ export const useAiStudioTaskSubmission = ({
             lane: resolvedVideoLane,
           })
         : requestedModel;
+      const isSeedance2Submission =
+        finalModel === KIE_SEEDANCE_2_MODEL_ID || finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID;
+      const seedance2SubmitReferenceVideoUrls =
+        isSeedance2Submission && effectiveSeedance2InputMode === "multimodal"
+          ? Array.from(
+              new Set([
+                ...effectiveSeedance2ReferenceVideoUrls
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+                ...effectiveKlingElements.flatMap(
+                  (element) => resolveSeedanceElementProviderEligibility(element).videoUrls
+                ),
+              ])
+            )
+          : [];
+      const seedance2InputVideoDurationSeconds = resolveSeedanceInputVideoDurationSeconds({
+        referenceVideoUrls: seedance2SubmitReferenceVideoUrls,
+        outputs,
+      });
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
           ...(options?.internalMediaRefsOverride ?? []),
@@ -572,6 +596,17 @@ export const useAiStudioTaskSubmission = ({
                 audio_duration_seconds: lipSyncAudioDurationSeconds,
               }
             : {}),
+          ...(seedance2SubmitReferenceVideoUrls.length > 0
+            ? {
+                input_video_count: seedance2SubmitReferenceVideoUrls.length,
+                ...(seedance2InputVideoDurationSeconds != null
+                  ? {
+                      input_video_duration_seconds: seedance2InputVideoDurationSeconds,
+                      seedance_input_video_duration_seconds: seedance2InputVideoDurationSeconds,
+                    }
+                  : {}),
+              }
+            : {}),
           ...(motionReferenceAssetContext
             ? { motion_reference_asset: motionReferenceAssetContext }
             : {}),
@@ -918,6 +953,7 @@ export const useAiStudioTaskSubmission = ({
       getDefaultDurationSeconds,
       model,
       mode,
+      outputs,
       projectId,
       workspaceRuntimeKey,
       notifyGenerationFailure,

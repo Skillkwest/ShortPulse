@@ -171,11 +171,32 @@ describe("fetchBillingAccountSummary", () => {
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/billing/account-summary?includeProfileState=1",
-      expect.objectContaining({ method: "GET" })
+      expect.objectContaining({
+        method: "GET",
+        shortpulseRequestTimeoutMs: 15_000,
+      })
     );
     expect(summary?.profileState?.billingProfile?.plan_id).toBe("starter");
     expect(summary?.profileState?.billingContract?.monthly_credits_cents).toBe(350);
     expect(summary?.profileState?.billingActivity[0]?.source).toBe("stripe_checkout");
     expect(summary?.profileState?.activeStorageAddons[0]?.storageAddonId).toBe("storage_10gb");
+  });
+
+  it("returns null instead of hanging when the account summary request times out", async () => {
+    fetchWithAuthMock.mockRejectedValueOnce(new DOMException("Aborted", "AbortError"));
+
+    const summary = await fetchBillingAccountSummary({
+      expectedUserId: "user-1",
+      includeProfileState: true,
+      force: true,
+    });
+
+    expect(summary).toBeNull();
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/billing/account-summary?includeProfileState=1",
+      expect.objectContaining({
+        shortpulseRequestTimeoutMs: 15_000,
+      })
+    );
   });
 });

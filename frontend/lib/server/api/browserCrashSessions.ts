@@ -150,6 +150,10 @@ const ALLOWED_METADATA_KEYS = new Set([
   "screen_width",
   "session_age_ms",
   "stall_duration_ms",
+  "storage_estimate_available_bytes",
+  "storage_estimate_quota_bytes",
+  "storage_estimate_usage_bytes",
+  "storage_estimate_usage_to_quota_ratio",
   "status_reason",
   "total_js_heap_size",
   "total_item_count",
@@ -164,6 +168,13 @@ const ALLOWED_METADATA_KEYS = new Set([
   "abandonment_detected_document_hidden",
   "abandonment_detected_document_was_discarded",
 ]);
+
+const STORAGE_ESTIMATE_METADATA_KEYS = [
+  "storage_estimate_available_bytes",
+  "storage_estimate_quota_bytes",
+  "storage_estimate_usage_bytes",
+  "storage_estimate_usage_to_quota_ratio",
+] as const;
 
 const PREVIOUS_SESSION_ABANDONED_METADATA_KEYS = [
   "last_heartbeat_age_ms",
@@ -508,6 +519,15 @@ const mergeSessionEventMetadata = (params: {
     ...previous,
     ...incoming,
   };
+
+  for (const key of STORAGE_ESTIMATE_METADATA_KEYS) {
+    if (incoming[key] !== null) continue;
+    if (previous[key] !== undefined) {
+      merged[key] = previous[key];
+    } else {
+      delete merged[key];
+    }
+  }
 
   const maxPressureLevel = maxMetadataNumber(
     previous.max_pressure_level,

@@ -123,7 +123,7 @@ const buildSupabaseClient = () => ({
           eq: vi.fn(() => ({
             is: vi.fn(() => ({
               maybeSingle: vi.fn(async () => ({
-                data: { plan_id: "business", monthly_credits_cents: 12000 },
+                data: { plan_id: "business", monthly_credits_cents: 8000 },
                 error: null,
               })),
             })),
@@ -227,7 +227,7 @@ describe("Dashboard actions", () => {
               id: "business",
               label: "Business",
               className: "plan-business",
-              monthlyCreditsCents: 12_000,
+              monthlyCreditsCents: 8_000,
             },
             quotaStatus: "available",
             quotaSummary: {
@@ -433,7 +433,7 @@ describe("Dashboard actions", () => {
     expect(
       await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500 GB" })
     ).toHaveAttribute("href", "/profile?section=storage");
-    expect(await screen.findByRole("link", { name: "AI credits: 86 / 12,000" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "AI credits: 86 / 8,000" })).toHaveAttribute(
       "href",
       "/profile?section=credits"
     );
@@ -462,19 +462,16 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=subscription"
     );
-    expect(within(footer).getByRole("link", { name: "Customer Support" })).toHaveAttribute(
-      "href",
-      "mailto:service@shortpulse.co"
-    );
+    expect(within(footer).getByRole("button", { name: "Customer Support" })).toBeInTheDocument();
     expect(within(footer).getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
       "href",
       "/terms"
     );
-    const footerLinkLabels = within(footer)
-      .getAllByRole("link")
-      .map((link) => link.textContent?.trim() ?? "");
-    expect(footerLinkLabels.indexOf("Customer Support")).toBeLessThan(
-      footerLinkLabels.indexOf("Terms of Service")
+    const footerNavLabels = Array.from(
+      footer.querySelectorAll(".public-home-footer-nav a, .public-home-footer-nav button")
+    ).map((item) => item.textContent?.trim() ?? "");
+    expect(footerNavLabels.indexOf("Customer Support")).toBeLessThan(
+      footerNavLabels.indexOf("Terms of Service")
     );
     expect(within(footer).queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
     expect(within(footer).getByRole("link", { name: "Join Free" })).toHaveAttribute(
@@ -550,10 +547,7 @@ describe("Dashboard actions", () => {
       "href",
       "/profile?section=transactions"
     );
-    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toHaveAttribute(
-      "href",
-      "mailto:service@shortpulse.co"
-    );
+    expect(screen.getByRole("menuitem", { name: "Customer Support" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(
       "href",
       "/report-issue?from=%2Fdashboard"
@@ -565,6 +559,12 @@ describe("Dashboard actions", () => {
       menuItemLabels.indexOf("Report an issue")
     );
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Customer Support" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Contact Customer Support" })
+    ).toHaveTextContent("Use the email below");
+    expect(screen.getByText("service@shortpulse.co")).toBeInTheDocument();
   });
 
   it("opens and closes the logout confirmation modal", async () => {

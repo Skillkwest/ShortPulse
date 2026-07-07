@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import type { User } from "@supabase/supabase-js";
 import { GearSix, SignOut } from "phosphor-react";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useCustomerSupportDialog } from "../../../components/CustomerSupportDialog";
 import { normalizeIssueReportSourcePath } from "../../../lib/issueReports";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
@@ -54,6 +55,7 @@ export function AiStudioToolbarAccountMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [menuStyle, setMenuStyle] = useState<MenuStyle | null>(null);
+  const { customerSupportDialog, openCustomerSupportDialog } = useCustomerSupportDialog();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -157,9 +159,17 @@ export function AiStudioToolbarAccountMenu() {
               ))}
             </div>
             <div className="toolbar-account-menu__actions">
-              <a href={CUSTOMER_SUPPORT_MENU_LINK.href} role="menuitem" onClick={closeMenu}>
+              <button
+                type="button"
+                role="menuitem"
+                className="toolbar-account-menu__support-action"
+                onClick={(event) => {
+                  closeMenu();
+                  openCustomerSupportDialog(event);
+                }}
+              >
                 {CUSTOMER_SUPPORT_MENU_LINK.label}
-              </a>
+              </button>
               <Link href={reportIssueHref} role="menuitem" onClick={closeMenu}>
                 Report an issue
               </Link>
@@ -219,6 +229,7 @@ export function AiStudioToolbarAccountMenu() {
           onConfirm={handleSignOut}
         />
       ) : null}
+      {customerSupportDialog}
     </>
   );
 }

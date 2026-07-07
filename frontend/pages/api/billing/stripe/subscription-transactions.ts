@@ -8,7 +8,7 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
   buildSubscriptionFacingTransaction,
   buildStorageTransaction,
-  listPaidInvoices,
+  listBillingInvoices,
   resolveStorageCatalog,
   resolveStripeCustomerBillingState,
   resolveTransactionKindFilter,
@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ transactions: [] });
     }
 
-    const invoices = await listPaidInvoices(billingState.stripeCustomerId);
+    const invoices = await listBillingInvoices(billingState.stripeCustomerId);
 
     const storageCatalog = await resolveStorageCatalog();
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const forwardMigrationPath = path.resolve(
   process.cwd(),
-  "../sql/migrations/201_harden_paid_media_library_access_contract_authority.sql"
+  "../sql/migrations/207_exclude_unpaid_from_paid_access_statuses.sql"
 );
 const baselineMigrationPath = path.resolve(
   process.cwd(),
@@ -20,8 +20,9 @@ describe("paid media-library access authority", () => {
     expect(migrationSql).toContain("c.ended_at is null");
     expect(migrationSql).toContain("lower(coalesce(c.plan_id, 'free')) <> 'free'");
     expect(migrationSql).toContain(
-      "lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due', 'unpaid')"
+      "lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due')"
     );
+    expect(migrationSql).not.toContain("'past_due', 'unpaid'");
     expect(migrationSql).not.toContain("from public.billing_profiles");
     expect(migrationSql).toContain(
       "grant execute on function public.user_has_paid_media_library_access(uuid) to authenticated;"
@@ -40,5 +41,8 @@ describe("paid media-library access authority", () => {
     expect(baselineSql).not.toContain("from public.billing_profiles p");
     expect(fullSchemaSql).not.toContain("from public.billing_profiles p");
     expect(fullSchemaSql).not.toContain("from billing_profiles profile");
+    expect(fullSchemaSql).toContain(
+      "lower(coalesce(c.status, 'active')) in ('active', 'trialing', 'past_due')"
+    );
   });
 });

@@ -225,6 +225,90 @@ describe("browserCrashSessions", () => {
     });
   });
 
+  it("preserves browser storage estimate metadata through the crash-session allowlist", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "session_start",
+        sessionId: "current-session",
+        route: "/ai-studio",
+        occurredAt: "2026-07-05T12:00:00.000Z",
+        metadata: {
+          storage_estimate_usage_bytes: 250_000_000,
+          storage_estimate_quota_bytes: 1_000_000_000,
+          storage_estimate_available_bytes: 750_000_000,
+          storage_estimate_usage_to_quota_ratio: 0.25,
+          storage_estimate_raw_detail: "must-not-persist",
+        },
+      },
+    });
+
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).toMatchObject({
+      metadata: {
+        storage_estimate_usage_bytes: 250_000_000,
+        storage_estimate_quota_bytes: 1_000_000_000,
+        storage_estimate_available_bytes: 750_000_000,
+        storage_estimate_usage_to_quota_ratio: 0.25,
+      },
+    });
+    expect(
+      (supabase.upsertMock.mock.calls[0]?.[0] as { metadata?: Record<string, unknown> }).metadata
+    ).not.toHaveProperty("storage_estimate_raw_detail");
+  });
+
+  it("keeps prior browser storage estimate metadata when later events send nulls", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      metadata: {
+        storage_estimate_usage_bytes: 250_000_000,
+        storage_estimate_quota_bytes: 1_000_000_000,
+        storage_estimate_available_bytes: 750_000_000,
+        storage_estimate_usage_to_quota_ratio: 0.25,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: {
+        headers: {
+          "user-agent": "Mozilla/5.0 Chrome/120",
+          host: "www.shortpulse.ai",
+        },
+      } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "current-session",
+        route: "/ai-studio",
+        occurredAt: "2026-07-05T12:01:00.000Z",
+        metadata: {
+          storage_estimate_usage_bytes: null,
+          storage_estimate_quota_bytes: null,
+          storage_estimate_available_bytes: null,
+          storage_estimate_usage_to_quota_ratio: null,
+        },
+      },
+    });
+
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).toMatchObject({
+      metadata: {
+        storage_estimate_usage_bytes: 250_000_000,
+        storage_estimate_quota_bytes: 1_000_000_000,
+        storage_estimate_available_bytes: 750_000_000,
+        storage_estimate_usage_to_quota_ratio: 0.25,
+      },
+    });
+  });
+
   it("does not reset review state on later heartbeat upserts", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue(supabase.client);

@@ -746,16 +746,22 @@ describe("pricingAnalysis", () => {
       pricingPolicy,
     });
 
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(6);
     expect(rows.map((row) => row.specLabel)).toEqual([
-      "1080p / 16:9",
-      "720p / 16:9",
-      "480p / 16:9",
+      "1080p / 16:9 / with video input",
+      "1080p / 16:9 / no video input",
+      "720p / 16:9 / with video input",
+      "720p / 16:9 / no video input",
+      "480p / 16:9 / with video input",
+      "480p / 16:9 / no video input",
     ]);
-    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(3);
-    expect(rows[0]?.providerCostUsd).toBeCloseTo(2.55, 6);
-    expect(rows[1]?.providerCostUsd).toBeCloseTo(1.025, 6);
-    expect(rows[2]?.providerCostUsd).toBeCloseTo(0.475, 6);
+    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(6);
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(3.1, 6);
+    expect(rows[1]?.providerCostUsd).toBeCloseTo(2.55, 6);
+    expect(rows[2]?.providerCostUsd).toBeCloseTo(1.25, 6);
+    expect(rows[3]?.providerCostUsd).toBeCloseTo(1.025, 6);
+    expect(rows[4]?.providerCostUsd).toBeCloseTo(0.575, 6);
+    expect(rows[5]?.providerCostUsd).toBeCloseTo(0.475, 6);
   });
 
   it("expands Seedance 2.0 Fast into customer-billed resolution price variants", () => {
@@ -801,11 +807,18 @@ describe("pricingAnalysis", () => {
       pricingPolicy,
     });
 
-    expect(rows).toHaveLength(2);
-    expect(rows.map((row) => row.specLabel)).toEqual(["720p / 16:9", "480p / 16:9"]);
-    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(2);
-    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.825, 6);
-    expect(rows[1]?.providerCostUsd).toBeCloseTo(0.3875, 6);
+    expect(rows).toHaveLength(4);
+    expect(rows.map((row) => row.specLabel)).toEqual([
+      "720p / 16:9 / with video input",
+      "720p / 16:9 / no video input",
+      "480p / 16:9 / with video input",
+      "480p / 16:9 / no video input",
+    ]);
+    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(4);
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(1, 6);
+    expect(rows[1]?.providerCostUsd).toBeCloseTo(0.825, 6);
+    expect(rows[2]?.providerCostUsd).toBeCloseTo(0.45, 6);
+    expect(rows[3]?.providerCostUsd).toBeCloseTo(0.3875, 6);
   });
 
   it("expands Lip Sync into both 1080p and 720p price variants", () => {

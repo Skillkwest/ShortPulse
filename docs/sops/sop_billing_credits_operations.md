@@ -14,7 +14,9 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 ## Source of truth
 
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
-- Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
+- Current pricing catalog updates: `/admin/pricing` plus the versioned `billing_plan_offers` / `billing_storage_addon_offers` tables.
+- Historical pricing refresh reference only: `sql/update_billing_pricing_catalog_20260210.sql`.
+- Business 8,000-credit hosted alignment packet: `sql/align_business_plan_8000_credits.sql`.
 - Versioned offer + subscriber contract migration: `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`.
 - Internal comp contract-source migration: `sql/migrations/086_add_internal_comp_billing_contract_support.sql`.
 - Storage entitlement + recurring storage add-on migration: `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`.
@@ -63,6 +65,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - `billing_plan_offers` defines versioned recurring offers and current acquisition pricing.
 - `billing_subscription_contracts` defines the subscriber-specific recurring commercial terms and historical lineage.
 - `billing_plans.storage_limit_bytes`, `billing_plan_offers.storage_limit_bytes`, and `billing_subscription_contracts.storage_limit_bytes` define base storage entitlements for each tier and subscriber contract snapshot.
+- Business recurring monthly credit policy is `8,000` credits/month for both current public paid offers and the non-public internal-comp offer. Runtime grants must read this from the offer or subscriber contract snapshot rather than from plan-card bonus copy.
 - `billing_storage_addons` and `billing_storage_addon_offers` define recurring public storage add-on catalog entries.
 - `billing_subscription_storage_addons` defines subscriber-specific recurring storage add-on contracts synchronized from Stripe subscription items.
 - Recurring storage add-ons are single-slot entitlements: one current billable add-on per user, quantity exactly one, and self-serve eligibility must come from `frontend/lib/billing/storageAddonEligibility.ts`.
@@ -318,6 +321,7 @@ Recommended operator sequence:
 - Checkout top-up credits are ledger grants (`change_cents > 0`) via server routes only after Stripe reports the Checkout Session as paid.
 - AI Studio Checkout returns with `checkout=credits_success` or `checkout=credits_cancel` are UI status markers only. The paid Checkout Session, Stripe webhook, ledger grant, and subsequent `/api/credits/snapshot` refresh remain the source of truth for the purchased credit balance.
 - Delayed-payment Checkout methods must settle on `checkout.session.async_payment_succeeded`; do not grant credits from `checkout.session.completed` when `payment_status != 'paid'`.
+- `checkout.session.async_payment_failed`, `invoice.payment_failed`, and `invoice.payment_action_required` are recovery/telemetry events only. They must not mint credits or directly override subscription status; Stripe `customer.subscription.*` events remain the subscription-status projection authority.
 - Subscription monthly credits are granted only for invoice payment events that represent a new billing allocation window (`billing_reason in ('subscription_create', 'subscription_cycle')`).
 - Subscription monthly credits expire 60 days after the grant write.
 - Paid Stripe top-up credits do not expire.
@@ -327,6 +331,10 @@ Recommended operator sequence:
 - Grant idempotency should use stable business object references where available (`checkout_session.id`, `invoice.id`) rather than relying only on Stripe event ids.
 - Current acquisition pricing may change over time, but existing subscribers should remain attached to their stored `billing_subscription_contracts` commercial snapshot unless a trusted migration/operator path intentionally moves them.
 - `billing_profiles` is a runtime projection only. If a paid profile is missing an open `billing_subscription_contracts` row, treat that as drift and repair it instead of trusting the profile as paid truth.
+- Subscription status policy:
+  - `active` and `trialing` are full paid-access states.
+  - `past_due` is a recoverable grace state: paid media/storage access remains available, but new top-up purchases stay blocked until the account is back in good standing.
+  - `unpaid`, `canceled`, `incomplete`, `incomplete_expired`, `inactive`, and `paused` are revoked paid-access states.
 - Storage entitlements follow the same contract model:
   - current public plan storage lives in `billing_plan_offers` with `billing_plans` supplying shared metadata
   - current public recurring storage add-ons live in `billing_storage_addon_offers` with `billing_storage_addons` supplying shared metadata
@@ -516,6 +524,7 @@ order by created_at desc;
    - Webhook response is `200`.
    - Duplicate replays are safe (`duplicate: true` can appear) and must not create duplicate ledger rows.
    - `ai_credit_ledger` remains unique on `(user_id, source, source_ref)`.
+   - Failed-payment events create telemetry/support context only and do not create `ai_credit_ledger` rows.
    - Subscription invoice grants create exactly one `subscription_renewal` ledger row and one `subscription_allocation` grant lot with the expected `monthly_credits_cents` amount and 60-day expiry.
    - Subscription/profile state reflects latest expected status for subscription events.
 5. If replay still fails:

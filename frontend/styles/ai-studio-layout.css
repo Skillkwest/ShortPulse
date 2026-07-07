@@ -2136,38 +2136,37 @@ body.ai-shell-resizing * {
     0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
-.toolbar-item.toolbar-item-plan-cta {
-  justify-content: center;
-  min-height: 40px;
-  margin: 18px 0 var(--ai-toolbar-primary-button-margin-bottom);
-  padding: var(--ai-toolbar-primary-button-padding-y) var(--ai-toolbar-primary-button-padding-x);
-  border: 1px solid rgba(255, 162, 92, 0.72);
-  border-radius: 10px;
-  background:
-    radial-gradient(
-      ellipse 76% 130% at 32% 10%,
-      rgba(255, 255, 255, 0.32),
-      rgba(255, 255, 255, 0.14) 36%,
-      transparent 70%
-    ),
-    linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
-  color: #fff;
-  font-weight: 850;
+.toolbar-item.toolbar-item-workflow-plan-restricted {
   text-decoration: none;
-  box-shadow:
-    0 0 22px rgba(255, 74, 96, 0.5),
-    0 12px 28px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.44);
 }
 
-.toolbar-item.toolbar-item-plan-cta::before {
-  display: none;
-  content: none;
+.toolbar-item.toolbar-item-workflow-plan-restricted svg {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
-.toolbar-item.toolbar-item-plan-cta:hover,
-.toolbar-item.toolbar-item-plan-cta:focus-visible {
+.toolbar-item.toolbar-item-workflow-plan-restricted .toolbar-copy {
+  display: grid;
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted .toolbar-label {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted .toolbar-label-plan-cta {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:hover,
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:focus-visible {
+  justify-content: center;
   border-color: rgba(255, 205, 130, 0.92);
+  border-radius: var(--ai-toolbar-primary-button-radius);
   background:
     radial-gradient(
       ellipse 80% 136% at 32% 10%,
@@ -2182,6 +2181,28 @@ body.ai-shell-resizing * {
     0 0 26px rgba(255, 74, 96, 0.68),
     0 14px 32px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:hover svg,
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:focus-visible svg {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:hover .toolbar-label-default,
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:focus-visible
+  .toolbar-label-default {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:hover .toolbar-label-plan-cta,
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:focus-visible
+  .toolbar-label-plan-cta {
+  opacity: 1;
+  transform: translateY(0);
+  color: #fff !important;
+  font-weight: 850 !important;
 }
 
 /* Sound button hover - cream canvas variant */
@@ -2233,6 +2254,10 @@ body.ai-shell-resizing * {
 .toolbar-item[data-tool-id="sound"]:focus-visible {
   outline: 2px solid #f5ddae;
   outline-offset: 3px;
+}
+
+.toolbar-item.toolbar-item-workflow-plan-restricted[data-tool-id]:focus-visible {
+  outline: none;
 }
 
 .ai-toolbar[data-primary-active="create"]

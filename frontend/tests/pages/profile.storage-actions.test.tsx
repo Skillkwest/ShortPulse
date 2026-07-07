@@ -166,6 +166,40 @@ vi.mock("../../lib/supabaseClient", () => ({
   }),
 }));
 
+const buildAccountSummary = async () => {
+  const addonsResponse = await activeStorageAddonsQueryMock();
+  return {
+    userId: "user-1",
+    resolvedPlan: {
+      id: billingContractState.value?.plan_id ?? billingProfileState.plan_id ?? "free",
+      label: "Business",
+      className: "plan-business",
+      monthlyCreditsCents: 60000,
+    },
+    quotaStatus: "unavailable",
+    quotaSummary: null,
+    profileState: {
+      billingProfile: { ...billingProfileState },
+      billingContract: billingContractState.value,
+      billingActivity: [],
+      activeStorageAddons: Array.isArray(addonsResponse.data)
+        ? addonsResponse.data
+            .map((row: Record<string, unknown>) => ({
+              id: row.id,
+              storageAddonId: row.storage_addon_id,
+              offerId: row.offer_id,
+              stripeSubscriptionItemId: row.stripe_subscription_item_id,
+              storageLimitBytes: row.storage_limit_bytes,
+              quantity: row.quantity,
+              recurringPriceCents: row.recurring_price_cents,
+              status: row.status,
+            }))
+            .filter((row: Record<string, unknown>) => row.id && row.storageAddonId)
+        : [],
+    },
+  };
+};
+
 describe("Profile storage actions", () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -269,39 +303,7 @@ describe("Profile storage actions", () => {
       error: null,
     });
     fetchBillingAccountSummaryMock.mockReset();
-    fetchBillingAccountSummaryMock.mockImplementation(async () => {
-      const addonsResponse = await activeStorageAddonsQueryMock();
-      return {
-        userId: "user-1",
-        resolvedPlan: {
-          id: billingContractState.value?.plan_id ?? billingProfileState.plan_id ?? "free",
-          label: "Business",
-          className: "plan-business",
-          monthlyCreditsCents: 60000,
-        },
-        quotaStatus: "unavailable",
-        quotaSummary: null,
-        profileState: {
-          billingProfile: { ...billingProfileState },
-          billingContract: billingContractState.value,
-          billingActivity: [],
-          activeStorageAddons: Array.isArray(addonsResponse.data)
-            ? addonsResponse.data
-                .map((row: Record<string, unknown>) => ({
-                  id: row.id,
-                  storageAddonId: row.storage_addon_id,
-                  offerId: row.offer_id,
-                  stripeSubscriptionItemId: row.stripe_subscription_item_id,
-                  storageLimitBytes: row.storage_limit_bytes,
-                  quantity: row.quantity,
-                  recurringPriceCents: row.recurring_price_cents,
-                  status: row.status,
-                }))
-                .filter((row: Record<string, unknown>) => row.id && row.storageAddonId)
-            : [],
-        },
-      };
-    });
+    fetchBillingAccountSummaryMock.mockImplementation(buildAccountSummary);
     refreshQuotaSummaryMock.mockReset();
     refreshQuotaSummaryMock.mockResolvedValue(undefined);
 
@@ -380,6 +382,15 @@ describe("Profile storage actions", () => {
       "href",
       "https://stripe.test/invoices/in_storage_1"
     );
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/billing/stripe/subscription-transactions?kind=storage",
+      expect.objectContaining({
+        method: "GET",
+        shortpulseRequestTimeoutMs: 15_000,
+        shortpulseRetryNetworkOnce: true,
+        shortpulseNetworkErrorSeverity: "low",
+      })
+    );
   });
 
   it("shows all self-serve storage add-ons while disabling Starter-ineligible choices", async () => {
@@ -451,6 +462,101 @@ describe("Profile storage actions", () => {
     expect(screen.getByRole("button", { name: "Requires Business plan" })).toBeDisabled();
   });
 
+  it("adds eligible recurring storage from the storage page without leaving the section", async () => {
+    billingProfileState.plan_id = "starter";
+    billingContractState.value = {
+      id: "contract_1",
+      plan_id: "starter",
+      offer_id: "starter__public",
+      stripe_price_id: "price_starter",
+      stripe_subscription_id: "sub_123",
+      contract_source: "stripe",
+      recurring_price_cents: 1500,
+      monthly_credits_cents: 35000,
+      storage_limit_bytes: 5 * 1024 * 1024 * 1024,
+      max_concurrent_generations: 1,
+      billing_interval: "month",
+      status: "active",
+      current_period_start: "2026-04-01T00:00:00.000Z",
+      current_period_end: "2026-05-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-01T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({ plans: [], packages: [], storageAddons: [] }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions?kind=storage") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      if (url === "/api/billing/storage-addon/change") {
+        return {
+          ok: true,
+          json: async () => ({
+            message: "Extra 10 GB added. Your workspace storage is syncing now.",
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+    activeStorageAddonsQueryMock.mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 0,
+        baseLimitBytes: 5 * 1024 * 1024 * 1024,
+        addonLimitBytes: 0,
+        totalLimitBytes: 5 * 1024 * 1024 * 1024,
+        remainingBytes: 5 * 1024 * 1024 * 1024,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: refreshQuotaSummaryMock,
+    });
+
+    render(<ProfilePage />);
+
+    const addButton = await screen.findByRole("button", { name: "Add 10 GB" });
+    let resolveRefresh: ((value: Awaited<ReturnType<typeof buildAccountSummary>>) => void) | null =
+      null;
+    const pendingRefresh = new Promise<Awaited<ReturnType<typeof buildAccountSummary>>>(
+      (resolve) => {
+        resolveRefresh = resolve;
+      }
+    );
+    fetchBillingAccountSummaryMock.mockImplementationOnce(() => pendingRefresh);
+
+    await act(async () => {
+      fireEvent.click(addButton);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageAddonId: "storage_10gb", action: "add" }),
+      });
+    });
+
+    expect(screen.getByRole("heading", { name: "Media storage" })).toBeInTheDocument();
+    expect(screen.queryByText("Syncing your account…")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveRefresh?.(await buildAccountSummary());
+      await Promise.resolve();
+    });
+  });
+
   it("shows add-on buttons as managed internally when the live catalog is empty", async () => {
     billingProfileState.stripe_customer_id = null;
     billingProfileState.stripe_subscription_id = null;
@@ -462,7 +568,7 @@ describe("Profile storage actions", () => {
       stripe_price_id: null,
       contract_source: "internal_comp",
       recurring_price_cents: 0,
-      monthly_credits_cents: 12000,
+      monthly_credits_cents: 8000,
       storage_limit_bytes: 161061273600,
       status: "active",
       current_period_start: "2026-04-01T00:00:00.000Z",
@@ -552,6 +658,41 @@ describe("Profile storage actions", () => {
     );
     expect(refreshQuotaSummaryMock.mock.calls.length).toBeGreaterThan(initialQuotaRefreshCalls);
   }, 15000);
+
+  it("keeps the storage section visible while account state refreshes after add-on changes", async () => {
+    render(<ProfilePage />);
+
+    const removeButton = await screen.findByRole("button", { name: "Remove" });
+    let resolveRefresh: ((value: Awaited<ReturnType<typeof buildAccountSummary>>) => void) | null =
+      null;
+    const pendingRefresh = new Promise<Awaited<ReturnType<typeof buildAccountSummary>>>(
+      (resolve) => {
+        resolveRefresh = resolve;
+      }
+    );
+    fetchBillingAccountSummaryMock.mockImplementationOnce(() => pendingRefresh);
+
+    await act(async () => {
+      fireEvent.click(removeButton);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/storage-addon/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageAddonId: "storage_100gb", action: "remove" }),
+      });
+    });
+
+    expect(screen.getByRole("heading", { name: "Media storage" })).toBeInTheDocument();
+    expect(screen.queryByText("Syncing your account…")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveRefresh?.(await buildAccountSummary());
+      await Promise.resolve();
+    });
+  });
 
   it("automatically clears the storage add-on success notice", async () => {
     render(<ProfilePage />);

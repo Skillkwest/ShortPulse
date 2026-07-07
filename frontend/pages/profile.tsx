@@ -70,9 +70,13 @@ const sections: readonly ProfileSectionItem[] = [
 ];
 
 const PROFILE_SUCCESS_NOTICE_AUTO_DISMISS_MS = 6000;
+const STORAGE_TRANSACTIONS_REQUEST_TIMEOUT_MS = 15_000;
 
 type BillingSyncScope = "credits" | "subscription" | "storage";
 type BillingAccountStateStatus = "idle" | "loading" | "ready" | "unavailable";
+type BillingAccountLoadOptions = {
+  blocking?: boolean;
+};
 
 function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | null {
   if (!startedAt) return null;
@@ -224,8 +228,14 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timeoutId);
   }, [notice]);
 
-  const loadBillingAccountState = async (currentUser: User) => {
-    setBillingAccountStateStatus("loading");
+  const loadBillingAccountState = async (
+    currentUser: User,
+    options?: BillingAccountLoadOptions
+  ) => {
+    const isBlockingLoad = options?.blocking !== false;
+    if (isBlockingLoad) {
+      setBillingAccountStateStatus("loading");
+    }
     setBillingContractLoading(true);
     setBillingActivityLoading(true);
     try {
@@ -235,17 +245,29 @@ export default function ProfilePage() {
         includeProfileState: true,
       });
       const profileState = summary?.profileState ?? null;
+      if (!profileState) {
+        if (isBlockingLoad) {
+          setBillingProfile(null);
+          setBillingContract(null);
+          setBillingActivity([]);
+          setActiveStorageAddons([]);
+          setBillingAccountStateStatus("unavailable");
+        }
+        return;
+      }
       setBillingProfile(profileState?.billingProfile ?? null);
       setBillingContract(profileState?.billingContract ?? null);
       setBillingActivity(profileState?.billingActivity ?? []);
       setActiveStorageAddons(profileState?.activeStorageAddons ?? []);
       setBillingAccountStateStatus("ready");
     } catch {
-      setBillingProfile(null);
-      setBillingContract(null);
-      setBillingActivity([]);
-      setActiveStorageAddons([]);
-      setBillingAccountStateStatus("unavailable");
+      if (isBlockingLoad) {
+        setBillingProfile(null);
+        setBillingContract(null);
+        setBillingActivity([]);
+        setActiveStorageAddons([]);
+        setBillingAccountStateStatus("unavailable");
+      }
     } finally {
       setBillingContractLoading(false);
       setBillingActivityLoading(false);
@@ -319,6 +341,9 @@ export default function ProfilePage() {
         "/api/billing/stripe/subscription-transactions?kind=storage",
         {
           method: "GET",
+          shortpulseRequestTimeoutMs: STORAGE_TRANSACTIONS_REQUEST_TIMEOUT_MS,
+          shortpulseRetryNetworkOnce: true,
+          shortpulseNetworkErrorSeverity: "low",
         }
       );
       const payload = (await response.json().catch(() => ({}))) as {
@@ -420,9 +445,9 @@ export default function ProfilePage() {
 
       if (billingSyncRequest.scope === "credits") {
         refreshTasks.push(refreshBalance({ silent: true }));
-        refreshTasks.push(loadBillingAccountState(user));
+        refreshTasks.push(loadBillingAccountState(user, { blocking: false }));
       } else {
-        refreshTasks.push(loadBillingAccountState(user));
+        refreshTasks.push(loadBillingAccountState(user, { blocking: false }));
         refreshTasks.push(refreshQuotaSummary());
 
         if (billingSyncRequest.scope === "subscription") {
@@ -468,7 +493,7 @@ export default function ProfilePage() {
       });
       void refreshBalance({ silent: true });
       if (user) {
-        void loadBillingAccountState(user);
+        void loadBillingAccountState(user, { blocking: false });
       }
       requestBillingSync("credits");
     }
@@ -855,7 +880,10 @@ export default function ProfilePage() {
             : "Storage add-on update submitted. Your workspace storage is syncing now.",
       });
 
-      await Promise.allSettled([loadBillingAccountState(user), loadStorageTransactions()]);
+      await Promise.allSettled([
+        loadBillingAccountState(user, { blocking: false }),
+        loadStorageTransactions(),
+      ]);
       void refreshQuotaSummary();
       requestBillingSync("storage");
     } catch (error) {

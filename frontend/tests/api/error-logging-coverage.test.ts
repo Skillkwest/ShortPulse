@@ -46,13 +46,18 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   "fal/upload-url.ts:665",
   "billing/subscription/change.ts:523",
   "billing/subscription/change.ts:522",
-  "billing/subscription/change.ts:582",
-  "billing/subscription/change.ts:583",
-  "billing/subscription/change.ts:642",
+  "billing/subscription/change.ts:597",
+  "billing/subscription/change.ts:656",
+  // Webhook grant helper enriches the thrown error with invoice/contract metadata;
+  // the route-level handler performs the structured telemetry write.
+  "billing/stripe/webhook.ts:1243",
   "kie/upload-url.ts:571",
   "kie/upload-url.ts:674",
   "kie/upload-url.ts:702",
   "kie/upload-url.ts:719",
+  // Storage-path validation catch converts an invalid app-owned path into a
+  // deterministic 4xx upload request error before the route handler responds.
+  "kie/upload-url.ts:748",
   "kie/upload-url.ts:813",
   // Storage-object verification fallback: if schema access fails, the helper falls back to
   // Storage API listing before deciding whether to throw a route-level error.

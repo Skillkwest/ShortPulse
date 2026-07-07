@@ -521,7 +521,7 @@ describe("GET /api/admin/pricing/state", () => {
                     offer_id: "business__internal_comp",
                     contract_source: "internal_comp",
                     recurring_price_cents: 0,
-                    monthly_credits_cents: 7500,
+                    monthly_credits_cents: 8000,
                     storage_limit_bytes: 161061273600,
                     max_concurrent_generations: 8,
                     status: "active",

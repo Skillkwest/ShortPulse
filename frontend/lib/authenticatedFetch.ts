@@ -11,6 +11,7 @@ export type ShortPulseFetchInit = RequestInit & {
   shortpulseLogScope?: "app" | "generation";
   shortpulseSkipErrorLogging?: boolean;
   shortpulseAuthTimeoutMs?: number;
+  shortpulseRequestTimeoutMs?: number;
   shortpulseRetryNetworkOnce?: boolean;
   shortpulseRetryAuth401?: boolean;
   shortpulseNetworkErrorSeverity?: ClientErrorSeverity;
@@ -134,6 +135,12 @@ const shouldLogHttpFailure = (
   if (/^\/api\/admin\/billing-diagnostics(?:\?|$)/.test(endpoint) && status === 404) {
     return false;
   }
+  if (
+    /^\/api\/projects\/[^/?]+\/workspace(?:\?|$)/.test(endpoint) &&
+    (status === 400 || status === 404)
+  ) {
+    return false;
+  }
   if (scope === "generation") return status >= 400;
   return status >= 400;
 };
@@ -154,6 +161,7 @@ export const fetchWithAuth = async (
   init?: ShortPulseFetchInit
 ): Promise<Response> => {
   const timeoutMs = init?.shortpulseAuthTimeoutMs;
+  const requestTimeoutMs = init?.shortpulseRequestTimeoutMs;
   let token = await readAccessToken({ timeoutMs });
   if (!token) {
     token = await readAccessToken({ timeoutMs, forceRefresh: true });
@@ -183,6 +191,7 @@ export const fetchWithAuth = async (
   delete (requestInit as ShortPulseFetchInit).shortpulseLogScope;
   delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
   delete (requestInit as ShortPulseFetchInit).shortpulseAuthTimeoutMs;
+  delete (requestInit as ShortPulseFetchInit).shortpulseRequestTimeoutMs;
   delete (requestInit as ShortPulseFetchInit).shortpulseRetryNetworkOnce;
   delete (requestInit as ShortPulseFetchInit).shortpulseRetryAuth401;
   delete (requestInit as ShortPulseFetchInit).shortpulseNetworkErrorSeverity;
@@ -190,11 +199,48 @@ export const fetchWithAuth = async (
   const method = (requestInit.method ?? "GET").toString().toUpperCase();
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
 
-  const executeRequest = async (requestHeaders: Headers): Promise<Response> =>
-    await fetch(input, {
-      ...requestInit,
-      headers: new Headers(requestHeaders),
-    });
+  const executeRequest = async (requestHeaders: Headers): Promise<Response> => {
+    const shouldApplyRequestTimeout =
+      typeof requestTimeoutMs === "number" &&
+      Number.isFinite(requestTimeoutMs) &&
+      requestTimeoutMs > 0;
+    if (!shouldApplyRequestTimeout) {
+      return await fetch(input, {
+        ...requestInit,
+        headers: new Headers(requestHeaders),
+      });
+    }
+
+    const controller = new AbortController();
+    const callerSignal = requestInit.signal ?? null;
+    const abortRequest = () => controller.abort();
+    let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(
+      abortRequest,
+      Math.max(0, Math.trunc(requestTimeoutMs))
+    );
+
+    if (callerSignal) {
+      if (callerSignal.aborted) {
+        controller.abort();
+      } else {
+        callerSignal.addEventListener("abort", abortRequest, { once: true });
+      }
+    }
+
+    try {
+      return await fetch(input, {
+        ...requestInit,
+        headers: new Headers(requestHeaders),
+        signal: controller.signal,
+      });
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      callerSignal?.removeEventListener("abort", abortRequest);
+    }
+  };
 
   const executeWithAuthRefresh = async (): Promise<Response> => {
     let response = await executeRequest(headers);

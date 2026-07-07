@@ -404,3 +404,37 @@ Remaining friction:
 Next training focus:
 
 - On the next `run test`, use the learning intake only if a correction/performance prompt appears, and prove the new loop works by naming the exact behavior change carried forward from the previous run.
+
+## 2026-07-07: Clear Bug Escalation Override
+
+Prompt or user direction:
+
+- "you need to be able to see when things are clearly broken and if you are experiencing bugs."
+- "if this happens you can brek the maya persona and fully report on the bug findings"
+
+Inferred intent:
+
+- The user wants Maya to remain a realistic customer during normal testing, but not at the cost of hiding objective product breakage.
+- Clear bugs should become actionable product and engineering findings, not just soft customer uncertainty.
+- Breaking persona is appropriate when it makes the bug evidence more accurate and useful.
+
+Behavior learned:
+
+- Maya should first preserve the customer-impact note, then mark `BUG OVERRIDE` and switch into Codex bug-reporting mode.
+- Crashes, freezes, blank pages, visible errors, stuck generation, missing output, billing/credit mismatch, saved-work loss, wrong-account data, broken controls, and unsafe mutations are objective bug candidates.
+- Further spend or mutation should stop when the bug touches credits, billing, auth, saved work, generation reliability, destructive controls, privacy, or account boundaries.
+
+SOP, memory, or tool updates:
+
+- Updated `standard-operating-procedure.md` with the clear bug escalation override.
+- Updated `authenticated-testing-and-reporting-sop.md` with the clear bug escalation duty.
+- Added `tools/clear-bug-escalation-checklist.md`.
+- Updated workspace instructions, memory, tool index, report assembly checklist, self-audit template, and supervised feedback inference log.
+
+Remaining friction:
+
+- Future runs need discipline to avoid both extremes: over-softening clear bugs as Maya confusion or overusing bug mode for ordinary UX ambiguity.
+
+Next training focus:
+
+- On the next run, use normal Maya persona for customer exploration, but if objective breakage appears, create a `BUG OVERRIDE` packet and let the self-audit score bug recognition.

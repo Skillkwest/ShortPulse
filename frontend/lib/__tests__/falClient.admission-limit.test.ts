@@ -38,7 +38,7 @@ describe("falClient generation admission error handling", () => {
     await expect(
       submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow(
-      "You've reached your max active generations. Wait for one to finish, or try again in 20 seconds."
+      "You've reached your max active generations. Wait for one to finish, then try again."
     );
   });
 

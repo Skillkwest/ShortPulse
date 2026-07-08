@@ -183,7 +183,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Prominent dismissible error banner surfaces API/flow failures (missing reference for reference-required video models, upstream errors).
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.
-- Admission-limited submits should render deterministic retry guidance from the Fal client (`Too many active generations...retry in N seconds`).
+- Admission-limited submits should render scope-specific guidance from the Fal client; per-user max-active-generation warnings should ask the user to wait for one generation to finish without promising a retry-after timer.
 - Kie Kling submit preflight now fail-closes invalid media URLs before provider dispatch with deterministic `400 code=KIE_MEDIA_INPUT_INVALID` (invalid URL/protocol, unsupported extension, or signed URL token expiring too soon).
 - Kie Kling submit preflight also rejects media URLs that fail remote fetch preflight (`non-2xx`) or return incompatible content types, reducing opaque upstream `422 file format not support` failures.
 - Kie Kling linked elements fail before provider submit when the element shape violates Kie's element contract: image elements require `2-4` image URLs, video elements require exactly one video URL, image/video references cannot be mixed in the same element, and a task may include at most `3` elements.

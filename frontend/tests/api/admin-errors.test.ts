@@ -92,6 +92,7 @@ const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
   "%API%429%response%from%/api/kie/upload-url%",
   "%reference%preparation%failed:%Too%many%requests%",
   "%too%many%active%generations%",
+  "%max%active%generations%",
 ] as const;
 
 const expectedAdminQueueVisibilityFilters = (queryCount: number) =>

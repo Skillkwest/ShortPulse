@@ -135,7 +135,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Prominent dismissible error banner surfaces API/flow failures (missing reference in describe mode, upstream errors).
 - Reference Grid cards show failure chips for failed tasks; Studio Preview shows status/error text.
-- Admission-limited submits should render deterministic retry guidance from the Fal client (`Too many active generations...retry in N seconds`).
+- Admission-limited submits should render scope-specific guidance from the Fal client; per-user max-active-generation warnings should ask the user to wait for one generation to finish without promising a retry-after timer.
 - Generated placeholders without a provider task id now fail fast using submit-start timeout semantics instead of persisting spinner-only cards.
 - Pre-submit reference preparation now emits breadcrumb diagnostics (`generation_preflight_prepare_stage`) with stage/status/source/elapsed timing to speed timeout triage.
 - Generate is disabled when required inputs are missing (e.g., model not chosen) or the credit balance is lower than the computed cost, so the banner can remind users to top up before retrying.

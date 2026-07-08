@@ -218,7 +218,7 @@ describe("useAiStudioOutputLifecycle", () => {
       useHarness([makeOutput("out-1", { taskState: "pending" })], "out-1")
     );
     const message =
-      "You've reached your max active generations. Wait for one to finish, or try again in 20 seconds.";
+      "You've reached your max active generations. Wait for one to finish, then try again.";
 
     act(() => {
       result.current.notifyGenerationFailure("out-1", message, message);

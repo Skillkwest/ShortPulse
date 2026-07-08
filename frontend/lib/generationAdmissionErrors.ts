@@ -56,10 +56,7 @@ export const readGenerationAdmissionErrorMessage = (
     return `Shared generation capacity is busy right now. Please retry in ${retryAfterSeconds} seconds.`;
   }
   if (admissionScope === "per_user") {
-    if (retryAfterSeconds === null) {
-      return "You've reached your max active generations. Wait for one to finish, then try again.";
-    }
-    return `You've reached your max active generations. Wait for one to finish, or try again in ${retryAfterSeconds} seconds.`;
+    return "You've reached your max active generations. Wait for one to finish, then try again.";
   }
   if (retryAfterSeconds === null) {
     return "Max active generations reached. Please retry shortly.";

@@ -172,7 +172,7 @@ Admin legal policy routes:
 
 ## Admin Error Handoff Notes
 
-`/admin/errors` intentionally hides provider-sensitive/refusal messages such as "flagged as sensitive" because they are expected safety outcomes, not operator work. The underlying incident records remain available outside the simplified page workflow when raw forensic inspection is needed.
+`/admin/errors` intentionally hides provider-sensitive/refusal messages such as "flagged as sensitive" and expected per-user max-active-generation warnings because they are expected safety/capacity outcomes, not operator work. The underlying incident records remain available outside the simplified page workflow when raw forensic inspection is needed.
 
 ## Admin Crash Logs
 

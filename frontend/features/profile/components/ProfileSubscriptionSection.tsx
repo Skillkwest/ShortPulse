@@ -215,9 +215,9 @@ export function ProfileSubscriptionSection({
         <aside className={profileClass("profile-callout")}>
           <WarningCircle size={18} />
           <p className="tiny">
-            Cancellation scheduled. You can keep using this plan, remaining subscription credits,
-            and recurring storage add-ons until {subscriptionRenewalText}. Paid top-up credits stay
-            available.
+            Account cancellation is scheduled for {subscriptionRenewalText}. You can keep using this
+            plan, remaining subscription credits, and recurring storage add-ons until then. Paid
+            top-up credits stay available.
           </p>
         </aside>
       ) : null}

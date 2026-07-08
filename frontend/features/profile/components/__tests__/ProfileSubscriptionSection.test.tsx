@@ -87,6 +87,7 @@ const renderSubscriptionSection = ({
   currentSubscriptionMaxConcurrentGenerations = 1,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes = activePlanId === "free" ? 0 : GIB,
+  isSubscriptionCancellationScheduled = false,
   onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>(),
   pendingSubscriptionChange = null,
   planChangeLoadingPlanId = null,
@@ -99,6 +100,7 @@ const renderSubscriptionSection = ({
   currentSubscriptionMaxConcurrentGenerations?: number;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes?: number;
+  isSubscriptionCancellationScheduled?: boolean;
   onRequestPlanChange?: (planId: string, billingInterval: BillingInterval) => void;
   pendingSubscriptionChange?: PendingSubscriptionChange | null;
   planChangeLoadingPlanId?: string | null;
@@ -123,7 +125,7 @@ const renderSubscriptionSection = ({
       }
       subscriptionPeriodLabel="Current period"
       subscriptionRenewalText="July 15, 2026"
-      isSubscriptionCancellationScheduled={false}
+      isSubscriptionCancellationScheduled={isSubscriptionCancellationScheduled}
       billingPlans={billingPlans}
       billingPlansLoading={false}
       isInternalCompContract={false}
@@ -225,6 +227,24 @@ describe("ProfileSubscriptionSection", () => {
     expect(screen.getByText(/Starter is scheduled for August 8, 2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Scheduled for August 8, 2026/ })).toBeDisabled();
+  });
+
+  it("shows scheduled cancellation messaging with the access end date", () => {
+    renderSubscriptionSection({
+      activePlanId: "media",
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionCreditsCents: 1200,
+      currentSubscriptionPriceCents: 4900,
+      currentSubscriptionStorageLimitBytes: 25 * GIB,
+      currentSubscriptionMaxConcurrentGenerations: 2,
+      isSubscriptionCancellationScheduled: true,
+    });
+
+    expect(
+      screen.getByText(/Account cancellation is scheduled for July 15, 2026/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/recurring storage add-ons until then/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel subscription" })).not.toBeInTheDocument();
   });
 
   it("labels storage-carryover upgrade loading as an in-app plan update", () => {

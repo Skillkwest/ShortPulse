@@ -393,9 +393,9 @@ describe("Profile subscription actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getByText("Access ends")).toBeInTheDocument();
-    expect(screen.getByText(/Cancellation scheduled/)).toBeInTheDocument();
+    expect(screen.getByText(/Account cancellation is scheduled/)).toBeInTheDocument();
     expect(
-      screen.getByText(/remaining subscription credits, and recurring storage add-ons/)
+      screen.getByText(/remaining subscription credits, and recurring storage add-ons until then/)
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel subscription" })).not.toBeInTheDocument();
   });

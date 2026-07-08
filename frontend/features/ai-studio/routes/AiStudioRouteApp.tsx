@@ -132,7 +132,7 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     if (checkoutState === "credits_cancel") {
       setUiNotice("Credit top-up was canceled.");
     } else {
-      setUiNotice("Payment received. Refreshing credits...");
+      setUiNotice("Credit purchase completed. Refreshing credits...");
       void refreshBalance({ silent: true }).then((balance) => {
         setUiNotice(
           typeof balance === "number"

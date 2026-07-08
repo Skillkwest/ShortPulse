@@ -88,6 +88,33 @@ const createGrantLedgerSelectMock = ({
   }),
 });
 
+type MockOfferQuery = {
+  eq: ReturnType<typeof vi.fn>;
+  is: ReturnType<typeof vi.fn>;
+  order: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+};
+
+const createOfferQuery = (data: Record<string, unknown> | null) => {
+  const chain: MockOfferQuery = {
+    eq: vi.fn(),
+    is: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle: vi.fn(),
+  };
+  chain.eq.mockReturnValue(chain);
+  chain.is.mockReturnValue(chain);
+  chain.order.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  chain.maybeSingle.mockResolvedValue({
+    data,
+    error: null,
+  });
+  return chain;
+};
+
 const setupRecurringGrantDiagnosticScenario = ({
   recurringGrantRows = [],
   invoices = [],
@@ -155,32 +182,18 @@ const setupRecurringGrantDiagnosticScenario = ({
       }),
     }),
   };
-  const publicOfferQuery = {
-    eq: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: {
-                  id: "media__current",
-                  plan_id: "media",
-                  offer_name: "Media",
-                  stripe_price_id: "price_media",
-                  recurring_price_cents: 4900,
-                  monthly_credits_cents: 1200,
-                  storage_limit_bytes: 107374182400,
-                  acquisition_enabled: true,
-                  is_active: true,
-                },
-                error: null,
-              }),
-            }),
-          }),
-        }),
-      }),
-    }),
-  };
+  const publicOfferQuery = createOfferQuery({
+    id: "media__current",
+    plan_id: "media",
+    billing_interval: "month",
+    offer_name: "Media",
+    stripe_price_id: "price_media",
+    recurring_price_cents: 4900,
+    monthly_credits_cents: 1200,
+    storage_limit_bytes: 107374182400,
+    acquisition_enabled: true,
+    is_active: true,
+  });
   const billingOfferSelectMock = vi
     .fn()
     .mockReturnValueOnce(linkedOfferQuery)
@@ -583,6 +596,148 @@ describe("GET /api/admin/billing-diagnostics", () => {
           }),
         ]),
       })
+    );
+  });
+
+  it("does not flag an annual subscriber when the same-interval public offer matches", async () => {
+    process.env.STRIPE_SECRET_KEY = "";
+    const billingProfileQuery = {
+      eq: vi.fn().mockReturnValue({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: {
+            plan_id: "studio",
+            subscription_status: "active",
+            stripe_customer_id: "cus_annual",
+            stripe_subscription_id: "sub_annual",
+            current_period_end: "2027-07-07T00:00:00.000Z",
+          },
+          error: null,
+        }),
+      }),
+    };
+    const contractQuery = {
+      eq: vi.fn().mockReturnValue({
+        is: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  id: "contract-annual",
+                  plan_id: "studio",
+                  offer_id: "studio__annual_current",
+                  billing_interval: "year",
+                  stripe_customer_id: "cus_annual",
+                  stripe_price_id: "price_studio_annual",
+                  stripe_subscription_id: "sub_annual",
+                  contract_source: "stripe",
+                  recurring_price_cents: 118800,
+                  monthly_credits_cents: 3200,
+                  storage_limit_bytes: 80530636800,
+                  status: "active",
+                  current_period_end: "2027-07-07T00:00:00.000Z",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const linkedOfferQuery = createOfferQuery({
+      id: "studio__annual_current",
+      plan_id: "studio",
+      billing_interval: "year",
+      offer_name: "Studio Annual",
+      stripe_price_id: "price_studio_annual",
+      recurring_price_cents: 118800,
+      monthly_credits_cents: 3200,
+      storage_limit_bytes: 80530636800,
+      acquisition_enabled: true,
+      is_active: true,
+    });
+    const publicOfferQuery = createOfferQuery({
+      id: "studio__annual_current",
+      plan_id: "studio",
+      billing_interval: "year",
+      offer_name: "Studio Annual",
+      stripe_price_id: "price_studio_annual",
+      recurring_price_cents: 118800,
+      monthly_credits_cents: 3200,
+      storage_limit_bytes: 80530636800,
+      acquisition_enabled: true,
+      is_active: true,
+    });
+    const billingOfferSelectMock = vi
+      .fn()
+      .mockReturnValueOnce(linkedOfferQuery)
+      .mockReturnValueOnce(publicOfferQuery);
+
+    getSupabaseAdminMock.mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi.fn().mockResolvedValue({
+            data: { user: { id: "user-annual", email: "annual@example.com" } },
+            error: null,
+          }),
+        },
+      },
+      from: vi.fn((table: string) => {
+        if (table === "billing_profiles") {
+          return { select: vi.fn().mockReturnValue(billingProfileQuery) };
+        }
+        if (table === "billing_subscription_contracts") {
+          return { select: vi.fn().mockReturnValue(contractQuery) };
+        }
+        if (table === "billing_plan_offers") {
+          return { select: billingOfferSelectMock };
+        }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue(createStorageAddonSelectMock({})),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue(createRecentActivitySelectMock([])),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue(createGrantLedgerSelectMock({})),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    const responsePayload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      currentPublicOffer?: { billingInterval?: string | null; recurringPriceCents?: number | null };
+      findings?: Array<{ code: string }>;
+    };
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(publicOfferQuery.eq).toHaveBeenCalledWith("billing_interval", "year");
+    expect(responsePayload.currentPublicOffer).toEqual(
+      expect.objectContaining({
+        billingInterval: "year",
+        recurringPriceCents: 118800,
+      })
+    );
+    expect(responsePayload.findings?.map((finding) => finding.code)).not.toContain(
+      "grandfathered_price_gap"
     );
   });
 

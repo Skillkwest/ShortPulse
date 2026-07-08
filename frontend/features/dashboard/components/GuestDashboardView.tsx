@@ -413,7 +413,7 @@ export function GuestDashboardView({ dashboardTutorials, launchAppHref }: GuestD
 
           <div className="public-home-hero-actions">
             <Link href={launchAppHref} className="public-home-launch-button" prefetch={false}>
-              Launch App
+              Open AI Studio
             </Link>
             <button
               type="button"
@@ -483,7 +483,7 @@ export function GuestDashboardView({ dashboardTutorials, launchAppHref }: GuestD
         communityHref={SHORTPULSE_COMMUNITY_URL}
         footerLoginHref={footerLoginHref}
         footerPricingHref={footerPricingHref}
-        launchAppLabel="Sign Up"
+        launchAppLabel="Open AI Studio"
       />
 
       {selectedHeroDemo ? (

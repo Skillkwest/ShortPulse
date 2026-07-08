@@ -272,7 +272,7 @@ describe("Dashboard guest route", () => {
     expect(footerCommunityLink).toHaveAttribute("href", SHORTPULSE_COMMUNITY_URL);
     expect(footerCommunityLink).toHaveAttribute("target", SHORTPULSE_COMMUNITY_LINK_TARGET);
     expect(footerCommunityLink).toHaveAttribute("rel", SHORTPULSE_COMMUNITY_LINK_REL);
-    expect(within(footer).getByRole("link", { name: "Sign Up" })).toHaveAttribute(
+    expect(within(footer).getByRole("link", { name: "Open AI Studio" })).toHaveAttribute(
       "href",
       "/sign-up?next=%2Fai-studio"
     );
@@ -570,14 +570,15 @@ describe("Dashboard guest route", () => {
       })
     );
 
-    expect(
-      screen.getByRole("dialog", { name: "Generate images with ShortPulse" })
-    ).toBeInTheDocument();
+    const tutorialDialog = screen.getByRole("dialog", {
+      name: "Generate images with ShortPulse",
+    });
+    expect(tutorialDialog).toBeInTheDocument();
     expect(screen.getByTitle("Generate images with ShortPulse")).toHaveAttribute(
       "src",
       "https://www.youtube-nocookie.com/embed/abc123?rel=0&modestbranding=1&playsinline=1"
     );
-    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+    expect(within(tutorialDialog).getByRole("link", { name: /open ai studio/i })).toHaveAttribute(
       "href",
       "/sign-up?next=%2Fai-studio"
     );
@@ -805,10 +806,11 @@ describe("Dashboard guest route", () => {
       })
     );
 
-    expect(
-      screen.getByRole("dialog", { name: "Generate images with ShortPulse" })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+    const tutorialDialog = screen.getByRole("dialog", {
+      name: "Generate images with ShortPulse",
+    });
+    expect(tutorialDialog).toBeInTheDocument();
+    expect(within(tutorialDialog).getByRole("link", { name: /open ai studio/i })).toHaveAttribute(
       "href",
       "/sign-up?next=%2Fai-studio"
     );

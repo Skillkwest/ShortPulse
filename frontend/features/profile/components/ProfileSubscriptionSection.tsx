@@ -269,9 +269,7 @@ export function ProfileSubscriptionSection({
                 };
                 const higherTierLoadingLabel = requiresStorageCarryoverConfirmation
                   ? "Updating plan..."
-                  : paidPlanLabel
-                    ? "Starting billing flow…"
-                    : "Opening Stripe…";
+                  : "Opening billing…";
                 const actionButton = isCurrentBillingInterval ? (
                   <button
                     type="button"
@@ -301,7 +299,7 @@ export function ProfileSubscriptionSection({
                     onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                     disabled={isActionLoading}
                   >
-                    {isActionLoading ? "Opening Stripe…" : intervalChangeLabel}
+                    {isActionLoading ? "Opening billing…" : intervalChangeLabel}
                   </button>
                 ) : isCurrentInternalCompPlan ? (
                   <button
@@ -311,7 +309,7 @@ export function ProfileSubscriptionSection({
                     disabled={isActionLoading}
                   >
                     {isActionLoading
-                      ? "Starting checkout…"
+                      ? "Opening billing…"
                       : `Switch to ${planView.displayName} ${billingLabel} billing`}
                   </button>
                 ) : isHigherTier ? (
@@ -334,11 +332,7 @@ export function ProfileSubscriptionSection({
                     onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                     disabled={isActionLoading}
                   >
-                    {isActionLoading
-                      ? paidPlanLabel
-                        ? "Starting billing flow…"
-                        : "Opening Stripe…"
-                      : `Downgrade to ${planView.displayName}`}
+                    {isActionLoading ? "Opening billing…" : `Downgrade to ${planView.displayName}`}
                   </button>
                 ) : null;
 

@@ -72,6 +72,7 @@ export type AdminBillingContractSnapshot = {
 export type AdminBillingOfferSnapshot = {
   id: string;
   planId: string | null;
+  billingInterval: "month" | "year" | null;
   offerName: string | null;
   stripePriceId: string | null;
   recurringPriceCents: number | null;

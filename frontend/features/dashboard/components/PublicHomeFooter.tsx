@@ -29,7 +29,7 @@ export function PublicHomeFooter({
   footerLoginHref,
   footerPricingHref,
   onCreateProjectClick,
-  launchAppLabel = "Launch App",
+  launchAppLabel = "Open AI Studio",
   footerPricingLabel = "Pricing",
   footerLoginLabel = "Login",
   communityCtaLabel = "Join Free",

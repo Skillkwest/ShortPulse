@@ -159,27 +159,35 @@ export const resolveAdminBillingDiagnostics = async ({
   let linkedOffer: AdminBillingOfferSnapshot | null = null;
   let currentPublicOffer: AdminBillingOfferSnapshot | null = null;
   if (effectivePlanId) {
+    const loadCurrentPublicOffer = () => {
+      const currentOfferQuery = supabaseAdmin
+        .from("billing_plan_offers")
+        .select(
+          "id, plan_id, billing_interval, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
+        )
+        .eq("plan_id", effectivePlanId)
+        .eq("acquisition_enabled", true)
+        .eq("is_active", true);
+      if (currentContract?.billing_interval) {
+        currentOfferQuery.eq("billing_interval", currentContract.billing_interval);
+      }
+      return currentOfferQuery
+        .order("effective_start_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    };
+
     const [linkedOfferResult, currentOfferResult] = await Promise.all([
       currentContract?.offer_id
         ? supabaseAdmin
             .from("billing_plan_offers")
             .select(
-              "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
+              "id, plan_id, billing_interval, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
             )
             .eq("id", currentContract.offer_id)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      supabaseAdmin
-        .from("billing_plan_offers")
-        .select(
-          "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
-        )
-        .eq("plan_id", effectivePlanId)
-        .eq("acquisition_enabled", true)
-        .eq("is_active", true)
-        .order("effective_start_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      loadCurrentPublicOffer(),
     ]);
 
     const offerErrors = [linkedOfferResult.error?.message, currentOfferResult.error?.message]
@@ -194,6 +202,7 @@ export const resolveAdminBillingDiagnostics = async ({
         ? {
             id: row.id,
             planId: row.plan_id ?? null,
+            billingInterval: row.billing_interval ?? null,
             offerName: row.offer_name ?? null,
             stripePriceId: row.stripe_price_id ?? null,
             recurringPriceCents: asCents(row.recurring_price_cents),

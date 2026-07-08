@@ -196,7 +196,7 @@ describe("ProfileSubscriptionSection", () => {
     });
 
     expect(screen.getByRole("button", { name: "Updating plan..." })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Opening Stripe…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Opening billing…" })).not.toBeInTheDocument();
   });
 
   it("offers monthly billing on the current annual plan when monthly is selected", () => {

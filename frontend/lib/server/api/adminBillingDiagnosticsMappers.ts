@@ -39,6 +39,7 @@ export type BillingContractRow = {
 export type BillingOfferRow = {
   id: string;
   plan_id: string | null;
+  billing_interval: "month" | "year" | null;
   offer_name: string | null;
   stripe_price_id: string | null;
   recurring_price_cents: number | string | null;

@@ -206,7 +206,7 @@ export function AiStudioInsufficientCreditsModal({
                       onClick={() => handleCheckout(pkg)}
                       disabled={checkoutInProgress}
                     >
-                      {checkoutPackageId === pkg.id ? "Starting checkout..." : "Buy credits"}
+                      {checkoutPackageId === pkg.id ? "Opening checkout..." : "Buy credits"}
                     </button>
                   </article>
                 );

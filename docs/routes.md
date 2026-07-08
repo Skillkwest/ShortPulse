@@ -5,7 +5,7 @@ Reference for pages, auth expectations, and ownership.
 Account-first auth route authority:
 
 - `/sign-up` is the canonical public signup entry. Account-first dashboard signup CTAs route here with `next=/ai-studio`; paid plan CTAs route here with the selected `/pricing?...&plan=<starter|media|studio|business>` path in `next`.
-- `/sign-up?next=/ai-studio` is the canonical signed-out public dashboard app-launch path for visitors who click `Launch App` or `Launch AI Studio`.
+- `/sign-up?next=/ai-studio` is the canonical signed-out public dashboard app-launch path for visitors who click `Open AI Studio`.
 - `/log-in` is the canonical public login entry and the signed-out redirect target for protected app routes.
 - `/auth` remains the shared implementation surface behind those dedicated entries.
 - `/pricing` sends guest paid-plan actions to `/sign-up` only when public signup is open; when the emergency app-level signup switch is closed, pricing uses login copy and `/log-in` while preserving the selected pricing return path in `next`.

@@ -142,7 +142,7 @@ export function ProfileCreditsSection({
                         aria-label={`Buy ${creditPackageLabel} for ${formatCurrencyFromCents(pkg.price_cents)}`}
                         disabled={checkoutLoadingId === pkg.id}
                       >
-                        {checkoutLoadingId === pkg.id ? "Starting checkout…" : "Buy credits"}
+                        {checkoutLoadingId === pkg.id ? "Opening checkout…" : "Buy credits"}
                       </button>
                     </div>
                   </div>

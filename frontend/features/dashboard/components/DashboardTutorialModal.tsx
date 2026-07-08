@@ -127,7 +127,7 @@ export function DashboardTutorialModal({
               className="primary-btn dashboard-tutorial-modal-launch"
               prefetch={false}
             >
-              <span>Launch AI Studio</span>
+              <span>Open AI Studio</span>
               <TutorialModalArrowIcon size={18} />
             </Link>
           </footer>

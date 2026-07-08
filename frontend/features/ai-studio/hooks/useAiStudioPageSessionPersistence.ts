@@ -149,6 +149,7 @@ export const useAiStudioPageSessionPersistence = ({
     projectBootstrapSettled: true,
     projectBootstrapApplied: true,
     projectBootstrapError: null,
+    projectWorkspaceStaleProjectId: null,
     retryProjectBootstrap: () => undefined,
     flushProjectWorkspaceSnapshot: async () => ({
       status: "skipped",

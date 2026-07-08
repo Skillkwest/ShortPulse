@@ -8,6 +8,8 @@ import { AppMessage } from "../../../components/AppMessage";
 import styles from "../../../styles/admin.module.css";
 import { AdminGlobalStatsPanel } from "./AdminGlobalStatsPanel";
 import type {
+  AdminFirstValueFunnel,
+  AdminFirstValueFunnelStep,
   AdminGenerationBreakdown,
   AdminGlobalModelUsageRow,
   AdminGlobalStatsAssets,
@@ -112,6 +114,85 @@ const MetricCard = ({ label, value, meta }: { label: string; value: string; meta
   </article>
 );
 
+const formatFunnelRate = (value: number, baseline: number): string => {
+  if (baseline <= 0) return "—";
+  return formatPct((value / baseline) * 100);
+};
+
+const FirstValueFunnelPanel = ({
+  funnel,
+  selectedWindow,
+}: {
+  funnel: AdminFirstValueFunnel;
+  selectedWindow: CountWindowKey;
+}) => {
+  const signupStep = funnel.steps.find((step) => step.stepKey === "signed_up");
+  const signupCount = signupStep?.users[selectedWindow] ?? 0;
+
+  return (
+    <div className={styles.adminFunnelPanel}>
+      <div className={styles.adminSectionHead}>
+        <div>
+          <p className={styles.adminSectionEyebrow}>First value</p>
+          <h2 className={styles.adminSectionTitle}>First-value funnel</h2>
+          <p className="tiny subdued">
+            A signup only matters when it reaches successful creation and retained output value.
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.adminFunnelList}>
+        {funnel.steps.length ? (
+          funnel.steps.map((step: AdminFirstValueFunnelStep, index) => {
+            const users = step.users[selectedWindow];
+            return (
+              <div
+                key={step.stepKey}
+                className={
+                  step.tracked
+                    ? styles.adminFunnelStep
+                    : `${styles.adminFunnelStep} ${styles.adminFunnelStepGap}`
+                }
+              >
+                <span className={styles.adminFunnelIndex}>{index + 1}</span>
+                <span>
+                  <strong>{step.label}</strong>
+                  <small>{step.source}</small>
+                </span>
+                <span className={styles.adminFunnelMetric}>
+                  {step.tracked ? formatCount(users) : "Gap"}
+                  <small>
+                    {step.tracked
+                      ? `${formatFunnelRate(users, signupCount)} of signups`
+                      : "Not tracked"}
+                  </small>
+                </span>
+              </div>
+            );
+          })
+        ) : (
+          <div className={`${styles.adminFunnelStep} ${styles.adminFunnelStepGap}`}>
+            <span className={styles.adminFunnelIndex}>!</span>
+            <span>
+              <strong>First-value funnel unavailable</strong>
+              <small>Apply the first-value funnel stats migration to populate this signal.</small>
+            </span>
+            <span className={styles.adminFunnelMetric}>Gap</span>
+          </div>
+        )}
+      </div>
+
+      {funnel.gaps.length ? (
+        <div className={styles.adminFunnelGaps}>
+          {funnel.gaps.map((gap) => (
+            <span key={gap}>{gap}</span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const GrowthHealthWarning = ({ reason }: { reason: string | null }) =>
   reason ? (
     <AppMessage
@@ -204,6 +285,10 @@ const MarketingPanel = ({
           />
         </div>
         <GrowthHealthWarning reason={health.reason} />
+        <FirstValueFunnelPanel
+          funnel={marketing.firstValueFunnel}
+          selectedWindow={selectedWindow}
+        />
         <div className={styles.adminGrid}>
           <MetricCard
             label="Signups"

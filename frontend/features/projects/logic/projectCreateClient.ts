@@ -4,7 +4,7 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
-export const DEFAULT_NEW_PROJECT_TITLE = "Untitled project";
+export const DEFAULT_NEW_PROJECT_TITLE = "New AI Studio project";
 const PROJECT_CREATE_REQUEST_TIMEOUT_MS = 20_000;
 const PROJECT_CREATE_TIMEOUT_MESSAGE = "Project creation timed out. Please try again.";
 

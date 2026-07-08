@@ -128,6 +128,10 @@ export type StripeInvoiceResponse = {
   paid?: boolean;
   status?: string | null;
   billing_reason?: string | null;
+  metadata?: Record<string, unknown> | null;
+  subscription_details?: {
+    metadata?: Record<string, unknown> | null;
+  } | null;
 };
 
 export type StripeInvoiceListResponse = {

@@ -81,6 +81,16 @@ type StripeCheckoutSession = {
   url?: string | null;
 };
 
+type StripeInvoiceSummary = {
+  id?: string | null;
+  hosted_invoice_url?: string | null;
+};
+
+type StripeSubscriptionUpdateResponse = StripeSubscriptionResponse & {
+  latest_invoice?: string | StripeInvoiceSummary | null;
+  pending_update?: Record<string, unknown> | null;
+};
+
 type BillingSubscriptionStorageAddonRow = {
   id: string;
   storage_addon_id: string | null;
@@ -200,6 +210,23 @@ const isHigherPlanUpgradeBySortOrder = (
     targetPlanSortOrder > activePlanSortOrder
   );
 };
+
+const resolveHostedInvoiceUrl = (subscription: StripeSubscriptionUpdateResponse): string | null => {
+  const latestInvoice = subscription.latest_invoice;
+  if (!latestInvoice || typeof latestInvoice === "string") return null;
+  const hostedInvoiceUrl =
+    typeof latestInvoice.hosted_invoice_url === "string"
+      ? latestInvoice.hosted_invoice_url.trim()
+      : "";
+  return hostedInvoiceUrl.length > 0 ? hostedInvoiceUrl : null;
+};
+
+const hasPendingStripeUpdate = (subscription: StripeSubscriptionUpdateResponse): boolean =>
+  Boolean(
+    subscription.pending_update &&
+    typeof subscription.pending_update === "object" &&
+    Object.keys(subscription.pending_update).length > 0
+  );
 
 const resolveStripeSubscriptionCustomerId = (
   subscription: StripeSubscriptionResponse
@@ -458,6 +485,57 @@ const resolveBaseSubscriptionItem = async (params: {
 const createPortalSession = async (payload: Record<string, string | number>) =>
   stripePostForm<StripePortalSession>("/billing_portal/sessions", payload);
 
+const applyImmediatePaidUpgrade = async ({
+  stripeSubscriptionId,
+  baseItem,
+  targetOffer,
+  targetPlanId,
+  billingInterval,
+  userId,
+}: {
+  stripeSubscriptionId: string;
+  baseItem: { itemId: string | null; quantity: number };
+  targetOffer: BillingPlanOfferRow;
+  targetPlanId: string;
+  billingInterval: "month" | "year";
+  userId: string;
+}) => {
+  if (!baseItem.itemId || !targetOffer.stripe_price_id) {
+    throw new Error("Immediate paid upgrade is missing a Stripe item or target price.");
+  }
+
+  const subscription = await stripePostForm<StripeSubscriptionUpdateResponse>(
+    `/subscriptions/${stripeSubscriptionId}`,
+    {
+      payment_behavior: "pending_if_incomplete",
+      proration_behavior: "always_invoice",
+      billing_cycle_anchor: "now",
+      "items[0][id]": baseItem.itemId,
+      "items[0][price]": targetOffer.stripe_price_id,
+      "items[0][quantity]": baseItem.quantity,
+      "metadata[user_id]": userId,
+      "metadata[billing_plan_id]": targetPlanId,
+      "metadata[billing_offer_id]": targetOffer.id,
+      "metadata[billing_interval]": billingInterval,
+      "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
+      "metadata[shortpulse_plan_change_kind]": "immediate_paid_upgrade",
+      "expand[0]": "latest_invoice",
+    }
+  );
+
+  if (hasPendingStripeUpdate(subscription)) {
+    return {
+      applied: false,
+      hostedInvoiceUrl: resolveHostedInvoiceUrl(subscription),
+    };
+  }
+
+  return {
+    applied: true,
+    hostedInvoiceUrl: null,
+  };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -671,17 +749,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         throw error;
       }
 
+      const activePlanSortOrder = await loadPlanSortOrder(activePlanId);
+      const isHigherPlanUpgrade = isHigherPlanUpgradeBySortOrder(
+        activePlanSortOrder,
+        normalizePlanSortOrder(targetPlan.sort_order)
+      );
+      const isImmediatePaidUpgrade =
+        billingInterval === activeBillingInterval && isHigherPlanUpgrade;
+
       if (baseItem.itemCount > 1) {
         if (billingInterval !== activeBillingInterval) {
           return res.status(409).json({
             error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
           });
         }
-        const activePlanSortOrder = await loadPlanSortOrder(activePlanId);
-        const isHigherPlanUpgrade = isHigherPlanUpgradeBySortOrder(
-          activePlanSortOrder,
-          normalizePlanSortOrder(targetPlan.sort_order)
-        );
         if (!isHigherPlanUpgrade) {
           return res.status(409).json({
             error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
@@ -703,18 +784,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         }
 
-        await stripePostForm(`/subscriptions/${stripeSubscriptionId}`, {
-          proration_behavior: "create_prorations",
-          payment_behavior: "error_if_incomplete",
-          "items[0][id]": baseItem.itemId,
-          "items[0][price]": targetOffer.stripe_price_id,
-          "items[0][quantity]": baseItem.quantity,
-          "metadata[user_id]": user.id,
-          "metadata[billing_plan_id]": targetPlanId,
-          "metadata[billing_offer_id]": targetOffer.id,
-          "metadata[billing_interval]": billingInterval,
-          "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
+        const upgradeResult = await applyImmediatePaidUpgrade({
+          stripeSubscriptionId,
+          baseItem,
+          targetOffer,
+          targetPlanId,
+          billingInterval,
+          userId: user.id,
         });
+        if (!upgradeResult.applied) {
+          if (upgradeResult.hostedInvoiceUrl) {
+            return res.status(200).json({
+              redirectUrl: upgradeResult.hostedInvoiceUrl,
+              mode: "stripe_invoice",
+            });
+          }
+          return res.status(409).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
+        }
 
         return res.status(200).json({
           redirectUrl: resolveProfileReturnUrl("updated"),
@@ -723,6 +809,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (baseItem.itemCount === 1 && baseItem.itemId && targetOffer.stripe_price_id) {
+        if (isImmediatePaidUpgrade) {
+          const upgradeResult = await applyImmediatePaidUpgrade({
+            stripeSubscriptionId,
+            baseItem,
+            targetOffer,
+            targetPlanId,
+            billingInterval,
+            userId: user.id,
+          });
+          if (!upgradeResult.applied) {
+            if (upgradeResult.hostedInvoiceUrl) {
+              return res.status(200).json({
+                redirectUrl: upgradeResult.hostedInvoiceUrl,
+                mode: "stripe_invoice",
+              });
+            }
+            return res.status(409).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
+          }
+
+          return res.status(200).json({
+            redirectUrl: resolveProfileReturnUrl("updated"),
+            mode: "app",
+          });
+        }
+
         const session = await createPortalSession({
           customer: stripeCustomerId,
           return_url: returnUrl,

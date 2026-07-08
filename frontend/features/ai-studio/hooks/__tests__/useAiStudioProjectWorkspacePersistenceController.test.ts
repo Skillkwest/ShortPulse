@@ -60,6 +60,11 @@ vi.mock("../aiStudioOutputStore", () => ({
 }));
 
 vi.mock("../../logic/projectWorkspaceApiClient", () => ({
+  isStaleProjectWorkspaceSaveError: (error: unknown) => {
+    const status =
+      error && typeof error === "object" ? (error as { status?: unknown }).status : null;
+    return status === 400 || status === 404;
+  },
   saveAiStudioProjectWorkspaceSnapshotViaApi: vi.fn(),
   resetAiStudioProjectWorkspaceSnapshotViaApi: vi.fn(async () => undefined),
 }));
@@ -2107,6 +2112,63 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         recovered: false,
       })
     );
+  });
+
+  it("marks project workspace save 404s as stale project authority", async () => {
+    const restoredSnapshot = createAiStudioProjectWorkspaceSnapshot(createSnapshot());
+    const editedSnapshot = createProjectSnapshotWithOutputPrompt("stale project save");
+    const staleSaveError = Object.assign(
+      new Error("Failed to save project workspace snapshot: Project not found"),
+      { status: 404 }
+    );
+    mockedSaveProjectWorkspaceViaApi.mockRejectedValue(staleSaveError);
+    mockReadyRestoreCandidate(restoredSnapshot);
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(
+      ({
+        immediateSaveSignal,
+        snapshot,
+      }: {
+        immediateSaveSignal: number;
+        snapshot: AiStudioSessionSnapshot;
+      }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: () => snapshot,
+          hydrateFromSessionSnapshot,
+          immediateSaveSignal,
+        }),
+      {
+        initialProps: {
+          immediateSaveSignal: 0,
+          snapshot: restoredSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+    await act(async () => {
+      rerender({ immediateSaveSignal: 0, snapshot: restoredSnapshot });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      rerender({ immediateSaveSignal: 1, snapshot: editedSnapshot });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockedSaveProjectWorkspaceViaApi).toHaveBeenCalledTimes(1);
+    expect(result.current.projectWorkspaceStaleProjectId).toBe("project-1");
   });
 
   it("preserves project-switch flush failure propagation", async () => {

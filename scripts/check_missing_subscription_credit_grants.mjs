@@ -17,7 +17,9 @@ const SUPABASE_REST_PREFIX = "/rest/v1";
 const ALLOCATION_BILLING_REASONS = new Set([
   "subscription_create",
   "subscription_cycle",
+  "subscription_update",
 ]);
+const IMMEDIATE_PAID_UPGRADE_METADATA_VALUE = "immediate_paid_upgrade";
 const ACTIVE_PAID_PROFILE_STATUSES = new Set([
   "active",
   "trialing",
@@ -163,6 +165,12 @@ const asCents = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const asUnixSeconds = (value) => {
+  const parsed = Date.parse(String(value ?? ""));
+  if (!Number.isFinite(parsed)) return null;
+  return Math.floor(parsed / 1000);
+};
+
 const isStripeBackedPaidContract = (contract) =>
   contract?.contract_source === "stripe" &&
   contract?.plan_id &&
@@ -180,6 +188,37 @@ const isActivePaidProfile = (profile) =>
 
 const sourceRefForInvoice = (invoiceId) =>
   `invoice:${invoiceId}:monthly_allocation`;
+
+const readInvoiceMetadata = (invoice) => ({
+  ...((invoice?.metadata && typeof invoice.metadata === "object"
+    ? invoice.metadata
+    : {}) ?? {}),
+  ...((invoice?.subscription_details?.metadata &&
+  typeof invoice.subscription_details.metadata === "object"
+    ? invoice.subscription_details.metadata
+    : {}) ?? {}),
+});
+
+const isImmediatePaidUpgradeInvoice = (invoice) =>
+  String(readInvoiceMetadata(invoice).shortpulse_plan_change_kind ?? "") ===
+  IMMEDIATE_PAID_UPGRADE_METADATA_VALUE;
+
+const extractInvoicePriceId = (invoice) => {
+  const lines = Array.isArray(invoice?.lines?.data) ? invoice.lines.data : [];
+  for (const line of lines) {
+    const priceId =
+      (typeof line?.pricing?.price_details?.price === "string"
+        ? line.pricing.price_details.price
+        : null) ??
+      (typeof line?.price?.id === "string" ? line.price.id : null) ??
+      (typeof line?.plan?.id === "string" ? line.plan.id : null);
+    if (priceId) return priceId;
+  }
+  return null;
+};
+
+const invoiceMatchesStripePrice = (invoice, stripePriceId) =>
+  Boolean(stripePriceId && extractInvoicePriceId(invoice) === stripePriceId);
 
 const extractLedgerInvoiceId = (row) => {
   const metadata =
@@ -212,6 +251,12 @@ const fetchPaidAllocationInvoices = async ({
   return (Array.isArray(payload.data) ? payload.data : []).filter((invoice) => {
     const billingReason = String(invoice.billing_reason ?? "").toLowerCase();
     const amountPaid = Number(invoice.amount_paid ?? 0);
+    if (
+      billingReason === "subscription_update" &&
+      !isImmediatePaidUpgradeInvoice(invoice)
+    ) {
+      return false;
+    }
     return (
       ALLOCATION_BILLING_REASONS.has(billingReason) &&
       (amountPaid > 0 || invoice.paid === true || invoice.status === "paid")
@@ -220,7 +265,7 @@ const fetchPaidAllocationInvoices = async ({
 };
 
 const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
-  const [profiles, contracts] = await Promise.all([
+  const [profiles, contracts, offers] = await Promise.all([
     supabaseSelect(
       supabaseConfig,
       "billing_profiles",
@@ -261,7 +306,18 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
             limit: args.limit,
           },
     ),
+    supabaseSelect(supabaseConfig, "billing_plan_offers", {
+      select:
+        "id,plan_id,billing_interval,stripe_price_id,monthly_credits_cents",
+      stripe_price_id: "not.is.null",
+      limit: 1000,
+    }),
   ]);
+  const offerByStripePriceId = new Map(
+    offers
+      .filter((offer) => typeof offer.stripe_price_id === "string")
+      .map((offer) => [offer.stripe_price_id, offer]),
+  );
   const profileByUser = new Map(
     profiles.map((profile) => [profile.user_id, profile]),
   );
@@ -284,6 +340,7 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
         null,
       stripePriceId: contract.stripe_price_id ?? null,
       expectedCreditsCents: asCents(contract.monthly_credits_cents),
+      contractStartedAt: contract.started_at ?? null,
       missingContract: false,
     });
   }
@@ -300,6 +357,7 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       stripeSubscriptionId: profile.stripe_subscription_id ?? null,
       stripePriceId: null,
       expectedCreditsCents: null,
+      contractStartedAt: null,
       missingContract: true,
     });
   }
@@ -395,7 +453,72 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       const sourceRef = sourceRefForInvoice(invoiceId);
       const hasLedger = Boolean(ledger);
       const hasGrant = grants.length > 0;
-      const matched = hasLedger && hasGrant;
+      const invoiceStripePriceId = extractInvoicePriceId(invoice);
+      const invoiceOffer = invoiceStripePriceId
+        ? (offerByStripePriceId.get(invoiceStripePriceId) ?? null)
+        : null;
+      const invoiceExpectedCreditsCents =
+        asCents(invoiceOffer?.monthly_credits_cents) ??
+        subject.expectedCreditsCents;
+      const ledgerCreditsCents = asCents(ledger?.change_cents);
+      const grantedCreditsCents = grants.reduce(
+        (sum, grant) => sum + Number(grant.granted_cents ?? 0),
+        0,
+      );
+      const hasAmountMismatch =
+        invoiceExpectedCreditsCents != null &&
+        ((hasLedger && ledgerCreditsCents !== invoiceExpectedCreditsCents) ||
+          (hasGrant && grantedCreditsCents !== invoiceExpectedCreditsCents));
+      const matched = hasLedger && hasGrant && !hasAmountMismatch;
+      rows.push({
+        userId: subject.userId,
+        contractId: subject.contractId,
+        planId: invoiceOffer?.plan_id ?? subject.planId,
+        offerId: invoiceOffer?.id ?? subject.offerId,
+        billingInterval:
+          invoiceOffer?.billing_interval ?? subject.billingInterval,
+        stripeCustomerId: subject.stripeCustomerId,
+        stripeSubscriptionId: subject.stripeSubscriptionId,
+        stripePriceId: invoiceStripePriceId ?? subject.stripePriceId,
+        invoiceId,
+        billingReason: invoice.billing_reason ?? null,
+        invoiceStatus: invoice.status ?? null,
+        amountPaidCents: asCents(invoice.amount_paid),
+        expectedCreditsCents: invoiceExpectedCreditsCents,
+        ledgerCreditsCents,
+        grantedCreditsCents: hasGrant ? grantedCreditsCents : null,
+        sourceRef,
+        ledgerId: ledger?.id ?? null,
+        grantIds: grants.map((grant) => grant.id),
+        missingContract: subject.missingContract,
+        status: matched
+          ? "matched"
+          : hasAmountMismatch
+            ? "credit_amount_mismatch"
+            : "missing_credit_grant",
+        severity: matched ? "info" : "critical",
+        message: matched
+          ? "Paid allocation invoice has matching local ledger and grant rows."
+          : hasAmountMismatch
+            ? "Paid allocation invoice has local credit rows, but the granted amount does not match the invoice-time plan allocation."
+            : "Paid allocation invoice is missing a matching local recurring credit grant.",
+        recommendedAction: matched
+          ? "No action required."
+          : hasAmountMismatch
+            ? "Inspect invoice line pricing, local ledger/grant rows, and the Stripe webhook grant metadata before considering any repair."
+            : "Inspect the Stripe invoice and local credit rows, then replay the Stripe invoice.payment_succeeded event before considering any manual adjustment.",
+      });
+    }
+
+    if (
+      subject.source === "contract" &&
+      subject.stripePriceId &&
+      asUnixSeconds(subject.contractStartedAt) != null &&
+      asUnixSeconds(subject.contractStartedAt) >= createdGte &&
+      !invoices.some((invoice) =>
+        invoiceMatchesStripePrice(invoice, subject.stripePriceId),
+      )
+    ) {
       rows.push({
         userId: subject.userId,
         contractId: subject.contractId,
@@ -405,23 +528,21 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
         stripeCustomerId: subject.stripeCustomerId,
         stripeSubscriptionId: subject.stripeSubscriptionId,
         stripePriceId: subject.stripePriceId,
-        invoiceId,
-        billingReason: invoice.billing_reason ?? null,
-        invoiceStatus: invoice.status ?? null,
-        amountPaidCents: asCents(invoice.amount_paid),
+        invoiceId: null,
+        billingReason: null,
+        invoiceStatus: null,
+        amountPaidCents: null,
         expectedCreditsCents: subject.expectedCreditsCents,
-        sourceRef,
-        ledgerId: ledger?.id ?? null,
-        grantIds: grants.map((grant) => grant.id),
-        missingContract: subject.missingContract,
-        status: matched ? "matched" : "missing_credit_grant",
-        severity: matched ? "info" : "critical",
-        message: matched
-          ? "Paid allocation invoice has matching local ledger and grant rows."
-          : "Paid allocation invoice is missing a matching local recurring credit grant.",
-        recommendedAction: matched
-          ? "No action required."
-          : "Inspect the Stripe invoice and local credit rows, then replay the Stripe invoice.payment_succeeded event before considering any manual adjustment.",
+        sourceRef: null,
+        ledgerId: null,
+        grantIds: [],
+        missingContract: false,
+        status: "current_contract_invoice_not_found",
+        severity: "warning",
+        message:
+          "Current Stripe contract started within the lookback window, but no paid allocation invoice for its Stripe price was found.",
+        recommendedAction:
+          "Inspect Stripe subscription history for an upgrade that changed local entitlement without an immediate paid invoice.",
       });
     }
   }
@@ -433,6 +554,9 @@ const printResults = ({ rows, args, loadedEnvFiles }) => {
     scanned: rows.length,
     matched: rows.filter((row) => row.status === "matched").length,
     missing: rows.filter((row) => row.status === "missing_credit_grant").length,
+    amountMismatches: rows.filter(
+      (row) => row.status === "credit_amount_mismatch",
+    ).length,
     warnings: rows.filter((row) => row.severity === "warning").length,
   };
   const payload = { summary, rows, loadedEnvFiles };
@@ -455,7 +579,7 @@ const printResults = ({ rows, args, loadedEnvFiles }) => {
     }
   }
   console.log(
-    `[subscription-credit-grants] summary scanned=${summary.scanned} matched=${summary.matched} missing=${summary.missing} warnings=${summary.warnings} loaded_env_files=${loadedEnvFiles}`,
+    `[subscription-credit-grants] summary scanned=${summary.scanned} matched=${summary.matched} missing=${summary.missing} amount_mismatches=${summary.amountMismatches} warnings=${summary.warnings} loaded_env_files=${loadedEnvFiles}`,
   );
 };
 
@@ -485,7 +609,11 @@ const main = async () => {
   const rows = await buildRows({ args, supabaseConfig, stripeSecretKey });
   printResults({ rows, args, loadedEnvFiles });
 
-  const hasFailures = rows.some((row) => row.status === "missing_credit_grant");
+  const hasFailures = rows.some(
+    (row) =>
+      row.status === "missing_credit_grant" ||
+      row.status === "credit_amount_mismatch",
+  );
   if (
     hasFailures ||
     (args.strict && rows.some((row) => row.severity === "warning"))

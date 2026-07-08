@@ -81,6 +81,11 @@ const buildEmptyGenerationBreakdown = () => ({
   modelMediaTypes: [],
 });
 
+const buildEmptyFirstValueFunnel = () => ({
+  steps: [],
+  gaps: [],
+});
+
 const normalizeLegacyOverview = (
   row: LegacySummaryRow | null | undefined,
   extras?: {
@@ -284,6 +289,7 @@ const buildLegacyFallbackPayload = async () => {
             generateToActivation: null,
           },
         },
+        firstValueFunnel: buildEmptyFirstValueFunnel(),
         retention: {
           activated: {
             cohortSize: 0,
@@ -360,15 +366,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const [statsResult, growthResult, generationBreakdownResult] = await Promise.all([
-      supabaseAdmin.rpc("get_admin_global_stats_v1"),
-      supabaseAdmin.rpc("get_admin_growth_stats_v1"),
-      supabaseAdmin.rpc("get_admin_generation_breakdown_v1"),
-    ]);
+    const [statsResult, growthResult, generationBreakdownResult, firstValueFunnelResult] =
+      await Promise.all([
+        supabaseAdmin.rpc("get_admin_global_stats_v1"),
+        supabaseAdmin.rpc("get_admin_growth_stats_v1"),
+        supabaseAdmin.rpc("get_admin_generation_breakdown_v1"),
+        supabaseAdmin.rpc("get_admin_first_value_funnel_v1"),
+      ]);
     const hasRpcGap = isMissingRpcError(statsResult.error, ["get_admin_global_stats_v1"]);
     const hasGrowthRpcGap = isMissingRpcError(growthResult.error, ["get_admin_growth_stats_v1"]);
     const hasGenerationBreakdownRpcGap = isMissingRpcError(generationBreakdownResult.error, [
       "get_admin_generation_breakdown_v1",
+    ]);
+    const hasFirstValueFunnelRpcGap = isMissingRpcError(firstValueFunnelResult.error, [
+      "get_admin_first_value_funnel_v1",
     ]);
 
     if (statsResult.error && !hasRpcGap) {
@@ -388,11 +399,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "Unable to load admin generation breakdown stats.",
       });
     }
+    if (firstValueFunnelResult.error && !hasFirstValueFunnelRpcGap) {
+      return res.status(500).json({
+        error:
+          firstValueFunnelResult.error.message || "Unable to load admin first-value funnel stats.",
+      });
+    }
 
     if (hasRpcGap) {
       const fallbackPayload = await buildLegacyFallbackPayload();
       return res.status(200).json(fallbackPayload);
     }
+
+    const firstValueFunnel = hasFirstValueFunnelRpcGap
+      ? buildEmptyFirstValueFunnel()
+      : firstValueFunnelResult.data && typeof firstValueFunnelResult.data === "object"
+        ? firstValueFunnelResult.data
+        : buildEmptyFirstValueFunnel();
+    const growthData =
+      growthResult.data && typeof growthResult.data === "object"
+        ? (growthResult.data as Record<string, unknown>)
+        : {};
+    const growthMarketing =
+      growthData.marketing && typeof growthData.marketing === "object"
+        ? (growthData.marketing as Record<string, unknown>)
+        : {};
 
     return res.status(200).json({
       ...(statsResult.data && typeof statsResult.data === "object" ? statsResult.data : {}),
@@ -424,6 +455,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   generateToActivation: null,
                 },
               },
+              firstValueFunnel,
               retention: {
                 activated: {
                   cohortSize: 0,
@@ -477,9 +509,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
           }
         : {
-            ...(growthResult.data && typeof growthResult.data === "object"
-              ? growthResult.data
-              : {}),
+            ...growthData,
+            marketing: {
+              ...growthMarketing,
+              firstValueFunnel,
+            },
             health: {
               degraded: false,
               reason: null,

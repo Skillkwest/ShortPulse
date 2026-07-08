@@ -667,6 +667,28 @@ export type AdminGrowthAttributionCampaignRow = {
   paidUsers: number;
 };
 
+export type AdminFirstValueFunnelStepKey =
+  | "signed_up"
+  | "reached_workspace"
+  | "project_started"
+  | "generation_started"
+  | "successful_output"
+  | "saved_or_downloaded"
+  | "reopened_output";
+
+export type AdminFirstValueFunnelStep = {
+  stepKey: AdminFirstValueFunnelStepKey;
+  label: string;
+  tracked: boolean;
+  source: string;
+  users: AdminStatsCountWindow;
+};
+
+export type AdminFirstValueFunnel = {
+  steps: AdminFirstValueFunnelStep[];
+  gaps: string[];
+};
+
 export type AdminMarketingStats = {
   summary: {
     signups: AdminStatsCountWindow;
@@ -674,6 +696,7 @@ export type AdminMarketingStats = {
     activationRatePct: AdminStatsRateWindow;
     medianHours: AdminGrowthDurationSummary;
   };
+  firstValueFunnel: AdminFirstValueFunnel;
   retention: {
     activated: AdminGrowthRetentionSummary;
     nonActivated: AdminGrowthRetentionSummary;

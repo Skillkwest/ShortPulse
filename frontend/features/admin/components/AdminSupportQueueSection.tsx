@@ -1087,7 +1087,7 @@ export function AdminSupportQueueSection({
                 const queueSignals: QueueSignal[] = [];
                 if (row.spendableCredits <= 0) {
                   queueSignals.push({
-                    label: "Credits empty",
+                    label: "Empty",
                     toneClassName: styles.pillCritical,
                   });
                 }

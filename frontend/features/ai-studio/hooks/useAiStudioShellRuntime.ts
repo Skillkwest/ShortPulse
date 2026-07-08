@@ -65,6 +65,7 @@ type UseAiStudioShellRuntimeParams = {
   sessionRestoreCandidate: AiStudioPersistenceController["sessionRestoreCandidate"];
   projectBootstrapSettled: boolean;
   projectBootstrapApplied: boolean;
+  projectWorkspaceStaleProjectId?: string | null;
   flushProjectWorkspaceSnapshot: AiStudioPersistenceController["flushProjectWorkspaceSnapshot"];
   filteredModelOptions: AiStudioPageContentProps["modelModalState"]["options"];
   resolveModelPickerCredits: AiStudioPageContentProps["modelModalState"]["resolveCreditsForModel"];
@@ -78,6 +79,7 @@ export const useAiStudioShellRuntime = ({
   base,
   sessionRestoreCandidate,
   projectBootstrapSettled,
+  projectWorkspaceStaleProjectId = null,
   flushProjectWorkspaceSnapshot,
   filteredModelOptions,
   resolveModelPickerCredits,
@@ -305,10 +307,10 @@ export const useAiStudioShellRuntime = ({
   }, [router]);
 
   useAiStudioProjectRouteRecovery({
-    requestedProjectId,
-    projectRouteRequested,
-    projectStatus,
-    projectErrorKind,
+    requestedProjectId: projectWorkspaceStaleProjectId ?? requestedProjectId,
+    projectRouteRequested: projectRouteRequested || Boolean(projectWorkspaceStaleProjectId),
+    projectStatus: projectWorkspaceStaleProjectId ? "error" : projectStatus,
+    projectErrorKind: projectWorkspaceStaleProjectId ? "not_found" : projectErrorKind,
     onClearStaleProjectRoute: handleClearStaleProjectRoute,
     onOpenProjectsModal: handleOpenProjectsModal,
   });

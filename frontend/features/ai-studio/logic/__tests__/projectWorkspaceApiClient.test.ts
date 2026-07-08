@@ -6,6 +6,8 @@ import {
   getAiStudioProjectIdentityViaApi,
   getAiStudioProjectWorkspaceBootstrapViaApi,
   getAiStudioProjectWorkspaceSnapshotViaApi,
+  isStaleProjectWorkspaceSaveError,
+  ProjectWorkspaceSaveApiError,
   resetAiStudioProjectWorkspaceSnapshotViaApi,
   saveAiStudioProjectWorkspaceSnapshotViaApi,
 } from "../projectWorkspaceApiClient";
@@ -79,6 +81,39 @@ describe("projectWorkspaceApiClient", () => {
         error: "Invalid project workspace snapshot",
       },
     });
+  });
+
+  it("throws status-carrying stale project save errors for missing projects", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Project not found" }), {
+        status: 404,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    );
+
+    let caughtError: unknown = null;
+    try {
+      await saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      });
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(caughtError).toMatchObject({
+      name: "ProjectWorkspaceSaveApiError",
+      status: 404,
+      projectId: "project-1",
+      message: "Failed to save project workspace snapshot: Project not found",
+    } satisfies Partial<ProjectWorkspaceSaveApiError>);
+    expect(isStaleProjectWorkspaceSaveError(caughtError)).toBe(true);
   });
 
   it("does not record the invalid snapshot breadcrumb for non-terminal save failures", async () => {

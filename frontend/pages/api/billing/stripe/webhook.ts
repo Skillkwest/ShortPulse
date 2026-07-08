@@ -93,8 +93,10 @@ type BillingStorageAddonContractProjection = {
 const SUBSCRIPTION_CREDIT_GRANT_BILLING_REASONS = new Set([
   "subscription_create",
   "subscription_cycle",
+  "subscription_update",
 ]);
 const SUBSCRIPTION_CREDIT_LIFESPAN_DAYS = 60;
+const IMMEDIATE_PAID_UPGRADE_METADATA_VALUE = "immediate_paid_upgrade";
 
 export const config = {
   api: {
@@ -375,6 +377,21 @@ const buildCheckoutGrantSourceRef = (session: JsonObject, fallbackEventId: strin
 const buildSubscriptionGrantSourceRef = (invoice: JsonObject, fallbackEventId: string): string => {
   const invoiceId = normalizeString(invoice.id);
   return invoiceId ? `invoice:${invoiceId}:monthly_allocation` : `invoice_event:${fallbackEventId}`;
+};
+
+const readInvoiceMetadata = (invoice: JsonObject): JsonObject => {
+  const subscriptionDetails = toRecord(invoice.subscription_details);
+  return {
+    ...toRecord(invoice.metadata),
+    ...toRecord(subscriptionDetails.metadata),
+  };
+};
+
+const isImmediatePaidUpgradeInvoice = (invoice: JsonObject): boolean => {
+  const metadata = readInvoiceMetadata(invoice);
+  return (
+    normalizeString(metadata.shortpulse_plan_change_kind) === IMMEDIATE_PAID_UPGRADE_METADATA_VALUE
+  );
 };
 
 const withWebhookMetadata = (
@@ -1186,6 +1203,10 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
   if (!billingReason || !SUBSCRIPTION_CREDIT_GRANT_BILLING_REASONS.has(billingReason)) {
     return;
   }
+  const isSubscriptionUpdateInvoice = billingReason === "subscription_update";
+  if (isSubscriptionUpdateInvoice && !isImmediatePaidUpgradeInvoice(invoice)) {
+    return;
+  }
 
   const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : undefined;
   if (!stripeCustomerId) return;
@@ -1196,9 +1217,10 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
     | Awaited<ReturnType<typeof resolveBillingContextFromInvoice>>
     | null = null;
   try {
-    billingContext =
-      (await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
-      (await resolveBillingContextFromInvoice(invoice, stripeCustomerId));
+    billingContext = isSubscriptionUpdateInvoice
+      ? await resolveBillingContextFromInvoice(invoice, stripeCustomerId)
+      : ((await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
+        (await resolveBillingContextFromInvoice(invoice, stripeCustomerId)));
     if (!billingContext?.userId || !billingContext.planId) return;
 
     const monthlyCredits = Number(billingContext.monthlyCreditsCents ?? 0);

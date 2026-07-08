@@ -24,6 +24,7 @@ import {
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import {
+  isStaleProjectWorkspaceSaveError,
   resetAiStudioProjectWorkspaceSnapshotViaApi,
   saveAiStudioProjectWorkspaceSnapshotViaApi,
 } from "../logic/projectWorkspaceApiClient";
@@ -218,6 +219,10 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectId: string;
     revision: number;
     message: string;
+  } | null>(null);
+  const [staleWorkspaceSaveProject, setStaleWorkspaceSaveProject] = useState<{
+    projectId: string;
+    revision: number;
   } | null>(null);
   const [pendingVisibilityAutosaveBaseline, setPendingVisibilityAutosaveBaseline] = useState<{
     projectId: string;
@@ -761,18 +766,49 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     [onPersistenceWarning]
   );
 
+  const markStaleWorkspaceSaveProject = useCallback(
+    (staleProjectId: string) => {
+      setStaleWorkspaceSaveProject((current) => {
+        if (current?.projectId === staleProjectId && current.revision === projectRuntimeRevision) {
+          return current;
+        }
+        return {
+          projectId: staleProjectId,
+          revision: projectRuntimeRevision,
+        };
+      });
+    },
+    [projectRuntimeRevision]
+  );
+
   useEffect(() => {
+    let cancelled = false;
     if (lastImperativeFlushRef.current?.projectId !== projectId) {
       lastImperativeFlushRef.current = null;
     }
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setStaleWorkspaceSaveProject((current) =>
+        current?.projectId === projectId && current.revision === projectRuntimeRevision
+          ? current
+          : null
+      );
+    });
     const activeNotice = activeAutosaveNoticeRef.current;
-    if (!activeNotice || activeNotice.projectId === projectId) return;
+    if (!activeNotice || activeNotice.projectId === projectId) {
+      return () => {
+        cancelled = true;
+      };
+    }
     activeAutosaveNoticeRef.current = null;
     onPersistenceWarning?.(null, {
       ...activeNotice,
       recovered: true,
     });
-  }, [onPersistenceWarning, projectId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [onPersistenceWarning, projectId, projectRuntimeRevision]);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -1259,6 +1295,9 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         } catch (error) {
           const persistError =
             error instanceof Error ? error : new Error("Failed to save workspace.");
+          if (isStaleProjectWorkspaceSaveError(persistError)) {
+            markStaleWorkspaceSaveProject(request.projectId);
+          }
           if (request.reportPersistError) {
             handleProjectPersistError(persistError, {
               sessionId: request.projectId,
@@ -1311,7 +1350,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       void flushPromise.then(drainPendingFlush, drainPendingFlush);
       return flushPromise;
     },
-    [handleProjectPersistError, persistProjectWorkspaceSnapshot]
+    [handleProjectPersistError, markStaleWorkspaceSaveProject, persistProjectWorkspaceSnapshot]
   );
 
   useEffect(() => {
@@ -1637,6 +1676,11 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     projectBootstrapError:
       activeBootstrapError?.message ??
       (sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null),
+    projectWorkspaceStaleProjectId:
+      staleWorkspaceSaveProject?.projectId === projectId &&
+      staleWorkspaceSaveProject.revision === projectRuntimeRevision
+        ? staleWorkspaceSaveProject.projectId
+        : null,
     retryProjectBootstrap,
     flushProjectWorkspaceSnapshot,
     resetProjectWorkspace,

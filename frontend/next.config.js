@@ -105,6 +105,13 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
 ];
 
+const dashboardGalleryAssetHeaders = [
+  {
+    key: "Content-Disposition",
+    value: "attachment",
+  },
+];
+
 const bundledMediaRuntimeFiles = ["node_modules/ffmpeg-static/ffmpeg"];
 
 const nextConfig = {
@@ -134,6 +141,10 @@ const nextConfig = {
             value: `crash-reporting="${resolveCrashReportEndpoint()}"`,
           },
         ],
+      },
+      {
+        source: "/dashboard/gallery/:path*",
+        headers: dashboardGalleryAssetHeaders,
       },
     ];
   },

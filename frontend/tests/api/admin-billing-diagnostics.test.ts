@@ -1499,6 +1499,77 @@ describe("GET /api/admin/billing-diagnostics", () => {
     );
   });
 
+  it("flags a paid immediate-upgrade subscription invoice without a matching recurring credit grant", async () => {
+    setupRecurringGrantDiagnosticScenario({
+      invoices: [
+        {
+          id: "in_missing_upgrade_grant",
+          billing_reason: "subscription_update",
+          status: "paid",
+          paid: true,
+          amount_paid: 4900,
+          subscription_details: {
+            metadata: {
+              shortpulse_plan_change_kind: "immediate_paid_upgrade",
+            },
+          },
+        },
+      ],
+      recurringGrantRows: [],
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(payload.recurringGrantHealth).toMatchObject({
+      recentPaidAllocationInvoices: 1,
+      unmatchedPaidAllocationInvoices: ["in_missing_upgrade_grant"],
+    });
+    expect(payload.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing_paid_invoice_credit_grant",
+          severity: "critical",
+        }),
+      ])
+    );
+  });
+
+  it("does not treat generic subscription update invoices as recurring allocation invoices", async () => {
+    setupRecurringGrantDiagnosticScenario({
+      invoices: [
+        {
+          id: "in_generic_update",
+          billing_reason: "subscription_update",
+          status: "paid",
+          paid: true,
+          amount_paid: 4900,
+        },
+      ],
+      recurringGrantRows: [],
+    });
+
+    const req = {
+      method: "GET",
+      query: { userId: "11111111-1111-4111-8111-111111111111" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = (res.json as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(payload.recurringGrantHealth).toMatchObject({
+      recentPaidAllocationInvoices: 0,
+      unmatchedPaidAllocationInvoices: [],
+    });
+  });
+
   it("does not flag a paid subscription invoice when the recurring grant source ref matches", async () => {
     setupRecurringGrantDiagnosticScenario({
       invoices: [

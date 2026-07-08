@@ -59,6 +59,32 @@ class ProjectWorkspaceBootstrapApiError extends Error {
   }
 }
 
+export class ProjectWorkspaceSaveApiError extends Error {
+  readonly projectId: string;
+  readonly status: number;
+
+  constructor({
+    projectId,
+    status,
+    message,
+  }: {
+    projectId: string;
+    status: number;
+    message: string;
+  }) {
+    super(`Failed to save project workspace snapshot: ${message}`);
+    this.name = "ProjectWorkspaceSaveApiError";
+    this.projectId = projectId;
+    this.status = status;
+  }
+}
+
+export const isStaleProjectWorkspaceSaveError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) return false;
+  const status = (error as { status?: unknown }).status;
+  return status === 400 || status === 404;
+};
+
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
 const INVALID_ERROR_RESPONSE_MESSAGE = "Server returned an invalid error response.";
 
@@ -512,7 +538,11 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
     const message = response.ok
       ? "Malformed project workspace save response: missing workspace"
       : resolveProjectWorkspaceApiErrorMessage(response, responseDetails);
-    throw new Error(`Failed to save project workspace snapshot: ${message}`);
+    throw new ProjectWorkspaceSaveApiError({
+      projectId,
+      status: response.status,
+      message,
+    });
   }
 
   maybeLogProjectWorkspaceSaveOutcome({

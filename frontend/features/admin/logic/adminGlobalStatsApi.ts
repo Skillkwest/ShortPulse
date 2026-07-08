@@ -4,6 +4,8 @@
 import type {
   AdminAssetAutosaveSummary,
   AdminAssetEventUsageRow,
+  AdminFirstValueFunnel,
+  AdminFirstValueFunnelStep,
   AdminGenerationBreakdown,
   AdminGenerationBreakdownModelMediaTypeRow,
   AdminGenerationBreakdownSummary,
@@ -146,6 +148,11 @@ export const DEFAULT_ADMIN_GROWTH_RETENTION_SUMMARY: AdminGrowthRetentionSummary
   d30RatePct: 0,
 };
 
+export const DEFAULT_ADMIN_FIRST_VALUE_FUNNEL: AdminFirstValueFunnel = {
+  steps: [],
+  gaps: [],
+};
+
 export const DEFAULT_ADMIN_MARKETING_STATS: AdminMarketingStats = {
   summary: {
     signups: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
@@ -153,6 +160,7 @@ export const DEFAULT_ADMIN_MARKETING_STATS: AdminMarketingStats = {
     activationRatePct: { ...DEFAULT_ADMIN_STATS_RATE_WINDOW },
     medianHours: { ...DEFAULT_ADMIN_GROWTH_DURATION_SUMMARY },
   },
+  firstValueFunnel: DEFAULT_ADMIN_FIRST_VALUE_FUNNEL,
   retention: {
     activated: { ...DEFAULT_ADMIN_GROWTH_RETENTION_SUMMARY },
     nonActivated: { ...DEFAULT_ADMIN_GROWTH_RETENTION_SUMMARY },
@@ -519,6 +527,46 @@ const normalizeGrowthAttributionCampaigns = (
   });
 };
 
+const normalizeFirstValueFunnelStepKey = (value: unknown): AdminFirstValueFunnelStep["stepKey"] => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (
+    normalized === "signed_up" ||
+    normalized === "reached_workspace" ||
+    normalized === "project_started" ||
+    normalized === "generation_started" ||
+    normalized === "successful_output" ||
+    normalized === "saved_or_downloaded" ||
+    normalized === "reopened_output"
+  ) {
+    return normalized;
+  }
+  return "signed_up";
+};
+
+const normalizeFirstValueFunnelSteps = (value: unknown): AdminFirstValueFunnelStep[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    return {
+      stepKey: normalizeFirstValueFunnelStepKey(row.stepKey),
+      label: toTextOrNull(row.label) ?? "Unknown step",
+      tracked: Boolean(row.tracked),
+      source: toTextOrNull(row.source) ?? "unavailable",
+      users: normalizeCountWindow(row.users),
+    };
+  });
+};
+
+const normalizeFirstValueFunnel = (value: unknown): AdminFirstValueFunnel => {
+  const row = toObject(value);
+  return {
+    steps: normalizeFirstValueFunnelSteps(row.steps),
+    gaps: Array.isArray(row.gaps)
+      ? row.gaps.map((item) => toTextOrNull(item)).filter((item): item is string => Boolean(item))
+      : [],
+  };
+};
+
 const normalizeMarketingStats = (value: unknown): AdminMarketingStats => {
   const row = toObject(value);
   const summary = toObject(row.summary);
@@ -531,6 +579,7 @@ const normalizeMarketingStats = (value: unknown): AdminMarketingStats => {
       activationRatePct: normalizeRateWindow(summary.activationRatePct),
       medianHours: normalizeDurationSummary(summary.medianHours),
     },
+    firstValueFunnel: normalizeFirstValueFunnel(row.firstValueFunnel),
     retention: {
       activated: normalizeRetentionSummary(retention.activated),
       nonActivated: normalizeRetentionSummary(retention.nonActivated),

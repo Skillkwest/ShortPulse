@@ -28,7 +28,7 @@ import { signOutSupabaseSession } from "../../../lib/supabaseClient";
 import { useProtectedRouteRestoreGuard } from "../../../lib/useProtectedRouteRestoreGuard";
 import { MediaComplianceGate } from "../../compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../../compliance/hooks/useMediaComplianceGate";
-import { createProject } from "../../projects/logic/projectCreateClient";
+import { createProject, DEFAULT_NEW_PROJECT_TITLE } from "../../projects/logic/projectCreateClient";
 import { AiStudioProjectEntryState } from "../components/AiStudioProjectEntryState";
 
 const loadAiStudioRouteApp = () => import("./AiStudioRouteApp");
@@ -87,7 +87,7 @@ type AiStudioProtectedRouteEntryProps = {
   RuntimeComponent?: ComponentType;
 };
 
-export const CHECKOUT_SUCCESS_PROJECT_TITLE = "Untitled Project";
+export const CHECKOUT_SUCCESS_PROJECT_TITLE = DEFAULT_NEW_PROJECT_TITLE;
 
 const CHECKOUT_PROJECT_SESSION_STORAGE_PREFIX = "shortpulse.checkoutProject.";
 const PROJECT_ID_PATTERN =

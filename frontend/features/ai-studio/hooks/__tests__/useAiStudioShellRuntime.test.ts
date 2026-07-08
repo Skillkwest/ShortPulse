@@ -1,12 +1,13 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioShellRuntime } from "../useAiStudioShellRuntime";
+import { useAiStudioProjectRouteRecovery } from "../useAiStudioProjectRouteRecovery";
 import type { AiStudioPageBaseRuntime } from "../useAiStudioPageBaseRuntime";
 import type { AiStudioProjectWorkspaceFlushResult } from "../aiStudioPersistenceControllerContract";
 import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../useAiStudioProjectRouteRecovery", () => ({
-  useAiStudioProjectRouteRecovery: () => undefined,
+  useAiStudioProjectRouteRecovery: vi.fn(),
 }));
 
 vi.mock("../../../../lib/appErrorReporter", () => ({
@@ -14,6 +15,7 @@ vi.mock("../../../../lib/appErrorReporter", () => ({
 }));
 
 const mockedReportAppError = vi.mocked(reportAppError);
+const mockedUseAiStudioProjectRouteRecovery = vi.mocked(useAiStudioProjectRouteRecovery);
 
 type RouterEventHandler = (...args: unknown[]) => void;
 
@@ -95,6 +97,7 @@ const createFlushProjectWorkspaceSnapshot = (
 describe("useAiStudioShellRuntime", () => {
   beforeEach(() => {
     mockedReportAppError.mockClear();
+    mockedUseAiStudioProjectRouteRecovery.mockClear();
   });
 
   it("opens the studio once project bootstrap settles even before autosave-readiness proof matches", () => {
@@ -119,6 +122,40 @@ describe("useAiStudioShellRuntime", () => {
     );
 
     expect(result.current.shouldGateProjectBootstrap).toBe(false);
+  });
+
+  it("routes stale project workspace autosave targets through stale project recovery", () => {
+    const base = createBaseRuntime();
+
+    renderHook(() =>
+      useAiStudioShellRuntime({
+        base,
+        sessionRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: null,
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        projectBootstrapSettled: true,
+        projectBootstrapApplied: true,
+        projectWorkspaceStaleProjectId: "project-stale",
+        flushProjectWorkspaceSnapshot: createFlushProjectWorkspaceSnapshot(),
+        filteredModelOptions: [],
+        resolveModelPickerCredits: vi.fn(() => null),
+        handleSelectModelFromModal: vi.fn(),
+      })
+    );
+
+    expect(mockedUseAiStudioProjectRouteRecovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestedProjectId: "project-stale",
+        projectRouteRequested: true,
+        projectStatus: "error",
+        projectErrorKind: "not_found",
+      })
+    );
   });
 
   it("keeps the entry gate closed while restore is not yet settled", () => {

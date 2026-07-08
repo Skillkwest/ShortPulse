@@ -67,6 +67,7 @@ vi.mock("../../lib/useProtectedRouteRestoreGuard", () => ({
 }));
 
 vi.mock("../../features/projects/logic/projectCreateClient", () => ({
+  DEFAULT_NEW_PROJECT_TITLE: "New AI Studio project",
   createProject: (...args: unknown[]) => createProjectMock(...args),
 }));
 
@@ -123,7 +124,7 @@ describe("AiStudioProtectedRouteEntry", () => {
     routerState.query = { projectId: "project-1" };
     createProjectMock.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000001",
-      title: "Untitled Project",
+      title: "New AI Studio project",
       createdAt: "2026-06-15T18:00:00.000Z",
       updatedAt: "2026-06-15T18:00:00.000Z",
     });
@@ -133,7 +134,7 @@ describe("AiStudioProtectedRouteEntry", () => {
       json: async () => ({
         project: {
           id: "00000000-0000-4000-8000-000000000099",
-          title: "Untitled Project",
+          title: "New AI Studio project",
         },
       }),
     } as Response);
@@ -397,14 +398,14 @@ describe("AiStudioProtectedRouteEntry", () => {
 
     renderRouteEntry();
 
-    expect(screen.getByText("Creating Untitled Project")).toBeInTheDocument();
+    expect(screen.getByText("Creating New AI Studio project")).toBeInTheDocument();
     expect(
       screen.getByText("Saving your starter project before AI Studio opens.")
     ).toBeInTheDocument();
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(createProjectMock).toHaveBeenCalledWith("Untitled Project");
+      expect(createProjectMock).toHaveBeenCalledWith("New AI Studio project");
       expect(replaceMock).toHaveBeenCalledWith(
         {
           pathname: "/ai-studio",
@@ -506,7 +507,7 @@ describe("AiStudioProtectedRouteEntry", () => {
     renderRouteEntry();
 
     await waitFor(() => {
-      expect(createProjectMock).toHaveBeenCalledWith("Untitled Project");
+      expect(createProjectMock).toHaveBeenCalledWith("New AI Studio project");
       expect(replaceMock).toHaveBeenCalledWith(
         {
           pathname: "/ai-studio",

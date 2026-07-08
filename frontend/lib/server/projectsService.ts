@@ -7,7 +7,7 @@ import { isUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { chunkValues } from "./queryBatching";
 
-const DEFAULT_PROJECT_TITLE = "Untitled project";
+const DEFAULT_PROJECT_TITLE = "New AI Studio project";
 const PROJECT_TITLE_MAX_LENGTH = 120;
 const DEFAULT_PROJECT_LIST_LIMIT = 6;
 export const MAX_PROJECT_LIST_LIMIT = 24;

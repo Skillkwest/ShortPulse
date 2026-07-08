@@ -54,6 +54,7 @@ export type AiStudioPersistenceController = {
   // Stricter restore-visibility proof used to unlock autosave-safe persistence work.
   projectBootstrapApplied: boolean;
   projectBootstrapError: string | null;
+  projectWorkspaceStaleProjectId: string | null;
   retryProjectBootstrap: () => void;
   flushProjectWorkspaceSnapshot: (
     options?: AiStudioProjectWorkspaceFlushOptions

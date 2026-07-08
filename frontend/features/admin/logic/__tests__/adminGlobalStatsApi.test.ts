@@ -139,6 +139,32 @@ describe("adminGlobalStatsApi", () => {
               generateToActivation: 3.7,
             },
           },
+          firstValueFunnel: {
+            steps: [
+              {
+                stepKey: "signed_up",
+                label: "Signed up",
+                tracked: true,
+                source: "billing_profiles.created_at",
+                users: { total: 10, last24h: 2, last7d: 6 },
+              },
+              {
+                stepKey: "successful_output",
+                label: "Got first successful output",
+                tracked: true,
+                source: "ai_generations.status=success",
+                users: { total: 6, last24h: 1, last7d: 4 },
+              },
+              {
+                stepKey: "reopened_output",
+                label: "Reopened output",
+                tracked: false,
+                source: "not instrumented",
+                users: { total: 0, last24h: 0, last7d: 0 },
+              },
+            ],
+            gaps: ["Output reopen is not instrumented as a media event."],
+          },
           retention: {
             activated: {
               cohortSize: 6,
@@ -272,6 +298,15 @@ describe("adminGlobalStatsApi", () => {
     expect(normalized.assets.events[0]?.eventType).toBe("generation_saved");
     expect(normalized.projects.summary.projectsCreated.total).toBe(2);
     expect(normalized.growth.marketing.summary.signups.total).toBe(10);
+    expect(normalized.growth.marketing.firstValueFunnel.steps[1]).toEqual(
+      expect.objectContaining({
+        stepKey: "successful_output",
+        label: "Got first successful output",
+        tracked: true,
+        users: expect.objectContaining({ total: 6 }),
+      })
+    );
+    expect(normalized.growth.marketing.firstValueFunnel.gaps[0]).toContain("Output reopen");
     expect(normalized.growth.marketing.attribution.sources[0]?.sourceKey).toBe("google");
     expect(normalized.growth.sales.summary.checkoutStartedUsers.total).toBe(3);
     expect(normalized.growth.sales.highIntentUsers[0]?.email).toBe("user@example.com");
@@ -300,6 +335,7 @@ describe("adminGlobalStatsApi", () => {
     expect(normalized.assets.events).toEqual([]);
     expect(normalized.projects.leaderboard).toEqual([]);
     expect(normalized.growth.marketing.summary.signups.total).toBe(0);
+    expect(normalized.growth.marketing.firstValueFunnel.steps).toEqual([]);
     expect(normalized.growth.sales.highIntentUsers).toEqual([]);
     expect(normalized.growth.health.marketingSource).toBe("unavailable");
     expect(normalized.health.degraded).toBe(false);

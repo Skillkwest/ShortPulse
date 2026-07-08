@@ -7,7 +7,7 @@ import { createProject, type CreatedProjectRecord } from "../../logic/projectCre
 import { useProjectCreationDialog } from "../useProjectCreationDialog";
 
 vi.mock("../../logic/projectCreateClient", () => ({
-  DEFAULT_NEW_PROJECT_TITLE: "Untitled project",
+  DEFAULT_NEW_PROJECT_TITLE: "New AI Studio project",
   createProject: vi.fn(),
 }));
 

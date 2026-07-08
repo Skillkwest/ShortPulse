@@ -63,6 +63,25 @@ export class AdminBillingDiagnosticsServiceError extends Error {
 
 export const isAdminBillingDiagnosticsUserId = isUuid;
 
+const IMMEDIATE_PAID_UPGRADE_METADATA_VALUE = "immediate_paid_upgrade";
+
+const readInvoiceMetadata = (invoice: StripeInvoiceResponse): Record<string, unknown> => ({
+  ...(invoice.metadata ?? {}),
+  ...(invoice.subscription_details?.metadata ?? {}),
+});
+
+const isImmediatePaidUpgradeInvoice = (invoice: StripeInvoiceResponse): boolean =>
+  String(readInvoiceMetadata(invoice).shortpulse_plan_change_kind ?? "") ===
+  IMMEDIATE_PAID_UPGRADE_METADATA_VALUE;
+
+const isPaidAllocationInvoice = (invoice: StripeInvoiceResponse): boolean => {
+  const billingReason = String(invoice.billing_reason ?? "").toLowerCase();
+  if (billingReason === "subscription_update") {
+    return isImmediatePaidUpgradeInvoice(invoice);
+  }
+  return billingReason === "subscription_create" || billingReason === "subscription_cycle";
+};
+
 const isTargetUserNotFoundAuthError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const errorRecord = error as { message?: unknown; status?: unknown; statusCode?: unknown };
@@ -519,11 +538,7 @@ export const resolveAdminBillingDiagnostics = async ({
   const latestAnnualAllocationAt =
     recurringGrantRows.find((row) => row.source === "annual_contract_monthly_allocation")
       ?.created_at ?? null;
-  const recentPaidAllocationInvoices = livePaidInvoices.filter((invoice) =>
-    ["subscription_create", "subscription_cycle"].includes(
-      String(invoice.billing_reason ?? "").toLowerCase()
-    )
-  );
+  const recentPaidAllocationInvoices = livePaidInvoices.filter(isPaidAllocationInvoice);
   const recurringGrantInvoiceIds = new Set(
     recurringGrantRows
       .map((row) => {

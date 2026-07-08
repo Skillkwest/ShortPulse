@@ -127,20 +127,20 @@ describe("projects routes", () => {
     parseProjectListPreviewModeMock.mockReturnValue("include");
     createProjectForUserMock.mockResolvedValue({
       id: "project-1",
-      title: "Untitled project",
+      title: "New AI Studio project",
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T00:00:00.000Z",
     });
     listProjectsForUserMock.mockResolvedValue([]);
     getProjectForUserMock.mockResolvedValue({
       id: "project-1",
-      title: "Untitled project",
+      title: "New AI Studio project",
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T00:00:00.000Z",
     });
     deleteProjectForUserMock.mockResolvedValue({
       id: "project-1",
-      title: "Untitled project",
+      title: "New AI Studio project",
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T00:00:00.000Z",
     });
@@ -178,7 +178,7 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({
       project: {
         id: "project-1",
-        title: "Untitled project",
+        title: "New AI Studio project",
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T00:00:00.000Z",
       },
@@ -746,7 +746,7 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({
       project: {
         id: "project-1",
-        title: "Untitled project",
+        title: "New AI Studio project",
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T00:00:00.000Z",
       },
@@ -808,7 +808,7 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({
       project: {
         id: "project-1",
-        title: "Untitled project",
+        title: "New AI Studio project",
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T00:00:00.000Z",
       },
@@ -885,7 +885,7 @@ describe("projects routes", () => {
     expect(res.json).toHaveBeenCalledWith({
       project: {
         id: "project-1",
-        title: "Untitled project",
+        title: "New AI Studio project",
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T00:00:00.000Z",
       },

@@ -100,4 +100,19 @@ describe("next.config security headers", () => {
       'crash-reporting="https://www.shortpulse.ai/api/browser-crash-report"'
     );
   });
+
+  it("keeps dashboard gallery assets from becoming standalone browser pages", async () => {
+    const nextConfigModule = await import("../next.config.js");
+    const nextConfig = "default" in nextConfigModule ? nextConfigModule.default : nextConfigModule;
+    const headerEntries = await nextConfig.headers();
+    const galleryHeaders = headerEntries.find(
+      (entry: { source: string; headers: Array<{ key: string; value: string }> }) =>
+        entry.source === "/dashboard/gallery/:path*"
+    );
+    const contentDisposition = galleryHeaders?.headers.find(
+      (header: { key: string; value: string }) => header.key === "Content-Disposition"
+    );
+
+    expect(contentDisposition?.value).toBe("attachment");
+  });
 });

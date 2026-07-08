@@ -906,6 +906,84 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
+  it("grants upgraded plan credits for paid immediate subscription update invoices", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "business",
+        },
+        billingOffer: {
+          id: "business__current",
+          plan_id: "business",
+          billing_interval: "month",
+          stripe_price_id: "price_business",
+          recurring_price_cents: 12900,
+          monthly_credits_cents: 8000,
+          storage_limit_bytes: 1073741824,
+          max_concurrent_generations: 8,
+        },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_upgrade_paid",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_upgrade_paid",
+            customer: "cus_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            subscription_details: {
+              metadata: {
+                shortpulse_plan_change_kind: "immediate_paid_upgrade",
+                billing_plan_id: "business",
+              },
+            },
+            lines: {
+              data: [
+                {
+                  price: {
+                    id: "price_business",
+                    unit_amount: 12900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1783470000,
+                    end: 1786148400,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        amountCents: 8000,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_update_upgrade_paid:monthly_allocation",
+        creditKind: "subscription_allocation",
+        metadata: expect.objectContaining({
+          invoice_id: "in_update_upgrade_paid",
+          billing_reason: "subscription_update",
+          plan_id: "business",
+          offer_id: "business__current",
+          stripe_customer_id: "cus_123",
+          stripe_price_id: "price_business",
+        }),
+      })
+    );
+  });
+
   it("fails closed on monthly credit grants when a paid profile has no current contract", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(

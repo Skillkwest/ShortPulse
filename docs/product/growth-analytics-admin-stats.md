@@ -20,6 +20,7 @@ This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider 
 - `Activated`: first `media_events.event_type='generation_saved'` or first `project_generation_items.created_at`, whichever happens first within 7 days of signup
 - `Media downloads`: `media_events.event_type='download'`; the Product `Assets` table in `/admin/stats` reports total download events plus distinct downloading users through `uniqueUsers`
 - `Generation breakdown`: `ai_generations` grouped fleet-wide, per user, and by `model_id` plus media type (`image`, `video`, `audio`, or `unknown`) through service-role-only `get_admin_generation_breakdown_v1()`
+- `First-value funnel`: signed-up users progressing through project use, first generation start, first successful output, and saved/downloaded output through service-role-only `get_admin_first_value_funnel_v1()`; workspace reach, project-open-only, and output-reopen steps must show as instrumentation gaps until clean events exist
 - `Time-to-value`:
   - signup -> first generate click
   - signup -> first successful generation
@@ -103,5 +104,6 @@ Growth telemetry remains telemetry-only rows in `app_error_events`; it does not 
 - `/api/admin/storage-usage-snapshots`
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
+- `get_admin_first_value_funnel_v1()`
 
 The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports the latest service-role Supabase usage snapshot plus product-tracked storage and local capacity risk; provider snapshots are captured through the admin-only snapshot route. Storage evidence is not proof of provider invoices, live Stripe state, or customer-facing pricing readiness unless the snapshot source and freshness say so.

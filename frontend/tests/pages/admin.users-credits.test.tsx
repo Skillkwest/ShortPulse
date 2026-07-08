@@ -2,7 +2,7 @@
  * Admin support page tests for users and credits workflows.
  * Locks explicit selection, lazy ledger loading, manual adjustments, and destructive user deletion.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminDashboardPage from "../../pages/admin";
@@ -647,7 +647,10 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByText("Cycle spent")).toBeInTheDocument();
     expect(screen.getByText("Top-ups")).toBeInTheDocument();
     expect(screen.getByText("Renews")).toBeInTheDocument();
-    expect(screen.getAllByText("Storage").length).toBeGreaterThan(0);
+    const userListSection = screen.getByRole("heading", { name: "User list" }).closest("section");
+    expect(userListSection).not.toBeNull();
+    const userList = within(userListSection as HTMLElement);
+    expect(userList.queryByText("Storage")).not.toBeInTheDocument();
     const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
     expect(alphaRow).toHaveTextContent("Studio");
     expect(alphaRow).toHaveTextContent("88");
@@ -655,8 +658,8 @@ describe("Admin users and credits overview", () => {
     expect(alphaRow).toHaveTextContent("2,500");
     expect(alphaRow).toHaveTextContent("2 purchases");
     expect(alphaRow).toHaveTextContent("Apr 30, 2026");
-    expect(alphaRow).toHaveTextContent("10 GB");
-    expect(alphaRow).toHaveTextContent("$5.00/mo");
+    expect(alphaRow).not.toHaveTextContent("10 GB");
+    expect(alphaRow).not.toHaveTextContent("$5.00/mo");
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
     expect(selectButtons.map((button) => button.getAttribute("aria-label"))).toEqual([

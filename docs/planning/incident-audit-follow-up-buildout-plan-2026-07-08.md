@@ -245,6 +245,49 @@ Stop condition reached:
 
 The next proof depends on production/Admin read access, deployment, or fresh production events. Those are outside this approved local code/test/docs lane.
 
+### 2026-07-08 Post-Deploy Production-Safe Check
+
+Status: production route-safety proof complete; incident causality still requires Admin/event evidence.
+
+Source of truth:
+
+- Current clean `production` HEAD: `104a629f7c5ac092f25df005d4f8f101cb81b7e6`.
+- Production URL: `https://www.shortpulse.ai`.
+- Resolved Vercel deployment from parity check: `https://shortpulse-io2bpggzb-kirk-artmans-projects.vercel.app`, created `2026-07-08T17:02:28.054Z`.
+
+Validated:
+
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai`
+  - Passed required route parity for 200 inspected route entries, including `/api/internal/generation-recovery/run` and `/api/internal/media-derivatives/run`.
+- `node scripts/verify_internal_route_runtime.mjs --base-url https://www.shortpulse.ai --skip-auth --route generation_recovery --route user_health_fleet --route media_derivatives`
+  - Passed expected unauthenticated fail-closed probes with `401` for all three protected internal routes.
+- `curl` GET probes against `https://www.shortpulse.ai/api/media/finalize-upload` and `https://www.shortpulse.ai/api/kie/upload-url`
+  - Both returned `401`, confirming the routes are present and fail closed for unauthenticated non-mutating probes.
+- `cd frontend && npx vitest run lib/server/generationControlPlane/__tests__/recoveryBatchExecution.test.ts tests/api/internal-generation-recovery-run.test.ts lib/server/generationControlPlane/__tests__/runCycle.test.ts lib/server/__tests__/mediaUploadService.directUpload.test.ts tests/api/media-finalize-upload-route.test.ts tests/api/kie-upload-url.test.ts`
+  - Passed: 6 files, 59 tests.
+- `cd frontend && npx eslint lib/server/generationControlPlane/recoveryBatchExecution.ts lib/server/generationControlPlane/__tests__/recoveryBatchExecution.test.ts lib/server/mediaUploadPolicy.ts lib/server/mediaUploadService.ts lib/server/__tests__/mediaUploadService.directUpload.test.ts pages/api/media/finalize-upload.ts tests/api/media-finalize-upload-route.test.ts pages/api/kie/upload-url.ts tests/api/kie-upload-url.test.ts`
+  - Passed.
+- `node scripts/typecheck_changed_files.mjs --path ...`
+  - Passed for the touched incident TypeScript paths; the repo-level touched type-check now also passes.
+- `node scripts/check_secret_exposure.js`
+  - Passed.
+
+Conclusion:
+
+- The production alias is route-coherent after deploy and the relevant protected routes fail closed instead of returning public 500s.
+- No UI, UX, intended behavior, provider fallback, storage fallback, security posture, or branch-policy changes were introduced by this incident lane.
+- The deploy-skew/chunk-load watch item is treated as noise unless it repeats after this settled production alias and pairs with fresh missing-asset or API failure evidence.
+
+Still unproven:
+
+- Exact production/Admin causality for the named generation, media finalize, and Kie upload incident IDs.
+- Whether fresh repeated production events now include the new `media_upload_stage` or Kie request-context diagnostics.
+- Authenticated/live success for generation recovery, media finalize, or Kie upload, because replay/spend/mutation tests remain outside this plan's approved scope.
+
+Boundary:
+
+Do not continue into live replay, provider-spend tests, production mutations, or unrelated deployed changes without a new explicit scope. The next high-ROI proof is read-only Admin/error-event inspection for fresh repeats of the same incident signatures.
+
 ## Proof Requirements
 
 For each batch, record:

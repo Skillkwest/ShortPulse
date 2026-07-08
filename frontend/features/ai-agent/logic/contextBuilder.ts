@@ -58,16 +58,6 @@ const pickPulseRuntime = (
     typeof pulse.description === "string" && pulse.description.trim().length > 0
       ? pulse.description.trim()
       : null;
-  const starterAssistantMessage =
-    typeof pulse.starterAssistantMessage === "string" &&
-    pulse.starterAssistantMessage.trim().length > 0
-      ? pulse.starterAssistantMessage.trim()
-      : null;
-  const workflowStageHints = Array.isArray(pulse.workflowStageHints)
-    ? pulse.workflowStageHints
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length > 0)
-    : null;
   const workflowSession =
     pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
       ? ({
@@ -112,12 +102,9 @@ const pickPulseRuntime = (
   const pulseKind =
     pulse.pulseKind === GUIDED_PULSE_KIND || pulse.pulseKind === CUSTOM_PULSE_KIND
       ? pulse.pulseKind
-      : pulse.runtimeMode === "custom_gpt"
+      : pulse.source === "custom" || pulse.runtimeMode === "custom_gpt"
         ? CUSTOM_PULSE_KIND
-        : pulse.runtimeMode === GUIDED_PULSE_RUNTIME_MODE ||
-            starterAssistantMessage != null ||
-            workflowStageHints != null ||
-            pulse.source === "builtin"
+        : pulse.runtimeMode === GUIDED_PULSE_RUNTIME_MODE || pulse.source === "builtin"
           ? GUIDED_PULSE_KIND
           : CUSTOM_PULSE_KIND;
   const source = pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined;
@@ -147,8 +134,8 @@ const pickPulseRuntime = (
     pulseKind,
     runtimeMode: GUIDED_PULSE_RUNTIME_MODE,
     activationMode: GUIDED_PULSE_ACTIVATION_MODE,
-    starterAssistantMessage,
-    workflowStageHints,
+    starterAssistantMessage: null,
+    workflowStageHints: null,
     outputMode: GUIDED_PULSE_OUTPUT_MODE,
     ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",

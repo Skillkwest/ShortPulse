@@ -397,7 +397,14 @@ describe("Profile route state", () => {
   });
 
   it("re-polls local subscription state after a successful plan-change return", async () => {
+    const refreshBalance = vi.fn(async () => 1200);
     routerState.query = { section: "subscription", plan_change: "checkout_success" };
+    useCreditsMock.mockReturnValue({
+      balanceCents: 350,
+      balanceUpdatedAt: null,
+      balanceLoading: false,
+      refreshBalance,
+    });
     useProtectedRouteMock.mockReturnValue({
       loading: false,
       user: {
@@ -429,6 +436,7 @@ describe("Profile route state", () => {
         expect(billingContractMaybeSingleMock.mock.calls.length).toBeGreaterThan(
           initialContractCalls
         );
+        expect(refreshBalance).toHaveBeenCalledWith({ silent: true });
       },
       { timeout: 4000 }
     );

@@ -10,8 +10,6 @@ import { buildPendingPulseWorkflowSessionForUserInput } from "../../logic/pulseW
 type PulseWorkflowPresetContext = {
   presetId: string;
   runtimeMode?: "workflow_gpt" | "custom_gpt";
-  starterAssistantMessage?: string | null;
-  workflowStageHints?: readonly string[] | null;
   workflowSession?: AgentPulseWorkflowSession | null;
 };
 
@@ -55,8 +53,6 @@ export const buildPulseRequestContextForUserInput = ({
       ? {
           presetId: workflowPulse.presetId,
           runtimeMode: workflowPulse.runtimeMode,
-          starterAssistantMessage: workflowPulse.starterAssistantMessage,
-          workflowStageHints: workflowPulse.workflowStageHints,
         }
       : null,
     existingSession: workflowPulse?.workflowSession ?? null,

@@ -188,3 +188,32 @@ Remaining friction:
 Next training focus:
 
 - If future income imports grow beyond a few pages, use a Stripe export only after confirming the exact export scope and safe retention path.
+
+## 2026-07-08 Workbook Structure Buildout
+
+Prompt/use case:
+
+- The owner approved implementation of the Badu workbook restructure plan for the active `ShortPulse Provider Expenses` Google Sheet.
+
+Behavior learned:
+
+- Keep one canonical editable transaction table in `Ledger`.
+- Use `Expenses_View` and `Income_View` as derived views, not manually edited duplicate ledgers.
+- Use `Monthly_Summary`, `Provider_Summary`, and `Dashboard` for summaries.
+- Use `Config` for controlled lists and `Source_Log` for provider cutoff/source-boundary rules.
+- Preserve the original intake layout as `Archive_Initial_Intake_2026-07-08`.
+
+Rows changed:
+
+- No new provider transactions were imported.
+- Existing 119 ledger transactions were copied into `Ledger`.
+- Dashboard readback verified `$3,428.88` expenses, `$2,550.27` income, `-$878.61` net, and 119 transactions.
+
+Remaining friction:
+
+- Google Sheets connector and Drive upload scopes were unavailable, so the buildout used Chrome UI bounded-range copy/paste.
+- Chrome extension local-file upload was blocked because file URL access was not enabled, so the verified `.xlsx` import artifact was not uploaded directly.
+
+Next training focus:
+
+- Future imports should append to `Ledger`, then verify `Dashboard`, `Provider_Summary`, and the `Ledger` filter range.

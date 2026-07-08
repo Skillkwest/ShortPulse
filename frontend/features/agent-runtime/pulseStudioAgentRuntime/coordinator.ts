@@ -87,28 +87,6 @@ const isPulseActivationMessage = (message: AgentMessage): boolean =>
   message.content.includes('Pulse "') &&
   message.content.includes("was just activated.");
 
-const isInitialWorkflowActivationTurn = ({
-  context,
-  messages,
-}: {
-  context: AgentContext;
-  messages: AgentMessage[];
-}): boolean => {
-  if (!isStudioAgentWorkflowPulse(context.pulse)) return false;
-  if (!messages.some(isPulseActivationMessage)) return false;
-  const workflowSession = context.pulse?.workflowSession ?? null;
-  if (!workflowSession) return true;
-  const collectedInputs = Array.isArray(workflowSession.collectedInputs)
-    ? workflowSession.collectedInputs.filter((entry) => entry.trim().length > 0)
-    : [];
-  const currentStepIndex =
-    typeof workflowSession.currentStepIndex === "number" &&
-    Number.isFinite(workflowSession.currentStepIndex)
-      ? workflowSession.currentStepIndex
-      : null;
-  return collectedInputs.length === 0 && (!currentStepIndex || currentStepIndex <= 1);
-};
-
 export const buildStudioAgentOpenAiMessages = ({
   messages,
   context,
@@ -251,13 +229,6 @@ export const executeStudioAgentCoordinator = async ({
 
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   const runtimePath = "pulse_agent";
-  const deterministicStarterMessage =
-    workflowPulseActive &&
-    context.pulse?.activationMode !== "activate_only" &&
-    isInitialWorkflowActivationTurn({ context, messages }) &&
-    typeof context.pulse?.starterAssistantMessage === "string"
-      ? context.pulse.starterAssistantMessage.trim()
-      : "";
   const resolvedSafetyPolicyVersion =
     typeof safetyPolicyVersion === "number" && Number.isFinite(safetyPolicyVersion)
       ? safetyPolicyVersion
@@ -413,63 +384,6 @@ export const executeStudioAgentCoordinator = async ({
     await waitForStudioAgentRetry(retryDelayMs);
     return failureClass;
   };
-
-  if (deterministicStarterMessage) {
-    const workflowSessionUpdate = buildStudioAgentWorkflowSessionUpdate({
-      pulse: context.pulse,
-      response: {
-        message: deterministicStarterMessage,
-        actions: undefined,
-      },
-      semanticStatus: "needs_input",
-      latestUserInput: null,
-    });
-    const pulsePresetId =
-      typeof context.pulse?.presetId === "string" ? context.pulse.presetId.trim() || null : null;
-
-    emitStudioAgentTurnTelemetry({
-      flow: orchestration.flow,
-      path: runtimePath,
-      status: "success",
-      model: openAiModel,
-      outcomeClass: "success_message",
-      retryUsed: false,
-      retryCount: 0,
-      repairUsed: false,
-      repairCount: 0,
-      reasonCode: "SUCCESS_MESSAGE",
-      totalLatencyMs: Date.now() - requestStartedAt,
-      stageLatencyMs,
-      pulsePresetId,
-      pulseTurnPhase: "activation",
-      pulseWorkflowStatusBefore: context.pulse?.workflowSession?.status ?? null,
-      pulseWorkflowStatusAfter: workflowSessionUpdate?.status ?? null,
-      safetyTelemetry: {
-        policyVersion: resolvedSafetyPolicyVersion,
-        policySchemaVersion: safetyPolicySchemaVersion ?? null,
-        promptTemplateVersion: safetyPromptTemplateVersion ?? null,
-        runtimeScopeKey: runtimeScopeKey ?? null,
-        profileId: safetyTelemetryProfileId,
-        modality: safetyModality,
-        providerBlocked: false,
-      },
-    });
-
-    return {
-      status: 200,
-      payload: {
-        message: deterministicStarterMessage,
-        actions: undefined,
-        workflowSession: workflowSessionUpdate,
-        ...buildAgentMachineOutcome({
-          outcomeClass: "success_message",
-          reasonCode: "SUCCESS_MESSAGE",
-        }),
-        canonicalPrompt: effectiveCanonical,
-        traceId,
-      },
-    };
-  }
 
   const finalizeSuccessfulTurn = async ({
     parsed,

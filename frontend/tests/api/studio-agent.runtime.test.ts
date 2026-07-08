@@ -1871,7 +1871,23 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
-  it("starts an admin-added built-in Pulse from its configured starter without provider dependency", async () => {
+  it("starts an admin-added built-in Pulse through the provider using server instructions", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "needs_input",
+                message: "Paste the prompt you want to modify.",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
     resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
       builtInDefinitions: [
         createRuntimeBuiltInDefinition({
@@ -1904,7 +1920,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
           {
             role: "user",
             content:
-              'Pulse "Prompt Modifier" was just activated.\n\nStart the workflow now.\n\nYour first assistant reply must be exactly this:\npaste the prompt you want to modify',
+              'Pulse "Prompt Modifier" was just activated.\n\nStart the workflow according to the active Pulse instructions.\n\nReply with only the first required assistant step or question. Do not explain the activation event.',
           },
         ],
         context: {
@@ -1928,24 +1944,25 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(resolveRuntimeCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
       bypassCache: true,
     });
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const requestBody = String(requestInit?.body ?? "");
+    expect(requestBody).toContain("SERVER PROMPT MODIFIER INSTRUCTIONS");
+    expect(requestBody).not.toContain("CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN");
+    expect(requestBody).not.toContain("Your first assistant reply must be exactly this");
     expect(res.json.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
-        message: "paste the prompt you want to modify",
+        message: expect.any(String),
         outcome_class: "success_message",
         reason_code: "SUCCESS_MESSAGE",
-        workflowSession: {
+        workflowSession: expect.objectContaining({
           presetId: "prompt_modifier",
           status: "awaiting_input",
-          currentStepIndex: 1,
-          currentStepLabel: "paste the prompt you want to modify",
-          currentStepPrompt: "paste the prompt you want to modify",
-          collectedInputs: [],
-          lastArtifact: null,
-          finalArtifactSource: null,
-        },
+        }),
       })
     );
   });

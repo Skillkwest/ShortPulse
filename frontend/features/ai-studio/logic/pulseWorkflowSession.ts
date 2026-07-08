@@ -3,8 +3,6 @@ import type { AgentMessage, AgentPulseWorkflowSession } from "../../../prefabs/a
 type PulseWorkflowPreset = {
   presetId: string;
   runtimeMode?: "workflow_gpt" | "custom_gpt";
-  starterAssistantMessage?: string | null;
-  workflowStageHints?: readonly string[] | null;
 };
 
 type WorkflowStepDescriptor = {
@@ -12,21 +10,17 @@ type WorkflowStepDescriptor = {
   label: string;
 };
 
-const resolveStageHintLabel = (
-  stageHints: readonly string[] | null | undefined,
-  stepIndex: number | null
-): string | null => {
-  if (!stepIndex || stepIndex <= 0) return null;
-  const normalizedHints =
-    stageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? [];
-  return normalizedHints[stepIndex - 1] ?? null;
+const STEP_LABEL_PATTERN = /\bstep\s+(\d+)\b(?:\s*[—–-]\s*([^:\n.]+))?/i;
+
+const normalizeWorkflowStepLabel = (value: string | null | undefined): string | null => {
+  const normalized = typeof value === "string" ? value.replace(/[*_`#>]+/g, "").trim() : "";
+  if (!normalized) return null;
+  const [beforeColon] = normalized.split(":");
+  return (beforeColon ?? normalized).trim() || null;
 };
 
-const STEP_LABEL_PATTERN = /\bstep\s+(\d+)\b/i;
-
 export const extractPulseWorkflowStepDescriptor = (
-  value: string | null | undefined,
-  stageHints?: readonly string[] | null
+  value: string | null | undefined
 ): WorkflowStepDescriptor | null => {
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized) return null;
@@ -36,37 +30,9 @@ export const extractPulseWorkflowStepDescriptor = (
   if (!Number.isFinite(parsedIndex) || parsedIndex <= 0) return null;
   return {
     index: parsedIndex,
-    label: resolveStageHintLabel(stageHints, parsedIndex) ?? `Step ${parsedIndex}`,
+    label: normalizeWorkflowStepLabel(match[2]) ?? `Step ${parsedIndex}`,
   };
 };
-
-export const derivePulseWorkflowStageHintDescriptor = (
-  stageHints: readonly string[] | null | undefined,
-  assistantMessages: readonly AgentMessage[],
-  userInputCount: number
-): WorkflowStepDescriptor | null => {
-  const hints = stageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? [];
-  if (hints.length === 0) return null;
-  const hasAssistantMessages = assistantMessages.length > 0;
-  const baseIndex = hasAssistantMessages ? userInputCount : 0;
-  const resolvedIndex = Math.max(0, Math.min(baseIndex, hints.length - 1));
-  const resolvedLabel = hints[resolvedIndex] ?? null;
-  if (!resolvedLabel) return null;
-  return {
-    index: resolvedIndex + 1,
-    label: resolvedLabel,
-  };
-};
-
-const resolveInitialPulseWorkflowStepDescriptor = ({
-  starterAssistantMessage,
-  workflowStageHints,
-}: {
-  starterAssistantMessage?: string | null;
-  workflowStageHints?: readonly string[] | null;
-}): WorkflowStepDescriptor | null =>
-  extractPulseWorkflowStepDescriptor(starterAssistantMessage, workflowStageHints) ??
-  derivePulseWorkflowStageHintDescriptor(workflowStageHints, [], 0);
 
 export const buildPendingPulseWorkflowSessionForStart = ({
   preset,
@@ -76,14 +42,12 @@ export const buildPendingPulseWorkflowSessionForStart = ({
   if (!preset || preset.runtimeMode !== "workflow_gpt") return null;
   const presetId = typeof preset.presetId === "string" ? preset.presetId.trim() : "";
   if (!presetId) return null;
-  const stepDescriptor = resolveInitialPulseWorkflowStepDescriptor(preset);
-  const starterPrompt = preset.starterAssistantMessage?.trim() ?? null;
   return {
     presetId,
     status: "running",
-    currentStepIndex: stepDescriptor?.index ?? null,
-    currentStepLabel: stepDescriptor?.label ?? null,
-    currentStepPrompt: starterPrompt || null,
+    currentStepIndex: null,
+    currentStepLabel: null,
+    currentStepPrompt: null,
     collectedInputs: [],
     lastArtifact: null,
     finalArtifactSource: null,
@@ -112,8 +76,7 @@ export const buildPendingPulseWorkflowSessionForUserInput = ({
     status: "running",
     currentStepIndex: currentSession?.currentStepIndex ?? null,
     currentStepLabel: currentSession?.currentStepLabel ?? null,
-    currentStepPrompt:
-      currentSession?.currentStepPrompt ?? preset.starterAssistantMessage?.trim() ?? null,
+    currentStepPrompt: currentSession?.currentStepPrompt ?? null,
     collectedInputs:
       normalizedInput.length > 0
         ? [...(currentSession?.collectedInputs ?? []), normalizedInput]
@@ -148,24 +111,8 @@ export const derivePulseWorkflowSession = ({
     return null;
   }
   const latestAssistantMessage = assistantMessages.at(-1)?.content.trim() ?? null;
-  const fallbackPrompt = latestAssistantMessage ?? preset.starterAssistantMessage?.trim() ?? null;
-  const currentStepDescriptor =
-    extractPulseWorkflowStepDescriptor(latestAssistantMessage, preset.workflowStageHints) ??
-    (assistantMessages.length > 0
-      ? derivePulseWorkflowStageHintDescriptor(
-          preset.workflowStageHints,
-          assistantMessages,
-          userInputs.length
-        )
-      : null) ??
-    extractPulseWorkflowStepDescriptor(preset.starterAssistantMessage, preset.workflowStageHints) ??
-    (assistantMessages.length === 0
-      ? derivePulseWorkflowStageHintDescriptor(
-          preset.workflowStageHints,
-          assistantMessages,
-          userInputs.length
-        )
-      : null);
+  const fallbackPrompt = latestAssistantMessage;
+  const currentStepDescriptor = extractPulseWorkflowStepDescriptor(latestAssistantMessage);
 
   return {
     presetId,

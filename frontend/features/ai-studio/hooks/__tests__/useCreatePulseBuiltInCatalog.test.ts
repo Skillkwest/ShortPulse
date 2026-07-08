@@ -72,7 +72,7 @@ describe("useCreatePulseBuiltInCatalog", () => {
     );
   });
 
-  it("drops control-plane built-ins that cannot show a starter message", async () => {
+  it("keeps control-plane built-ins without starter metadata", async () => {
     vi.mocked(fetchWithAuth).mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -123,8 +123,11 @@ describe("useCreatePulseBuiltInCatalog", () => {
     });
 
     expect(result.current.builtInDefinitions.map((definition) => definition.presetId)).toEqual([
+      "prompt_modifier",
       "catalog_test",
     ]);
+    expect(result.current.builtInDefinitions[0]?.starterAssistantMessage).toBeNull();
+    expect(result.current.builtInDefinitions[0]?.workflowStageHints).toBeNull();
   });
 
   it("keeps the last loaded catalog when a later refresh fails", async () => {

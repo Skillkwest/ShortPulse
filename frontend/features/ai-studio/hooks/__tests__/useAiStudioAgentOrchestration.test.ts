@@ -1065,8 +1065,8 @@ describe("useAiStudioAgentOrchestration", () => {
       expect.objectContaining({
         presetId: "story_builder",
         status: "running",
-        currentStepIndex: 1,
-        currentStepLabel: "Upload Characters",
+        currentStepIndex: null,
+        currentStepLabel: null,
         collectedInputs: [],
       })
     );
@@ -1145,9 +1145,9 @@ describe("useAiStudioAgentOrchestration", () => {
       expect.objectContaining({
         presetId: "image",
         status: "running",
-        currentStepIndex: 2,
-        currentStepLabel: "Camera Motion",
-        collectedInputs: ["Uploaded image attached"],
+        currentStepIndex: null,
+        currentStepLabel: null,
+        collectedInputs: [],
       })
     );
     expect(sendToAgent).toHaveBeenCalledWith(
@@ -1162,15 +1162,15 @@ describe("useAiStudioAgentOrchestration", () => {
             },
           ],
           pulse: expect.objectContaining({
-            workflowSession: expect.objectContaining({
-              currentStepIndex: 2,
-              currentStepLabel: "Camera Motion",
-              collectedInputs: ["Uploaded image attached"],
-            }),
+            presetId: "image",
           }),
         }),
       })
     );
+    const kickoffCall = (sendToAgent as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { context?: { pulse?: Record<string, unknown> } }
+      | undefined;
+    expect(kickoffCall?.context?.pulse).not.toHaveProperty("workflowSession");
   });
 
   it("returns blocked_busy and does not start a pulse when the agent is already busy", async () => {

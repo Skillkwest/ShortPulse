@@ -154,13 +154,13 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
-  it("infers backend metadata for an admin-authored Prompt Modifier built-in", async () => {
+  it("normalizes an admin-authored Prompt Modifier built-in without inferred starter metadata", async () => {
     const inferredPromptModifierDefinition: CreatePulseBuiltInPresetDefinition = {
       presetId: "prompt_modifier",
       label: "Prompt Modifier",
       description: "Built-in guided Pulse for Prompt Modifier.",
-      starterAssistantMessage: "Tell me what you want Prompt Modifier to help with.",
-      workflowStageHints: ["Prompt Intake"],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: "Ask for a source prompt, then return a cleaner version.",
       pulseKind: "guided_workflow",
@@ -267,7 +267,7 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
-  it("infers starter messages when the admin omits them", async () => {
+  it("keeps starter instructions inside system instructions instead of extracting metadata", async () => {
     const promptWithStarter = [
       "You are a prompt assistant.",
       "",
@@ -278,8 +278,8 @@ describe("admin pulse built-ins API", () => {
       presetId: "prompt_helper",
       label: "Prompt Helper",
       description: "Built-in guided Pulse for Prompt Helper.",
-      starterAssistantMessage: "Paste the prompt you want me to improve.",
-      workflowStageHints: ["Prompt Intake"],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: promptWithStarter,
       pulseKind: "guided_workflow",
@@ -321,13 +321,13 @@ describe("admin pulse built-ins API", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("preserves explicit guided workflow metadata instead of re-inferring it", async () => {
+  it("retired explicit guided workflow metadata is ignored on save", async () => {
     const explicitDefinition: CreatePulseBuiltInPresetDefinition = {
       ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2],
       presetId: "story_builder",
       label: "DFY Story Builder",
-      starterAssistantMessage: "Step 1 — Story seed: Share the moment you want to build from.",
-      workflowStageHints: ["Story Seed", "Plot Direction", "Runtime", "Image Prompts"],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget: "image_prompt",
       publicationStatus: "published",
     };
@@ -357,21 +357,12 @@ describe("admin pulse built-ins API", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("infers Story Builder metadata from its prompt shape when explicit metadata is missing", async () => {
+  it("uses Story Builder system instructions without inferring workflow metadata", async () => {
     const inferredStoryBuilderDefinition: CreatePulseBuiltInPresetDefinition = {
       ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2],
       description: "Built-in guided Pulse for DFY Story Builder.",
-      starterAssistantMessage:
-        "**Step 1 — Story seed.** Tell me the character, premise, mood, or moment you want to build from. Reference images are optional if you want me to preserve specific character looks.",
-      workflowStageHints: [
-        "Story Seed",
-        "Plot Seed",
-        "Runtime",
-        "Beats → Scenes",
-        "Modification Loop",
-        "Image Prompts",
-        "Dialogued Story Reprint",
-      ],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget: "image_prompt",
     };
     saveCreatePulseBuiltInCatalogMock.mockResolvedValue({

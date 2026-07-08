@@ -16,6 +16,17 @@ Current context note:
 
 ## Report Groups
 
+### Vercel And Deployment Health Audits
+
+- `2026-07-08-vercel-account-health-and-scaling-audit.md`: read-only Vercel account health and scaling audit for ShortPulse Pro, covering active production deployment, usage/cost buckets, route parity, env-contract posture, DNS/domain state, recent logs, plan sufficiency, and next optimization targets.
+
+Load when:
+
+- you need the current ShortPulse Vercel Pro health packet
+- you need deployment alias, usage-bucket, DNS, env-contract, or route-parity context from the July 8, 2026 Vercel audit
+- you need the current recommendation on whether to upgrade Vercel before scaling toward 100, 300, 500, or 1,000 users
+- you need the follow-up list for observability volume, older billing/Kie runtime errors, env-contract drift, or large API lambda bundles
+
 ### Targeted Schema And Storage Reviews
 
 - `2026-05-30-generated-image-admitted-variant-nuclo-review.md`: Nuclo-only review of Gutan's proposed `admitted_reference_25mb` variant shape, migration impact, storage-accounting posture, and stop conditions.

@@ -175,7 +175,6 @@ const isGuidedWorkflowRepeatAfterUserInput = ({
   const repeatedCandidates = [
     workflowSession?.currentStepPrompt,
     workflowSession?.currentStepLabel,
-    context.pulse?.starterAssistantMessage,
   ].map(normalizePulseRepeatComparisonValue);
   return repeatedCandidates.some(
     (candidate) => candidate.length > 0 && candidate === responseMessage
@@ -189,7 +188,6 @@ const buildFastPathRepairMessagesWithContext = ({
   activePrompt,
   pulseKind,
   workflowSession,
-  workflowStageHints,
   repairReason = "malformed_output",
 }: {
   contentText: string;
@@ -198,7 +196,6 @@ const buildFastPathRepairMessagesWithContext = ({
   activePrompt: string | null;
   pulseKind: "guided_workflow" | "custom_gpt" | null;
   workflowSession?: unknown;
-  workflowStageHints?: readonly string[] | null;
   repairReason?: "malformed_output" | "repeated_workflow_step";
 }) => {
   const guidedWorkflowPulseRepair = pulseKind === "guided_workflow";
@@ -244,7 +241,6 @@ const buildFastPathRepairMessagesWithContext = ({
         canonical_prompt: canonicalPrompt,
         active_prompt: activePrompt,
         workflow_session_state: workflowSession ?? null,
-        workflow_stage_hints: workflowStageHints ?? null,
       })
     : JSON.stringify({
         instruction:
@@ -369,7 +365,6 @@ export const executeStudioAgentFastPathTurn = async ({
               : null,
           pulseKind,
           workflowSession: context.pulse?.workflowSession ?? null,
-          workflowStageHints: context.pulse?.workflowStageHints ?? null,
           repairReason: shouldRepairRepeatedGuidedStep
             ? "repeated_workflow_step"
             : "malformed_output",

@@ -168,14 +168,11 @@ const normalizePulseKind = (
   if (pulse.pulseKind === GUIDED_PULSE_KIND || pulse.pulseKind === CUSTOM_PULSE_KIND) {
     return pulse.pulseKind;
   }
+  if (pulse.source === "custom") {
+    return CUSTOM_PULSE_KIND;
+  }
   const hasGuidedMetadata =
-    (typeof pulse.starterAssistantMessage === "string" &&
-      pulse.starterAssistantMessage.trim().length > 0) ||
-    (Array.isArray(pulse.workflowStageHints) &&
-      pulse.workflowStageHints.some(
-        (entry) => typeof entry === "string" && entry.trim().length > 0
-      )) ||
-    pulse.source === "builtin";
+    pulse.runtimeMode === GUIDED_PULSE_RUNTIME_MODE || pulse.source === "builtin";
   return hasGuidedMetadata ? GUIDED_PULSE_KIND : CUSTOM_PULSE_KIND;
 };
 
@@ -193,16 +190,6 @@ const sanitizeStudioAgentPulseContext = (
     typeof pulse.instructions === "string" && pulse.instructions.trim().length > 0
       ? pulse.instructions.trim()
       : null;
-  const starterAssistantMessage =
-    typeof pulse.starterAssistantMessage === "string" &&
-    pulse.starterAssistantMessage.trim().length > 0
-      ? pulse.starterAssistantMessage.trim()
-      : null;
-  const workflowStageHints = Array.isArray(pulse.workflowStageHints)
-    ? pulse.workflowStageHints
-        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-        .filter((entry) => entry.length > 0)
-    : null;
   const rawWorkflowSessionPresetId =
     pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
       ? pulse.workflowSession.presetId.trim()
@@ -297,8 +284,8 @@ const sanitizeStudioAgentPulseContext = (
     pulseKind,
     runtimeMode,
     activationMode,
-    starterAssistantMessage,
-    workflowStageHints,
+    starterAssistantMessage: null,
+    workflowStageHints: null,
     outputMode,
     ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",

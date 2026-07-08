@@ -8,6 +8,9 @@ Local memory is advisory. Current user instructions, source billing pages, activ
 
 - Active accounting workbook: `ShortPulse Provider Expenses`
 - URL: `https://docs.google.com/spreadsheets/d/1QchjaYKjY-hzUXKnenHgPI1Zx-LTDk6CkXt58vaFcXo/edit?pli=1&gid=0#gid=0`
+- Current workbook structure after the 2026-07-08 restructure: `Dashboard`, `Ledger`, `Expenses_View`, `Income_View`, `Monthly_Summary`, `Provider_Summary`, `Config`, `Source_Log`, and `Archive_Initial_Intake_2026-07-08`.
+- `Ledger` is the canonical editable transaction table. `Expenses_View`, `Income_View`, `Monthly_Summary`, `Provider_Summary`, and `Dashboard` are derived views/summaries.
+- `Source_Log` stores provider cutoff and source-boundary rules. `Archive_Initial_Intake_2026-07-08` preserves the original single-tab intake layout.
 - Active provider summary rows currently include Kie.ai, fal.ai, OpenAI, Supabase, Codex, Vercel, ElevenLabs, and Stripe.
 
 ## Provider Import State
@@ -21,8 +24,8 @@ As of the supervised 2026-07-08 import run:
 - Codex imported: 7 paid invoice rows, `$1,141.94` expenses, first date `2026-01-14`, latest date `2026-06-10`.
 - Vercel imported: 2 paid June 2026 invoice rows, `$20.00` expenses, date `2026-06-11`; includes one zero-dollar paid invoice retained for completeness; unpaid upcoming estimated invoice excluded.
 - ElevenLabs imported: 8 paid invoice rows, `$88.56` expenses, first date `2026-04-18`, latest date `2026-07-08`.
-- Stripe imported: 26 balance-activity rows, `$2,550.27` gross income, `$92.95` Stripe fee expenses, `$2,457.32` net income impact, first date `2026-05-25`, latest date `2026-07-08`; includes 22 succeeded payment/charge rows and 4 standalone Stripe billing-fee rows; payouts and top-ups excluded as transfers.
-- Workbook total after the Stripe import: 119 transactions, `$3,428.88` expenses, `$2,550.27` income, and `-$878.61` net.
+- Stripe imported: 28 rows after test-account reclassification, `$2,316.00` gross income, `$391.22` expenses, `$1,924.78` net income impact, first date `2026-05-25`, latest date `2026-07-08`; payouts and top-ups excluded as transfers.
+- Workbook total after the Stripe test-account reclassification: 121 transactions, `$3,727.15` expenses, `$2,316.00` income, and `-$1,411.15` net.
 
 ## OpenAI Start-Date Rule
 
@@ -69,13 +72,15 @@ Owner instruction from 2026-07-08:
 - Import standalone Stripe billing-fee rows as expenses.
 - Exclude payouts, top-ups, and automatic balance transfers from income/expense totals because they are transfers, not revenue.
 - Omit customer identifiers from ledger rows unless the owner explicitly asks to retain them.
+- When the owner supplies test-account emails, match Stripe payments for those accounts but do not persist the raw email list in repo memory. Treat matched gross Stripe income as `Testing expense`; reclassify existing balance-activity ledger rows in place with original Stripe fees bundled into `Expense USD`, and append payment-page-only matches with a note that fee detail is not captured until Balance activity is reviewed.
 
 ## Working Lessons
 
 - Use the browser/Chrome session when the provider or Google Sheet depends on the user's signed-in state.
 - Use connector/native spreadsheet APIs when available and authorized; otherwise use bounded range selection and clipboard paste through the Google Sheets UI.
 - Preserve source detail per row when no invoice URL is captured.
-- Refresh summary formulas, ledger ranges, and filters after appending rows.
+- Append future imports to `Ledger` and refresh the `Ledger` filter range plus derived formulas/views when the final row changes.
+- Keep durable provider cutoff/source rules in `Source_Log` instead of burying all source-boundary narrative in the raw ledger.
 - Verify by copying the affected summary/ledger ranges back from the sheet and checking the file reports saved.
 
 ## Guardrails To Remember

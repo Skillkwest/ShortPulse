@@ -25,11 +25,7 @@ export const resolveStudioAgentPulseKind = (
   if (pulse.runtimeMode === "custom_gpt") {
     return "custom_gpt";
   }
-  if (
-    (typeof pulse.starterAssistantMessage === "string" && pulse.starterAssistantMessage.trim()) ||
-    (pulse.workflowStageHints?.length ?? 0) > 0 ||
-    pulse.source === "builtin"
-  ) {
+  if (pulse.runtimeMode === "workflow_gpt" || pulse.source === "builtin") {
     return "guided_workflow";
   }
   return "custom_gpt";
@@ -54,11 +50,6 @@ export const buildStudioAgentPulseActivationSeed = (
   if (!pulseKind) return null;
   const presetLabel = typeof pulse.label === "string" ? pulse.label.trim() : "";
   if (!presetLabel) return null;
-  const starterAssistantMessage =
-    typeof pulse.starterAssistantMessage === "string" &&
-    pulse.starterAssistantMessage.trim().length > 0
-      ? pulse.starterAssistantMessage.trim()
-      : null;
   const workflowSession = pulse.workflowSession ?? null;
   const shouldContinueFromExistingWorkflow =
     workflowSession?.status !== "completed" &&
@@ -81,27 +72,13 @@ export const buildStudioAgentPulseActivationSeed = (
   }
   return [
     `Pulse "${presetLabel}" was just activated.`,
-    "Start the workflow now.",
-    starterAssistantMessage
-      ? `Your first assistant reply must be exactly this:\n${starterAssistantMessage}`
-      : "Reply with only the first required assistant step or question. Do not finish the whole task yet.",
+    "Start the workflow according to the active Pulse instructions.",
+    "Reply with only the first required assistant step or question. Do not finish the whole task yet unless the instructions explicitly say the first turn should produce the final output.",
   ].join("\n\n");
 };
 
-const STEP_LABEL_PATTERN = /\bstep\s+(\d+)\b/i;
+const STEP_LABEL_PATTERN = /\bstep\s+(\d+)\b(?:\s*[—–-]\s*([^:\n.]+))?/i;
 const WORKFLOW_REPEAT_LOG_PREFIX = "[studio-agent][pulse-repeat-risk]";
-
-const resolveStageHintLabel = (
-  pulse: AgentContext["pulse"] | null | undefined,
-  stepIndex: number | null
-): string | null => {
-  if (!stepIndex || stepIndex <= 0) return null;
-  const stageHints =
-    pulse?.workflowStageHints
-      ?.map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry.length > 0) ?? [];
-  return stageHints[stepIndex - 1] ?? null;
-};
 
 const normalizeWorkflowComparisonValue = (value: string): string =>
   value.trim().toLowerCase().replace(/\s+/g, "");
@@ -207,9 +184,15 @@ const appendLatestWorkflowInput = (
 const isWorkflowAwaitingInputStatus = (value: string): boolean =>
   value === "" || value === "needs_input" || value === "awaiting_input" || value === "running";
 
+const normalizeWorkflowStepLabel = (value: string | null | undefined): string | null => {
+  const normalized = typeof value === "string" ? value.replace(/[*_`#>]+/g, "").trim() : "";
+  if (!normalized) return null;
+  const [beforeColon] = normalized.split(":");
+  return (beforeColon ?? normalized).trim() || null;
+};
+
 const extractWorkflowStepDescriptor = (
-  value: string | null | undefined,
-  pulse?: AgentContext["pulse"] | null
+  value: string | null | undefined
 ): { index: number | null; label: string | null } | null => {
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized) return null;
@@ -219,41 +202,8 @@ const extractWorkflowStepDescriptor = (
   if (!Number.isFinite(parsedIndex) || parsedIndex <= 0) return null;
   return {
     index: parsedIndex,
-    label: resolveStageHintLabel(pulse, parsedIndex) ?? `Step ${parsedIndex}`,
+    label: normalizeWorkflowStepLabel(match[2]) ?? `Step ${parsedIndex}`,
   };
-};
-
-const deriveWorkflowStageHintDescriptor = ({
-  pulse,
-  message,
-  existingSession,
-}: {
-  pulse?: AgentContext["pulse"] | null;
-  message: string;
-  existingSession?: AgentPulseWorkflowSession | null;
-}): { index: number | null; label: string | null } | null => {
-  const stageHints =
-    pulse?.workflowStageHints
-      ?.map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry.length > 0) ?? [];
-  if (stageHints.length === 0) return null;
-  const normalizedMessage = message.trim();
-  const starterAssistantMessage =
-    typeof pulse?.starterAssistantMessage === "string" ? pulse.starterAssistantMessage.trim() : "";
-  if (!normalizedMessage) return null;
-
-  if (
-    starterAssistantMessage &&
-    normalizeWorkflowComparisonValue(normalizedMessage) ===
-      normalizeWorkflowComparisonValue(starterAssistantMessage)
-  ) {
-    return {
-      index: 1,
-      label: stageHints[0] ?? null,
-    };
-  }
-  void existingSession;
-  return null;
 };
 
 export const buildStudioAgentWorkflowSessionUpdate = ({
@@ -281,10 +231,7 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
     typeof latestUserInput === "string" && latestUserInput.trim().length > 0
       ? latestUserInput.trim()
       : null;
-  const starterAssistantMessage =
-    typeof pulse?.starterAssistantMessage === "string" ? pulse.starterAssistantMessage.trim() : "";
   const fallbackInitialPrompt =
-    starterAssistantMessage ||
     (typeof pulse?.description === "string" ? pulse.description.trim() : "") ||
     (typeof pulse?.label === "string" ? pulse.label.trim() : "");
   const collectedInputs = appendLatestWorkflowInput(
@@ -293,12 +240,10 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
   );
   const isInitialWorkflowTurn = !existingSession && !resolvedLatestUserInput;
   const workflowPromptText = message || (isInitialWorkflowTurn ? fallbackInitialPrompt : "");
-  const stepDescriptor = extractWorkflowStepDescriptor(message, pulse) ??
-    deriveWorkflowStageHintDescriptor({ pulse, message: workflowPromptText, existingSession }) ??
-    extractWorkflowStepDescriptor(pulse?.starterAssistantMessage, pulse) ?? {
-      index: existingSession?.currentStepIndex ?? null,
-      label: existingSession?.currentStepLabel ?? null,
-    };
+  const stepDescriptor = extractWorkflowStepDescriptor(message) ?? {
+    index: existingSession?.currentStepIndex ?? null,
+    label: existingSession?.currentStepLabel ?? null,
+  };
   const repeatedSameStepAfterInput =
     Boolean(resolvedLatestUserInput) &&
     isWorkflowAwaitingInputStatus(normalizedSemanticStatus) &&
@@ -387,10 +332,6 @@ export const buildStudioAgentPulseSystemMessage = (
   const presetId = typeof pulse.presetId === "string" ? pulse.presetId.trim() : "";
   const label = typeof pulse.label === "string" ? pulse.label.trim() : "";
   const instructions = typeof pulse.instructions === "string" ? pulse.instructions.trim() : "";
-  const workflowStageHints =
-    pulse.workflowStageHints
-      ?.map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry.length > 0) ?? [];
   if (!presetId || !label || !instructions || !pulseKind) return null;
   const workflowSessionState =
     pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
@@ -458,15 +399,6 @@ export const buildStudioAgentPulseSystemMessage = (
     `memory_policy: ${pulse.memoryPolicy === "session" ? "session" : "session"}`,
     `preset_source: ${pulse.source === "custom" ? "custom" : "builtin"}`,
     ...(pulse.description ? [`preset_description: ${pulse.description}`] : []),
-    ...(pulse.starterAssistantMessage
-      ? ["starter_assistant_message:", pulse.starterAssistantMessage]
-      : []),
-    ...(workflowStageHints.length > 0
-      ? [
-          "workflow_stage_hints:",
-          ...workflowStageHints.map((hint, index) => `${index + 1}. ${hint}`),
-        ]
-      : []),
     ...(workflowSessionState ? ["workflow_session_state:", workflowSessionState] : []),
     "pulse_instructions:",
     instructions,

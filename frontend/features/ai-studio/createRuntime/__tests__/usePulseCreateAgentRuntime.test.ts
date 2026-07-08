@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentContext,
@@ -152,7 +152,7 @@ describe("usePulseCreateAgentRuntime", () => {
     hasUserOverride: false,
   };
 
-  it("recovers the starter when an active built-in Pulse hydrates with blank history", async () => {
+  it("does not synthesize a starter when an active built-in Pulse hydrates with blank history", async () => {
     renderHook(() =>
       usePulseCreateAgentRuntime({
         ...baseParams,
@@ -162,15 +162,9 @@ describe("usePulseCreateAgentRuntime", () => {
       })
     );
 
-    await waitFor(() => {
-      expect(mockReplaceMessages).toHaveBeenCalledWith([
-        expect.objectContaining({
-          role: "assistant",
-          content: "paste the prompt you want to modify",
-          canUseAsPrompt: false,
-        }),
-      ]);
-    });
+    await Promise.resolve();
+
+    expect(mockReplaceMessages).not.toHaveBeenCalled();
   });
 
   it("does not overwrite visible Pulse history while recovering starters", async () => {
@@ -196,11 +190,10 @@ describe("usePulseCreateAgentRuntime", () => {
     expect(mockReplaceMessages).not.toHaveBeenCalled();
   });
 
-  it("appends a recovered starter message when built-in kickoff falls back locally", async () => {
+  it("does not append a recovered starter message when kickoff reports started", async () => {
     runPulsePresetStartRuntimeMock.mockResolvedValue({
       status: "started",
       latestAgentPrompt: null,
-      starterAssistantMessage: "paste the prompt you want to modify",
     });
     const { result } = renderHook(() => usePulseCreateAgentRuntime(baseParams));
 
@@ -208,16 +201,10 @@ describe("usePulseCreateAgentRuntime", () => {
       await result.current.handlePulsePresetStart(promptModifierPreset);
     });
 
-    expect(mockReplaceMessages).toHaveBeenCalledWith([
-      expect.objectContaining({
-        role: "assistant",
-        content: "paste the prompt you want to modify",
-        canUseAsPrompt: false,
-      }),
-    ]);
+    expect(mockReplaceMessages).not.toHaveBeenCalled();
   });
 
-  it("replaces stale pre-activation chat history when recovering a starter message", async () => {
+  it("does not replace stale pre-activation chat history with starter metadata", async () => {
     mockAgentMessages = [
       {
         id: "old-assistant",
@@ -228,7 +215,6 @@ describe("usePulseCreateAgentRuntime", () => {
     runPulsePresetStartRuntimeMock.mockResolvedValue({
       status: "started",
       latestAgentPrompt: null,
-      starterAssistantMessage: "paste the prompt you want to modify",
     });
     const { result } = renderHook(() => usePulseCreateAgentRuntime(baseParams));
 
@@ -236,12 +222,6 @@ describe("usePulseCreateAgentRuntime", () => {
       await result.current.handlePulsePresetStart(promptModifierPreset);
     });
 
-    expect(mockReplaceMessages).toHaveBeenCalledWith([
-      expect.objectContaining({
-        role: "assistant",
-        content: "paste the prompt you want to modify",
-      }),
-    ]);
-    expect(mockReplaceMessages.mock.calls.at(-1)?.[0]).toHaveLength(1);
+    expect(mockReplaceMessages).not.toHaveBeenCalled();
   });
 });

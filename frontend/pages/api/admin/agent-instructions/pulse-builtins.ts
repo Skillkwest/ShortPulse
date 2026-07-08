@@ -27,22 +27,6 @@ const readTrimmedString = (record: Record<string, unknown>, key: string): string
   return typeof value === "string" ? value.trim() : "";
 };
 
-const readWorkflowStageHints = (record: Record<string, unknown>): string[] => {
-  const value = record.workflowStageHints;
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry.length > 0);
-  }
-  if (typeof value === "string") {
-    return value
-      .split(/[,\n]/)
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0);
-  }
-  return [];
-};
-
 const isCreatePulsePublicationStatus = (value: string): value is CreatePulsePublicationStatus =>
   value === "published" || value === "draft";
 
@@ -72,25 +56,6 @@ const resolveUniquePresetId = (basePresetId: string, seenPresetIds: Set<string>)
   return candidate;
 };
 
-const inferStarterAssistantMessage = (label: string, prompt: string): string => {
-  const starterPatterns = [
-    /your\s+first\s+message\s+must\s+be\s+exactly\s*:?\s*\n\s*([^\n]+)/i,
-    /first assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
-    /starter assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
-    /starter message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
-    /user prompt to show\s*\(verbatim\)\s*:?\s*\n\s*([^\n]+)/i,
-    /ask\s*:?\s*\n\s*([^\n]+)/i,
-  ];
-  for (const pattern of starterPatterns) {
-    const match = prompt.match(pattern);
-    const candidate = match?.[1]?.trim().replace(/^["'“”]+|["'“”]+$/g, "");
-    if (candidate) return candidate;
-  }
-  return label
-    ? `Tell me what you want ${label} to help with.`
-    : "Tell me what this Pulse should help with.";
-};
-
 const inferArtifactTarget = (label: string, prompt: string): CreatePulseArtifactTarget => {
   const searchable = `${label} ${prompt}`.toLowerCase();
   if (/\bimage\s+prompts?\b|\bimages?\s+only\b/.test(searchable)) return "image_prompt";
@@ -101,63 +66,6 @@ const inferArtifactTarget = (label: string, prompt: string): CreatePulseArtifact
 };
 
 const buildDefaultDescription = (label: string): string => `Built-in guided Pulse for ${label}.`;
-
-const normalizeInferredStageLabel = (value: string): string => {
-  const withoutFormatting = value
-    .replace(/[*_`#>]+/g, "")
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const [beforeColon] = withoutFormatting.split(":");
-  return (beforeColon ?? withoutFormatting).trim().slice(0, 80);
-};
-
-const inferWorkflowStageHints = ({
-  label,
-  prompt,
-  starterAssistantMessage,
-  artifactTarget,
-}: {
-  label: string;
-  prompt: string;
-  starterAssistantMessage: string;
-  artifactTarget: CreatePulseArtifactTarget;
-}): string[] => {
-  const stageLabelsByIndex = new Map<number, string>();
-  const stepHeadingPattern =
-    /^\s*(?:#{1,6}\s*)?(?:\*\*)?step\s+(\d+)\s*[—–-]\s*([^\n*]+?)(?:\*\*)?\s*$/gim;
-  for (const match of prompt.matchAll(stepHeadingPattern)) {
-    const index = Number.parseInt(match[1] ?? "", 10);
-    const rawLabel = normalizeInferredStageLabel(match[2] ?? "");
-    if (Number.isFinite(index) && index > 0 && rawLabel) {
-      stageLabelsByIndex.set(index, rawLabel);
-    }
-  }
-
-  const starterDescriptor = starterAssistantMessage.match(/\bstep\s+(\d+)\s*[—–-]\s*([^.\n]+)/i);
-  if (starterDescriptor) {
-    const index = Number.parseInt(starterDescriptor[1] ?? "", 10);
-    const rawLabel = normalizeInferredStageLabel(starterDescriptor[2] ?? "");
-    if (Number.isFinite(index) && index > 0 && rawLabel && !stageLabelsByIndex.has(index)) {
-      stageLabelsByIndex.set(index, rawLabel);
-    }
-  }
-
-  const orderedLabels = [...stageLabelsByIndex.entries()]
-    .sort(([left], [right]) => left - right)
-    .map(([, stageLabel]) => stageLabel)
-    .filter((stageLabel, index, allLabels) => allLabels.indexOf(stageLabel) === index);
-  if (orderedLabels.length > 0) return orderedLabels;
-
-  const searchable = `${label} ${prompt}`.toLowerCase();
-  if (/\bsource\s+prompt\b|\bmodify\b|\brewrite\b|\bimprove\b/.test(searchable)) {
-    return ["Prompt Intake"];
-  }
-  if (artifactTarget === "video_prompt") return ["Concept Intake", "Final Video Prompt"];
-  if (artifactTarget === "image_prompt") return ["Concept Intake", "Final Image Prompts"];
-  if (artifactTarget === "storyboard") return ["Concept Intake", "Storyboard Draft"];
-  return ["Intake"];
-};
 
 const normalizeAdminBuiltInDefinitionRecord = (
   value: unknown,
@@ -232,33 +140,8 @@ const normalizeAdminBuiltInDefinitionRecord = (
     };
   }
   const publicationStatus = suppliedPublicationStatus || "published";
-  const starterAssistantMessage =
-    readTrimmedString(record, "starterAssistantMessage") ||
-    inferStarterAssistantMessage(label, systemInstructions);
   const artifactTarget = (suppliedArtifactTarget ||
     inferArtifactTarget(label, systemInstructions)) as CreatePulseArtifactTarget;
-  const suppliedWorkflowStageHints = readWorkflowStageHints(record);
-  const workflowStageHints =
-    suppliedWorkflowStageHints.length > 0
-      ? suppliedWorkflowStageHints
-      : publicationStatus === "published"
-        ? inferWorkflowStageHints({
-            label,
-            prompt: systemInstructions,
-            starterAssistantMessage,
-            artifactTarget,
-          })
-        : null;
-
-  if (
-    publicationStatus === "published" &&
-    (!workflowStageHints || workflowStageHints.length === 0)
-  ) {
-    return {
-      ok: false,
-      message: `Pulse "${presetId}" needs at least one workflow stage hint before it can be published.`,
-    };
-  }
 
   return {
     ok: true,
@@ -267,8 +150,8 @@ const normalizeAdminBuiltInDefinitionRecord = (
       presetId,
       label,
       description: readTrimmedString(record, "description") || buildDefaultDescription(label),
-      starterAssistantMessage,
-      workflowStageHints,
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget,
       systemInstructions,
       pulseKind: "guided_workflow",
@@ -304,7 +187,7 @@ const validateBuiltInDefinitionsPayload = (
     return {
       ok: false,
       message:
-        "Each built-in guided workflow must have a unique safe preset id, label, description, starter message, artifact target, and system instructions.",
+        "Each built-in guided workflow must have a unique safe preset id, label, description, artifact target, and system instructions.",
     };
   }
   return { ok: true, builtInDefinitions: normalized };

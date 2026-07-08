@@ -189,7 +189,7 @@ describe("CreatePulsePresetPanel", () => {
           presetId: "image",
           label: "Admin Updated Video Prompt Magic",
           outputMode: "apply_prompt",
-          starterAssistantMessage: "Fresh admin starter.",
+          starterAssistantMessage: null,
         }),
         expect.objectContaining({
           pulseSessionInstanceId: expect.any(String),

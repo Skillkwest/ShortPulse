@@ -52,8 +52,6 @@ type AdminPulseDraft = {
   presetId: string;
   label: string;
   description: string;
-  starterAssistantMessage: string;
-  workflowStageHints: string;
   artifactTarget: CreatePulseArtifactTarget;
   systemInstructions: string;
   pulseKind: CreatePulsePresetKind;
@@ -135,8 +133,6 @@ const buildPulseDraftFromDefinition = (
   presetId: definition.presetId,
   label: definition.label,
   description: definition.description,
-  starterAssistantMessage: definition.starterAssistantMessage ?? "",
-  workflowStageHints: definition.workflowStageHints?.join(", ") ?? "",
   artifactTarget: definition.artifactTarget,
   systemInstructions: definition.systemInstructions,
   pulseKind: definition.pulseKind,
@@ -162,19 +158,13 @@ const buildPulseDraftsFromDefinitions = (
     )
   );
 
-const parsePulseDraftWorkflowStageHints = (value: string): string[] =>
-  value
-    .split(/[,\n]/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-
 const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, unknown> => ({
   ...(draft.presetId.trim() ? { presetId: draft.presetId.trim() } : {}),
   label: draft.label.trim(),
   title: draft.label.trim(),
   description: draft.description.trim(),
-  starterAssistantMessage: draft.starterAssistantMessage.trim(),
-  workflowStageHints: parsePulseDraftWorkflowStageHints(draft.workflowStageHints),
+  starterAssistantMessage: null,
+  workflowStageHints: null,
   artifactTarget: draft.artifactTarget,
   systemInstructions: draft.systemInstructions.trim(),
   prompt: draft.systemInstructions.trim(),
@@ -192,8 +182,6 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   presetId: "",
   label: "",
   description: "",
-  starterAssistantMessage: "",
-  workflowStageHints: "",
   artifactTarget: "text_artifact",
   systemInstructions: "",
   pulseKind: CREATE_PULSE_GUIDED_AUTHORING_KIND,
@@ -209,8 +197,6 @@ const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boo
   left.presetId === right.presetId &&
   left.label === right.label &&
   left.description === right.description &&
-  left.starterAssistantMessage === right.starterAssistantMessage &&
-  left.workflowStageHints === right.workflowStageHints &&
   left.artifactTarget === right.artifactTarget &&
   left.systemInstructions === right.systemInstructions &&
   left.pulseKind === right.pulseKind &&
@@ -2239,8 +2225,8 @@ export function AdminAgentInstructionsSection() {
                         </span>
                       </div>
                       <p className={styles.agentInstructionDescription}>
-                        Create the built-in Pulse title and prompt. Required runtime metadata is
-                        inferred by the admin API when this catalog is saved.
+                        Create the built-in Pulse title and system instructions. The first assistant
+                        step should live inside the prompt, not in a separate starter field.
                       </p>
                     </div>
                     <div className={styles.agentInstructionActions}>

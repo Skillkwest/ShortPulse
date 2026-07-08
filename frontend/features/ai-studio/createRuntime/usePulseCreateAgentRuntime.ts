@@ -15,12 +15,9 @@ import {
 import type {
   AgentAssistantMessageEditRequest,
   AgentContext,
-  AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
-import { appendAssistantMessage } from "../../ai-agent/client/messageStore";
-import { createAgentMessageId } from "../../ai-agent/createAgentStateCoreHelpers";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { pulseCreateAgentRuntimeBinding } from "../hooks/createAgentRuntime/pulseCreateAgentRuntimeBinding";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "../hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy";
@@ -83,32 +80,6 @@ const resolvePulseAgentSessionNamespace = ({
   sessionInstanceId: string | null;
 }) =>
   `ai-studio:${sessionId ?? "none"}::pulse:${presetId ?? "inactive"}:${sessionInstanceId ?? "inactive"}`;
-
-const appendRecoveredStarterMessage = ({
-  messages,
-  starterAssistantMessage,
-}: {
-  messages: AgentMessage[];
-  starterAssistantMessage?: string | null;
-}): AgentMessage[] | null => {
-  const normalizedStarter =
-    typeof starterAssistantMessage === "string" ? starterAssistantMessage.trim() : "";
-  if (!normalizedStarter) return null;
-  const latestAssistantMessage = [...messages]
-    .reverse()
-    .find((message) => message.role === "assistant" && message.content.trim().length > 0);
-  if (latestAssistantMessage?.content.trim() === normalizedStarter) return null;
-  return appendAssistantMessage([], {
-    id: createAgentMessageId("assistant"),
-    content: normalizedStarter,
-    canUseAsPrompt: false,
-  });
-};
-
-const hasRenderablePulseMessage = (message: AgentMessage): boolean =>
-  message.content.trim().length > 0 ||
-  (message.outputPrompt?.trim().length ?? 0) > 0 ||
-  (message.attachments?.length ?? 0) > 0;
 
 /**
  * Returns the Pulse Create agent runtime.
@@ -192,31 +163,6 @@ export const usePulseCreateAgentRuntime = ({
     pulseWorkflowSession: workflowSession,
     setPulseWorkflowSession: setWorkflowSession,
   });
-
-  useEffect(() => {
-    if (!runtimePolicy.hasActivePulseSession || agentBusy) return;
-    if (
-      !activePresetSnapshot ||
-      activePresetSnapshot.presetId !== activePresetId ||
-      activePresetSnapshot.runtimeMode !== "workflow_gpt"
-    ) {
-      return;
-    }
-    if (agentMessages.some(hasRenderablePulseMessage)) return;
-    const recoveredStarterMessages = appendRecoveredStarterMessage({
-      messages: [],
-      starterAssistantMessage: activePresetSnapshot.starterAssistantMessage,
-    });
-    if (!recoveredStarterMessages) return;
-    replaceMessages(recoveredStarterMessages);
-  }, [
-    activePresetId,
-    activePresetSnapshot,
-    agentBusy,
-    agentMessages,
-    replaceMessages,
-    runtimePolicy.hasActivePulseSession,
-  ]);
 
   const ensureAgentSession = useCallback(() => {
     if (agentFlag) setAgentSessionEnabled(true);
@@ -367,13 +313,6 @@ export const usePulseCreateAgentRuntime = ({
         notifyBootstrapPending,
       });
       if (result.status === "started") {
-        const recoveredStarterMessages = appendRecoveredStarterMessage({
-          messages: agentMessages,
-          starterAssistantMessage: result.starterAssistantMessage,
-        });
-        if (recoveredStarterMessages) {
-          replaceMessages(recoveredStarterMessages);
-        }
         resetAgentComposer({ preserveInput: false, preserveAttachments: false });
         setPulseCreatePrompt("");
         if (result.latestAgentPrompt) {
@@ -388,13 +327,11 @@ export const usePulseCreateAgentRuntime = ({
     },
     [
       agentBootstrapReady,
-      agentMessages,
       agentIsSending,
       agentSessionEnabled,
       getAgentContext,
       notifyBootstrapPending,
       resetAgentComposer,
-      replaceMessages,
       resolvePulseSessionNamespace,
       runtimePolicy,
       selectedTool,

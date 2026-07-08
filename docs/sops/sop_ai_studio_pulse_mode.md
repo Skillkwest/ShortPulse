@@ -214,8 +214,10 @@ Pulse instructions must ask for it directly.
 ### Built-in guided workflow contract
 
 Built-in guided workflows remain admin-owned compatibility-path presets. They
-may still carry richer workflow metadata internally, including artifact target
-and workflow session semantics.
+use `systemInstructions` as the behavioral source of truth. They may still
+carry mechanical metadata internally, such as artifact target and workflow
+session semantics, but they must not depend on a persisted starter message or
+stage-hint list to decide what the assistant says.
 
 Retired Pulse metadata such as `prompt_editor`, `activate_only`, and
 `apply_prompt` is not part of the active custom Pulse contract.
@@ -241,12 +243,14 @@ Built-in guided workflows may carry richer workflow metadata internally, but the
 - it guides,
 - it produces a final artifact.
 
-Admin-published built-ins must have runtime-safe preset ids and a non-empty
-starter assistant message. Preset ids are encoded into Pulse session
-namespaces, so they must use only lowercase letters, numbers, underscores, and
-hyphens. The starter message is the deterministic kickoff fallback when a model
-turn is blank or malformed, so newly added built-ins should never rely only on
-freeform system instructions for the first visible step.
+Admin-published built-ins must have runtime-safe preset ids plus non-empty
+labels, descriptions, and system instructions. Preset ids are encoded into
+Pulse session namespaces, so they must use only lowercase letters, numbers,
+underscores, and hyphens. The first visible step must come from the provider
+turn governed by the built-in system instructions; persisted
+`starterAssistantMessage` and `workflowStageHints` values are retired
+compatibility fields and must not be injected as hidden prompts, local kickoff
+fallbacks, or deterministic session progression.
 
 Built-in Pulse artifact targets should be explicit when they diverge from image
 generation. For example, video-prompt Pulses should produce artifacts intended

@@ -16,7 +16,6 @@ import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
-  normalizeCreatePulseWorkflowStageHints,
   type CreatePulseActivationMode,
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetId,
@@ -74,8 +73,6 @@ const createBuiltInPulseDefinition = ({
   runtimeMode = "workflow_gpt",
   activationMode = "activate_and_start",
   outputMode = "chat_reply",
-  starterAssistantMessage = null,
-  workflowStageHints = null,
   artifactTarget,
   publicationStatus = "published",
 }: {
@@ -87,8 +84,6 @@ const createBuiltInPulseDefinition = ({
   runtimeMode?: CreatePulseRuntimeMode;
   activationMode?: CreatePulseActivationMode;
   outputMode?: CreatePulseOutputMode;
-  starterAssistantMessage?: string | null;
-  workflowStageHints?: readonly string[] | null;
   artifactTarget: CreatePulseArtifactTarget;
   publicationStatus?: CreatePulsePublicationStatus;
 }): CreatePulseBuiltInPresetDefinition => ({
@@ -101,9 +96,8 @@ const createBuiltInPulseDefinition = ({
   activationMode,
   outputMode,
   memoryPolicy: CREATE_PULSE_DEFAULT_MEMORY_POLICY,
-  starterAssistantMessage,
-  workflowStageHints:
-    workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
+  starterAssistantMessage: null,
+  workflowStageHints: null,
   artifactTarget,
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
   publicationStatus,
@@ -144,13 +138,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { systemInstructions?: unknown }).systemInstructions === "string"
       ? (value as { systemInstructions: string }).systemInstructions.trim()
       : "";
-  const starterAssistantMessage =
-    typeof (value as { starterAssistantMessage?: unknown }).starterAssistantMessage === "string"
-      ? (value as { starterAssistantMessage: string }).starterAssistantMessage.trim()
-      : "";
-  const workflowStageHints = normalizeCreatePulseWorkflowStageHints(
-    (value as { workflowStageHints?: unknown }).workflowStageHints
-  );
   const artifactTargetRaw =
     typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
       ? (value as { artifactTarget: string }).artifactTarget.trim()
@@ -189,8 +176,7 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     !isValidCreatePulseBuiltInPresetId(presetId) ||
     !label ||
     !description ||
-    !systemInstructions ||
-    !starterAssistantMessage
+    !systemInstructions
   ) {
     return null;
   }
@@ -209,8 +195,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
       ? activationModeRaw
       : "activate_and_start",
     outputMode: isCreatePulseOutputMode(outputModeRaw) ? outputModeRaw : "chat_reply",
-    starterAssistantMessage: starterAssistantMessage || null,
-    workflowStageHints,
     artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
       ? artifactTargetRaw
       : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
@@ -257,7 +241,6 @@ export {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
-  normalizeCreatePulseWorkflowStageHints,
 };
 
 export type {

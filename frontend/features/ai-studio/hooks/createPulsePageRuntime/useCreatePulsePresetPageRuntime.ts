@@ -306,8 +306,6 @@ export const useCreatePulsePresetPageRuntime = ({
             ? {
                 runtimeMode: resolvedPulsePreset.runtimeMode,
                 activationMode: resolvedPulsePreset.activationMode,
-                starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
-                workflowStageHints: resolvedPulsePreset.workflowStageHints,
                 outputMode: resolvedPulsePreset.outputMode,
                 artifactTarget: resolvedPulsePreset.artifactTarget,
                 memoryPolicy: resolvedPulsePreset.memoryPolicy,

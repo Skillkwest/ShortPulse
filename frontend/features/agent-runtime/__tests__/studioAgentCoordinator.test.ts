@@ -54,8 +54,8 @@ describe("buildStudioAgentOpenAiMessages", () => {
       }),
     ]);
     expect(messages[1]?.content).toContain("workflow_session_state:");
-    expect(messages[1]?.content).toContain("workflow_stage_hints:");
-    expect(messages[1]?.content).toContain("2. Hook");
+    expect(messages[1]?.content).not.toContain("workflow_stage_hints:");
+    expect(messages[1]?.content).not.toContain("2. Hook");
     expect(messages[1]?.content).toContain('"currentStepLabel":"Hook"');
     expect(messages[1]?.content).toContain("readable text, such as a screenshot or document");
   });

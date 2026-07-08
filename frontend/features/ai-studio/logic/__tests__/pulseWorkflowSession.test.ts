@@ -8,23 +8,20 @@ import {
 } from "../pulseWorkflowSession";
 
 describe("pulseWorkflowSession", () => {
-  it("builds a pending workflow session immediately when a workflow pulse starts", () => {
+  it("starts a pending workflow session without synthesizing starter metadata", () => {
     const session = buildPendingPulseWorkflowSessionForStart({
       preset: {
         presetId: "story_builder",
         runtimeMode: "workflow_gpt",
-        starterAssistantMessage:
-          "Step 1 - Upload your characters. Please upload 1-3+ character images.",
-        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
       },
     });
 
     expect(session).toEqual({
       presetId: "story_builder",
       status: "running",
-      currentStepIndex: 1,
-      currentStepLabel: "Upload Characters",
-      currentStepPrompt: "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+      currentStepIndex: null,
+      currentStepLabel: null,
+      currentStepPrompt: null,
       collectedInputs: [],
       lastArtifact: null,
       finalArtifactSource: null,
@@ -36,9 +33,6 @@ describe("pulseWorkflowSession", () => {
       preset: {
         presetId: "story_builder",
         runtimeMode: "workflow_gpt",
-        starterAssistantMessage:
-          "Step 1 - Upload your characters. Please upload 1-3+ character images.",
-        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
       },
       existingSession: {
         presetId: "story_builder",
@@ -64,14 +58,11 @@ describe("pulseWorkflowSession", () => {
     });
   });
 
-  it("derives workflow step metadata from stage hints when assistant replies omit explicit step numbers", () => {
+  it("does not derive workflow step metadata from retired stage hints", () => {
     const session = derivePulseWorkflowSession({
       preset: {
         presetId: "story_builder",
         runtimeMode: "workflow_gpt",
-        starterAssistantMessage:
-          "Step 1 - Upload your characters. Please upload 1-3+ character images.",
-        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime", "Scene Review"],
       },
       agentMessages: [
         { id: "u1", role: "user", content: "Here are my character images." },
@@ -87,8 +78,8 @@ describe("pulseWorkflowSession", () => {
     expect(session).toEqual({
       presetId: "story_builder",
       status: "awaiting_input",
-      currentStepIndex: 2,
-      currentStepLabel: "Plot Seed",
+      currentStepIndex: null,
+      currentStepLabel: null,
       currentStepPrompt: "What tone should the story have?",
       collectedInputs: ["Here are my character images."],
       lastArtifact: null,
@@ -101,9 +92,6 @@ describe("pulseWorkflowSession", () => {
       preset: {
         presetId: "story_builder",
         runtimeMode: "workflow_gpt",
-        starterAssistantMessage:
-          "Step 1 - Upload your characters. Please upload 1-3+ character images.",
-        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime", "Scene Review"],
       },
       agentMessages: [],
       isSending: false,

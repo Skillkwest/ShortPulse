@@ -12,6 +12,7 @@ import { createDefaultCharacterSheetPresetState } from "../../features/character
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
 import { readSupabaseUserId } from "../../lib/supabaseClient";
 import AiStudioPage from "../../features/ai-studio/routes/AiStudioRouteApp";
+import { markBillingReturnSyncPending } from "../../features/billing/clientBillingReturnSync";
 
 vi.mock("next/router", () => ({
   useRouter: () => ({
@@ -34,6 +35,7 @@ const {
   aiStudioStateMock,
   creditsStateMock,
   aiStudioPageContentCapture,
+  setUiNoticeMock,
 } = vi.hoisted(() => ({
   ...(() => {
     const generateOutputMock = vi.fn();
@@ -106,6 +108,7 @@ const {
       reportAppErrorMock,
       creditsStateMock,
       aiStudioPageContentCapture,
+      setUiNoticeMock,
       aiStudioStateMock: {
         promptRef: { current: null },
         mode: "image",
@@ -741,7 +744,9 @@ const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 describe("ai-studio page character mode model picker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", "/ai-studio");
     window.localStorage.clear();
+    window.sessionStorage.clear();
     nowMs = 1_000_000;
     vi.spyOn(Date, "now").mockImplementation(() => nowMs);
     creditsStateMock.balanceCents = 10_000;
@@ -839,5 +844,37 @@ describe("ai-studio page character mode model picker", () => {
         }),
       })
     );
+  });
+
+  it("refreshes credits when AI Studio opens after a subscription checkout return", async () => {
+    window.history.replaceState(null, "", "/ai-studio?checkout=subscription_success");
+    creditsStateMock.balanceCents = 1550;
+
+    render(<AiStudioPage />);
+
+    await waitFor(() => {
+      expect(refreshBalanceMock).toHaveBeenCalledWith({ silent: true });
+    });
+    expect(setUiNoticeMock).toHaveBeenCalledWith("Plan update completed. Refreshing credits...");
+
+    await waitFor(() => {
+      expect(setUiNoticeMock).toHaveBeenCalledWith(
+        "Credits refreshed. You can continue generating."
+      );
+    });
+    expect(window.location.search).toBe("");
+  });
+
+  it("refreshes credits when AI Studio opens after a profile billing return sync", async () => {
+    creditsStateMock.balanceCents = 1550;
+    markBillingReturnSyncPending("subscription");
+
+    render(<AiStudioPage />);
+
+    await waitFor(() => {
+      expect(refreshBalanceMock).toHaveBeenCalledWith({ silent: true });
+    });
+    expect(setUiNoticeMock).toHaveBeenCalledWith("Plan update completed. Refreshing credits...");
+    expect(window.sessionStorage.getItem("shortpulse.billingReturnSync")).toBeNull();
   });
 });

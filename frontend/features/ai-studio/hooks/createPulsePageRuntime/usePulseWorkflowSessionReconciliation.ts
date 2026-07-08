@@ -55,8 +55,6 @@ export const usePulseWorkflowSessionReconciliation = ({
             ? {
                 presetId: activeWorkflowPulsePreset.presetId,
                 runtimeMode: activeWorkflowPulsePreset.runtimeMode,
-                starterAssistantMessage: activeWorkflowPulsePreset.starterAssistantMessage,
-                workflowStageHints: activeWorkflowPulsePreset.workflowStageHints,
               }
             : null,
           agentMessages,

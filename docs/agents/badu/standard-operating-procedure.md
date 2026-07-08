@@ -43,7 +43,8 @@ Do not use temporary scratch files as source of truth unless the user explicitly
 ### Step 2. Establish The Active Ledger
 
 - Use the active workbook named in Badu memory unless the user names another workbook.
-- Identify the target sheet, provider summary rows, ledger headers, current final data row, formulas, and filter range.
+- Use `Ledger` as the canonical editable transaction table when the structured workbook is present.
+- Identify the target sheet, provider summary rows, ledger headers, current final data row, formulas, derived view ranges, source-log rules, and filter range.
 - For existing Google Sheets, prefer connector reads/writes when authorized; use Chrome UI range paste only when connector access is insufficient and the user has authorized browser use.
 
 ### Step 3. Read Provider Billing Line By Line
@@ -129,9 +130,9 @@ Before adding rows:
 ### Step 6. Update The Workbook
 
 - Append rows at the next empty ledger range.
-- Update summary formulas so provider totals include the new final row.
-- Update provider status and notes.
-- Refresh filters to include the full ledger range.
+- Update summary/view formulas so `Dashboard`, `Expenses_View`, `Income_View`, `Monthly_Summary`, and `Provider_Summary` include the new final row.
+- Update `Source_Log` when a provider cutoff, source boundary, duplicate decision, or import rule changes.
+- Refresh the `Ledger` filter to include the full ledger range.
 - Preserve existing workbook structure unless the user asks for redesign.
 
 ### Step 7. Verify

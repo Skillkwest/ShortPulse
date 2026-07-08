@@ -7,6 +7,7 @@ Purpose: provide Nuclo with an owned workspace folder inside the repo for manage
 - `inbox/`: place user-provided files or exports that Nuclo needs to inspect.
 - `working-notes/`: temporary structured notes and draft planning material.
 - `handoffs/`: live in-progress handoff packets only, before promotion into canonical docs or retained history.
+- `vercel-health-checks/`: recurring Vercel health-check tracker and monthly audit checklist. Retained health packets still live under `docs/records/artifacts/agent/nuclo/reports/`.
 
 ## Authority
 

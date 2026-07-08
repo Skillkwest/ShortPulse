@@ -42,4 +42,4 @@ That model no longer fits the admin-owned `Agent Instructions` workspace. The bu
 - Built-in guided-workflow execution must fail closed to the server-resolved catalog, not fall back to user override payloads.
 - Built-in catalog writes must validate unique preset ids plus non-empty labels, descriptions, and system instructions before persistence.
 - Built-in preset ids must be safe for Pulse session namespaces: lowercase letters, numbers, underscores, and hyphens only, with no spaces or colons.
-- Built-in catalog writes must include a non-empty starter assistant message so activation has a deterministic kickoff fallback even when the provider returns a blank first turn.
+- Built-in catalog writes must validate unique preset ids plus non-empty labels, descriptions, artifact targets, and system instructions. `starterAssistantMessage` and `workflowStageHints` are retired compatibility fields; runtime must ignore them for assistant behavior and fail closed on blank provider kickoff instead of synthesizing deterministic fallback text.

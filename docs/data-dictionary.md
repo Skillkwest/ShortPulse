@@ -851,7 +851,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### create_pulse_builtin_runtime
 
 - `singleton` (boolean, pk, default `true`): Singleton row guard for the active built-in Create Pulse catalog.
-- `pulse_definitions` (jsonb): Ordered built-in guided-workflow definition array stored as `{ presetId, label, description, systemInstructions, starterAssistantMessage, workflowStageHints, artifactTarget }` records.
+- `pulse_definitions` (jsonb): Ordered built-in guided-workflow definition array stored as `{ presetId, label, description, systemInstructions, artifactTarget }` records. Legacy `starterAssistantMessage` and `workflowStageHints` keys may still appear in older JSON but are retired compatibility fields and are ignored by runtime behavior.
 - `updated_at` (timestamptz, default `timezone('utc', now())`): Last control-plane write timestamp.
 - `updated_by_user_id` (uuid, nullable): Admin user id that last saved the catalog.
 - `updated_by_email` (text, nullable): Admin email captured with the last save for operator traceability.

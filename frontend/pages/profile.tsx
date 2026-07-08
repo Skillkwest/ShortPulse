@@ -20,6 +20,7 @@ import {
   fetchBillingAccountSummary,
   type PendingSubscriptionChange,
 } from "../features/billing/accountSummary";
+import { markBillingReturnSyncPending } from "../features/billing/clientBillingReturnSync";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
@@ -484,6 +485,7 @@ export default function ProfilePage() {
         refreshTasks.push(refreshQuotaSummary());
 
         if (billingSyncRequest.scope === "subscription") {
+          refreshTasks.push(refreshBalance({ silent: true }));
           refreshTasks.push(loadSubscriptionTransactions());
         }
 
@@ -550,6 +552,7 @@ export default function ProfilePage() {
         tone: "success",
         message: "Subscription checkout completed. Your plan is syncing now.",
       });
+      markBillingReturnSyncPending("subscription");
       requestBillingSync("subscription");
     } else if (planChangeStatus === "checkout_cancel") {
       setNotice({
@@ -561,6 +564,7 @@ export default function ProfilePage() {
         tone: "success",
         message: "Plan change submitted. Your subscription is syncing now.",
       });
+      markBillingReturnSyncPending("subscription");
       requestBillingSync("subscription");
     } else if (planChangeStatus === "canceled") {
       setNotice({

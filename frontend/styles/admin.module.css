@@ -1741,7 +1741,6 @@
   --admin-support-topups-col: minmax(112px, 0.7fr);
   --admin-support-billing-col: minmax(112px, 0.64fr);
   --admin-support-renews-col: minmax(104px, 0.6fr);
-  --admin-support-storage-col: minmax(104px, 0.64fr);
   --admin-support-col-gap: 10px;
   grid-template-columns:
     var(--admin-support-user-col)
@@ -1752,8 +1751,7 @@
     var(--admin-support-spendable-col)
     var(--admin-support-topups-col)
     var(--admin-support-billing-col)
-    var(--admin-support-renews-col)
-    var(--admin-support-storage-col);
+    var(--admin-support-renews-col);
   gap: var(--admin-support-col-gap);
 }
 
@@ -1864,8 +1862,7 @@
     var(--admin-support-spendable-col)
     var(--admin-support-topups-col)
     var(--admin-support-billing-col)
-    var(--admin-support-renews-col)
-    var(--admin-support-storage-col);
+    var(--admin-support-renews-col);
   grid-column: 1 / -1;
   grid-row: 1;
   align-items: center;

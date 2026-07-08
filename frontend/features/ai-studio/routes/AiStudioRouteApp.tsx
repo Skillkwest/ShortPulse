@@ -43,6 +43,7 @@ import { useAiStudioEditVideoPanelRuntimes } from "../hooks/useAiStudioEditVideo
 import { useAiStudioReferenceExperienceRuntime } from "../hooks/useAiStudioReferenceExperienceRuntime";
 import { resolveMediaStorageQuotaUserMessage } from "../../../lib/mediaStorageQuota";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
+import { consumeBillingReturnSyncPending } from "../../billing/clientBillingReturnSync";
 import { shouldDeferAiStudioBackgroundWork } from "../logic/aiStudioPressureConservation";
 import { useResolvedAccountPlan } from "../../billing/useResolvedAccountPlan";
 import { useCreatePulsePresetPageRuntime } from "../hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
@@ -146,16 +147,34 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     const checkoutState = url.searchParams.get("checkout");
-    if (checkoutState !== "credits_success" && checkoutState !== "credits_cancel") return;
+    const billingReturnSync = consumeBillingReturnSyncPending();
+    const shouldRefreshSubscriptionCredits =
+      checkoutState === "subscription_success" || billingReturnSync?.scope === "subscription";
+    if (
+      checkoutState !== "credits_success" &&
+      checkoutState !== "credits_cancel" &&
+      !shouldRefreshSubscriptionCredits
+    ) {
+      return;
+    }
     if (checkoutState === "credits_cancel") {
       setUiNotice("Credit top-up was canceled.");
-    } else {
+    } else if (checkoutState === "credits_success") {
       setUiNotice("Credit purchase completed. Refreshing credits...");
       void refreshBalance({ silent: true }).then((balance) => {
         setUiNotice(
           typeof balance === "number"
             ? "Credits refreshed. You can continue generating."
             : "Payment is processing. Refresh credits in a moment if the balance has not updated."
+        );
+      });
+    } else if (shouldRefreshSubscriptionCredits) {
+      setUiNotice("Plan update completed. Refreshing credits...");
+      void refreshBalance({ silent: true }).then((balance) => {
+        setUiNotice(
+          typeof balance === "number"
+            ? "Credits refreshed. You can continue generating."
+            : "Plan update is processing. Refresh credits in a moment if the balance has not updated."
         );
       });
     }

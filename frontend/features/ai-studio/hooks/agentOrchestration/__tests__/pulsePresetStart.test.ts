@@ -143,7 +143,7 @@ describe("pulsePresetStart", () => {
     });
   });
 
-  it("starts from the configured starter when a guided kickoff response is blank", async () => {
+  it("fails closed when a guided kickoff response is blank", async () => {
     const setPulseWorkflowSession = vi.fn();
     const trackAgentUiEvent = vi.fn();
 
@@ -180,26 +180,17 @@ describe("pulsePresetStart", () => {
     });
 
     expect(result).toEqual({
-      status: "started",
-      latestAgentPrompt: null,
-      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
+      status: "failed",
+      reason: "empty_response",
+      message: "Unable to start Video Prompt Magic. Pulse returned no kickoff response.",
     });
-    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        presetId: "image",
-        status: "awaiting_input",
-        currentStepPrompt: videoPromptPreset.starterAssistantMessage,
-      })
-    );
-    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_pulse_start_succeeded", {
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_pulse_start_failed", {
       preset_id: "image",
-      workflow_status: "awaiting_input",
-      has_apply_prompt: false,
-      fallback_reason: "starter_workflow_session",
+      reason: "empty_response",
     });
   });
 
-  it("returns the configured starter for recovery when the server kickoff succeeds deterministically", async () => {
+  it("starts normally when the server kickoff returns a visible assistant message", async () => {
     const setPulseWorkflowSession = vi.fn();
     const workflowSession: AgentPulseWorkflowSession = {
       presetId: videoPromptPreset.presetId,
@@ -230,7 +221,7 @@ describe("pulsePresetStart", () => {
       getAgentContext: vi.fn(() => ({})),
       notifyBootstrapPending: vi.fn(),
       sendToAgent: vi.fn(async () => ({
-        response: { message: videoPromptPreset.starterAssistantMessage ?? "" },
+        response: { message: "Upload your image to get the process started :)" },
         actions: undefined,
         workflowSession,
       })),
@@ -247,12 +238,11 @@ describe("pulsePresetStart", () => {
     expect(result).toEqual({
       status: "started",
       latestAgentPrompt: null,
-      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
     });
     expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(workflowSession);
   });
 
-  it("starts from the configured starter when a guided kickoff returns no response object", async () => {
+  it("fails closed when a guided kickoff returns no response object", async () => {
     const setPulseWorkflowSession = vi.fn();
 
     const result = await startPulsePreset({
@@ -288,17 +278,10 @@ describe("pulsePresetStart", () => {
     });
 
     expect(result).toEqual({
-      status: "started",
-      latestAgentPrompt: null,
-      starterAssistantMessage: videoPromptPreset.starterAssistantMessage,
+      status: "failed",
+      reason: "empty_response",
+      message: "Unable to start Video Prompt Magic. Pulse returned no kickoff response.",
     });
-    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        presetId: "image",
-        status: "awaiting_input",
-        currentStepPrompt: videoPromptPreset.starterAssistantMessage,
-      })
-    );
   });
 
   it("fails closed when a guided kickoff has no response and no starter workflow prompt", async () => {

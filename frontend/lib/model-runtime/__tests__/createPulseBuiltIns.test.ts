@@ -32,8 +32,20 @@ const serverPromptModifierDefinition: ServerBuiltInDefinition = {
   systemInstructions: "Ask for a source prompt, then return a cleaner version.",
 };
 
+const retiredPublicMetadataDefinition: PublicBuiltInDefinition = {
+  ...publicPromptModifierDefinition,
+  starterAssistantMessage: null,
+  workflowStageHints: null,
+};
+
+const retiredServerMetadataDefinition: ServerBuiltInDefinition = {
+  ...serverPromptModifierDefinition,
+  starterAssistantMessage: null,
+  workflowStageHints: null,
+};
+
 describe("Create Pulse built-in catalog normalization", () => {
-  it("drops public built-in rows without starter messages", () => {
+  it("normalizes public built-ins without requiring starter metadata", () => {
     expect(
       normalizePublicBuiltInDefinitions([
         {
@@ -42,10 +54,10 @@ describe("Create Pulse built-in catalog normalization", () => {
         },
         publicPromptModifierDefinition,
       ])
-    ).toEqual([publicPromptModifierDefinition]);
+    ).toEqual([retiredPublicMetadataDefinition]);
   });
 
-  it("drops server built-in rows without starter messages", () => {
+  it("normalizes server built-ins without preserving starter metadata", () => {
     expect(
       normalizeServerBuiltInDefinitions([
         {
@@ -54,7 +66,7 @@ describe("Create Pulse built-in catalog normalization", () => {
         },
         serverPromptModifierDefinition,
       ])
-    ).toEqual([serverPromptModifierDefinition]);
+    ).toEqual([retiredServerMetadataDefinition]);
   });
 
   it("defaults missing publication status to published", () => {
@@ -64,7 +76,7 @@ describe("Create Pulse built-in catalog normalization", () => {
     delete legacyDefinition.publicationStatus;
 
     expect(normalizeServerBuiltInDefinitions([legacyDefinition])).toEqual([
-      serverPromptModifierDefinition,
+      retiredServerMetadataDefinition,
     ]);
   });
 
@@ -75,12 +87,18 @@ describe("Create Pulse built-in catalog normalization", () => {
       publicationStatus: "draft" as const,
     };
 
-    expect(normalizeServerBuiltInDefinitions([draftDefinition])).toEqual([draftDefinition]);
+    const retiredDraftDefinition = {
+      ...draftDefinition,
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+    };
+
+    expect(normalizeServerBuiltInDefinitions([draftDefinition])).toEqual([retiredDraftDefinition]);
     expect(
       filterPublishedServerBuiltInDefinitions([serverPromptModifierDefinition, draftDefinition])
-    ).toEqual([serverPromptModifierDefinition]);
+    ).toEqual([retiredServerMetadataDefinition]);
     expect(
       filterPublishedPublicBuiltInDefinitions([publicPromptModifierDefinition, draftDefinition])
-    ).toEqual([publicPromptModifierDefinition]);
+    ).toEqual([retiredPublicMetadataDefinition]);
   });
 });

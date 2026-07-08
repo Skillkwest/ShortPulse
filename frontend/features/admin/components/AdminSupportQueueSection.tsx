@@ -1037,12 +1037,10 @@ export function AdminSupportQueueSection({
               <span>Top-ups</span>
               <span>Billing</span>
               <span>Renews</span>
-              <span>Storage</span>
             </div>
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                 <span className="subdued">{usersError}</span>
-                <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
@@ -1063,14 +1061,12 @@ export function AdminSupportQueueSection({
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
-                <span className="subdued">—</span>
               </div>
             ) : users.length === 0 ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                 <span className="subdued">
                   {userSearch.trim() ? "No users match." : "No users loaded yet."}
                 </span>
-                <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
@@ -1198,25 +1194,6 @@ export function AdminSupportQueueSection({
                         data-label="Renews"
                       >
                         <span>{formatCompactDate(row.planRenewalAt)}</span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Storage"
-                      >
-                        <span>
-                          {row.recurringStorageAddonBytes > 0
-                            ? formatStorageBytes(row.recurringStorageAddonBytes)
-                            : "—"}
-                        </span>
-                        {row.recurringStorageAddonPriceCents > 0 ? (
-                          <span className={styles.adminCreditMeta}>
-                            {formatRecurringPriceLabel(
-                              row.recurringStorageAddonPriceCents,
-                              "month",
-                              formatUsd
-                            )}
-                          </span>
-                        ) : null}
                       </span>
                     </div>
                   </div>

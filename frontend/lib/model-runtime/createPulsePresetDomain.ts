@@ -96,8 +96,6 @@ const createBuiltInPulseDefinition = ({
   runtimeMode = CREATE_PULSE_BUILT_IN_RUNTIME_MODE,
   activationMode = CREATE_PULSE_BUILT_IN_ACTIVATION_MODE,
   outputMode = CREATE_PULSE_BUILT_IN_OUTPUT_MODE,
-  starterAssistantMessage = null,
-  workflowStageHints = null,
   artifactTarget,
   publicationStatus = "published",
 }: {
@@ -109,8 +107,6 @@ const createBuiltInPulseDefinition = ({
   runtimeMode?: CreatePulseRuntimeMode;
   activationMode?: CreatePulseActivationMode;
   outputMode?: CreatePulseOutputMode;
-  starterAssistantMessage?: string | null;
-  workflowStageHints?: readonly string[] | null;
   artifactTarget: CreatePulseArtifactTarget;
   publicationStatus?: CreatePulsePublicationStatus;
 }): CreatePulseBuiltInPresetDefinition => ({
@@ -123,9 +119,8 @@ const createBuiltInPulseDefinition = ({
   activationMode,
   outputMode,
   memoryPolicy: CREATE_PULSE_DEFAULT_MEMORY_POLICY,
-  starterAssistantMessage,
-  workflowStageHints:
-    workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
+  starterAssistantMessage: null,
+  workflowStageHints: null,
   artifactTarget,
   schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
   publicationStatus,
@@ -292,13 +287,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { systemInstructions?: unknown }).systemInstructions === "string"
       ? (value as { systemInstructions: string }).systemInstructions.trim()
       : "";
-  const starterAssistantMessage =
-    typeof (value as { starterAssistantMessage?: unknown }).starterAssistantMessage === "string"
-      ? (value as { starterAssistantMessage: string }).starterAssistantMessage.trim()
-      : "";
-  const workflowStageHints = normalizeCreatePulseWorkflowStageHints(
-    (value as { workflowStageHints?: unknown }).workflowStageHints
-  );
   const artifactTargetRaw =
     typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
       ? (value as { artifactTarget: string }).artifactTarget.trim()
@@ -332,7 +320,7 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
       ? "workflow_gpt"
       : "custom_gpt";
 
-  if (!presetId || !label || !description || !starterAssistantMessage) {
+  if (!presetId || !label || !description) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {
@@ -352,8 +340,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     outputMode: isCreatePulseOutputMode(outputModeRaw)
       ? outputModeRaw
       : CREATE_PULSE_BUILT_IN_OUTPUT_MODE,
-    starterAssistantMessage: starterAssistantMessage || null,
-    workflowStageHints,
     artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
       ? artifactTargetRaw
       : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
@@ -577,19 +563,6 @@ export const normalizeCreatePulseSavedPresets = (
 };
 
 /**
- * Normalizes persisted workflow stage hints to a trimmed non-empty list.
- */
-export function normalizeCreatePulseWorkflowStageHints(
-  value: unknown
-): CreatePulseWorkflowStageHints | null {
-  if (!Array.isArray(value)) return null;
-  const normalized = value
-    .flatMap((entry) => (typeof entry === "string" ? [entry.trim()] : []))
-    .filter((entry) => entry.length > 0);
-  return normalized.length > 0 ? normalized : null;
-}
-
-/**
  * Builds a unique custom Pulse preset ID for user-authored presets.
  */
 export const createCreatePulseCustomPresetId = (): CreatePulseCustomPresetId => {
@@ -679,8 +652,8 @@ export const resolveCreatePulsePresetCatalog = (
         pulseKind: definition.pulseKind,
         runtimeMode: definition.runtimeMode,
         activationMode: definition.activationMode,
-        starterAssistantMessage: definition.starterAssistantMessage,
-        workflowStageHints: definition.workflowStageHints,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
         outputMode: definition.outputMode,
         artifactTarget: definition.artifactTarget,
         memoryPolicy: definition.memoryPolicy,

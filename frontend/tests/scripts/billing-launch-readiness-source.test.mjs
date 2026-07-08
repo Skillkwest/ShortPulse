@@ -4,8 +4,29 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const readinessScriptPath = path.join(repoRoot, "scripts/check_billing_launch_readiness.mjs");
+const readinessHelpersPath = path.join(
+  repoRoot,
+  "scripts/lib/billing_launch_readiness_helpers.mjs"
+);
+
+const requiredScheduleEvents = [
+  "subscription_schedule.created",
+  "subscription_schedule.updated",
+  "subscription_schedule.released",
+  "subscription_schedule.completed",
+  "subscription_schedule.canceled",
+  "subscription_schedule.aborted",
+];
 
 describe("billing launch readiness source", () => {
+  it("requires Stripe subscription schedule events for period-end downgrade projection", () => {
+    const source = fs.readFileSync(readinessHelpersPath, "utf8");
+
+    for (const eventName of requiredScheduleEvents) {
+      expect(source).toContain(eventName);
+    }
+  });
+
   it("probes both internal credit workers as unauthenticated fail-closed routes", () => {
     const source = fs.readFileSync(readinessScriptPath, "utf8");
 

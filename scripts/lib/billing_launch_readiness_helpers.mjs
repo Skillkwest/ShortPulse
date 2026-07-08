@@ -15,6 +15,12 @@ export const REQUIRED_STRIPE_WEBHOOK_EVENTS = [
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "subscription_schedule.created",
+  "subscription_schedule.updated",
+  "subscription_schedule.released",
+  "subscription_schedule.completed",
+  "subscription_schedule.canceled",
+  "subscription_schedule.aborted",
   "invoice.payment_succeeded",
 ];
 export const REQUIRED_ROUTE_PATHS = [

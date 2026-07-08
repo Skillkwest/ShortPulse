@@ -386,8 +386,8 @@ describe("Admin agent instructions page", () => {
       label: "Prompt Modifier",
       title: "Prompt Modifier",
       description: "",
-      starterAssistantMessage: "",
-      workflowStageHints: [],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: "Ask for the source prompt, then return a cleaner version.",
       prompt: "Ask for the source prompt, then return a cleaner version.",
@@ -661,14 +661,10 @@ describe("Admin agent instructions page", () => {
     expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
     expect(payload.builtInDefinitions[0]?.label).toBe("Global Prompt Director");
     expect(payload.builtInDefinitions[0]?.title).toBe("Global Prompt Director");
-    expect(payload.builtInDefinitions[0]?.workflowStageHints).toEqual(
-      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints
-    );
+    expect(payload.builtInDefinitions[0]?.workflowStageHints).toBeNull();
     expect(payload.builtInDefinitions[1]?.label).toBe("Multi Sequence Video Prompt");
     expect(payload.builtInDefinitions[1]?.title).toBe("Multi Sequence Video Prompt");
-    expect(payload.builtInDefinitions[1]?.workflowStageHints).toEqual(
-      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1].workflowStageHints
-    );
+    expect(payload.builtInDefinitions[1]?.workflowStageHints).toBeNull();
     expect(payload.builtInDefinitions[0]?.publicationStatus).toBe("published");
     expect(payload.builtInDefinitions[1]?.publicationStatus).toBe("published");
 
@@ -745,7 +741,7 @@ describe("Admin agent instructions page", () => {
       presetId: "image",
       label: "Video Prompt Magic",
       title: "Video Prompt Magic",
-      workflowStageHints: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints,
+      workflowStageHints: null,
       publicationStatus: "draft",
     });
   });

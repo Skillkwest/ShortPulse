@@ -105,7 +105,7 @@ describe("AdminPageHeader", () => {
 
     expect(subLinks[0]).toHaveTextContent("Support");
     expect(subLinks[0]).toHaveAttribute("href", "/admin");
-    expect(subLinks[1]).toHaveTextContent("Reports");
+    expect(subLinks[1]).toHaveTextContent("Customer Issue Reports");
     expect(subLinks[1]).toHaveAttribute("href", "/admin/reports");
     expect(subLinks[1]).toHaveAttribute("aria-current", "page");
     expect(subLinks[2]).toHaveTextContent("User health");
@@ -139,7 +139,7 @@ describe("AdminPageHeader", () => {
 
     expect(subLinks.map((link) => link.textContent)).toEqual([
       "Support",
-      "Reports",
+      "Customer Issue Reports",
       "User health",
       "Fleet health",
       "Generation trace",

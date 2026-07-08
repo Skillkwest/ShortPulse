@@ -49,13 +49,13 @@ describe("studioAgentPulseRuntime", () => {
       expect.objectContaining({
         status: "awaiting_input",
         currentStepIndex: 3,
-        currentStepLabel: "Runtime",
+        currentStepLabel: "How long should it be?",
         collectedInputs: ["grimdark tone", "A knight enters a cursed forest to recover a relic."],
       })
     );
   });
 
-  it("keeps an initial guided workflow starter reply awaiting input", () => {
+  it("keeps an initial guided workflow reply awaiting input without metadata labels", () => {
     const session = buildStudioAgentWorkflowSessionUpdate({
       pulse: {
         presetId: "prompt_modifier",
@@ -76,8 +76,8 @@ describe("studioAgentPulseRuntime", () => {
     expect(session).toEqual({
       presetId: "prompt_modifier",
       status: "awaiting_input",
-      currentStepIndex: 1,
-      currentStepLabel: "paste the prompt you want to modify",
+      currentStepIndex: null,
+      currentStepLabel: null,
       currentStepPrompt: "paste the prompt you want to modify",
       collectedInputs: [],
       lastArtifact: null,
@@ -85,7 +85,7 @@ describe("studioAgentPulseRuntime", () => {
     });
   });
 
-  it("uses the starter message as the initial workflow prompt when kickoff text is empty", () => {
+  it("does not use retired starter metadata when kickoff text is empty", () => {
     const session = buildStudioAgentWorkflowSessionUpdate({
       pulse: {
         presetId: "prompt_modifier",
@@ -106,9 +106,9 @@ describe("studioAgentPulseRuntime", () => {
     expect(session).toEqual({
       presetId: "prompt_modifier",
       status: "awaiting_input",
-      currentStepIndex: 1,
-      currentStepLabel: "paste the prompt you want to modify",
-      currentStepPrompt: "paste the prompt you want to modify",
+      currentStepIndex: null,
+      currentStepLabel: null,
+      currentStepPrompt: "Prompt Modifier",
       collectedInputs: [],
       lastArtifact: null,
       finalArtifactSource: null,
@@ -182,7 +182,7 @@ describe("studioAgentPulseRuntime", () => {
     warnSpy.mockRestore();
   });
 
-  it("includes workflow stage hints and anti-restart guidance in the hidden Pulse system message", () => {
+  it("excludes retired workflow metadata from the hidden Pulse system message", () => {
     const systemMessage = buildStudioAgentPulseSystemMessage({
       presetId: "image",
       label: "Video Prompt Magic",
@@ -203,9 +203,10 @@ describe("studioAgentPulseRuntime", () => {
       },
     });
 
-    expect(systemMessage).toContain("workflow_stage_hints:");
-    expect(systemMessage).toContain("1. Image Gate");
-    expect(systemMessage).toContain("3. Action Selection");
+    expect(systemMessage).not.toContain("starter_assistant_message:");
+    expect(systemMessage).not.toContain("workflow_stage_hints:");
+    expect(systemMessage).not.toContain("1. Image Gate");
+    expect(systemMessage).not.toContain("3. Action Selection");
     expect(systemMessage).toContain(
       "Use a polished rich-guided layout for user-facing replies instead of flat plain text."
     );

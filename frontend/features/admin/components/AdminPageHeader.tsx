@@ -22,7 +22,7 @@ const ADMIN_NAV_ITEMS = [
 
 const CUSTOMER_SUPPORT_NAV_ITEMS = [
   { href: "/admin", label: "Support" },
-  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/reports", label: "Customer Issue Reports" },
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },

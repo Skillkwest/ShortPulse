@@ -78,6 +78,7 @@ describe("useMediaComplianceGate", () => {
       expect.objectContaining({
         shortpulseLogScope: "app",
         shortpulseRetryNetworkOnce: true,
+        shortpulseSkipErrorLogging: true,
       })
     );
   });
@@ -118,6 +119,79 @@ describe("useMediaComplianceGate", () => {
       expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
       expect(result.current.status).toBe("needs_consent");
     });
+  });
+
+  it("keeps an accepted gate open when tab-return revalidation hits a transient network failure", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          accepted: true,
+          acceptedAt: "2026-04-25T18:00:00.000Z",
+        }),
+      })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() =>
+      useMediaComplianceGate({
+        enabled: true,
+        userId: "user-123",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("accepted");
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("pageshow"));
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+      expect(result.current.status).toBe("accepted");
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.error).toBeNull();
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("does not preserve an unaccepted gate when tab-return revalidation cannot reach the server", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          accepted: false,
+          acceptedAt: null,
+        }),
+      })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const { result } = renderHook(() =>
+      useMediaComplianceGate({
+        enabled: true,
+        userId: "user-123",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("needs_consent");
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("pageshow"));
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+      expect(result.current.status).toBe("service_unavailable");
+    });
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.media_compliance_service_unavailable",
+        endpoint: "/api/account/media-compliance",
+      })
+    );
   });
 
   it("can skip browser-restore media compliance revalidation after the initial check", async () => {
@@ -201,6 +275,7 @@ describe("useMediaComplianceGate", () => {
       "/api/account/media-compliance",
       expect.objectContaining({
         method: "POST",
+        shortpulseSkipErrorLogging: true,
       })
     );
     expect(result.current.status).toBe("accepted");

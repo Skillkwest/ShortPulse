@@ -29,8 +29,15 @@ type UseAiStudioMediaAutosaveOrchestratorArgs = {
   ) => Promise<PersistOutputSaveResult>;
 };
 
+const hasTextValue = (value: string | null | undefined): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
 const hasRenderableMedia = (output: StudioOutput): boolean =>
-  Boolean(output.previewUrl) || Boolean(output.resultUrls?.length);
+  hasTextValue(output.previewUrl) ||
+  hasTextValue(output.localObjectUrl) ||
+  hasTextValue(output.previewStoragePath) ||
+  hasTextValue(output.fullStoragePath) ||
+  output.resultUrls?.some(hasTextValue) === true;
 
 const inferMediaSource = (output: StudioOutput): MediaAutosaveSource => {
   if (output.mediaSource) return output.mediaSource;

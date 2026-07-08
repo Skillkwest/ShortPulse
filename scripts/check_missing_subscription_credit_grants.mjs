@@ -203,7 +203,37 @@ const isImmediatePaidUpgradeInvoice = (invoice) =>
   String(readInvoiceMetadata(invoice).shortpulse_plan_change_kind ?? "") ===
   IMMEDIATE_PAID_UPGRADE_METADATA_VALUE;
 
-const extractInvoicePriceId = (invoice) => {
+const resolveInvoiceOfferFromMetadata = (invoice, offerById) => {
+  if (!isImmediatePaidUpgradeInvoice(invoice)) return null;
+  const metadata = readInvoiceMetadata(invoice);
+  const offerId =
+    typeof metadata.billing_offer_id === "string" &&
+    metadata.billing_offer_id.length > 0
+      ? metadata.billing_offer_id
+      : null;
+  if (!offerId) return null;
+  const offer = offerById.get(offerId) ?? null;
+  const expectedPlanId =
+    typeof metadata.billing_plan_id === "string" &&
+    metadata.billing_plan_id.length > 0
+      ? metadata.billing_plan_id
+      : null;
+  if (offer && expectedPlanId && offer.plan_id !== expectedPlanId) return null;
+  return offer;
+};
+
+const extractInvoicePriceId = (invoice, offerById = new Map()) => {
+  const invoiceOffer = resolveInvoiceOfferFromMetadata(invoice, offerById);
+  if (typeof invoiceOffer?.stripe_price_id === "string") {
+    return invoiceOffer.stripe_price_id;
+  }
+  if (
+    isImmediatePaidUpgradeInvoice(invoice) &&
+    typeof readInvoiceMetadata(invoice).billing_offer_id === "string"
+  ) {
+    return null;
+  }
+
   const lines = Array.isArray(invoice?.lines?.data) ? invoice.lines.data : [];
   for (const line of lines) {
     const priceId =
@@ -217,8 +247,15 @@ const extractInvoicePriceId = (invoice) => {
   return null;
 };
 
-const invoiceMatchesStripePrice = (invoice, stripePriceId) =>
-  Boolean(stripePriceId && extractInvoicePriceId(invoice) === stripePriceId);
+const invoiceMatchesStripePrice = (
+  invoice,
+  stripePriceId,
+  offerById = new Map(),
+) =>
+  Boolean(
+    stripePriceId &&
+    extractInvoicePriceId(invoice, offerById) === stripePriceId,
+  );
 
 const extractLedgerInvoiceId = (row) => {
   const metadata =
@@ -317,6 +354,11 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
     offers
       .filter((offer) => typeof offer.stripe_price_id === "string")
       .map((offer) => [offer.stripe_price_id, offer]),
+  );
+  const offerById = new Map(
+    offers
+      .filter((offer) => typeof offer.id === "string")
+      .map((offer) => [offer.id, offer]),
   );
   const profileByUser = new Map(
     profiles.map((profile) => [profile.user_id, profile]),
@@ -453,7 +495,7 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       const sourceRef = sourceRefForInvoice(invoiceId);
       const hasLedger = Boolean(ledger);
       const hasGrant = grants.length > 0;
-      const invoiceStripePriceId = extractInvoicePriceId(invoice);
+      const invoiceStripePriceId = extractInvoicePriceId(invoice, offerById);
       const invoiceOffer = invoiceStripePriceId
         ? (offerByStripePriceId.get(invoiceStripePriceId) ?? null)
         : null;
@@ -516,7 +558,7 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       asUnixSeconds(subject.contractStartedAt) != null &&
       asUnixSeconds(subject.contractStartedAt) >= createdGte &&
       !invoices.some((invoice) =>
-        invoiceMatchesStripePrice(invoice, subject.stripePriceId),
+        invoiceMatchesStripePrice(invoice, subject.stripePriceId, offerById),
       )
     ) {
       rows.push({

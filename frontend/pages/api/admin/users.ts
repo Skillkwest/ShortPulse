@@ -3,6 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
+import { fetchAdminUserCycleSpend } from "../../../lib/server/api/adminUserCycleSpend";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { fetchCreditGrantSummaries } from "../../../lib/server/api/creditGrantSummary";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
@@ -63,12 +64,6 @@ type CreditBalanceRow = {
   balance_cents: number | string | null;
 };
 
-type CreditLedgerSpendRow = {
-  user_id: string;
-  change_cents: number | string | null;
-  created_at: string | null;
-};
-
 type CreditTopUpRow = {
   user_id: string;
   change_cents: number | string | null;
@@ -116,12 +111,6 @@ const isSchemaCompatibilityError = (message: string) => {
 const toFiniteCents = (value: unknown): number => {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
-};
-
-const parseDateMs = (value: string | null | undefined): number | null => {
-  if (!value) return null;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) ? ms : null;
 };
 
 const listUsersPage = async (
@@ -353,50 +342,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       current.priceCents += priceCents;
       recurringStorageByUser.set(row.user_id, current);
     }
-    const periodStarts = contracts
-      .map((row) => parseDateMs(row.current_period_start))
-      .filter((value): value is number => value !== null);
-    const periodEnds = contracts
-      .map((row) => parseDateMs(row.current_period_end))
-      .filter((value): value is number => value !== null);
-    const spentByUser = new Map<string, number>();
-    if (periodStarts.length) {
-      const earliestPeriodStart = new Date(Math.min(...periodStarts)).toISOString();
-      const latestPeriodEnd = periodEnds.length
-        ? new Date(Math.max(...periodEnds)).toISOString()
-        : null;
-      let spendQuery = supabaseAdmin
-        .from("ai_credit_ledger")
-        .select("user_id, change_cents, created_at")
-        .in("user_id", userIds)
-        .eq("source", "generation_charge")
-        .lt("change_cents", 0)
-        .gte("created_at", earliestPeriodStart);
-      if (latestPeriodEnd) {
-        spendQuery = spendQuery.lt("created_at", latestPeriodEnd);
-      }
-      const spendResult = await spendQuery;
-      if (spendResult.error) {
-        return res.status(500).json({
-          error: spendResult.error.message || "Failed to load admin user cycle spend.",
-        });
-      }
-
-      const spendRows = (spendResult.data ?? []) as CreditLedgerSpendRow[];
-      for (const row of spendRows) {
-        const contract = contractByUser.get(row.user_id);
-        const createdAtMs = parseDateMs(row.created_at);
-        const periodStartMs = parseDateMs(contract?.current_period_start);
-        const periodEndMs = parseDateMs(contract?.current_period_end);
-        if (createdAtMs === null || periodStartMs === null) continue;
-        if (createdAtMs < periodStartMs) continue;
-        if (periodEndMs !== null && createdAtMs >= periodEndMs) continue;
-        spentByUser.set(
-          row.user_id,
-          (spentByUser.get(row.user_id) ?? 0) + Math.abs(toFiniteCents(row.change_cents))
-        );
-      }
+    const cycleSpendResult = await fetchAdminUserCycleSpend({
+      supabaseAdmin,
+      userIds,
+      contractByUser,
+      profileByUser,
+      isSchemaCompatibilityError,
+    });
+    if (cycleSpendResult.error) {
+      return res.status(500).json({ error: cycleSpendResult.error.message });
     }
+    const { spentByUser } = cycleSpendResult;
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
       const contract = contractByUser.get(user.id);

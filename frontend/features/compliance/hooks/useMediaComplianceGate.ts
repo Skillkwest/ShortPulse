@@ -2,7 +2,7 @@
  * Client-side media-compliance gate state.
  * Fetches the current acceptance status once per signed-in user and records acceptance on demand.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MEDIA_COMPLIANCE_AGREEMENT,
   type MediaComplianceAgreementDefinition,
@@ -79,6 +79,12 @@ type MediaComplianceErrorInfo = {
   status: number | null;
 };
 
+type RefreshStatusOptions = {
+  blockWhileRefreshing?: boolean;
+  preserveAcceptedOnTransientNetworkFailure?: boolean;
+  routeStatus?: string;
+};
+
 const readErrorMessage = (payload: unknown, fallback: string): string => {
   if (!payload || typeof payload !== "object") return fallback;
   const message = (payload as { error?: unknown }).error;
@@ -101,6 +107,12 @@ const resolveServiceUnavailableMessage = (errorInfo: MediaComplianceErrorInfo): 
   if (errorInfo.message.trim()) return errorInfo.message;
   return "Media agreement service is temporarily unavailable.";
 };
+
+const isTransientNetworkFailure = (error: unknown, errorInfo: MediaComplianceErrorInfo): boolean =>
+  errorInfo.status === null &&
+  errorInfo.code === null &&
+  error instanceof TypeError &&
+  /failed to fetch|network/i.test(error.message);
 
 const reportMediaComplianceFailure = (errorInfo: MediaComplianceErrorInfo, routeStatus: string) => {
   const authRecoveryRequired = isAuthRecoveryFailure(errorInfo);
@@ -138,87 +150,112 @@ export const useMediaComplianceGate = ({
   refreshStatus: () => Promise<void>;
 } => {
   const [state, setState] = useState<MediaComplianceGateState>(INITIAL_STATE);
+  const stateRef = useRef(state);
 
-  const refreshStatus = useCallback(async () => {
-    if (!enabled || !userId) {
-      setState(INITIAL_STATE);
-      return;
-    }
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-    setState((current) => ({
-      ...current,
-      status: "loading",
-      loading: true,
-      error: null,
-    }));
-
-    try {
-      const response = await fetchWithAuth("/api/account/media-compliance", {
-        shortpulseLogScope: "app",
-        shortpulseRetryNetworkOnce: true,
-      });
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => null);
-        const errorInfo: MediaComplianceErrorInfo = {
-          code: readErrorCode(errorPayload),
-          message: readErrorMessage(errorPayload, "Unable to load the media agreement status."),
-          status: response.status,
-        };
-        throw errorInfo;
+  const refreshStatus = useCallback(
+    async (options: RefreshStatusOptions = {}) => {
+      if (!enabled || !userId) {
+        setState(INITIAL_STATE);
+        return;
       }
-      const payload = parseStatusPayload(await response.json().catch(() => null));
 
-      setState({
-        agreement: payload.agreement,
-        acceptedAt: payload.acceptedAt,
-        error: null,
-        loading: false,
-        status: payload.accepted ? "accepted" : "needs_consent",
-      });
-    } catch (error) {
-      const errorInfo: MediaComplianceErrorInfo = (() => {
-        if (isAuthSessionTimeoutError(error)) {
-          return {
-            code: AUTH_SESSION_TIMEOUT_CODE,
-            message: "Timed out resolving your session. Sign in again to continue.",
-            status: null,
-          };
-        }
-        if (isAuthRequiredError(error)) {
-          return {
-            code: AUTH_REQUIRED_CODE,
-            message: error.message,
-            status: null,
-          };
-        }
-        if (
-          error &&
-          typeof error === "object" &&
-          "message" in error &&
-          "status" in error &&
-          "code" in error
-        ) {
-          return error as MediaComplianceErrorInfo;
-        }
-        return {
-          code: null,
-          message:
-            error instanceof Error ? error.message : "Unable to load the media agreement status.",
-          status: null,
-        };
-      })();
-      reportMediaComplianceFailure(errorInfo, "status_read");
+      const blockWhileRefreshing = options.blockWhileRefreshing !== false;
+      const routeStatus = options.routeStatus ?? "status_read";
 
       setState((current) => ({
         ...current,
-        loading: false,
-        status: isAuthRecoveryFailure(errorInfo) ? "auth_recovery_required" : "service_unavailable",
-        error: isAuthRecoveryFailure(errorInfo)
-          ? "Your session expired. Sign in again to continue."
-          : resolveServiceUnavailableMessage(errorInfo),
+        status: blockWhileRefreshing ? "loading" : current.status,
+        loading: true,
+        error: null,
       }));
-    }
-  }, [enabled, userId]);
+
+      try {
+        const response = await fetchWithAuth("/api/account/media-compliance", {
+          shortpulseLogScope: "app",
+          shortpulseRetryNetworkOnce: true,
+          shortpulseSkipErrorLogging: true,
+        });
+        if (!response.ok) {
+          const errorPayload = await response.json().catch(() => null);
+          const errorInfo: MediaComplianceErrorInfo = {
+            code: readErrorCode(errorPayload),
+            message: readErrorMessage(errorPayload, "Unable to load the media agreement status."),
+            status: response.status,
+          };
+          throw errorInfo;
+        }
+        const payload = parseStatusPayload(await response.json().catch(() => null));
+
+        setState({
+          agreement: payload.agreement,
+          acceptedAt: payload.acceptedAt,
+          error: null,
+          loading: false,
+          status: payload.accepted ? "accepted" : "needs_consent",
+        });
+      } catch (error) {
+        const errorInfo: MediaComplianceErrorInfo = (() => {
+          if (isAuthSessionTimeoutError(error)) {
+            return {
+              code: AUTH_SESSION_TIMEOUT_CODE,
+              message: "Timed out resolving your session. Sign in again to continue.",
+              status: null,
+            };
+          }
+          if (isAuthRequiredError(error)) {
+            return {
+              code: AUTH_REQUIRED_CODE,
+              message: error.message,
+              status: null,
+            };
+          }
+          if (
+            error &&
+            typeof error === "object" &&
+            "message" in error &&
+            "status" in error &&
+            "code" in error
+          ) {
+            return error as MediaComplianceErrorInfo;
+          }
+          return {
+            code: null,
+            message:
+              error instanceof Error ? error.message : "Unable to load the media agreement status.",
+            status: null,
+          };
+        })();
+        const canPreserveAcceptedState =
+          options.preserveAcceptedOnTransientNetworkFailure === true &&
+          stateRef.current.status === "accepted" &&
+          isTransientNetworkFailure(error, errorInfo);
+
+        if (!canPreserveAcceptedState) {
+          reportMediaComplianceFailure(errorInfo, routeStatus);
+        }
+
+        setState((current) => ({
+          ...current,
+          loading: false,
+          ...(canPreserveAcceptedState
+            ? { error: null }
+            : {
+                status: isAuthRecoveryFailure(errorInfo)
+                  ? "auth_recovery_required"
+                  : "service_unavailable",
+                error: isAuthRecoveryFailure(errorInfo)
+                  ? "Your session expired. Sign in again to continue."
+                  : resolveServiceUnavailableMessage(errorInfo),
+              }),
+        }));
+      }
+    },
+    [enabled, userId]
+  );
 
   const acceptAgreement = useCallback(async () => {
     if (!enabled || !userId) {
@@ -240,6 +277,7 @@ export const useMediaComplianceGate = ({
         },
         body: JSON.stringify({}),
         shortpulseLogScope: "app",
+        shortpulseSkipErrorLogging: true,
       });
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => null);
@@ -333,7 +371,11 @@ export const useMediaComplianceGate = ({
     }
 
     const refreshVisibleStatus = () => {
-      void refreshStatus();
+      void refreshStatus({
+        blockWhileRefreshing: false,
+        preserveAcceptedOnTransientNetworkFailure: true,
+        routeStatus: "tab_return_status_read",
+      });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {

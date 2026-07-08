@@ -331,6 +331,30 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
 
+  it("does not autosave outputs that only have blank media placeholders", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        enabled: true,
+        outputs: [
+          createOutput({
+            id: "blank-media-placeholder-1",
+            previewUrl: "   ",
+            resultUrls: ["", "  "],
+            localObjectUrl: "\n",
+            previewStoragePath: null,
+            fullStoragePath: null,
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
   it("retries blocked_storage outputs after quota recovers", async () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     const { rerender } = renderHook(

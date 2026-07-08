@@ -149,18 +149,22 @@ describe("GET /api/admin/users", () => {
       }),
     };
 
+    const allocationSpendQuery = createChainableQuery([]);
     const cycleSpendQuery = createChainableQuery([
       {
+        id: "ledger-before",
         user_id: "user-1",
         change_cents: -31,
         created_at: "2026-01-31T23:59:59.000Z",
       },
       {
+        id: "ledger-cycle",
         user_id: "user-1",
         change_cents: -42,
         created_at: "2026-02-10T00:00:00.000Z",
       },
       {
+        id: "ledger-after",
         user_id: "user-1",
         change_cents: -7,
         created_at: "2026-03-01T00:00:00.000Z",
@@ -234,6 +238,11 @@ describe("GET /api/admin/users", () => {
               ledgerQueryCount += 1;
               return ledgerQueryCount === 1 ? topUpsQuery : cycleSpendQuery;
             }),
+          };
+        }
+        if (table === "ai_credit_grant_allocations") {
+          return {
+            select: vi.fn().mockReturnValue(allocationSpendQuery),
           };
         }
         if (table === "billing_subscription_storage_addons") {
@@ -311,13 +320,16 @@ describe("GET /api/admin/users", () => {
       { user_id: "user-2", change_cents: 2000 },
       { user_id: "user-2", change_cents: 3000 },
     ]);
+    const allocationSpendQuery = createChainableQuery([]);
     const cycleSpendQuery = createChainableQuery([
       {
+        id: "ledger-user-1-cycle",
         user_id: "user-1",
         change_cents: -33,
         created_at: "2026-02-05T00:00:00.000Z",
       },
       {
+        id: "ledger-user-2-cycle",
         user_id: "user-2",
         change_cents: -44,
         created_at: "2026-02-16T00:00:00.000Z",
@@ -418,6 +430,11 @@ describe("GET /api/admin/users", () => {
               ledgerQueryCount += 1;
               return ledgerQueryCount === 1 ? topUpsQuery : cycleSpendQuery;
             }),
+          };
+        }
+        if (table === "ai_credit_grant_allocations") {
+          return {
+            select: vi.fn().mockReturnValue(allocationSpendQuery),
           };
         }
         if (table === "billing_subscription_storage_addons") {

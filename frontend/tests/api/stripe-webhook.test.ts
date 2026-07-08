@@ -70,6 +70,7 @@ const createSupabaseAdminForWebhook = (params?: {
   billingProfile?: Record<string, unknown> | null;
   billingPlan?: Record<string, unknown> | null;
   billingOffer?: Record<string, unknown> | null;
+  billingOffers?: Record<string, unknown>[];
   billingContract?: Record<string, unknown> | null;
   billingStorageAddon?: Record<string, unknown> | null;
   billingStorageAddonOffer?: Record<string, unknown> | null;
@@ -132,11 +133,17 @@ const createSupabaseAdminForWebhook = (params?: {
     if (table === "billing_plan_offers") {
       return {
         select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({
-              data: params?.billingOffer ?? null,
-              error: null,
-            }),
+          eq: (column: string, value: unknown) => ({
+            maybeSingle: async () => {
+              const offers =
+                params?.billingOffers ?? (params?.billingOffer ? [params.billingOffer] : []);
+              const data =
+                offers.find((offer) => offer[column] === value) ?? params?.billingOffer ?? null;
+              return {
+                data,
+                error: null,
+              };
+            },
           }),
         }),
       };
@@ -906,24 +913,36 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(grantAccountCreditsMock).not.toHaveBeenCalled();
   });
 
-  it("grants upgraded plan credits for paid immediate subscription update invoices", async () => {
+  it("grants target plan credits for paid immediate subscription update invoices with old-plan proration first", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminForWebhook({
         billingProfile: {
           user_id: "user_123",
-          plan_id: "business",
+          plan_id: "media",
         },
-        billingOffer: {
-          id: "business__current",
-          plan_id: "business",
-          billing_interval: "month",
-          stripe_price_id: "price_business",
-          recurring_price_cents: 12900,
-          monthly_credits_cents: 8000,
-          storage_limit_bytes: 1073741824,
-          max_concurrent_generations: 8,
-        },
+        billingOffers: [
+          {
+            id: "media__current",
+            plan_id: "media",
+            billing_interval: "month",
+            stripe_price_id: "price_media",
+            recurring_price_cents: 4900,
+            monthly_credits_cents: 3000,
+            storage_limit_bytes: 536870912,
+            max_concurrent_generations: 4,
+          },
+          {
+            id: "business__current",
+            plan_id: "business",
+            billing_interval: "month",
+            stripe_price_id: "price_business",
+            recurring_price_cents: 12900,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 1073741824,
+            max_concurrent_generations: 8,
+          },
+        ],
       })
     );
 
@@ -941,11 +960,25 @@ describe("POST /api/billing/stripe/webhook", () => {
               metadata: {
                 shortpulse_plan_change_kind: "immediate_paid_upgrade",
                 billing_plan_id: "business",
+                billing_offer_id: "business__current",
               },
             },
             lines: {
               data: [
                 {
+                  amount: -1200,
+                  price: {
+                    id: "price_media",
+                    unit_amount: 4900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1780881600,
+                    end: 1783470000,
+                  },
+                },
+                {
+                  amount: 12900,
                   price: {
                     id: "price_business",
                     unit_amount: 12900,

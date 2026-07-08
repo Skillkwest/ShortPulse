@@ -303,6 +303,46 @@ const resolveOfferFromPriceId = async (
   };
 };
 
+const resolveOfferFromOfferId = async (
+  offerId: string | undefined,
+  expectedPlanId?: string | null
+): Promise<ResolvedOffer | null> => {
+  if (!offerId) return null;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: offer, error } = await supabaseAdmin
+    .from("billing_plan_offers")
+    .select(
+      "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations"
+    )
+    .eq("id", offerId)
+    .maybeSingle();
+
+  if (error && !isIgnorableSchemaDriftError(error)) {
+    throw new Error(error.message || "Failed to load billing plan offer.");
+  }
+  if (!offer) return null;
+
+  const planId = typeof offer.plan_id === "string" ? offer.plan_id : null;
+  if (expectedPlanId && planId !== expectedPlanId) return null;
+
+  return {
+    offerId: typeof offer.id === "string" ? offer.id : null,
+    planId,
+    billingInterval:
+      offer.billing_interval === BILLING_INTERVAL_YEAR
+        ? BILLING_INTERVAL_YEAR
+        : BILLING_INTERVAL_MONTH,
+    stripePriceId: typeof offer.stripe_price_id === "string" ? offer.stripe_price_id : null,
+    recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
+    monthlyCreditsCents: Number(offer.monthly_credits_cents ?? 0),
+    storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
+    maxConcurrentGenerations: Number(
+      offer.max_concurrent_generations ?? resolveDefaultPlanConcurrencyLimit(planId)
+    ),
+  };
+};
+
 const resolveStorageAddonOfferFromPriceId = async (
   stripePriceId: string | undefined,
   fallback?: { recurringPriceCents?: number }
@@ -392,6 +432,31 @@ const isImmediatePaidUpgradeInvoice = (invoice: JsonObject): boolean => {
   return (
     normalizeString(metadata.shortpulse_plan_change_kind) === IMMEDIATE_PAID_UPGRADE_METADATA_VALUE
   );
+};
+
+const resolveInvoiceLinePriceId = (lineValue: unknown): string | null => {
+  const line = toRecord(lineValue);
+  const directPrice = toRecord(line.price);
+  const pricing = toRecord(line.pricing);
+  const priceDetails = toRecord(pricing.price_details);
+  return (
+    normalizeString(priceDetails.price) ??
+    normalizeString(directPrice.id) ??
+    normalizeString(toRecord(line.plan).id)
+  );
+};
+
+const findInvoiceLineForPriceId = (
+  invoice: JsonObject,
+  stripePriceId: string | null | undefined
+): JsonObject => {
+  if (!stripePriceId) return {};
+  const lines = toRecord(invoice.lines);
+  const lineData = Array.isArray(lines.data) ? lines.data : [];
+  const matchingLine = lineData.find(
+    (lineValue) => resolveInvoiceLinePriceId(lineValue) === stripePriceId
+  );
+  return toRecord(matchingLine);
 };
 
 const withWebhookMetadata = (
@@ -645,6 +710,32 @@ const resolveBillingContextFromInvoice = async (invoice: JsonObject, stripeCusto
   const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
   if (!profile?.user_id) return null;
 
+  const invoiceMetadata = readInvoiceMetadata(invoice);
+  const targetOfferId = normalizeString(invoiceMetadata.billing_offer_id);
+  const targetOffer = await resolveOfferFromOfferId(
+    targetOfferId ?? undefined,
+    normalizeString(invoiceMetadata.billing_plan_id)
+  );
+  if (targetOffer?.planId) {
+    const period = toRecord(findInvoiceLineForPriceId(invoice, targetOffer.stripePriceId).period);
+    return {
+      contractId: null,
+      userId: profile.user_id,
+      planId: targetOffer.planId,
+      offerId: targetOffer.offerId,
+      billingInterval:
+        targetOffer.billingInterval === BILLING_INTERVAL_YEAR
+          ? BILLING_INTERVAL_YEAR
+          : BILLING_INTERVAL_MONTH,
+      stripePriceId: targetOffer.stripePriceId,
+      monthlyCreditsCents: Number(targetOffer.monthlyCreditsCents ?? 0),
+      currentPeriodStart: asIsoDate(typeof period.start === "number" ? period.start : null),
+      currentPeriodEnd: asIsoDate(typeof period.end === "number" ? period.end : null),
+      nextCreditGrantAt: null,
+    };
+  }
+  if (isImmediatePaidUpgradeInvoice(invoice) && targetOfferId) return null;
+
   const lines = toRecord(invoice.lines);
   const lineData = Array.isArray(lines.data) ? lines.data : [];
 
@@ -652,13 +743,8 @@ const resolveBillingContextFromInvoice = async (invoice: JsonObject, stripeCusto
     const line = toRecord(lineValue);
     const directPrice = toRecord(line.price);
     const pricing = toRecord(line.pricing);
-    const priceDetails = toRecord(pricing.price_details);
     const metadata = toRecord(directPrice.metadata);
-    const priceId =
-      normalizeString(priceDetails.price) ??
-      normalizeString(directPrice.id) ??
-      normalizeString(toRecord(line.plan).id) ??
-      undefined;
+    const priceId = resolveInvoiceLinePriceId(line) ?? undefined;
 
     if (!priceId) continue;
 

@@ -2048,6 +2048,17 @@
   border: 1px solid rgba(248, 78, 78, 0.65);
 }
 
+.pill.adminSupportQueueSignalPill {
+  min-width: 0;
+  min-height: 14px;
+  padding: 1px 4px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .pillConfidenceHigh {
   background: rgba(109, 214, 151, 0.2);
   color: #d2f7df;

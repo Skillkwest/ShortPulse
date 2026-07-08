@@ -13,6 +13,7 @@ import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { grantAccountCredits } from "../../../../lib/server/api/creditLedger";
 import { resolveDefaultPlanConcurrencyLimit } from "../../../../lib/billing/planConcurrency";
+import { isPaidAccessSubscriptionStatus } from "../../../../lib/billing/subscriptionStatusPolicy";
 import { readVerifiedStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 import {
   readRawRequestBody,
@@ -76,6 +77,11 @@ type ResolvedStorageAddonOffer = {
   stripePriceId: string | null;
   storageLimitBytes: number;
   recurringPriceCents: number;
+};
+
+type ResolvedSubscriptionCancellationState = {
+  cancelAtPeriodEnd: boolean;
+  accessEndsAt: string | null;
 };
 
 type BillingProfileProjection = {
@@ -177,6 +183,37 @@ const resolveSubscriptionPeriodFromItems = (
   return {
     currentPeriodStart: starts.length > 0 ? asIsoDate(Math.min(...starts)) : null,
     currentPeriodEnd: ends.length > 0 ? asIsoDate(Math.max(...ends)) : null,
+  };
+};
+
+const resolveSubscriptionCancellationState = ({
+  subscription,
+  subscriptionStatus,
+  resolvedCurrentPeriodEnd,
+}: {
+  subscription: JsonObject;
+  subscriptionStatus: string;
+  resolvedCurrentPeriodEnd: string | null;
+}): ResolvedSubscriptionCancellationState => {
+  if (subscriptionStatus === "canceled") {
+    return { cancelAtPeriodEnd: false, accessEndsAt: resolvedCurrentPeriodEnd };
+  }
+
+  const stripeCancelAtPeriodEnd = normalizeBoolean(subscription.cancel_at_period_end);
+  const cancelAt = asIsoDate(
+    typeof subscription.cancel_at === "number" ? subscription.cancel_at : null
+  );
+  const cancelAtDate = asDate(cancelAt);
+  const hasFutureCancelAt = Boolean(cancelAtDate && cancelAtDate.getTime() > Date.now());
+  const hasScheduledAccessEnd =
+    isPaidAccessSubscriptionStatus(subscriptionStatus) &&
+    (stripeCancelAtPeriodEnd || hasFutureCancelAt);
+
+  return {
+    cancelAtPeriodEnd: hasScheduledAccessEnd,
+    accessEndsAt: hasScheduledAccessEnd
+      ? (resolvedCurrentPeriodEnd ?? cancelAt)
+      : resolvedCurrentPeriodEnd,
   };
 };
 
@@ -1816,7 +1853,6 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
   resolvedPlanId = resolvedPlanId ?? profile?.plan_id ?? null;
   const subscriptionStatus =
     typeof subscription.status === "string" ? subscription.status : "inactive";
-  const cancelAtPeriodEnd = normalizeBoolean(subscription.cancel_at_period_end);
   const isFinalCancellation = subscriptionStatus === "canceled";
   const resolvedCurrentPeriodStart =
     asIsoDate(
@@ -1830,8 +1866,13 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     asIsoDate(
       typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
     ) ?? fallbackPeriod.currentPeriodEnd;
+  const cancellationState = resolveSubscriptionCancellationState({
+    subscription,
+    subscriptionStatus,
+    resolvedCurrentPeriodEnd,
+  });
   const runtimePlanId = isFinalCancellation ? "free" : resolvedPlanId;
-  const runtimeCurrentPeriodEnd = isFinalCancellation ? null : resolvedCurrentPeriodEnd;
+  const runtimeCurrentPeriodEnd = isFinalCancellation ? null : cancellationState.accessEndsAt;
 
   const updatePayload: JsonObject = {
     stripe_subscription_id: isFinalCancellation ? null : (subscription.id ?? null),
@@ -1858,8 +1899,8 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     stripeSubscriptionId: normalizeString(subscription.id),
     status: subscriptionStatus,
     currentPeriodStart: resolvedCurrentPeriodStart,
-    currentPeriodEnd: resolvedCurrentPeriodEnd,
-    cancelAtPeriodEnd,
+    currentPeriodEnd: cancellationState.accessEndsAt,
+    cancelAtPeriodEnd: cancellationState.cancelAtPeriodEnd,
     resolvedOffer,
   });
 
@@ -1869,8 +1910,8 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     stripeSubscriptionId: normalizeString(subscription.id),
     status: subscriptionStatus,
     currentPeriodStart: resolvedCurrentPeriodStart,
-    currentPeriodEnd: resolvedCurrentPeriodEnd,
-    cancelAtPeriodEnd,
+    currentPeriodEnd: cancellationState.accessEndsAt,
+    cancelAtPeriodEnd: cancellationState.cancelAtPeriodEnd,
     resolvedAddons,
   });
 

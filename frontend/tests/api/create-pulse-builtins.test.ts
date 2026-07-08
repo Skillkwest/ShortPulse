@@ -67,7 +67,17 @@ describe("GET /api/ai/create-pulse-builtins", () => {
         {
           presetId: "image",
           label: "Video Prompt Magic",
+          description: "Live helper.",
           systemInstructions: "Use the published built-in prompt.",
+          starterAssistantMessage: "Tell me what you want to make.",
+          workflowStageHints: null,
+          artifactTarget: "video_prompt",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          schemaVersion: 2,
           publicationStatus: "published",
         },
       ],
@@ -88,7 +98,14 @@ describe("GET /api/ai/create-pulse-builtins", () => {
         {
           presetId: "image",
           label: "Video Prompt Magic",
-          systemInstructions: "Use the published built-in prompt.",
+          description: "Live helper.",
+          artifactTarget: "video_prompt",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          schemaVersion: 2,
           publicationStatus: "published",
         },
       ],
@@ -146,6 +163,12 @@ describe("GET /api/ai/create-pulse-builtins", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
+    const responsePayload = vi.mocked(res.json).mock.calls[0]?.[0] as {
+      builtInDefinitions?: Array<Record<string, unknown>>;
+    };
+    expect(responsePayload?.builtInDefinitions?.[0]).not.toHaveProperty("systemInstructions");
+    expect(responsePayload?.builtInDefinitions?.[0]).not.toHaveProperty("starterAssistantMessage");
+    expect(responsePayload?.builtInDefinitions?.[0]).not.toHaveProperty("workflowStageHints");
     expect(res.json).toHaveBeenCalledWith({
       builtInDefinitions: [
         expect.objectContaining({

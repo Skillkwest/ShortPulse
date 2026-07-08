@@ -356,7 +356,7 @@ Recommended operator sequence:
   - changing the runtime conversion rate does not rewrite historical grants or subscription contract rows
   - phase-1 billable AI Studio flows also persist `pricing_observability` metadata so operators can compare displayed billed credits against final debited credits without reconstructing the client estimate manually
 - Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
-- Scheduled Stripe cancellations preserve local paid entitlements only while the subscription status remains a paid-access state and `cancel_at_period_end = true`.
+- Scheduled Stripe cancellations preserve local paid entitlements only while the subscription status remains a paid-access state and Stripe reports either `cancel_at_period_end = true` or a future `cancel_at` timestamp. ShortPulse projects both Stripe shapes into local `cancel_at_period_end = true` contract state because the local flag means paid access is scheduled to end later.
 - Final Stripe cancellation (`status = 'canceled'` from `customer.subscription.deleted`, including period-end cancellations where Stripe still reports `cancel_at_period_end = true` historically) must drop the billing profile back to baseline access and close the local subscription contract plus recurring storage add-on contracts.
 
 ## Pricing observability diagnostics

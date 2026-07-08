@@ -105,7 +105,7 @@ export const startPulsePreset = async ({
     presetId: preset.presetId,
     label: preset.label,
     description: preset.description,
-    instructions: preset.systemInstructions,
+    ...(preset.isBuiltIn ? {} : { instructions: preset.systemInstructions }),
     pulseKind: preset.pulseKind,
     source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
     schemaVersion: preset.schemaVersion,

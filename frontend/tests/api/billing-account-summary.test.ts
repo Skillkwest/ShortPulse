@@ -84,33 +84,33 @@ const createQueryBuilder = <T>(
 };
 
 const createSupabaseAdminMock = (params?: {
+  billingContract?: Record<string, unknown> | null;
   pendingSubscriptionChange?: Record<string, unknown> | null;
 }) => {
   const queries: Record<string, QueryBuilder[]> = {};
+  const billingContract = params?.billingContract ?? {
+    id: "contract-business",
+    plan_id: "business",
+    offer_id: "business__monthly",
+    billing_interval: "month",
+    stripe_subscription_id: "sub_123",
+    stripe_price_id: "price_123",
+    contract_source: "stripe",
+    recurring_price_cents: 2500,
+    monthly_credits_cents: 45000,
+    storage_limit_bytes: 500_000_000,
+    max_concurrent_generations: 8,
+    status: "active",
+    current_period_start: "2026-07-01T00:00:00Z",
+    current_period_end: "2026-08-01T00:00:00Z",
+    cancel_at_period_end: false,
+    started_at: "2026-07-01T00:00:00Z",
+    ended_at: null,
+  };
   const from = vi.fn((table: string) => {
     const query =
       table === "billing_subscription_contracts"
-        ? createQueryBuilder(
-            ok({
-              id: "contract-business",
-              plan_id: "business",
-              offer_id: "business__monthly",
-              billing_interval: "month",
-              stripe_subscription_id: "sub_123",
-              stripe_price_id: "price_123",
-              contract_source: "stripe",
-              recurring_price_cents: 2500,
-              monthly_credits_cents: 45000,
-              storage_limit_bytes: 500_000_000,
-              max_concurrent_generations: 8,
-              status: "active",
-              current_period_start: "2026-07-01T00:00:00Z",
-              current_period_end: "2026-08-01T00:00:00Z",
-              cancel_at_period_end: false,
-              started_at: "2026-07-01T00:00:00Z",
-              ended_at: null,
-            })
-          )
+        ? createQueryBuilder(ok(billingContract))
         : table === "billing_profiles"
           ? createQueryBuilder(
               ok({
@@ -216,6 +216,45 @@ describe("/api/billing/account-summary", () => {
             recurringPriceCents: 500,
           },
         ],
+      },
+    });
+  });
+
+  it("returns scheduled cancellation state from the active subscription contract", async () => {
+    const supabase = createSupabaseAdminMock({
+      billingContract: {
+        id: "contract-business",
+        plan_id: "business",
+        offer_id: "business__monthly",
+        billing_interval: "month",
+        stripe_subscription_id: "sub_123",
+        stripe_price_id: "price_123",
+        contract_source: "stripe",
+        recurring_price_cents: 2500,
+        monthly_credits_cents: 45000,
+        storage_limit_bytes: 500_000_000,
+        max_concurrent_generations: 8,
+        status: "active",
+        current_period_start: "2026-07-01T00:00:00Z",
+        current_period_end: "2026-08-01T00:00:00Z",
+        cancel_at_period_end: true,
+        started_at: "2026-07-01T00:00:00Z",
+        ended_at: null,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+    const res = createMockResponse();
+
+    await handler(createRequest({ includeProfileState: "1" }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.body).toMatchObject({
+      profileState: {
+        billingContract: {
+          current_period_end: "2026-08-01T00:00:00Z",
+          cancel_at_period_end: true,
+          ended_at: null,
+        },
       },
     });
   });

@@ -89,7 +89,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(clearPulsePrompt).not.toHaveBeenCalled();
   });
 
-  it("builds Pulse agent context from a restored built-in Pulse snapshot", () => {
+  it("builds Pulse agent context from a restored built-in Pulse snapshot without browser instructions", () => {
     const getAgentContext = vi.fn(() => ({}));
     const { result } = renderHook(() =>
       useCreatePulsePresetPageRuntime(createParams({ getAgentContext }))
@@ -102,7 +102,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(context.pulse?.presetId).toBe("story_builder");
     expect(context.pulse?.runtimeMode).toBe("workflow_gpt");
     expect(context.pulse?.source).toBe("builtin");
-    expect(context.pulse?.instructions).toContain("Story Circle Scene-Prompt GPT");
+    expect(context.pulse).not.toHaveProperty("instructions");
   });
 
   it("recovers a restored custom Pulse snapshot from saved presets", () => {

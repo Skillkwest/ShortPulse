@@ -288,7 +288,10 @@ export const useCreatePulsePresetPageRuntime = ({
         activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
           ? activeCreatePulsePresetSnapshot
           : null;
-      const instructions = resolvedPulsePreset?.systemInstructions?.trim() ?? "";
+      const instructions =
+        resolvedPulsePreset && !resolvedPulsePreset.isBuiltIn
+          ? resolvedPulsePreset.systemInstructions.trim()
+          : "";
       if (!resolvedPulsePreset || (!instructions && resolvedPulsePreset.isBuiltIn !== true)) {
         return baseContext;
       }
@@ -298,7 +301,7 @@ export const useCreatePulsePresetPageRuntime = ({
           presetId: activeCreatePulsePresetId,
           label: resolvedPulsePreset.label,
           description: resolvedPulsePreset.description,
-          instructions,
+          ...(instructions ? { instructions } : {}),
           pulseKind: resolvedPulsePreset.pulseKind,
           source: resolvedPulsePreset.isBuiltIn ? "builtin" : "custom",
           schemaVersion: resolvedPulsePreset.schemaVersion,

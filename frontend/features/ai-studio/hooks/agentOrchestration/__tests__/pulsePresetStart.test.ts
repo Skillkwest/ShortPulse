@@ -202,6 +202,11 @@ describe("pulsePresetStart", () => {
       lastArtifact: null,
       finalArtifactSource: null,
     };
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Upload your image to get the process started :)" },
+      actions: undefined,
+      workflowSession,
+    }));
 
     const result = await startPulsePreset({
       preset: videoPromptPreset,
@@ -220,11 +225,7 @@ describe("pulsePresetStart", () => {
       resolvePulseSessionNamespace: vi.fn(() => "ai-studio:session-1::pulse:image:test"),
       getAgentContext: vi.fn(() => ({})),
       notifyBootstrapPending: vi.fn(),
-      sendToAgent: vi.fn(async () => ({
-        response: { message: "Upload your image to get the process started :)" },
-        actions: undefined,
-        workflowSession,
-      })),
+      sendToAgent,
       trackAgentUiEvent: vi.fn(),
       setAgentSessionEnabled: vi.fn(),
       setAgentAttachmentError: vi.fn(),
@@ -239,6 +240,11 @@ describe("pulsePresetStart", () => {
       status: "started",
       latestAgentPrompt: null,
     });
+    const sendToAgentCalls = sendToAgent.mock.calls as unknown as Array<
+      [{ context?: { pulse?: Record<string, unknown> } }]
+    >;
+    const firstSendArgs = sendToAgentCalls[0]?.[0];
+    expect(firstSendArgs?.context?.pulse).not.toHaveProperty("instructions");
     expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(workflowSession);
   });
 

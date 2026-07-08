@@ -6,6 +6,26 @@ import {
   resolveRuntimeCreatePulseBuiltInCatalog,
 } from "../../../lib/server/api/createPulseBuiltInControlPlane";
 
+type RuntimeCreatePulseBuiltInCatalog = Awaited<
+  ReturnType<typeof resolveRuntimeCreatePulseBuiltInCatalog>
+>;
+type RuntimeCreatePulseBuiltInDefinition =
+  RuntimeCreatePulseBuiltInCatalog["builtInDefinitions"][number];
+
+const toPublicCreatePulseBuiltInDefinition = (definition: RuntimeCreatePulseBuiltInDefinition) => ({
+  presetId: definition.presetId,
+  label: definition.label,
+  description: definition.description,
+  pulseKind: definition.pulseKind,
+  runtimeMode: definition.runtimeMode,
+  activationMode: definition.activationMode,
+  outputMode: definition.outputMode,
+  artifactTarget: definition.artifactTarget,
+  memoryPolicy: definition.memoryPolicy,
+  schemaVersion: definition.schemaVersion,
+  publicationStatus: definition.publicationStatus,
+});
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   if (req.method !== "GET") {
@@ -36,9 +56,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         degraded: builtInCatalog.degraded,
       });
     }
-    const publishedBuiltInDefinitions = builtInCatalog.builtInDefinitions.filter(
-      (definition) => definition.publicationStatus !== "draft"
-    );
+    const publishedBuiltInDefinitions = builtInCatalog.builtInDefinitions
+      .filter((definition) => definition.publicationStatus !== "draft")
+      .map(toPublicCreatePulseBuiltInDefinition);
     return res.status(200).json({
       builtInDefinitions: publishedBuiltInDefinitions,
       source: builtInCatalog.source,

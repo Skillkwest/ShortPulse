@@ -459,7 +459,17 @@ async function main() {
     }
 
     const pulseCatalog = await openPulseCatalog(page);
-    await page.getByRole("button", { name: out.targetPresetLabel, exact: true }).click();
+    const pinnedPresetButton = page
+      .getByRole("button", { name: `${out.targetPresetLabel} preset`, exact: true })
+      .first();
+    const catalogPresetButton = page
+      .getByRole("button", { name: out.targetPresetLabel, exact: true })
+      .first();
+    if (await pinnedPresetButton.isVisible().catch(() => false)) {
+      await pinnedPresetButton.click();
+    } else {
+      await catalogPresetButton.click();
+    }
     await pulseCatalog.waitFor({ state: "hidden", timeout: 10_000 }).catch(() => undefined);
 
     await page.getByText("BUILTIN-PULSE-MARKER: upload the anchor image first.").waitFor({

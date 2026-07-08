@@ -150,7 +150,7 @@ describe("buildPlanView", () => {
       "Best for serious creators with heavy workflow & storage needs"
     );
     expect(businessPlan.monthlyCreditsCents).toBe(8000);
-    expect(businessPlan.bonusCreditsLabel).toBe("+500 bonus credits every month");
+    expect(businessPlan.bonusCreditsLabel).toBe("+ 500 bonus credits every month included");
     expect(studioPlan.displayPricing).toEqual(
       expect.objectContaining({
         monthlyDisplayPriceCents: 12900,
@@ -177,6 +177,12 @@ describe("buildPlanView", () => {
     });
     expect(businessPlan.cardFeatures).toEqual(
       expect.arrayContaining([expect.objectContaining({ label: "Create studio", included: true })])
+    );
+    expect(studioPlan.cardFeatures).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "Bonus credits", included: false })])
+    );
+    expect(businessPlan.cardFeatures).toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "Bonus credits", included: true })])
     );
   });
 

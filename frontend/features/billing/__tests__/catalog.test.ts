@@ -23,6 +23,14 @@ describe("buildPlanView", () => {
       storage_limit_bytes: 100 * 1024 * 1024 * 1024,
       is_active: true,
     },
+    {
+      id: "business",
+      display_name: "Business",
+      monthly_price_cents: 29900,
+      monthly_credits_cents: 8000,
+      storage_limit_bytes: 150 * 1024 * 1024 * 1024,
+      is_active: true,
+    },
   ];
 
   it("uses one workspace seat for Media and Studio plans", () => {
@@ -141,7 +149,8 @@ describe("buildPlanView", () => {
     expect(businessPlan.cardFooterDescription).toBe(
       "Best for serious creators with heavy workflow & storage needs"
     );
-    expect(businessPlan.bonusCreditsLabel).toBeNull();
+    expect(businessPlan.monthlyCreditsCents).toBe(8000);
+    expect(businessPlan.bonusCreditsLabel).toBe("+500 bonus credits every month");
     expect(studioPlan.displayPricing).toEqual(
       expect.objectContaining({
         monthlyDisplayPriceCents: 12900,
@@ -163,14 +172,11 @@ describe("buildPlanView", () => {
       })
     );
     expect(businessPlan.displayBenefits).toEqual({
-      monthlyCreditsLabel: "8,000 credits every month",
+      monthlyCreditsLabel: "7,500 credits every month",
       storageLabel: "150 GB of media storage",
     });
     expect(businessPlan.cardFeatures).toEqual(
       expect.arrayContaining([expect.objectContaining({ label: "Create studio", included: true })])
-    );
-    expect(businessPlan.cardFeatures).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: "Bonus credits" })])
     );
   });
 

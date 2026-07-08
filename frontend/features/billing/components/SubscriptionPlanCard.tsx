@@ -55,7 +55,9 @@ export function SubscriptionPlanCard({
     selectedPricing.hasLiveOffer &&
     monthlyPricing.monthlyEquivalentCents > pricing.monthlyEquivalentCents &&
     pricing.savingsAmountCents > 0;
-  const creditsLabel = `${pricing.monthlyCreditsCents.toLocaleString()} credits every month`;
+  const creditsLabel = planView.bonusCreditsLabel
+    ? planView.displayBenefits.monthlyCreditsLabel
+    : `${pricing.monthlyCreditsCents.toLocaleString()} credits every month`;
   const storageLabel = `${formatStorageBytes(pricing.storageLimitBytes)} of media storage`;
   const featureRows = [
     {

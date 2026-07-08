@@ -36,7 +36,7 @@ Recurring duties:
 
 Active workbook:
 
-- Google Sheet: `ShortPulse Provider Expenses`
+- Google Sheet: `ShortPulse Finances`
 - URL: `https://docs.google.com/spreadsheets/d/1QchjaYKjY-hzUXKnenHgPI1Zx-LTDk6CkXt58vaFcXo/edit?pli=1&gid=0#gid=0`
 
 The workbook is an operational bookkeeping ledger, not a tax filing or audited financial statement.
@@ -89,6 +89,7 @@ Special note from the owner on 2026-07-08:
 - Intake and scratch workspace: `docs/agents/badu/workspace/`
 - Source assets and exports: `docs/agents/badu/assets/`
 - Retained artifacts: `docs/records/artifacts/agent/badu/`
+- Training history and sanitized training data: `docs/records/artifacts/agent/badu/training-history.md` and `docs/records/artifacts/agent/badu/training-data/`
 
 ## Default Load Policy
 

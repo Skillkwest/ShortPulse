@@ -62,6 +62,14 @@ Use this path when setting up a new agent for a new recurring task:
 - `docs/agents/d-bug/README.md`: debugging handoff intake, triage, reproduction, and debug-plan contract.
   - `docs/agents/d-bug/standard-operating-procedure.md`: standing SOP for D-Bug handoff intake, repo audit, debug planning, bounded fixes, and downstream routing.
   - `docs/agents/d-bug/scorecard-operations.md`: standing SOP for D-Bug checkpoint scoring, baseline tracking, and training-evidence capture.
+- `docs/agents/badearsai/README.md`: Badearsai error manager contract for Admin Errors triage intake, real-vs-noise classification, source tracing, queue hygiene, and launch-rollout error monitoring.
+  - `docs/agents/badearsai/AGENTS.md`: Badearsai-scoped execution overlay for error-monitoring lanes.
+  - `docs/agents/badearsai/memory.md`: Badearsai's repo-visible durable memory entrypoint.
+  - `docs/agents/badearsai/standard-operating-procedure.md`: standing SOP for incident-packet intake, canonical source tracing, classification, owner routing, and proof boundaries.
+  - `docs/agents/badearsai/ownership-manifest.md`: Badearsai's ownership boundary map for error management versus adjacent specialist lanes.
+  - `docs/agents/badearsai/tools/README.md`: Badearsai helper-tool and future script inventory.
+  - `docs/agents/badearsai/workspace/README.md`: Badearsai intake, scratch, and handoff workspace.
+  - retained artifacts live under `docs/records/artifacts/agent/badearsai/`.
 - `docs/agents/dave-the-security-guy/README.md`: Dave the Security Guy security stewardship contract for app security, user account security, Supabase, Vercel, secrets, environment boundaries, and attack-resistance review.
   - `docs/agents/dave-the-security-guy/AGENTS.md`: Dave-scoped security execution overlay.
   - `docs/agents/dave-the-security-guy/standard-operating-procedure.md`: Dave's standing SOP for security review, hardening, incident response, and environment-security work.

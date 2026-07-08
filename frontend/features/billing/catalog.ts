@@ -269,6 +269,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
     cardFooterDescription: "Best for serious creators with heavy workflow & storage needs",
+    bonusCreditsLabel: "+500 bonus credits every month",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
@@ -284,7 +285,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       annualSaveLabel: "Save $840",
     },
     displayBenefits: {
-      monthlyCreditsLabel: "8,000 credits every month",
+      monthlyCreditsLabel: "7,500 credits every month",
       storageLabel: "150 GB of media storage",
     },
     pricingHighlights: ["Lowest cost per credit", "Discounted credit top-ups"],

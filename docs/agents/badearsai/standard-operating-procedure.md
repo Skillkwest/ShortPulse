@@ -1,0 +1,186 @@
+# Badearsai SOP
+
+Purpose: define Badearsai's repeatable workflow for ShortPulse Admin Errors triage intake, source tracing, real-vs-noise classification, and launch-rollout queue hygiene.
+
+## Trigger
+
+Run this SOP when the user says:
+
+- `run Badearsai`,
+- `Badearsai, audit these errors`,
+- `audit these triage packets`,
+- `error manager`,
+- `are these errors real or noise`,
+- `trace these issues`,
+- or asks to classify Admin Errors during launch rollout.
+
+## Scope
+
+This SOP covers triage packet intake, source tracing, incident grouping, real-vs-noise decisions, queue-pruning recommendations, Admin Errors panel cleanup, owner-lane routing, proof boundaries, and retained reports.
+
+It does not cover production mutation outside reviewed Admin Errors status treatment for the current pasted batch, live replay, provider-spend smoke tests, deploys, pushes, broad refactors, UI/UX changes, security posture changes, or another agent's implementation lane unless explicitly authorized.
+
+## Required Workflow
+
+### Step 1. Startup And Scope
+
+- Follow the root startup contract.
+- Load Badearsai contract, memory, SOP, and ownership manifest.
+- Confirm task mode. Default to audit plus queue cleanup for pasted triage batches; default to no product-code edits.
+- Identify the packet source, copied-at time, production environment, affected route(s), and whether the user supplied a single packet or a batch.
+- Check the worktree before edits or broad commands; ignore unrelated dirty files.
+
+### Step 2. Parse Packets Structurally
+
+- Parse every copied packet into an inventory table.
+- Preserve incident/event IDs, fingerprints, source, scope, severity, status, route, endpoint, request id, status code, user boundary, first/last seen, occurrence count, release/build, model/task/output/generation identifiers, and metadata keys.
+- Group likely causal chains, but never drop individual IDs.
+- When packet output is too large, use structured parsing rather than reading the packet as raw prose.
+
+### Step 3. Trace The Owning Source
+
+For each incident or causal chain:
+
+- Search for exact route, endpoint, source, message, route label, and metadata keys.
+- Read the owning route/service/helper/SOP before classifying.
+- Identify whether the headline is:
+  - route missing/stale deploy,
+  - intentional auth/rate/admission gating,
+  - provider upstream/provider policy,
+  - durable app defect,
+  - queue-policy issue,
+  - client/browser/network singleton,
+  - or insufficient packet detail.
+- Name the owner lane and repo path when available.
+
+### Step 4. Classify
+
+Use these classifications:
+
+- `real issue`: user impact or product correctness risk that needs owner-lane proof or fix.
+- `queue noise`: expected/old/deploy-skew/rate/safety/admission signal that should not occupy the default operator queue.
+- `watch`: plausible but low-proof or singleton signal; retain, look for repeats, do not implement yet.
+- `blocked pending proof`: packet is too compact; Event Detail, Admin trace, Supabase read-only evidence, or production proof is required.
+- `out of scope`: belongs to another owner lane or requires approval-gated mutation/spend/deploy.
+
+Each classification must include confidence: high, medium, or low.
+
+### Step 5. Decide Queue Treatment
+
+For default Admin Errors queue hygiene, decide whether the item should be:
+
+- kept open as operator work,
+- resolved after current proof or verified no-repeat condition,
+- ignored with explicit rationale,
+- marked resolved as a watch item with a concrete repeat condition,
+- or escalated to an owner lane.
+
+Use the canonical Admin Errors status vocabulary:
+
+- `open`: still requires implementation, owner-lane work, Event Detail proof, or human review.
+- `resolved`: fixed, verified clean, no longer actionable, or ready to leave the default queue.
+- `ignored`: expected noise, routine non-actionable telemetry, stale/deploy-skew, duplicate already tracked elsewhere, rate/admission/safety behavior, or not useful in the default queue.
+- `resolved` plus `watch: true`: leave the default queue while retaining a watch label and concrete recurrence condition.
+
+### Step 6. Clean Up Reviewed Rows
+
+After classification, remove reviewed items from the default Admin Errors panel through the correct status treatment when all of these are true:
+
+- the row came from the current pasted packet or an explicitly selected same-fingerprint family,
+- the incident/event ID is known,
+- the status treatment is clear,
+- the note/rationale is ready,
+- the canonical Admin status path is available,
+- and the operation does not require replay, spend, provider calls, billing mutation, security posture changes, deploys, or product-code edits.
+
+Use `frontend/pages/api/admin/errors-status.ts` or `frontend/pages/api/admin/errors-status-bulk.ts` as the canonical status semantics. Existing Ophestivus tools may be used only when their workflow is the correct fit for the current cleanup path; do not create duplicate status authorities.
+
+Run a dry-run or read-only status check first when the tool supports it or when same-fingerprint scope is unclear. After mutation, verify the row or same-fingerprint family is no longer `open` in the default queue, and record failures separately instead of silently dropping them.
+
+Stop before cleanup when:
+
+- the packet lacks the ID needed to update the row,
+- the item still needs owner-lane implementation or Event Detail proof,
+- the status treatment would be a guess,
+- multiple rows share a fingerprint and the correct scope is unclear,
+- safe Admin authentication/status tooling is unavailable,
+- or the change would affect rows outside the current reviewed set.
+
+### Step 7. Validate Without Mutating
+
+Use non-mutating checks for source proof and recurrence decisions:
+
+- repo static trace,
+- focused local tests if code was already changed in an approved implementation lane,
+- `node scripts/verify_deployment_route_parity.mjs --base-url https://www.shortpulse.ai` for deploy-skew/route surface questions,
+- unauthenticated protected-route fail-closed probes when useful,
+- Admin status/read checks for reviewed rows,
+- docs or route inventory checks.
+
+Do not use service-role env, Supabase writes outside the reviewed Admin Errors status path, provider submits, generation replay, billing/subscription changes, or credit-spend tests unless explicitly approved.
+
+### Step 8. Report
+
+Close with:
+
+- packet source and count,
+- grouped root-cause clusters,
+- real issues and owner lanes,
+- noise/prune candidates and why they are safe to hide from the default queue,
+- watch items and repeat conditions,
+- Admin Errors cleanup performed, skipped, or blocked,
+- proof achieved,
+- proof still missing,
+- exact stop boundary,
+- suggested next highest-ROI action.
+
+### Step 9. Record Durable Lessons
+
+Update Badearsai memory, training history, run log, or retained reports when:
+
+- a new recurring classification rule appears,
+- a new owner boundary is learned,
+- a reusable command or parser is created,
+- queue pruning policy changes,
+- Admin cleanup policy or status semantics change,
+- or a supervised run exposes SOP friction.
+
+Do not create long retained reports for tiny packet batches unless the run produces durable owner/proof decisions or training value.
+
+## Stop Rules
+
+Stop and ask for human review when:
+
+- required proof depends on Admin Event Detail that was not copied,
+- the next step would mutate production or provider/account state outside reviewed Admin Errors status treatment for the current packet,
+- the next step would spend credits or replay generation/provider jobs,
+- the owner lane is unclear and implementation would risk broad churn,
+- the only available fix is a workaround or duplicate path,
+- the packet contains sensitive data that should not be retained in repo,
+- or classification would require secrets/env values not safely available.
+
+## Closeout Template
+
+Use a concise closeout:
+
+```text
+Audited <count> packet(s) from <source/time>.
+
+Real issues:
+- <cluster>: <owner>, <proof>, <next step>
+
+Queue noise/prune:
+- <cluster>: <reason>, <retain/watch condition>
+
+Watch/blocked:
+- <cluster>: <missing proof>, <repeat condition>
+
+No changes made / Changes made:
+- <files or none>
+
+Admin Errors cleanup:
+- <resolved/ignored/watch/kept-open/blocked rows and verification>
+
+Next:
+- <highest-ROI proof or owner handoff>
+```

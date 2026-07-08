@@ -28,7 +28,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 1: Runtime And Money
 
 - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
-- `docs/planning/incident-audit-follow-up-buildout-plan-2026-07-08.md`
+- `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/evidence/runtime-v2/README.md`
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
@@ -42,7 +42,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 2: Media And Reference Integrity
 
 - `docs/known-issues.md`
-- `docs/planning/incident-audit-follow-up-buildout-plan-2026-07-08.md`
+- `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`

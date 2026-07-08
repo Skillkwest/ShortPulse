@@ -29,6 +29,8 @@ Use current sources in this order:
 4. Active accounting workbook.
 5. Badu memory and retained reports for advisory continuity.
 
+Current user instructions can temporarily override retained cutoff rules for a supervised dry run. If that happens, label the override in the run report and do not silently rewrite the standing monthly import boundary.
+
 Do not use temporary scratch files as source of truth unless the user explicitly names that file for the current task.
 
 ## Required Workflow
@@ -115,7 +117,8 @@ Rules:
 - For Stripe income, prefer Balance > All activity rows when available; capture gross payment amount in `Income USD`, Stripe fees in `Expense USD`, and the Stripe net total in `Net USD`.
 - For Stripe balance activity, exclude payouts, top-ups, and automatic balance transfers from income/expense totals because they are transfers, not revenue.
 - Omit customer identifiers from ledger rows unless the owner explicitly asks to retain them.
-- Refunds and credits must be labeled clearly and not hidden as negative expenses unless the workbook convention explicitly requires that.
+- Refunds and credits must be labeled clearly and not hidden as negative expenses unless the workbook convention explicitly requires that. For owner/test-account purchases, the current workbook convention is to log tied refunds as negative `Testing expense` rows so they reduce the prior test-purchase cost.
+- Do not classify Stripe payments as testing expense unless source evidence proves a match to the owner-supplied test-account list. If detail pages do not reveal customer identity, keep the row as customer revenue and add an uncertainty note rather than guessing.
 - If a source row is ambiguous, import only with an explicit uncertainty note or ask the user before adding it.
 
 ### Step 5. Prevent Double Counting
@@ -144,11 +147,14 @@ At minimum, verify:
 - workbook total changed by the expected amount,
 - transaction count changed by the expected number,
 - formulas and filters include the new final row,
+- audit/status helper cells show no screenshot-only rows, payment-page fee gaps, blank source URLs, or ledger math drift unless the remaining gap is explicitly explained,
 - the file reports saved when using Google Sheets.
 
 ### Step 8. Record Durable Lessons
 
-Update Badu memory, training history, import logs, or reports when the run creates a durable rule, cutoff, provider-specific import behavior, or recurring friction.
+Update Badu memory, training history, import logs, or reports when the run creates a durable rule, cutoff, provider-specific import behavior, recurring friction, or reusable correction.
+
+For supervised dry runs, write a retained report under `docs/records/artifacts/agent/badu/reports/`, append `docs/records/artifacts/agent/badu/training-history.md`, and add sanitized training examples under `docs/records/artifacts/agent/badu/training-data/` when the run exposed reusable decision cases.
 
 Do not create long retained reports for tiny imports unless the source boundary, cutoff, duplicate-risk decision, or training value justifies it.
 

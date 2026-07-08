@@ -4,7 +4,9 @@ Purpose: inventory helper tools for Badu's accounting intake and ledger maintena
 
 ## Current Status
 
-No executable Badu-specific tools exist yet.
+Badu has one local executable helper:
+
+- `ledger-tsv-helper.mjs`: builds or audits the active 19-column ledger TSV shape from sanitized JSON/TSV input.
 
 ## Manual Tools In Use
 
@@ -24,6 +26,13 @@ Expected output:
 - provider subtotal,
 - duplicate-risk warnings,
 - missing-field warnings.
+
+Current helper:
+
+```bash
+node docs/agents/badu/tools/ledger-tsv-helper.mjs build <rows.json> > /tmp/badu-import.tsv
+node docs/agents/badu/tools/ledger-tsv-helper.mjs audit /tmp/badu-import.tsv
+```
 
 ### Import Audit Checker
 

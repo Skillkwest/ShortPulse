@@ -217,3 +217,52 @@ Remaining friction:
 Next training focus:
 
 - Future imports should append to `Ledger`, then verify `Dashboard`, `Provider_Summary`, and the `Ledger` filter range.
+
+## 2026-07-08 Full SOP Dry-Run Audit
+
+Prompt/use case:
+
+- The owner asked Badu to run the full monthly SOP as a dry-run practice pass: log into every provider, review expenses from `2026-01-01` forward, compare live source data against the workbook, update concrete gaps, and use the result as training data.
+
+Behavior learned:
+
+- Treat the user's current dry-run date window as an explicit temporary override while preserving standing provider cutoff rules for normal monthly imports.
+- Continue the provider sequence when one login blocks; record the blocker and preserve coverage across the rest of the run.
+- Use Stripe Balance activity as the source of truth for gross/fee/net; payment pages alone are insufficient when fees are missing.
+- Do not classify Stripe payments as testing expense unless source evidence proves a match to the owner-supplied testing accounts.
+- Treat refunds tied to owner/test purchases as negative `Testing expense` rows under the current workbook convention.
+- Use Chrome UI range paste only when connector write scope is insufficient, and verify by readback.
+
+Rows changed:
+
+- Updated two existing Stripe testing-expense rows to include Balance activity fees and source evidence.
+- Added two Stripe refunds as negative testing expenses.
+- Added three new Stripe payment rows as customer revenue because test-account matching was not proven.
+- Repaired OpenAI evidence from screenshot-only to live billing-history source evidence.
+
+Verified workbook state after run:
+
+- 126 transactions.
+- `$3,638.37` expenses.
+- `$3,602.00` income.
+- `-$36.37` net.
+- Screenshot-only rows, payment-page fee gaps, audit warnings, blank-source rows, and ledger math drift all verified as `0`.
+
+SOP/template/tool updates:
+
+- Added this training-history entry.
+- Added retained report `reports/2026-07-08-full-sop-dry-run-training-report.md`.
+- Added sanitized training data in `training-data/decision-episodes.jsonl`.
+- Added local helper `docs/agents/badu/tools/ledger-tsv-helper.mjs`.
+- Updated Badu memory and SOP with Stripe proof rules, refund handling, Google Sheets write fallback, and monthly actuals boundary.
+
+Remaining friction:
+
+- Kie.ai live recheck is blocked until the auth route is corrected; the provider currently presents Microsoft sign-in while Badu expected Google SSO.
+- Stripe payment detail pages may not expose enough identity data for owner/test-account classification; future runs need a better proof path that does not retain customer identifiers.
+
+Next training focus:
+
+- Correct or document the Kie.ai login route.
+- Create a compact provider-by-provider monthly checklist once the owner approves these performance corrections.
+- Consider a frozen KPI baseline after the next stable supervised monthly run.

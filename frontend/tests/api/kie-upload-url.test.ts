@@ -556,6 +556,86 @@ describe("POST /api/kie/upload-url", () => {
     });
   });
 
+  it("retries transient Kie stream failures for GPT Image 2 remote reference admission", async () => {
+    const pngImage = await sharp({
+      create: {
+        width: 256,
+        height: 256,
+        channels: 3,
+        background: { r: 110, g: 80, b: 180 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(pngImage, {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: false,
+            code: 500,
+            msg: "Internal server error",
+            error: "Internal server error",
+          }),
+          {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            code: 200,
+            msg: "File uploaded successfully",
+            data: {
+              downloadUrl: "https://tempfile.redpandaai.co/files/gpt-reference.png",
+              fileName: "gpt-reference.png",
+              mimeType: "image/png",
+            },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = createMockRequest({
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: "https://cdn.example.com/gpt-reference.png",
+        uploadPath: "shortpulse/kie-video/images",
+        admissionProfile: "kie_gpt_image_2_reference_image",
+      }),
+    });
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://cdn.example.com/gpt-reference.png");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://tempfile.redpandaai.co/files/gpt-reference.png",
+      fileName: "gpt-reference.png",
+      mimeType: "image/png",
+    });
+  });
+
   it("rejects Motion Control image admission profiles outside the Kie image upload path", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

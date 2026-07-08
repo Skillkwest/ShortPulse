@@ -42,6 +42,9 @@ const MAX_RAW_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_REMOTE_SOURCE_BYTES = 100 * 1024 * 1024;
 const MEDIA_LIBRARY_BUCKET = "media_library";
 const KIE_IMAGE_UPLOAD_PATH = "shortpulse/kie-video/images";
+const KIE_UPLOAD_MAX_ATTEMPTS = 2;
+const KIE_UPLOAD_RETRY_DELAY_MS = 120;
+const KIE_UPLOAD_RETRYABLE_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 
 export const config = {
   api: {
@@ -88,6 +91,7 @@ type UploadDiagnostics = {
 type UploadAttemptResult = Awaited<ReturnType<typeof readUploadResponse>>;
 
 type KieUploadDiagnosticsMetadata = {
+  kie_upload_attempts_tried: number;
   kie_upload_transport: UploadTransport;
   kie_upstream_status: number;
   kie_upstream_content_type: string | null;
@@ -472,10 +476,13 @@ const buildKieUploadFallbackMetadata = ({
 const buildKieUploadDiagnosticsMetadata = ({
   upstreamStatus,
   diagnostics,
+  attemptsTried,
 }: {
   upstreamStatus: number;
   diagnostics: UploadDiagnostics;
+  attemptsTried: number;
 }): KieUploadDiagnosticsMetadata => ({
+  kie_upload_attempts_tried: Math.max(1, Math.trunc(attemptsTried)),
   kie_upload_transport: diagnostics.transport,
   kie_upstream_status: upstreamStatus,
   kie_upstream_content_type: diagnostics.contentType,
@@ -496,6 +503,17 @@ const buildKieUploadDiagnosticsMetadata = ({
 const responseHeaderValue = (headers: Response["headers"], name: string): string | null => {
   if (!headers || typeof headers.get !== "function") return null;
   return asNonEmptyString(headers.get(name));
+};
+
+const sleep = async (ms: number): Promise<void> =>
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const isRetryableKieUploadTransportError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  const detail = error instanceof Error ? error.message : String(error);
+  return /timeout|timed out|network|fetch failed|econnreset|etimedout|eai_again/i.test(detail);
 };
 
 const objectKeys = (value: unknown): string[] => {
@@ -521,9 +539,11 @@ const classifyRawBody = (
 const readUploadResponse = async ({
   upstream,
   transport,
+  attemptsTried = 1,
 }: {
   upstream: Response;
   transport: UploadTransport;
+  attemptsTried?: number;
 }) => {
   let payload: unknown = {};
   let rawText: string | null = null;
@@ -569,6 +589,7 @@ const readUploadResponse = async ({
   return {
     upstream,
     parsed,
+    attemptsTried,
     diagnostics: {
       transport,
       contentType: responseHeaderValue(upstream.headers, "content-type"),
@@ -586,6 +607,46 @@ const readUploadResponse = async ({
       hasMimeType: asNonEmptyString(dataPayload?.mimeType) !== null,
     },
   };
+};
+
+const fetchKieUploadWithRetry = async ({
+  url,
+  init,
+  transport,
+}: {
+  url: string;
+  init: () => RequestInit;
+  transport: UploadTransport;
+}): Promise<UploadAttemptResult> => {
+  for (let attempt = 1; attempt <= KIE_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const upstream = await fetch(url, init());
+      const result = await readUploadResponse({
+        upstream,
+        transport,
+        attemptsTried: attempt,
+      });
+
+      if (
+        !upstream.ok &&
+        attempt < KIE_UPLOAD_MAX_ATTEMPTS &&
+        KIE_UPLOAD_RETRYABLE_STATUSES.has(upstream.status)
+      ) {
+        await sleep(KIE_UPLOAD_RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
+      return result;
+    } catch (error) {
+      if (attempt < KIE_UPLOAD_MAX_ATTEMPTS && isRetryableKieUploadTransportError(error)) {
+        await sleep(KIE_UPLOAD_RETRY_DELAY_MS * attempt);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error("Kie upload retry loop exited unexpectedly.");
 };
 
 const resolveUpstreamFailureDetail = ({
@@ -622,22 +683,21 @@ const uploadFileUrlToKie = async ({
   uploadPath: string;
   fileName: string | null;
 }) => {
-  const upstream = await fetch(KIE_FILE_URL_UPLOAD_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fileUrl,
-      uploadPath,
-      ...(fileName ? { fileName } : {}),
-    }),
-  });
-
-  return await readUploadResponse({
-    upstream,
+  return await fetchKieUploadWithRetry({
+    url: KIE_FILE_URL_UPLOAD_ENDPOINT,
     transport: "url_upload",
+    init: () => ({
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl,
+        uploadPath,
+        ...(fileName ? { fileName } : {}),
+      }),
+    }),
   });
 };
 
@@ -672,30 +732,30 @@ const uploadFileStreamToKie = async ({
       fileName: fileName ?? inferFileNameFromUrl(sourceUrl),
       mimeType: sourceMimeType,
     });
-    const formData = new FormData();
-    formData.append(
-      "file",
-      new Blob([admittedSource.fileBuffer], {
-        type: admittedSource.mimeType ?? "application/octet-stream",
-      }),
-      admittedSource.fileName ?? "upload"
-    );
-    formData.append("uploadPath", uploadPath);
-    if (admittedSource.fileName) {
-      formData.append("fileName", admittedSource.fileName);
-    }
-
-    const upstream = await fetch(KIE_FILE_STREAM_UPLOAD_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: formData,
-    });
-
-    return await readUploadResponse({
-      upstream,
+    return await fetchKieUploadWithRetry({
+      url: KIE_FILE_STREAM_UPLOAD_ENDPOINT,
       transport: "remote_stream_upload",
+      init: () => {
+        const formData = new FormData();
+        formData.append(
+          "file",
+          new Blob([admittedSource.fileBuffer], {
+            type: admittedSource.mimeType ?? "application/octet-stream",
+          }),
+          admittedSource.fileName ?? "upload"
+        );
+        formData.append("uploadPath", uploadPath);
+        if (admittedSource.fileName) {
+          formData.append("fileName", admittedSource.fileName);
+        }
+        return {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: formData,
+        };
+      },
     });
   } finally {
     globalThis.clearTimeout(timeoutId);
@@ -715,30 +775,30 @@ const uploadFileBufferToKie = async ({
   fileName: string | null;
   mimeType: string | null;
 }) => {
-  const formData = new FormData();
-  formData.append(
-    "file",
-    new Blob([fileBuffer], {
-      type: mimeType ?? "application/octet-stream",
-    }),
-    fileName ?? "upload"
-  );
-  formData.append("uploadPath", uploadPath);
-  if (fileName) {
-    formData.append("fileName", fileName);
-  }
-
-  const upstream = await fetch(KIE_FILE_STREAM_UPLOAD_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  return await readUploadResponse({
-    upstream,
+  return await fetchKieUploadWithRetry({
+    url: KIE_FILE_STREAM_UPLOAD_ENDPOINT,
     transport: "binary_stream_upload",
+    init: () => {
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new Blob([fileBuffer], {
+          type: mimeType ?? "application/octet-stream",
+        }),
+        fileName ?? "upload"
+      );
+      formData.append("uploadPath", uploadPath);
+      if (fileName) {
+        formData.append("fileName", fileName);
+      }
+      return {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: formData,
+      };
+    },
   });
 };
 
@@ -1002,6 +1062,7 @@ export default async function handler(
           ...buildKieUploadDiagnosticsMetadata({
             upstreamStatus: result.upstream.status,
             diagnostics: result.diagnostics,
+            attemptsTried: result.attemptsTried,
           }),
         },
       });
@@ -1031,6 +1092,7 @@ export default async function handler(
           ...buildKieUploadDiagnosticsMetadata({
             upstreamStatus: result.upstream.status,
             diagnostics: result.diagnostics,
+            attemptsTried: result.attemptsTried,
           }),
         },
       });
@@ -1057,6 +1119,7 @@ export default async function handler(
           ...buildKieUploadDiagnosticsMetadata({
             upstreamStatus: result.upstream.status,
             diagnostics: result.diagnostics,
+            attemptsTried: result.attemptsTried,
           }),
         },
       });

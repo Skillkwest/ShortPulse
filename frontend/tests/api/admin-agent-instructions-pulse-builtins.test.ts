@@ -160,7 +160,7 @@ describe("admin pulse built-ins API", () => {
       label: "Prompt Modifier",
       description: "Built-in guided Pulse for Prompt Modifier.",
       starterAssistantMessage: "Tell me what you want Prompt Modifier to help with.",
-      workflowStageHints: null,
+      workflowStageHints: ["Prompt Intake"],
       artifactTarget: "text_artifact",
       systemInstructions: "Ask for a source prompt, then return a cleaner version.",
       pulseKind: "guided_workflow",
@@ -279,7 +279,7 @@ describe("admin pulse built-ins API", () => {
       label: "Prompt Helper",
       description: "Built-in guided Pulse for Prompt Helper.",
       starterAssistantMessage: "Paste the prompt you want me to improve.",
-      workflowStageHints: null,
+      workflowStageHints: ["Prompt Intake"],
       artifactTarget: "text_artifact",
       systemInstructions: promptWithStarter,
       pulseKind: "guided_workflow",
@@ -314,6 +314,91 @@ describe("admin pulse built-ins API", () => {
 
     expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
       builtInDefinitions: [inferredDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("preserves explicit guided workflow metadata instead of re-inferring it", async () => {
+    const explicitDefinition: CreatePulseBuiltInPresetDefinition = {
+      ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2],
+      presetId: "story_builder",
+      label: "DFY Story Builder",
+      starterAssistantMessage: "Step 1 — Story seed: Share the moment you want to build from.",
+      workflowStageHints: ["Story Seed", "Plot Direction", "Runtime", "Image Prompts"],
+      artifactTarget: "image_prompt",
+      publicationStatus: "published",
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [explicitDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [explicitDefinition],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [explicitDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("infers Story Builder metadata from its prompt shape when explicit metadata is missing", async () => {
+    const inferredStoryBuilderDefinition: CreatePulseBuiltInPresetDefinition = {
+      ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2],
+      description: "Built-in guided Pulse for DFY Story Builder.",
+      starterAssistantMessage:
+        "**Step 1 — Story seed.** Tell me the character, premise, mood, or moment you want to build from. Reference images are optional if you want me to preserve specific character looks.",
+      workflowStageHints: [
+        "Story Seed",
+        "Plot Seed",
+        "Runtime",
+        "Beats → Scenes",
+        "Modification Loop",
+        "Image Prompts",
+        "Dialogued Story Reprint",
+      ],
+      artifactTarget: "image_prompt",
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [inferredStoryBuilderDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            presetId: "story_builder",
+            title: "DFY Story Builder",
+            prompt: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2].systemInstructions,
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [inferredStoryBuilderDefinition],
       expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
       actorUserId: "admin-1",
       actorEmail: "admin@example.com",

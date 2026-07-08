@@ -2,12 +2,11 @@
  * Media Library panel status area.
  * Hosts error and membership toasts outside of the main panel body component.
  */
+import { useRouter } from "next/router";
 import React from "react";
 import { AppMessage } from "../../../components/AppMessage";
-import {
-  MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
-  MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL,
-} from "../../../lib/mediaStorageQuota";
+import { MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL } from "../../../lib/mediaStorageQuota";
+import { buildProfileSectionHref } from "../../profile/profileNavigation";
 
 type MediaLibraryPanelStatusAreaProps = {
   error: string | null;
@@ -25,6 +24,12 @@ export const MediaLibraryPanelStatusArea = React.memo(function MediaLibraryPanel
   membershipMessage,
   storageQuotaMessage = null,
 }: MediaLibraryPanelStatusAreaProps) {
+  const router = useRouter();
+  const manageStorageHref = React.useMemo(
+    () => buildProfileSectionHref({ section: "storage", fromPath: router.asPath }),
+    [router.asPath]
+  );
+
   return (
     <>
       {storageQuotaMessage ? (
@@ -35,7 +40,7 @@ export const MediaLibraryPanelStatusArea = React.memo(function MediaLibraryPanel
           message={storageQuotaMessage}
           action={{
             label: MEDIA_STORAGE_MANAGE_STORAGE_CTA_LABEL,
-            href: MEDIA_STORAGE_MANAGE_STORAGE_CTA_HREF,
+            href: manageStorageHref,
           }}
         />
       ) : null}

@@ -342,6 +342,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 208.  `sql/migrations/209_update_storage_addon_ladder_20260707.sql`
 209.  `sql/migrations/210_add_admin_generation_breakdown_stats.sql`
 210.  `sql/migrations/211_add_admin_first_value_funnel_stats.sql`
+211.  `sql/migrations/212_add_issue_report_screenshots.sql`
+212.  `sql/migrations/213_add_billing_subscription_change_intents.sql`
+213.  `sql/migrations/214_add_admin_error_watch_items.sql`
       Rollback files:
 
 
@@ -427,6 +430,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/129_backfill_user_owned_custom_voices_from_preferences_rollback.sql`
     - `sql/migrations/rollback/130_quarantine_legacy_migrated_custom_voice_ownership_rollback.sql`
     - `sql/migrations/rollback/131_add_user_issue_reports_rollback.sql`
+    - `sql/migrations/rollback/212_add_issue_report_screenshots_rollback.sql`
+    - `sql/migrations/rollback/213_add_billing_subscription_change_intents_rollback.sql`
+    - `sql/migrations/rollback/214_add_admin_error_watch_items_rollback.sql`
     - `sql/migrations/rollback/143_add_project_workspace_snapshot_freshness_guard_rollback.sql`
     - `sql/migrations/rollback/152_add_audio_generation_display_title_rollback.sql`
     - `sql/migrations/rollback/153_add_dashboard_tutorials_rollback.sql`
@@ -601,6 +607,9 @@ Billing safety note:
 - Migration `209_update_storage_addon_ladder_20260707.sql` repairs the recurring storage add-on ladder to `50 GB / $10`, `100 GB / $20`, `250 GB / $30`, and `1 TB / $89` self-serve with live Stripe monthly Price ids, retires `10 GB` from active self-serve metadata, and keeps `500 GB` inactive for non-self-serve handling.
 - Migration `210_add_admin_generation_breakdown_stats.sql` adds the service-role-only `get_admin_generation_breakdown_v1()` helper that powers `/admin/stats` per-user and model/media-type generation analytics without exposing generation rows directly to browser roles.
 - Migration `211_add_admin_first_value_funnel_stats.sql` adds the service-role-only `get_admin_first_value_funnel_v1()` helper for the Marketing first-value funnel from signup to first generation value, while exposing current route/reopen instrumentation gaps explicitly.
+- Migration `212_add_issue_report_screenshots.sql` adds the private `issue_report_screenshots` bucket, service-role-only `user_issue_report_screenshots` metadata table, and `create_user_issue_report_with_screenshots()` helper used by signed-in issue reports and admin review.
+- Migration `213_add_billing_subscription_change_intents.sql` adds the service-role-only `billing_subscription_change_intents` table used to prove route-initiated full-price Stripe Billing Portal upgrades before the paid invoice webhook grants target-plan credits.
+- Migration `214_add_admin_error_watch_items.sql` extends the admin incident status RPC with resolved-watch metadata and status-history notes for `/admin/errors`.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions as aggregate buckets only, without row ids, user ids, or storage paths in hosted artifacts.

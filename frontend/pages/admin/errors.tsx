@@ -31,6 +31,7 @@ export default function AdminErrorsPage() {
     errorEventsSummary,
     errorEventsHealth,
     errorEventsPagination,
+    errorIncidentViewMode,
     errorStatusFilter,
     errorScopeFilter,
     errorSeverityFilter,
@@ -45,6 +46,7 @@ export default function AdminErrorsPage() {
     bulkIncidentStatusResult,
     testIncidentSubmittingScope,
     testIncidentResult,
+    handleErrorIncidentViewModeChange,
     handleErrorStatusFilterChange,
     handleErrorScopeFilterChange,
     handleErrorSeverityFilterChange,
@@ -94,6 +96,7 @@ export default function AdminErrorsPage() {
         errorEventsSummary={errorEventsSummary}
         errorEventsHealth={errorEventsHealth}
         errorEventsPagination={errorEventsPagination}
+        errorIncidentViewMode={errorIncidentViewMode}
         errorStatusFilter={errorStatusFilter}
         errorScopeFilter={errorScopeFilter}
         errorSeverityFilter={errorSeverityFilter}
@@ -108,6 +111,7 @@ export default function AdminErrorsPage() {
         bulkIncidentStatusResult={bulkIncidentStatusResult}
         testIncidentSubmittingScope={testIncidentSubmittingScope}
         testIncidentResult={testIncidentResult}
+        onErrorIncidentViewModeChange={handleErrorIncidentViewModeChange}
         onErrorStatusFilterChange={handleErrorStatusFilterChange}
         onErrorScopeFilterChange={handleErrorScopeFilterChange}
         onErrorSeverityFilterChange={handleErrorSeverityFilterChange}

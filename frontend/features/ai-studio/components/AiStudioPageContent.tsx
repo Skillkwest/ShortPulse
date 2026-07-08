@@ -3,6 +3,7 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import Link from "next/link";
+import { useRouter } from "next/router";
 import React from "react";
 import { FlowArrow, Globe, PencilSimple, type IconProps, SquaresFour } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
@@ -17,6 +18,7 @@ import {
   normalizeProviderSideGenerationFailure,
 } from "../../../lib/customerFacingProviderText";
 import { isAiStudioPlanGatedWorkflowTool } from "../../../lib/billing/aiStudioWorkflowEntitlements";
+import { buildProfileSectionHref } from "../../profile/profileNavigation";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { PresetsPanelLoader } from "./PresetsPanelLoader";
@@ -119,7 +121,7 @@ import {
   resolveRightColumnDropPayload,
   type RightColumnDropMode,
 } from "../logic/rightColumnDropPayload";
-import { CreditFillCoin, formatCreditFractionLabel } from "./AiStudioCreditDisplay";
+import { CreditFillCoin, resolveCreditFractionDisplay } from "./AiStudioCreditDisplay";
 
 type FailureCard = Pick<
   StudioOutput,
@@ -809,6 +811,7 @@ export function AiStudioPageContent({
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
+  const router = useRouter();
   const mediaPlanNotice = React.useMemo(
     () =>
       mediaPlanNoticeMessage && mediaPlanNoticeCta
@@ -848,11 +851,15 @@ export function AiStudioPageContent({
 
   const visibleProjectName =
     typeof projectName === "string" && projectName.trim().length > 0 ? projectName.trim() : null;
-  const creditValueLabel = formatCreditFractionLabel({
+  const creditValue = resolveCreditFractionDisplay({
     remainingCredits: balanceCredits,
     totalCredits: creditTotalCredits,
     loading: balanceLoading,
   });
+  const profileCreditsHref = React.useMemo(
+    () => buildProfileSectionHref({ section: "credits", fromPath: router.asPath }),
+    [router.asPath]
+  );
   const resolvedReferenceGridFileInputRef = referenceGridFileInputRef;
   const resolvedCreateProperties = propertiesCreate;
   const resolvedStandardCreateProperties =
@@ -1878,7 +1885,7 @@ export function AiStudioPageContent({
           <div className="hero-text">
             <h1 className="ai-hero-title">AI Studio</h1>
             <Link
-              href="/profile?section=credits"
+              href={profileCreditsHref}
               className="ai-credit-inline header-embedded"
               aria-label="Open credits and billing"
             >
@@ -1888,7 +1895,17 @@ export function AiStudioPageContent({
                 totalCredits={creditTotalCredits}
                 loading={balanceLoading}
               />
-              <span className="credit-value">{creditValueLabel}</span>
+              <span className="credit-value">
+                {creditValue.isSurplus ? (
+                  <>
+                    <span className="ai-credit-surplus-value">{creditValue.remainingLabel}</span>
+                    {" / "}
+                    {creditValue.totalLabel}
+                  </>
+                ) : (
+                  creditValue.label
+                )}
+              </span>
             </Link>
           </div>
           {visibleProjectName ? (

@@ -12,6 +12,7 @@ describe("adminErrorsEventsApi", () => {
   it("builds admin incident params without all-state filters", () => {
     const params = buildAdminErrorsParams({
       page: 3,
+      view: "queue",
       status: "open",
       scope: "all",
       severity: "high",
@@ -22,6 +23,20 @@ describe("adminErrorsEventsApi", () => {
     expect(params.toString()).toBe(
       "page=3&limit=50&status=open&severity=high&source=api.route&search=timeout"
     );
+  });
+
+  it("builds history incident params when the full ledger is requested", () => {
+    const params = buildAdminErrorsParams({
+      page: 1,
+      view: "history",
+      status: "all",
+      scope: "all",
+      severity: "all",
+      source: "all",
+      search: "",
+    });
+
+    expect(params.toString()).toBe("page=1&limit=50&view=history&status=all");
   });
 
   it("builds admin event params without default filters", () => {
@@ -60,7 +75,12 @@ describe("adminErrorsEventsApi", () => {
             http_status: 502,
             user_id: "user-1",
             user_email: "user@example.com",
-            metadata: { foo: "bar" },
+            metadata: {
+              foo: "bar",
+              watch_item: true,
+              watch_note: "Monitor next upload.",
+              watch_marked_at: "2026-01-02T01:00:00Z",
+            },
             first_seen_at: "2026-01-01T00:00:00Z",
             last_seen_at: "2026-01-02T00:00:00Z",
             occurrences_count: 3,
@@ -90,6 +110,9 @@ describe("adminErrorsEventsApi", () => {
       scope: "generation",
       severity: "high",
       status: "resolved",
+      watchItem: true,
+      watchNote: "Monitor next upload.",
+      watchMarkedAt: "2026-01-02T01:00:00Z",
       occurrencesCount: 3,
     });
     expect(result.summary.openCount).toBe(5);

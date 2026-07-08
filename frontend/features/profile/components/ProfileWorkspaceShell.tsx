@@ -7,6 +7,8 @@ import Link from "next/link";
 import { SignOut } from "phosphor-react";
 import type { ReactNode } from "react";
 import type { NoticeState, ProfileSection, ProfileSectionItem } from "../profilePageModel";
+import type { ProfileBackTarget } from "../profileNavigation";
+import { buildProfileSectionHref } from "../profileNavigation";
 import { profileClass } from "../profileRouteStyles";
 import { ProfileMetricCard, ProfileNoticeBanner } from "./ProfileSurface";
 
@@ -19,6 +21,8 @@ type ProfileWorkspaceShellProps = {
   sections: readonly ProfileSectionItem[];
   title: string;
   notice: NoticeState | null;
+  profileBackTarget: ProfileBackTarget;
+  profileFromPath: string | null;
   onRequestLogout: () => void;
   children: ReactNode;
 };
@@ -35,6 +39,8 @@ export function ProfileWorkspaceShell({
   sections,
   title,
   notice,
+  profileBackTarget,
+  profileFromPath,
   onRequestLogout,
   children,
 }: ProfileWorkspaceShellProps) {
@@ -79,7 +85,7 @@ export function ProfileWorkspaceShell({
             </Link>
 
             <Link
-              href="/dashboard"
+              href={profileBackTarget.href}
               className={profileClass(
                 "ghost-btn",
                 "profile-shell-action",
@@ -87,7 +93,7 @@ export function ProfileWorkspaceShell({
                 "profile-side-rail-action"
               )}
             >
-              Back to dashboard
+              {profileBackTarget.label}
             </Link>
 
             <nav className={profileClass("profile-section-tabs")} aria-label="Settings sections">
@@ -97,7 +103,10 @@ export function ProfileWorkspaceShell({
                 return (
                   <Link
                     key={item.key}
-                    href={`/profile?section=${item.key}`}
+                    href={buildProfileSectionHref({
+                      section: item.key,
+                      fromPath: profileFromPath,
+                    })}
                     className={profileClass("profile-section-tab", isActive && "is-active")}
                     aria-current={isActive ? "page" : undefined}
                   >

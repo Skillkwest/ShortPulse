@@ -643,6 +643,7 @@ describe("Admin users and credits overview", () => {
     );
 
     expect(screen.getAllByText("Plan").length).toBeGreaterThan(0);
+    expect(screen.getByText("Flags (1)")).toBeInTheDocument();
     expect(screen.getByText("Cycle spent")).toBeInTheDocument();
     expect(screen.getByText("Top-ups")).toBeInTheDocument();
     expect(screen.getByText("Renews")).toBeInTheDocument();

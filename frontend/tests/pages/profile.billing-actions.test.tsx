@@ -345,7 +345,7 @@ describe("Profile credits actions", () => {
   });
 
   it("maps the legacy billing section alias to account settings", () => {
-    routerState.query = { section: "billing" };
+    routerState.query = { section: "billing", from: "/ai-studio?projectId=project-1" };
 
     render(<ProfilePage />);
 
@@ -353,7 +353,7 @@ describe("Profile credits actions", () => {
     expect(screen.getByRole("heading", { name: "Payment details" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Manage subscription" })).toHaveAttribute(
       "href",
-      "/profile?section=subscription"
+      "/profile?section=subscription&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
   });
 
@@ -379,6 +379,37 @@ describe("Profile credits actions", () => {
       });
     });
     expect(await screen.findByRole("alert")).toHaveTextContent("Portal unavailable");
+  });
+
+  it("syncs billing state when returning from the Stripe billing portal", async () => {
+    routerState.query = { section: "account", billing_portal: "return" };
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: { plan: "media" },
+      },
+    });
+    fetchWithAuthMock.mockImplementation(async (url: string) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({ plans: [], packages: [], storageAddons: [] }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({}),
+      };
+    });
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByText("Billing details are syncing from Stripe.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchBillingAccountSummaryMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it("disables Stripe portal controls for internal comp contracts", async () => {

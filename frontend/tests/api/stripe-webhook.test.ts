@@ -69,18 +69,21 @@ const createSupabaseAdminForWebhook = (params?: {
   eventClaimDeleteThrows?: Error;
   billingProfile?: Record<string, unknown> | null;
   billingPlan?: Record<string, unknown> | null;
+  billingPlans?: Record<string, unknown>[];
   billingOffer?: Record<string, unknown> | null;
   billingOffers?: Record<string, unknown>[];
   billingContract?: Record<string, unknown> | null;
   billingStorageAddon?: Record<string, unknown> | null;
   billingStorageAddonOffer?: Record<string, unknown> | null;
   billingStorageAddonContracts?: Record<string, unknown>[];
+  billingSubscriptionChangeIntent?: Record<string, unknown> | null;
   onEventClaimDelete?: (eventId: string) => void;
   onBillingProfileUpdate?: (payload: unknown) => void;
   onContractInsert?: (payload: unknown) => void;
   onContractUpdate?: (payload: unknown) => void;
   onStorageAddonInsert?: (payload: unknown) => void;
   onStorageAddonUpdate?: (payload: unknown) => void;
+  onSubscriptionChangeIntentUpdate?: (payload: unknown) => void;
 }) => ({
   from: (table: string) => {
     if (table === "stripe_event_log") {
@@ -118,11 +121,12 @@ const createSupabaseAdminForWebhook = (params?: {
     }
 
     if (table === "billing_plans") {
+      const rows = params?.billingPlans ?? (params?.billingPlan ? [params.billingPlan] : []);
       return {
         select: () => ({
-          eq: () => ({
+          eq: (column: string, value: unknown) => ({
             maybeSingle: async () => ({
-              data: params?.billingPlan ?? null,
+              data: rows.find((row) => row[column] === value) ?? null,
               error: null,
             }),
           }),
@@ -227,6 +231,35 @@ const createSupabaseAdminForWebhook = (params?: {
         update: (payload: unknown) => ({
           eq: async () => {
             params?.onStorageAddonUpdate?.(payload);
+            return { data: null, error: null };
+          },
+        }),
+      };
+    }
+
+    if (table === "billing_subscription_change_intents") {
+      const selectChain = {} as {
+        eq: ReturnType<typeof vi.fn>;
+        in: ReturnType<typeof vi.fn>;
+        gt: ReturnType<typeof vi.fn>;
+        order: ReturnType<typeof vi.fn>;
+        limit: ReturnType<typeof vi.fn>;
+        maybeSingle: ReturnType<typeof vi.fn>;
+      };
+      selectChain.eq = vi.fn(() => selectChain);
+      selectChain.in = vi.fn(() => selectChain);
+      selectChain.gt = vi.fn(() => selectChain);
+      selectChain.order = vi.fn(() => selectChain);
+      selectChain.limit = vi.fn(() => selectChain);
+      selectChain.maybeSingle = vi.fn(async () => ({
+        data: params?.billingSubscriptionChangeIntent ?? null,
+        error: null,
+      }));
+      return {
+        select: () => selectChain,
+        update: (payload: unknown) => ({
+          eq: async () => {
+            params?.onSubscriptionChangeIntentUpdate?.(payload);
             return { data: null, error: null };
           },
         }),
@@ -1017,6 +1050,371 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
+  it("grants target plan credits for paid Portal-confirmed higher-plan update invoices without ShortPulse metadata", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingPlans: [
+          {
+            id: "media",
+            sort_order: 20,
+          },
+          {
+            id: "business",
+            sort_order: 40,
+          },
+        ],
+        billingOffers: [
+          {
+            id: "media__current",
+            plan_id: "media",
+            billing_interval: "month",
+            stripe_price_id: "price_media",
+            recurring_price_cents: 4900,
+            monthly_credits_cents: 1200,
+            storage_limit_bytes: 26843545600,
+            max_concurrent_generations: 2,
+          },
+          {
+            id: "business__current",
+            plan_id: "business",
+            billing_interval: "month",
+            stripe_price_id: "price_business",
+            recurring_price_cents: 29900,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 536870912000,
+            max_concurrent_generations: 8,
+          },
+        ],
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_portal_upgrade_paid",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_portal_upgrade_paid",
+            customer: "cus_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            lines: {
+              data: [
+                {
+                  amount: -1200,
+                  price: {
+                    id: "price_media",
+                    unit_amount: 4900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1780881600,
+                    end: 1783470000,
+                  },
+                },
+                {
+                  amount: 29900,
+                  price: {
+                    id: "price_business",
+                    unit_amount: 29900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1783470000,
+                    end: 1786148400,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        amountCents: 8000,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_update_portal_upgrade_paid:monthly_allocation",
+        creditKind: "subscription_allocation",
+        metadata: expect.objectContaining({
+          invoice_id: "in_update_portal_upgrade_paid",
+          billing_reason: "subscription_update",
+          plan_id: "business",
+          offer_id: "business__current",
+          stripe_customer_id: "cus_123",
+          stripe_price_id: "price_business",
+        }),
+      })
+    );
+  });
+
+  it("grants target plan credits for full-price no-proration upgrade invoices with a matching intent", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const intentUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingPlans: [
+          {
+            id: "media",
+            sort_order: 20,
+          },
+          {
+            id: "business",
+            sort_order: 40,
+          },
+        ],
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            billing_interval: "month",
+            stripe_price_id: "price_business",
+            recurring_price_cents: 29900,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 536870912000,
+            max_concurrent_generations: 8,
+          },
+        ],
+        billingSubscriptionChangeIntent: {
+          id: "intent_123",
+          user_id: "user_123",
+          active_plan_id: "media",
+          active_offer_id: "media__current",
+          target_plan_id: "business",
+          target_offer_id: "business__current",
+          target_stripe_price_id: "price_business",
+          target_billing_interval: "month",
+          status: "portal_created",
+          expires_at: "2030-01-01T00:00:00.000Z",
+        },
+        onSubscriptionChangeIntentUpdate: intentUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_full_price_upgrade_paid",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_full_price_upgrade_paid",
+            customer: "cus_123",
+            subscription: "sub_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            lines: {
+              data: [
+                {
+                  amount: 29900,
+                  price: {
+                    id: "price_business",
+                    unit_amount: 29900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1783470000,
+                    end: 1786148400,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        amountCents: 8000,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_update_full_price_upgrade_paid:monthly_allocation",
+        creditKind: "subscription_allocation",
+        metadata: expect.objectContaining({
+          invoice_id: "in_update_full_price_upgrade_paid",
+          billing_reason: "subscription_update",
+          plan_id: "business",
+          offer_id: "business__current",
+          stripe_customer_id: "cus_123",
+          stripe_price_id: "price_business",
+          subscription_change_intent_id: "intent_123",
+        }),
+      })
+    );
+    expect(intentUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        stripe_invoice_id: "in_update_full_price_upgrade_paid",
+        completed_at: expect.any(String),
+      })
+    );
+  });
+
+  it("does not grant credits for full-price subscription-update invoices without a matching intent", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingPlans: [
+          {
+            id: "media",
+            sort_order: 20,
+          },
+          {
+            id: "business",
+            sort_order: 40,
+          },
+        ],
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            billing_interval: "month",
+            stripe_price_id: "price_business",
+            recurring_price_cents: 29900,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 536870912000,
+            max_concurrent_generations: 8,
+          },
+        ],
+        billingSubscriptionChangeIntent: null,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_full_price_upgrade_no_intent",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_full_price_upgrade_no_intent",
+            customer: "cus_123",
+            subscription: "sub_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            lines: {
+              data: [
+                {
+                  amount: 29900,
+                  price: {
+                    id: "price_business",
+                    unit_amount: 29900,
+                    metadata: {},
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+  });
+
+  it("does not grant subscription-update credits for paid lower-plan Portal changes", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "business",
+        },
+        billingPlans: [
+          {
+            id: "media",
+            sort_order: 20,
+          },
+          {
+            id: "business",
+            sort_order: 40,
+          },
+        ],
+        billingOffers: [
+          {
+            id: "media__current",
+            plan_id: "media",
+            billing_interval: "month",
+            stripe_price_id: "price_media",
+            recurring_price_cents: 4900,
+            monthly_credits_cents: 1200,
+            storage_limit_bytes: 26843545600,
+            max_concurrent_generations: 2,
+          },
+          {
+            id: "business__current",
+            plan_id: "business",
+            billing_interval: "month",
+            stripe_price_id: "price_business",
+            recurring_price_cents: 29900,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 536870912000,
+            max_concurrent_generations: 8,
+          },
+        ],
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_portal_downgrade_paid",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_portal_downgrade_paid",
+            customer: "cus_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            lines: {
+              data: [
+                {
+                  amount: -29900,
+                  price: {
+                    id: "price_business",
+                    unit_amount: 29900,
+                    metadata: {},
+                  },
+                },
+                {
+                  amount: 4900,
+                  price: {
+                    id: "price_media",
+                    unit_amount: 4900,
+                    metadata: {},
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+  });
+
   it("grants target annual offer monthly credits for paid immediate subscription update invoices", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
@@ -1490,6 +1888,249 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(contractUpdateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         ended_at: "2024-01-01T00:00:00.000Z",
+      })
+    );
+  });
+
+  it("keeps scheduled period-end cancellations open until Stripe sends final cancellation", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const billingProfileUpdateSpy = vi.fn();
+    const contractUpdateSpy = vi.fn();
+    const storageAddonUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "studio__current",
+          plan_id: "studio",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+          max_concurrent_generations: 4,
+        },
+        billingStorageAddonOffer: {
+          id: "storage_100gb__current",
+          storage_addon_id: "storage_100gb",
+          stripe_price_id: "price_storage_100gb",
+          storage_limit_bytes: 107374182400,
+          recurring_price_cents: 1500,
+        },
+        billingContract: {
+          id: "contract_studio_1",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          billing_interval: "month",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+          max_concurrent_generations: 4,
+        },
+        billingStorageAddonContracts: [
+          {
+            id: "addon_contract_1",
+            storage_addon_id: "storage_100gb",
+            offer_id: "storage_100gb__current",
+            stripe_subscription_item_id: "si_storage_1",
+            stripe_price_id: "price_storage_100gb",
+            storage_limit_bytes: 107374182400,
+            quantity: 1,
+            recurring_price_cents: 1500,
+            status: "active",
+          },
+        ],
+        onBillingProfileUpdate: billingProfileUpdateSpy,
+        onContractUpdate: contractUpdateSpy,
+        onStorageAddonUpdate: storageAddonUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_scheduled_cancel_1",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "active",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: true,
+            items: {
+              data: [
+                {
+                  id: "si_plan_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_studio",
+                    unit_amount: 3900,
+                    metadata: {
+                      monthly_credits_cents: "3000",
+                    },
+                  },
+                },
+                {
+                  id: "si_storage_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_storage_100gb",
+                    unit_amount: 1500,
+                    metadata: {},
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(billingProfileUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "studio",
+        subscription_status: "active",
+        stripe_subscription_id: "sub_123",
+        current_period_end: "2024-02-01T00:00:00.000Z",
+      })
+    );
+    expect(contractUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "active",
+        cancel_at_period_end: true,
+        ended_at: null,
+      })
+    );
+    expect(storageAddonUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "active",
+        cancel_at_period_end: true,
+        ended_at: null,
+      })
+    );
+  });
+
+  it("closes period-end canceled subscriptions and storage add-ons even when Stripe keeps cancel_at_period_end true", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const billingProfileUpdateSpy = vi.fn();
+    const contractUpdateSpy = vi.fn();
+    const storageAddonUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "studio__current",
+          plan_id: "studio",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+          max_concurrent_generations: 4,
+        },
+        billingContract: {
+          id: "contract_studio_1",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          billing_interval: "month",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+          max_concurrent_generations: 4,
+        },
+        billingStorageAddonContracts: [
+          {
+            id: "addon_contract_1",
+            storage_addon_id: "storage_100gb",
+            offer_id: "storage_100gb__current",
+            stripe_subscription_item_id: "si_storage_1",
+            stripe_price_id: "price_storage_100gb",
+            storage_limit_bytes: 107374182400,
+            quantity: 1,
+            recurring_price_cents: 1500,
+            status: "active",
+          },
+        ],
+        onBillingProfileUpdate: billingProfileUpdateSpy,
+        onContractUpdate: contractUpdateSpy,
+        onStorageAddonUpdate: storageAddonUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_period_end_deleted_1",
+        type: "customer.subscription.deleted",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "canceled",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: true,
+            items: {
+              data: [
+                {
+                  id: "si_plan_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_studio",
+                    unit_amount: 3900,
+                    metadata: {
+                      monthly_credits_cents: "3000",
+                    },
+                  },
+                },
+                {
+                  id: "si_storage_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_storage_100gb",
+                    unit_amount: 1500,
+                    metadata: {},
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(billingProfileUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "free",
+        subscription_status: "canceled",
+        stripe_subscription_id: null,
+        current_period_end: null,
+      })
+    );
+    expect(contractUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "canceled",
+        cancel_at_period_end: false,
+        ended_at: "2024-02-01T00:00:00.000Z",
+      })
+    );
+    expect(storageAddonUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "canceled",
+        cancel_at_period_end: false,
+        ended_at: "2024-02-01T00:00:00.000Z",
       })
     );
   });

@@ -896,6 +896,22 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Runtime role: canonical signed-in issue-report inbox for `/report-issue` and `/admin/reports`.
 - Access model: RLS enabled with no browser policies; all reads and writes flow through trusted server routes using service-role Supabase access.
 
+### user_issue_report_screenshots
+
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `report_id` (uuid, fk -> `user_issue_reports.id`, cascade delete): Owning issue report.
+- `user_id` (uuid, nullable fk -> `auth.users.id`): Authenticated submitter at upload/submit time. Uses `on delete set null` to preserve report evidence after account deletion.
+- `storage_bucket` (text): Canonical private bucket id. Must be `issue_report_screenshots`.
+- `storage_path` (text, unique): Private object path under `issue-reports/<user_id>/<uuid>.<ext>`.
+- `original_filename` (text, nullable): Bounded browser filename snapshot.
+- `content_type` (text): Verified screenshot MIME type (`image/png | image/jpeg | image/webp | image/gif`).
+- `file_size_bytes` (integer): Verified object size in bytes, bounded to 10 MB.
+- `width` / `height` (integer, nullable): Best-effort decoded image dimensions.
+- `display_order` (integer): Stable ordering within a report.
+- `created_at` (timestamptz): Screenshot metadata creation time.
+- Runtime role: private screenshot evidence attached to signed-in issue reports for admin review.
+- Access model: RLS enabled with no browser policies; browser upload uses signed storage targets from `/api/report-issue/screenshots/prepare`, and admin display uses service-role signed original URLs from `/api/admin/reports*`.
+
 ### tester_report_runs
 
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -1256,7 +1272,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `http_status` (int, nullable): HTTP status when available.
 - `user_id` (uuid, nullable): Auth user who experienced the incident.
 - `user_email` (text, nullable): Snapshot email for faster admin triage.
-- `metadata` (jsonb): Extra context (method, user agent, route label, release/build tags, deployment headers, etc.). Repeated incidents merge metadata values so context accumulates across occurrences.
+- `metadata` (jsonb): Extra context (method, user agent, route label, release/build tags, deployment headers, etc.). Repeated incidents merge metadata values so context accumulates across occurrences. Admin status changes maintain `status_history`; `Resolve + Watch` also stores `watch_item`, `watch_note`, and watch marker metadata for History review while leaving `status = resolved`.
 - `first_seen_at` / `last_seen_at` (timestamptz): First/most recent observed timestamps for this grouped incident.
 - `occurrences_count` (int): Number of times this incident has recurred.
 - `created_at` / `updated_at` (timestamptz)

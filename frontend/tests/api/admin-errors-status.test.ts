@@ -102,12 +102,63 @@ describe("POST /api/admin/errors-status", () => {
       p_note: null,
       p_admin_user_id: "admin-1",
       p_admin_user_email: "admin@example.com",
+      p_watch_item: false,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
       incident: { id: "inc-1", status: "resolved", updated_at: "2026-02-17T00:00:00.000Z" },
     });
+  });
+
+  it("passes watch note metadata for resolved watch items", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: {
+        incident_id: "inc-watch",
+        status: "resolved",
+        updated_at: "2026-02-17T00:15:00.000Z",
+        event_id: null,
+      },
+      error: null,
+    });
+
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      method: "POST",
+      body: {
+        errorId: "inc-watch",
+        status: "resolved",
+        note: "Kie upload recovered; monitor recurrence.",
+        watch: true,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).toHaveBeenCalledWith("admin_update_app_error_status", {
+      p_error_id: "inc-watch",
+      p_event_id: null,
+      p_status: "resolved",
+      p_note: "Kie upload recovered; monitor recurrence.",
+      p_admin_user_id: "admin-1",
+      p_admin_user_email: "admin@example.com",
+      p_watch_item: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("rejects watch markers for non-resolved statuses", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "POST", body: { errorId: "inc-1", status: "ignored", watch: true } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "watch items must use resolved status." });
   });
 
   it("returns eventId when rpc promotes event to incident", async () => {
@@ -184,6 +235,7 @@ describe("POST /api/admin/errors-status", () => {
       p_note: null,
       p_admin_user_id: "admin-1",
       p_admin_user_email: "admin@example.com",
+      p_watch_item: false,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -208,6 +260,7 @@ describe("POST /api/admin/errors-status", () => {
         target_error_id: "inc-missing",
         target_event_id: null,
         target_status: "open",
+        target_watch_item: false,
         rpc_error_code: "P0002",
       },
     });
@@ -277,6 +330,7 @@ describe("POST /api/admin/errors-status", () => {
         target_error_id: "inc-missing",
         target_event_id: null,
         target_status: "resolved",
+        target_watch_item: false,
       },
     });
     expect(res.status).toHaveBeenCalledWith(500);

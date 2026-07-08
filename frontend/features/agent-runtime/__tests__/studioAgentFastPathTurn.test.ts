@@ -533,6 +533,104 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));
   });
 
+  it("repairs repeated guided-workflow questions after a real user answer", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "needs_input",
+                  message: "Step 3 — Runtime: How long should it be?",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "needs_input",
+                  message: "Step 4 — Scenes: Here is a draft scene list. What would you change?",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "1 minute" }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "story_builder",
+          label: "DFY Story Builder",
+          instructions: "Follow the guided workflow one step at a time.",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          starterAssistantMessage: "Step 1 — Story seed: Tell me the story seed.",
+          workflowStageHints: ["Story Seed", "Plot Direction", "Runtime", "Scenes"],
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "builtin",
+          workflowSession: {
+            presetId: "story_builder",
+            status: "awaiting_input",
+            currentStepIndex: 3,
+            currentStepLabel: "Runtime",
+            currentStepPrompt: "Step 3 — Runtime: How long should it be?",
+            collectedInputs: ["A father misses a bike-riding milestone", "as is"],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+        },
+      },
+      messages: [
+        {
+          role: "assistant",
+          content: "Step 3 — Runtime: How long should it be?",
+        },
+        { role: "user", content: "1 minute" },
+      ],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(fetchStudioAgentChatCompletionMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            content: expect.stringContaining("repeated_workflow_step"),
+          }),
+        ]),
+      })
+    );
+    expect(result.result.semanticStatus).toBe("needs_input");
+    expect(result.result.parsed.message).toBe(
+      "Step 4 — Scenes: Here is a draft scene list. What would you change?"
+    );
+    expect(result.result.repairUsed).toBe(true);
+  });
+
   it("repairs malformed fast-path output with one bounded repair turn", async () => {
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({

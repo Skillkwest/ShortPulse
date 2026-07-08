@@ -30,6 +30,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/165_account_first_signup_intent_gate.sql`: account-first signup intent gate and canonical `hook_shortpulse_signup_intent(event jsonb)` Auth hook.
 - `sql/migrations/166_grant_signup_hook_schema_usage.sql`: grants the Supabase Auth hook runner enough schema usage to resolve the canonical signup intent hook.
 - `sql/migrations/167_add_google_ip_signup_intent.sql`: adds the Google-only short-lived IP-bound signup intent fallback so `/sign-up` can open Google OAuth before the app knows the selected Google email.
+- `sql/migrations/214_add_admin_error_watch_items.sql`: extends the admin incident status RPC with resolved-watch metadata and status-history notes for `/admin/errors`.
 - `sql/configure_generation_recovery_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/generation-recovery/run`.
 - `sql/configure_generation_recovery_cron_secret_supabase.sql`: set/update recovery scheduler bearer secret (`shortpulse_reconciler_cron_secret`) in Supabase Vault.
 - `sql/configure_media_derivative_scheduler_supabase.sql`: configure Supabase Cron + Vault-backed scheduler invocation for `/api/internal/media-derivatives/run`.
@@ -77,6 +78,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/209_update_storage_addon_ladder_20260707.sql`: repair the recurring storage add-on ladder to the July 7 `50/100/250 GB/1 TB` self-serve set, retire `10 GB` from active self-serve metadata, and keep `500 GB` inactive for non-self-serve handling.
 - `sql/migrations/210_add_admin_generation_breakdown_stats.sql`: add the service-role-only generation breakdown helper used by `/admin/stats` for per-user and model/media-type generation analytics.
 - `sql/migrations/211_add_admin_first_value_funnel_stats.sql`: add the service-role-only first-value funnel helper used by `/admin/stats` Marketing to track signup through first retained generation value.
+- `sql/migrations/212_add_issue_report_screenshots.sql`: add private screenshot storage, metadata, and the service-role-only atomic issue-report insert helper for `/report-issue` and `/admin/reports`.
+- `sql/migrations/213_add_billing_subscription_change_intents.sql`: add the service-role-only full-price subscription-upgrade intent proof table used by the Stripe paid-invoice webhook.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -320,6 +323,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `209_update_storage_addon_ladder_20260707.sql`
 - `210_add_admin_generation_breakdown_stats.sql`
 - `211_add_admin_first_value_funnel_stats.sql`
+- `212_add_issue_report_screenshots.sql`
+- `213_add_billing_subscription_change_intents.sql`
+- `214_add_admin_error_watch_items.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

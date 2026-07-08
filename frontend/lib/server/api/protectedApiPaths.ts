@@ -27,6 +27,7 @@ export const PROTECTED_API_PREFIXES = [
   "/api/elevenlabs/",
   "/api/ai/",
   "/api/media/",
+  "/api/report-issue/",
   "/api/log/",
   "/api/admin/",
   "/api/credits/",

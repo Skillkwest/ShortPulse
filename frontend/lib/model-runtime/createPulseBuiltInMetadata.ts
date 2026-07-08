@@ -1,10 +1,10 @@
 export const VIDEO_PROMPT_MAGIC_STARTER_MESSAGE = "Upload your image to get the process started :)";
 
 export const MULTI_SEQUENCE_VIDEO_PROMPT_STARTER_MESSAGE =
-  "Step 1 — Upload: Please upload the image you want to base the scene on.";
+  "Step 1 — Concept: Tell me the video idea, action arc, or scene you want to build. You can attach reference images now or later if you want visual continuity.";
 
 export const STORY_BUILDER_STARTER_MESSAGE =
-  "**Step 1 — Upload your characters.** Please upload 1–3+ character images. Optional: add quick notes (roles, relationships, must-have traits, do-not-include).";
+  "**Step 1 — Story seed.** Tell me the character, premise, mood, or moment you want to build from. Reference images are optional if you want me to preserve specific character looks.";
 
 export const VIDEO_PROMPT_MAGIC_STAGE_HINTS = [
   "Image Gate",
@@ -15,7 +15,8 @@ export const VIDEO_PROMPT_MAGIC_STAGE_HINTS = [
 ] as const;
 
 export const MULTI_SEQUENCE_VIDEO_PROMPT_STAGE_HINTS = [
-  "Image Intake",
+  "Concept Intake",
+  "Reference Intake",
   "Action Arc",
   "Dialog",
   "Storyboard Build",
@@ -23,7 +24,8 @@ export const MULTI_SEQUENCE_VIDEO_PROMPT_STAGE_HINTS = [
 ] as const;
 
 export const STORY_BUILDER_STAGE_HINTS = [
-  "Upload Characters",
+  "Story Seed",
+  "Character Notes",
   "Plot Seed",
   "Runtime",
   "Scene Review",
@@ -46,7 +48,7 @@ export const CREATE_PULSE_SEEDED_BUILT_IN_METADATA = [
   {
     presetId: "multi_shot",
     label: "Multi Sequence Video Prompt",
-    description: "Guided multi-shot storyboard workflow from one reference image.",
+    description: "Guided multi-shot storyboard workflow from a text idea and optional references.",
     runtimeMode: "workflow_gpt",
     activationMode: "activate_and_start",
     outputMode: "chat_reply",
@@ -57,7 +59,7 @@ export const CREATE_PULSE_SEEDED_BUILT_IN_METADATA = [
   {
     presetId: "story_builder",
     label: "DFY Story Builder",
-    description: "Guided story-circle workflow for scene plans and final image prompts.",
+    description: "Guided story-circle workflow from a text seed and optional references.",
     runtimeMode: "workflow_gpt",
     activationMode: "activate_and_start",
     outputMode: "chat_reply",

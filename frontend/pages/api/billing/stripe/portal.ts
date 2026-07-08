@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const session = await stripePostForm<StripePortalSession>("/billing_portal/sessions", {
       customer: stripeCustomerId,
-      return_url: `${getCanonicalAppBaseUrl()}/profile?section=account#billing`,
+      return_url: `${getCanonicalAppBaseUrl()}/profile?section=account&billing_portal=return#billing`,
     });
 
     return res.status(200).json({ portalUrl: session.url });

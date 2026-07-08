@@ -77,7 +77,7 @@ runtime_sql as (
     select *
     from (
       values
-        ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text)'),
+        ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)'),
         ('public.create_admin_kanban_item(text,text,uuid,text)'),
         ('public.update_admin_kanban_item(uuid,text,text,uuid,text)'),
         ('public.move_admin_kanban_item(uuid,text,uuid,text)'),

@@ -16,10 +16,12 @@ import {
 } from "../logic/generationAccessCta";
 import {
   AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE,
+  AI_STUDIO_WORKFLOW_PLAN_CTA_HREF,
   resolveAiStudioWorkflowNavigationAccess,
   resolveAiStudioWorkflowPlanAccess,
   type AiStudioWorkflowPlanAccess,
 } from "../../../lib/billing/aiStudioWorkflowEntitlements";
+import { buildProfileSectionHref } from "../../profile/profileNavigation";
 import {
   resolveWorkflowReloadCharacterContextCandidate,
   resolveWorkflowReloadCharacterSelection,
@@ -73,11 +75,17 @@ type CreateRuntimeRootSharedProps = {
 
 const WORKFLOW_PLAN_ACCESS_CTA_ARIA_LABEL = "View subscription plans";
 
-const resolveWorkflowPlanAccessCta = (access: AiStudioWorkflowPlanAccess) => {
+export const resolveWorkflowPlanAccessCta = (
+  access: AiStudioWorkflowPlanAccess,
+  options: { fromPath?: unknown } = {}
+) => {
   if (access.allowed || !access.restriction) return null;
   return {
     label: access.restriction.ctaLabel,
-    href: access.restriction.ctaHref,
+    href:
+      access.restriction.ctaHref === AI_STUDIO_WORKFLOW_PLAN_CTA_HREF
+        ? buildProfileSectionHref({ section: "subscription", fromPath: options.fromPath })
+        : access.restriction.ctaHref,
     ariaLabel: WORKFLOW_PLAN_ACCESS_CTA_ARIA_LABEL,
   };
 };
@@ -257,6 +265,7 @@ const AiStudioPageRuntimeBody = ({
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
   const { resolvedPlan, status: resolvedPlanStatus } = useResolvedAccountPlan();
+  const studioProfileReturnPath = base.router.asPath;
   const generationAccessCta = React.useMemo(
     () =>
       resolveGenerationAccessCta({
@@ -271,16 +280,16 @@ const AiStudioPageRuntimeBody = ({
       planId: resolvedPlan.id,
       mode: "video",
     });
-    return resolveWorkflowPlanAccessCta(access);
-  }, [resolvedPlan, resolvedPlanStatus]);
+    return resolveWorkflowPlanAccessCta(access, { fromPath: studioProfileReturnPath });
+  }, [resolvedPlan, resolvedPlanStatus, studioProfileReturnPath]);
   const workflowNavigationAccessCta = React.useMemo(() => {
     if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
     const access = resolveAiStudioWorkflowNavigationAccess({
       planId: resolvedPlan.id,
       mode: "video",
     });
-    return resolveWorkflowPlanAccessCta(access);
-  }, [resolvedPlan, resolvedPlanStatus]);
+    return resolveWorkflowPlanAccessCta(access, { fromPath: studioProfileReturnPath });
+  }, [resolvedPlan, resolvedPlanStatus, studioProfileReturnPath]);
   const [isMediaPlanNoticeVisible, setIsMediaPlanNoticeVisible] = useState(false);
   const [isWorkflowPlanNoticeVisible, setIsWorkflowPlanNoticeVisible] = useState(false);
   React.useEffect(() => {

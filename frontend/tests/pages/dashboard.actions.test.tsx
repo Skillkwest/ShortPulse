@@ -436,20 +436,35 @@ describe("Dashboard actions", () => {
     expect(creatorHubLink).toHaveAttribute("rel", SHORTPULSE_COMMUNITY_LINK_REL);
     expect(
       await screen.findByRole("link", { name: "Media Storage: 0.0 MB / 500 GB" })
-    ).toHaveAttribute("href", "/profile?section=storage");
+    ).toHaveAttribute("href", "/profile?section=storage&from=%2Fdashboard");
     expect(await screen.findByRole("link", { name: "AI credits: 86 / 8,000" })).toHaveAttribute(
       "href",
-      "/profile?section=credits"
+      "/profile?section=credits&from=%2Fdashboard"
     );
     expect(await screen.findByRole("link", { name: /^Plan:/i })).toHaveAttribute(
       "href",
-      "/profile?section=subscription"
+      "/profile?section=subscription&from=%2Fdashboard"
     );
 
     expect(document.querySelector('[data-next-image="/Community.svg"]')).toBeInTheDocument();
     expect(document.querySelector('[data-next-image="/Media.svg"]')).toBeInTheDocument();
     expect(document.querySelector('[data-next-image="/Credits.svg"]')).toBeInTheDocument();
     expect(document.querySelector('[data-next-image="/Plan.svg"]')).toBeInTheDocument();
+  });
+
+  it("marks surplus dashboard credits with the account-page surplus color class", async () => {
+    useCreditsMock.mockReturnValue({
+      balanceCents: 9_500,
+      balanceLoading: false,
+    });
+
+    render(<DashboardPage />);
+
+    const creditsLink = await screen.findByRole("link", {
+      name: "AI credits: 9,500 / 8,000",
+    });
+    expect(within(creditsLink).getByText("9,500")).toHaveClass("dashboard-credit-surplus-value");
+    expect(creditsLink.textContent).toContain("/\n8,000");
   });
 
   it("uses signed-in labels for shared footer links", async () => {
@@ -539,27 +554,27 @@ describe("Dashboard actions", () => {
     expect(within(menu).getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Account settings" })).toHaveAttribute(
       "href",
-      "/profile?section=account"
+      "/profile?section=account&from=%2Fdashboard"
     );
     expect(screen.getByRole("menuitem", { name: "Billing" })).toHaveAttribute(
       "href",
-      "/profile?section=account#billing"
+      "/profile?section=account&from=%2Fdashboard#billing"
     );
     expect(screen.getByRole("menuitem", { name: "Subscription" })).toHaveAttribute(
       "href",
-      "/profile?section=subscription"
+      "/profile?section=subscription&from=%2Fdashboard"
     );
     expect(screen.getByRole("menuitem", { name: "Credits" })).toHaveAttribute(
       "href",
-      "/profile?section=credits"
+      "/profile?section=credits&from=%2Fdashboard"
     );
     expect(screen.getByRole("menuitem", { name: "Storage" })).toHaveAttribute(
       "href",
-      "/profile?section=storage"
+      "/profile?section=storage&from=%2Fdashboard"
     );
     expect(screen.getByRole("menuitem", { name: "Transactions" })).toHaveAttribute(
       "href",
-      "/profile?section=transactions"
+      "/profile?section=transactions&from=%2Fdashboard"
     );
     expect(screen.getByRole("menuitem", { name: "Customer Support" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(

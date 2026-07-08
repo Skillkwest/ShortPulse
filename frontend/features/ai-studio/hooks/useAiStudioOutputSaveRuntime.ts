@@ -78,6 +78,9 @@ const resolveStorageQuotaUiMessage = (message: string): string | null =>
 const isGeneratedMediaSizeLimitFailure = (message: string): boolean =>
   message.trim().toLowerCase() === GENERATED_MEDIA_SIZE_LIMIT_FAILURE_MESSAGE.toLowerCase();
 
+const isExpectedLibrarySaveRateLimitFailure = (message: string): boolean =>
+  message.trim().toLowerCase() === "too many requests";
+
 const resolveExpectedLibrarySaveUiMessage = (message: string): string | null =>
   resolveStorageQuotaUiMessage(message) ??
   (isGeneratedMediaSizeLimitFailure(message) ? GENERATED_MEDIA_SIZE_LIMIT_UI_ERROR : null);
@@ -183,6 +186,7 @@ export const useAiStudioOutputSaveRuntime = ({
           if (lastLibrarySaveTelemetrySignatureByKeyRef.current.get(saveKey) === signature) return;
           lastLibrarySaveTelemetrySignatureByKeyRef.current.set(saveKey, signature);
           if (isGeneratedMediaSizeLimitFailure(failureMessage)) return;
+          if (isExpectedLibrarySaveRateLimitFailure(failureMessage)) return;
           void reportAppError({
             source: "client.ai_studio.media_library_save_failure",
             scope: "generation",

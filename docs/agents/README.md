@@ -113,6 +113,15 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/bactuo/workspace/README.md`: Bactuo-owned temporary workspace for generation investigations, scratch architecture notes, and active intake material.
   - retained artifacts live under `docs/records/artifacts/agent/bactuo/`.
 - `docs/agents/Money Stuff/README.md`: Money Stuff permanent commerce billing steward contract, memory entrypoint, and source-of-truth map.
+- `docs/agents/badu/README.md`: Badu accountant agent contract for provider billing-history imports, bookkeeping ledger organization, and source-boundary memory.
+  - `docs/agents/badu/AGENTS.md`: Badu-scoped instruction overlay for accounting intake and ledger work.
+  - `docs/agents/badu/memory.md`: Badu's concise durable memory, including the OpenAI billing import start-date rule.
+  - `docs/agents/badu/standard-operating-procedure.md`: standing SOP for provider billing review, ledger normalization, duplicate prevention, workbook updates, and verification.
+  - `docs/agents/badu/ownership-manifest.md`: Badu's boundary map against Money Stuff, Nogo, Dave, Gear Ball, and admin/repo steward lanes.
+  - `docs/agents/badu/tools/README.md`: Badu helper-tool inventory and tool guardrails.
+  - `docs/agents/badu/workspace/README.md`: Badu intake/dropbox and scratch workspace.
+  - `docs/agents/badu/assets/README.md`: Badu source-asset storage guidance for safe billing screenshots, exports, and redacted evidence.
+  - retained artifacts live under `docs/records/artifacts/agent/badu/`.
 - `docs/agents/nogo/README.md`: Nogo provider spending analytics steward contract, memory entrypoint, SOP, tools/workspace home, and spend-limit baseline owner.
   - `docs/agents/nogo/AGENTS.md`: Nogo-scoped instruction overlay for provider-spend analytics work.
   - `docs/agents/nogo/memory.md`: Nogo's concise durable memory and current baseline pointer.

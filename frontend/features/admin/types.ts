@@ -197,6 +197,12 @@ export type AdminBillingDiagnosticsResponse = {
 };
 
 export type AdminErrorStatus = "open" | "ignored" | "resolved";
+export type AdminErrorIncidentViewMode = "queue" | "history";
+
+export type AdminErrorStatusUpdateOptions = {
+  note?: string;
+  watch?: boolean;
+};
 
 export type AdminErrorLogRow = {
   id: string;
@@ -214,6 +220,9 @@ export type AdminErrorLogRow = {
   userId: string | null;
   userEmail: string | null;
   metadata: Record<string, unknown> | null;
+  watchItem: boolean;
+  watchNote: string | null;
+  watchMarkedAt: string | null;
   firstSeenAt: string | null;
   lastSeenAt: string | null;
   occurrencesCount: number;
@@ -328,6 +337,21 @@ export type AdminIssueReportRow = {
   reviewedByUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  screenshots: AdminIssueReportScreenshot[];
+};
+
+export type AdminIssueReportScreenshot = {
+  id: string;
+  storagePath: string;
+  signedUrl: string | null;
+  unavailableReason: string | null;
+  originalFilename: string;
+  contentType: string;
+  fileSizeBytes: number;
+  width: number | null;
+  height: number | null;
+  displayOrder: number;
+  createdAt: string;
 };
 
 export type AdminIssueReportFilter = "open" | "all" | IssueReportStatus;

@@ -10,6 +10,7 @@ type DashboardAppBarCard = {
   key: string;
   label: string;
   value: string;
+  valueNode?: ReactNode;
   icon?: ElementType;
   iconSrc?: string;
   className?: string;
@@ -82,7 +83,9 @@ export function DashboardAppBar({ cards, actionSlot, brandHref = "/" }: Dashboar
                 </div>
                 <div className="header-card-body">
                   <p className="metric-label tiny">{item.label}</p>
-                  <p className={`status-value small ${item.className ?? ""}`}>{item.value}</p>
+                  <p className={`status-value small ${item.className ?? ""}`}>
+                    {item.valueNode ?? item.value}
+                  </p>
                 </div>
               </>
             );

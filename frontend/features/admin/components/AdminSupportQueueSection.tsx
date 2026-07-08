@@ -349,6 +349,10 @@ export function AdminSupportQueueSection({
       ].filter((card): card is SnapshotCard => Boolean(card))
     : [];
   const hasLoadedUsers = users.length > 0;
+  const emptyFlagCount = users.reduce(
+    (count, row) => count + (row.spendableCredits <= 0 ? 1 : 0),
+    0
+  );
   const selectedAccountState = !selectedUserId
     ? usersError
       ? {
@@ -1050,7 +1054,7 @@ export function AdminSupportQueueSection({
               <span>User</span>
               <span>Copy</span>
               <span>Plan</span>
-              <span>Flags</span>
+              <span>Flags ({emptyFlagCount})</span>
               <span>Cycle spent</span>
               <span>Spendable</span>
               <span>Top-ups</span>

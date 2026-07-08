@@ -13,8 +13,10 @@ The review surface also needs to live inside the existing admin workspace so ope
 ## Decision
 
 - Store issue reports in a dedicated shared Supabase table: `user_issue_reports`.
+- Store optional screenshot metadata in `user_issue_report_screenshots` and private screenshot objects in the `issue_report_screenshots` Supabase Storage bucket.
 - Require authenticated user submission through `POST /api/report-issue`; the server snapshots `user_id`, `submitter_email`, request path, and user agent.
-- Keep `user_issue_reports` RLS-enabled with no direct browser policies; all reads and writes flow through trusted server routes using `getSupabaseAdmin`.
+- Keep `user_issue_reports` and `user_issue_report_screenshots` RLS-enabled with no direct browser policies; all report reads and writes flow through trusted server routes using `getSupabaseAdmin`.
+- Let the browser upload screenshots only through short-lived signed upload targets prepared by `/api/report-issue/screenshots/prepare`; final report submission verifies those private objects before attaching metadata.
 - Expose operator review through `/admin/reports` plus `/api/admin/reports*`, guarded by `requireAdminUser`.
 - Use a small manual status model: `new`, `reviewing`, and `resolved`; the admin UI treats `new` plus `reviewing` as the default open queue and keeps `resolved` rows available as history.
 - Keep Ophestivus out of this runtime lane for now. Future Ophestivus work may read report rows and create derivative artifacts, but Supabase remains the source of truth.
@@ -22,6 +24,7 @@ The review surface also needs to live inside the existing admin workspace so ope
 ## Consequences
 
 - Signed-in users get a simple authenticated issue-report path without needing email re-entry.
+- Users can attach bounded screenshot evidence without exposing direct table access or public storage paths.
 - Admins get a dedicated review queue that is independent from the support-page user lookup surface.
 - Report history can persist independently of current user account presence because `user_id` is nullable and uses `on delete set null`, while `submitter_email` remains a durable snapshot.
 - Future automation or kanban linkage can be added later without rebuilding the intake contract.
@@ -29,6 +32,8 @@ The review surface also needs to live inside the existing admin workspace so ope
 ## Guardrails
 
 - Do not expose `user_issue_reports` directly to browser Supabase queries.
+- Do not expose `user_issue_report_screenshots` directly to browser Supabase queries or make the screenshot bucket public.
+- Do not use Supabase image transformations for issue-report screenshots; admin display uses signed original object URLs only.
 - Do not auto-create Ophestivus tickets or agent-owned workflows from user reports in this phase.
 - Do not hard-delete reports as part of normal operator review; use status and notes instead. Clearing the operator queue means moving a row to `resolved`, not removing it from `user_issue_reports`.
 - Keep report payloads bounded and free of service-role/browser-secret leakage.

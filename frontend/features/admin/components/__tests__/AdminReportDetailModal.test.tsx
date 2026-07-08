@@ -32,6 +32,7 @@ const buildReport = (overrides: Partial<AdminIssueReportRow> = {}): AdminIssueRe
   reviewedByUserId: null,
   createdAt: "2026-05-24T18:00:00.000Z",
   updatedAt: "2026-05-24T18:00:00.000Z",
+  screenshots: [],
   ...overrides,
 });
 
@@ -73,5 +74,36 @@ describe("AdminReportDetailModal", () => {
     );
 
     expect(screen.getByLabelText("Admin notes")).toHaveValue("Fresh report notes");
+  });
+
+  it("shows unavailable screenshot evidence without a broken image link", () => {
+    render(
+      <AdminReportDetailModal
+        selectedReport={buildReport({
+          screenshots: [
+            {
+              id: "screenshot-1",
+              storagePath: "issue-reports/user-1/screenshot.png",
+              signedUrl: null,
+              unavailableReason: "Screenshot file is unavailable.",
+              originalFilename: "screenshot.png",
+              contentType: "image/png",
+              fileSizeBytes: 512,
+              width: null,
+              height: null,
+              displayOrder: 0,
+              createdAt: "2026-05-24T18:00:00.000Z",
+            },
+          ],
+        })}
+        updatingReportId={null}
+        onClose={vi.fn()}
+        onUpdateReport={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("screenshot.png")).toBeInTheDocument();
+    expect(screen.getByText("Screenshot file is unavailable.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /screenshot\.png/i })).not.toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import type {
   AdminErrorEventSignalFilter,
   AdminErrorEventsHealth,
   AdminErrorEventSummary,
+  AdminErrorIncidentViewMode,
   AdminErrorLogRow,
   AdminErrorSummary,
   AdminPagination,
@@ -65,6 +66,7 @@ export const DEFAULT_ERROR_EVENTS_HEALTH: AdminErrorEventsHealth = {
 
 type ErrorLoadOverrides = {
   page?: number;
+  view?: AdminErrorIncidentViewMode;
   status?: "open" | "all";
   scope?: "all" | "app" | "generation";
   severity?: "all" | "high" | "medium" | "low";
@@ -110,6 +112,8 @@ const toStringOrNull = (value: unknown): string | null =>
 const toMetadataRecordOrNull = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 
+const toBoolean = (value: unknown): boolean => value === true;
+
 const toScope = (value: unknown): "app" | "generation" =>
   value === "generation" ? "generation" : "app";
 
@@ -139,6 +143,7 @@ export const buildAdminErrorsParams = (overrides: ErrorLoadOverrides): URLSearch
   const params = new URLSearchParams();
   params.set("page", String(overrides.page ?? 1));
   params.set("limit", String(ERRORS_PER_PAGE));
+  if (overrides.view === "history") params.set("view", "history");
   params.set("status", overrides.status ?? "open");
   if (overrides.scope && overrides.scope !== "all") params.set("scope", overrides.scope);
   if (overrides.severity && overrides.severity !== "all") {
@@ -181,6 +186,7 @@ export const normalizeAdminErrorsResponse = (
 ): NormalizedAdminErrorsResponse => ({
   rows: (data.errors ?? []).map((item) => {
     const value = toObjectRecord(item);
+    const metadata = toMetadataRecordOrNull(value.metadata);
     return {
       id: String(value.id ?? ""),
       fingerprint: String(value.fingerprint ?? ""),
@@ -196,7 +202,10 @@ export const normalizeAdminErrorsResponse = (
       httpStatus: Number.isFinite(Number(value.http_status)) ? Number(value.http_status) : null,
       userId: toStringOrNull(value.user_id),
       userEmail: toStringOrNull(value.user_email),
-      metadata: toMetadataRecordOrNull(value.metadata),
+      metadata,
+      watchItem: toBoolean(metadata?.watch_item),
+      watchNote: toStringOrNull(metadata?.watch_note),
+      watchMarkedAt: toStringOrNull(metadata?.watch_marked_at),
       firstSeenAt: toStringOrNull(value.first_seen_at),
       lastSeenAt: toStringOrNull(value.last_seen_at),
       occurrencesCount: toFiniteNumber(value.occurrences_count, 1),

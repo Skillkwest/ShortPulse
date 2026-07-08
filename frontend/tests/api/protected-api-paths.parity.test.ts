@@ -42,6 +42,7 @@ describe("protected API manifest parity", () => {
     expect(isProtectedApiPath("/api/projects")).toBe(true);
     expect(isProtectedApiPath("/api/projects/project-1")).toBe(true);
     expect(isProtectedApiPath("/api/report-issue")).toBe(true);
+    expect(isProtectedApiPath("/api/report-issue/screenshots/prepare")).toBe(true);
 
     expect(isWebhookPath("/api/billing/stripe/webhook")).toBe(true);
     expect(isWebhookPath("/api/fal/webhook")).toBe(true);

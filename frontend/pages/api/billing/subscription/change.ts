@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { randomUUID } from "node:crypto";
 import {
   CURRENT_BILLABLE_STORAGE_ADDON_STATUSES,
   resolveStorageAddonEligibility,
@@ -71,6 +72,10 @@ type BillingPlanOfferRow = {
   created_at: string;
 };
 
+type BillingPlanOfferWithStripePrice = BillingPlanOfferRow & {
+  stripe_price_id: string;
+};
+
 type StripePortalSession = {
   id: string;
   url: string;
@@ -81,16 +86,6 @@ type StripeCheckoutSession = {
   url?: string | null;
 };
 
-type StripeInvoiceSummary = {
-  id?: string | null;
-  hosted_invoice_url?: string | null;
-};
-
-type StripeSubscriptionUpdateResponse = StripeSubscriptionResponse & {
-  latest_invoice?: string | StripeInvoiceSummary | null;
-  pending_update?: Record<string, unknown> | null;
-};
-
 type BillingSubscriptionStorageAddonRow = {
   id: string;
   storage_addon_id: string | null;
@@ -98,10 +93,6 @@ type BillingSubscriptionStorageAddonRow = {
   quantity: number | null;
   status: string | null;
 };
-
-type StripeSubscriptionItem = NonNullable<
-  NonNullable<StripeSubscriptionResponse["items"]>["data"]
->[number];
 
 const BILLING_SUBSCRIPTION_CHANGE_RATE_LIMIT = {
   keyPrefix: "billing-subscription-change",
@@ -113,6 +104,13 @@ const PLAN_CHANGE_UNAVAILABLE_MESSAGE =
   "This plan change is temporarily unavailable. Try again later.";
 const STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE =
   "Remove or change your active storage add-on before downgrading or changing billing intervals.";
+const FULL_PRICE_UPGRADE_PORTAL_CONFIG_ENV = "STRIPE_BILLING_PORTAL_FULL_PRICE_UPGRADE_CONFIG_ID";
+const SUBSCRIPTION_CHANGE_INTENT_KIND_FULL_PRICE_UPGRADE = "full_price_upgrade";
+const SUBSCRIPTION_CHANGE_INTENT_STATUS_PENDING = "pending";
+const SUBSCRIPTION_CHANGE_INTENT_STATUS_PORTAL_CREATED = "portal_created";
+const SUBSCRIPTION_CHANGE_INTENT_STATUS_FAILED = "failed";
+const SUBSCRIPTION_CHANGE_INTENT_STATUS_EXPIRED = "expired";
+const SUBSCRIPTION_CHANGE_INTENT_EXPIRES_MS = 2 * 60 * 60 * 1000;
 const STRIPE_PORTAL_SUBSCRIPTION_UPDATE_DISABLED_PATTERN =
   /subscription update feature in the portal configuration is disabled/i;
 
@@ -210,37 +208,6 @@ const isHigherPlanUpgradeBySortOrder = (
     targetPlanSortOrder > activePlanSortOrder
   );
 };
-
-const isImmediatePaidHigherPlanUpgrade = ({
-  activeBillingInterval,
-  billingInterval,
-  isHigherPlanUpgrade,
-}: {
-  activeBillingInterval: "month" | "year";
-  billingInterval: "month" | "year";
-  isHigherPlanUpgrade: boolean;
-}): boolean => {
-  if (!isHigherPlanUpgrade) return false;
-  if (billingInterval === activeBillingInterval) return true;
-  return activeBillingInterval === "month" && billingInterval === "year";
-};
-
-const resolveHostedInvoiceUrl = (subscription: StripeSubscriptionUpdateResponse): string | null => {
-  const latestInvoice = subscription.latest_invoice;
-  if (!latestInvoice || typeof latestInvoice === "string") return null;
-  const hostedInvoiceUrl =
-    typeof latestInvoice.hosted_invoice_url === "string"
-      ? latestInvoice.hosted_invoice_url.trim()
-      : "";
-  return hostedInvoiceUrl.length > 0 ? hostedInvoiceUrl : null;
-};
-
-const hasPendingStripeUpdate = (subscription: StripeSubscriptionUpdateResponse): boolean =>
-  Boolean(
-    subscription.pending_update &&
-    typeof subscription.pending_update === "object" &&
-    Object.keys(subscription.pending_update).length > 0
-  );
 
 const resolveStripeSubscriptionCustomerId = (
   subscription: StripeSubscriptionResponse
@@ -402,26 +369,6 @@ const loadActiveStorageAddonRows = async (
   return Array.isArray(data) ? (data as BillingSubscriptionStorageAddonRow[]) : [];
 };
 
-const canCarryKnownStorageAddonItem = ({
-  activeStorageAddons,
-  baseItemId,
-  liveItems,
-}: {
-  activeStorageAddons: BillingSubscriptionStorageAddonRow[];
-  baseItemId: string | null;
-  liveItems: StripeSubscriptionItem[];
-}): boolean => {
-  if (!baseItemId || activeStorageAddons.length !== 1 || liveItems.length !== 2) {
-    return false;
-  }
-
-  const storageItemId = activeStorageAddons[0]?.stripe_subscription_item_id?.trim() ?? "";
-  if (!storageItemId || storageItemId === baseItemId) return false;
-
-  const liveItemIds = new Set(liveItems.map((item) => item.id).filter(Boolean));
-  return liveItemIds.has(baseItemId) && liveItemIds.has(storageItemId);
-};
-
 const resolveIncompatibleStorageAddonForPlan = (
   activeStorageAddons: BillingSubscriptionStorageAddonRow[],
   targetPlanId: string
@@ -449,7 +396,7 @@ const resolveBaseSubscriptionItem = async (params: {
     ? params.subscription.items.data
     : [];
   if (!items.length) {
-    throw new Error("Stripe subscription has no items.");
+    return { itemId: null, quantity: 1, itemCount: 0 };
   }
 
   if (items.length === 1) {
@@ -499,55 +446,102 @@ const resolveBaseSubscriptionItem = async (params: {
 const createPortalSession = async (payload: Record<string, string | number>) =>
   stripePostForm<StripePortalSession>("/billing_portal/sessions", payload);
 
-const applyImmediatePaidUpgrade = async ({
-  stripeSubscriptionId,
-  baseItem,
-  targetOffer,
-  targetPlanId,
-  billingInterval,
-  userId,
-}: {
-  stripeSubscriptionId: string;
-  baseItem: { itemId: string | null; quantity: number };
-  targetOffer: BillingPlanOfferRow;
-  targetPlanId: string;
-  billingInterval: "month" | "year";
+const resolveRequiredFullPriceUpgradePortalConfigurationId = (): string | null => {
+  const value = process.env[FULL_PRICE_UPGRADE_PORTAL_CONFIG_ENV]?.trim() ?? "";
+  return value.length > 0 ? value : null;
+};
+
+const expireOpenFullPriceUpgradeIntents = async (params: {
   userId: string;
+  stripeSubscriptionId: string;
+  targetStripePriceId: string;
 }) => {
-  if (!baseItem.itemId || !targetOffer.stripe_price_id) {
-    throw new Error("Immediate paid upgrade is missing a Stripe item or target price.");
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_change_intents")
+    .update({ status: SUBSCRIPTION_CHANGE_INTENT_STATUS_EXPIRED })
+    .eq("user_id", params.userId)
+    .eq("stripe_subscription_id", params.stripeSubscriptionId)
+    .eq("target_stripe_price_id", params.targetStripePriceId)
+    .in("status", [
+      SUBSCRIPTION_CHANGE_INTENT_STATUS_PENDING,
+      SUBSCRIPTION_CHANGE_INTENT_STATUS_PORTAL_CREATED,
+    ]);
+
+  if (error) {
+    throw new Error(error.message || "Failed to expire existing subscription change intents.");
+  }
+};
+
+const createFullPriceUpgradeIntent = async (params: {
+  userId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  activePlanId: string;
+  activeOfferId: string | null;
+  activeBillingInterval: "month" | "year";
+  activeStripePriceId: string | null;
+  targetPlan: BillingPlanRow;
+  targetOffer: BillingPlanOfferWithStripePrice;
+}) => {
+  await expireOpenFullPriceUpgradeIntents({
+    userId: params.userId,
+    stripeSubscriptionId: params.stripeSubscriptionId,
+    targetStripePriceId: params.targetOffer.stripe_price_id,
+  });
+
+  const intentId = randomUUID();
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_change_intents")
+    .insert({
+      id: intentId,
+      user_id: params.userId,
+      intent_kind: SUBSCRIPTION_CHANGE_INTENT_KIND_FULL_PRICE_UPGRADE,
+      status: SUBSCRIPTION_CHANGE_INTENT_STATUS_PENDING,
+      stripe_customer_id: params.stripeCustomerId,
+      stripe_subscription_id: params.stripeSubscriptionId,
+      active_plan_id: params.activePlanId,
+      active_offer_id: params.activeOfferId,
+      active_billing_interval: params.activeBillingInterval,
+      active_stripe_price_id: params.activeStripePriceId,
+      target_plan_id: params.targetPlan.id,
+      target_offer_id: params.targetOffer.id,
+      target_billing_interval: params.targetOffer.billing_interval,
+      target_stripe_price_id: params.targetOffer.stripe_price_id,
+      metadata: {
+        target_plan_sort_order: params.targetPlan.sort_order,
+        target_recurring_price_cents: params.targetOffer.recurring_price_cents,
+        target_max_concurrent_generations: params.targetOffer.max_concurrent_generations,
+      },
+      expires_at: new Date(Date.now() + SUBSCRIPTION_CHANGE_INTENT_EXPIRES_MS).toISOString(),
+    });
+
+  if (error) {
+    throw new Error(error.message || "Failed to create subscription change intent.");
   }
 
-  const subscription = await stripePostForm<StripeSubscriptionUpdateResponse>(
-    `/subscriptions/${stripeSubscriptionId}`,
-    {
-      payment_behavior: "pending_if_incomplete",
-      proration_behavior: "always_invoice",
-      billing_cycle_anchor: "now",
-      "items[0][id]": baseItem.itemId,
-      "items[0][price]": targetOffer.stripe_price_id,
-      "items[0][quantity]": baseItem.quantity,
-      "metadata[user_id]": userId,
-      "metadata[billing_plan_id]": targetPlanId,
-      "metadata[billing_offer_id]": targetOffer.id,
-      "metadata[billing_interval]": billingInterval,
-      "metadata[max_concurrent_generations]": targetOffer.max_concurrent_generations,
-      "metadata[shortpulse_plan_change_kind]": "immediate_paid_upgrade",
-      "expand[0]": "latest_invoice",
-    }
-  );
+  return intentId;
+};
 
-  if (hasPendingStripeUpdate(subscription)) {
-    return {
-      applied: false,
-      hostedInvoiceUrl: resolveHostedInvoiceUrl(subscription),
-    };
-  }
-
-  return {
-    applied: true,
-    hostedInvoiceUrl: null,
+const updateFullPriceUpgradeIntentStatus = async (params: {
+  intentId: string;
+  status: "portal_created" | "failed";
+  stripePortalSessionId?: string | null;
+}) => {
+  const payload: Record<string, string | null> = {
+    status: params.status,
   };
+  if (params.stripePortalSessionId) {
+    payload.stripe_portal_session_id = params.stripePortalSessionId;
+  }
+
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_change_intents")
+    .update(payload)
+    .eq("id", params.intentId);
+
+  if (error) {
+    throw new Error(error.message || "Failed to update subscription change intent.");
+  }
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -744,9 +738,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subscription: verifiedSubscription,
         contractStripePriceId: billingContract?.stripe_price_id ?? null,
       });
-      const liveItems = Array.isArray(verifiedSubscription.items?.data)
-        ? verifiedSubscription.items.data
-        : [];
 
       try {
         await validateTargetPlanStripePrice({
@@ -768,11 +759,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         activePlanSortOrder,
         normalizePlanSortOrder(targetPlan.sort_order)
       );
-      const isImmediatePaidUpgrade = isImmediatePaidHigherPlanUpgrade({
-        activeBillingInterval,
-        billingInterval,
-        isHigherPlanUpgrade,
-      });
 
       if (baseItem.itemCount > 1) {
         if (billingInterval !== activeBillingInterval) {
@@ -785,83 +771,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
           });
         }
-        const canCarryStorageAddonItem = canCarryKnownStorageAddonItem({
-          activeStorageAddons: activeStorageAddonRows,
-          baseItemId: baseItem.itemId,
-          liveItems,
-        });
-        if (!canCarryStorageAddonItem) {
-          return res.status(409).json({
-            error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
-          });
-        }
-        if (!baseItem.itemId || !targetOffer.stripe_price_id) {
-          return res.status(409).json({
-            error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
-          });
-        }
-
-        const upgradeResult = await applyImmediatePaidUpgrade({
-          stripeSubscriptionId,
-          baseItem,
-          targetOffer,
-          targetPlanId,
-          billingInterval,
-          userId: user.id,
-        });
-        if (!upgradeResult.applied) {
-          if (upgradeResult.hostedInvoiceUrl) {
-            return res.status(200).json({
-              redirectUrl: upgradeResult.hostedInvoiceUrl,
-              mode: "stripe_invoice",
-            });
-          }
-          return res.status(409).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
-        }
-
-        return res.status(200).json({
-          redirectUrl: resolveProfileReturnUrl("updated"),
-          mode: "app",
+        return res.status(409).json({
+          error: STORAGE_ADDON_PLAN_CHANGE_UNAVAILABLE_MESSAGE,
         });
       }
 
       if (baseItem.itemCount === 1 && baseItem.itemId && targetOffer.stripe_price_id) {
-        if (isImmediatePaidUpgrade) {
-          const upgradeResult = await applyImmediatePaidUpgrade({
-            stripeSubscriptionId,
-            baseItem,
-            targetOffer,
-            targetPlanId,
-            billingInterval,
-            userId: user.id,
-          });
-          if (!upgradeResult.applied) {
-            if (upgradeResult.hostedInvoiceUrl) {
-              return res.status(200).json({
-                redirectUrl: upgradeResult.hostedInvoiceUrl,
-                mode: "stripe_invoice",
-              });
-            }
-            return res.status(409).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
-          }
-
-          return res.status(200).json({
-            redirectUrl: resolveProfileReturnUrl("updated"),
-            mode: "app",
-          });
+        const targetOfferWithStripePrice: BillingPlanOfferWithStripePrice = {
+          ...targetOffer,
+          stripe_price_id: targetOffer.stripe_price_id,
+        };
+        const fullPriceUpgradePortalConfigurationId = isHigherPlanUpgrade
+          ? resolveRequiredFullPriceUpgradePortalConfigurationId()
+          : null;
+        if (isHigherPlanUpgrade && !fullPriceUpgradePortalConfigurationId) {
+          return res.status(501).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
         }
 
-        const session = await createPortalSession({
+        const intentId = isHigherPlanUpgrade
+          ? await createFullPriceUpgradeIntent({
+              userId: user.id,
+              stripeCustomerId,
+              stripeSubscriptionId,
+              activePlanId,
+              activeOfferId: billingContract?.offer_id ?? null,
+              activeBillingInterval,
+              activeStripePriceId: billingContract?.stripe_price_id ?? null,
+              targetPlan,
+              targetOffer: targetOfferWithStripePrice,
+            })
+          : null;
+
+        const portalPayload = {
           customer: stripeCustomerId,
           return_url: returnUrl,
           "flow_data[type]": "subscription_update_confirm",
           "flow_data[subscription_update_confirm][subscription]": stripeSubscriptionId,
           "flow_data[subscription_update_confirm][items][0][id]": baseItem.itemId,
-          "flow_data[subscription_update_confirm][items][0][price]": targetOffer.stripe_price_id,
+          "flow_data[subscription_update_confirm][items][0][price]":
+            targetOfferWithStripePrice.stripe_price_id,
           "flow_data[subscription_update_confirm][items][0][quantity]": baseItem.quantity,
           "flow_data[after_completion][type]": "redirect",
           "flow_data[after_completion][redirect][return_url]": resolveProfileReturnUrl("updated"),
-        });
+          ...(fullPriceUpgradePortalConfigurationId
+            ? { configuration: fullPriceUpgradePortalConfigurationId }
+            : {}),
+        };
+
+        let session: StripePortalSession;
+        try {
+          session = await createPortalSession(portalPayload);
+        } catch (error) {
+          if (intentId) {
+            await updateFullPriceUpgradeIntentStatus({
+              intentId,
+              status: SUBSCRIPTION_CHANGE_INTENT_STATUS_FAILED,
+            });
+          }
+          throw error;
+        }
+
+        if (intentId) {
+          await updateFullPriceUpgradeIntentStatus({
+            intentId,
+            status: SUBSCRIPTION_CHANGE_INTENT_STATUS_PORTAL_CREATED,
+            stripePortalSessionId: session.id,
+          });
+        }
 
         return res.status(200).json({
           redirectUrl: session.url,
@@ -869,18 +845,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      const session = await createPortalSession({
-        customer: stripeCustomerId,
-        return_url: returnUrl,
-        "flow_data[type]": "subscription_update",
-        "flow_data[subscription_update][subscription]": stripeSubscriptionId,
-        "flow_data[after_completion][type]": "redirect",
-        "flow_data[after_completion][redirect][return_url]": resolveProfileReturnUrl("updated"),
-      });
-
-      return res.status(200).json({
-        redirectUrl: session.url,
-        mode: "portal",
+      return res.status(409).json({
+        error: PLAN_CHANGE_UNAVAILABLE_MESSAGE,
       });
     }
 

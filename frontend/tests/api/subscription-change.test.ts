@@ -59,9 +59,13 @@ const createSupabaseAdminMock = (params: {
   billingPlans?: Record<string, unknown>[];
   billingOffers?: Record<string, unknown>[];
   activeStorageAddonRows?: Record<string, unknown>[];
+  intentInsertError?: { message?: string; code?: string } | null;
+  intentUpdateError?: { message?: string; code?: string } | null;
   onCloseContract?: (payload: unknown) => void;
   onCloseStorageAddons?: (payload: unknown) => void;
   onUpsertProfile?: (payload: unknown) => void;
+  onIntentInsert?: (payload: unknown) => void;
+  onIntentUpdate?: (payload: unknown) => void;
 }) => ({
   from: (table: string) => {
     if (table === "billing_profiles") {
@@ -167,6 +171,31 @@ const createSupabaseAdminMock = (params: {
       };
     }
 
+    if (table === "billing_subscription_change_intents") {
+      return {
+        insert: async (payload: unknown) => {
+          params.onIntentInsert?.(payload);
+          return { error: params.intentInsertError ?? null };
+        },
+        update: (payload: unknown) => {
+          const updateChain = {
+            eq: (column: string) => {
+              if (column === "id") {
+                params.onIntentUpdate?.(payload);
+                return Promise.resolve({ error: params.intentUpdateError ?? null });
+              }
+              return updateChain;
+            },
+            in: async () => {
+              params.onIntentUpdate?.(payload);
+              return { error: params.intentUpdateError ?? null };
+            },
+          };
+          return updateChain;
+        },
+      };
+    }
+
     throw new Error(`Unexpected table ${table}`);
   },
 });
@@ -232,6 +261,7 @@ describe("POST /api/billing/subscription/change", () => {
     vi.clearAllMocks();
     resetApiRateLimitForTests();
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
+    process.env.STRIPE_BILLING_PORTAL_FULL_PRICE_UPGRADE_CONFIG_ID = "bpc_full_price_upgrade_test";
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user@example.com",
@@ -362,7 +392,9 @@ describe("POST /api/billing/subscription/change", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("charges a same-interval higher-plan subscription upgrade immediately", async () => {
+  it("opens Stripe confirmation for a same-interval higher-plan subscription upgrade", async () => {
+    const insertedIntents: unknown[] = [];
+    const updatedIntents: unknown[] = [];
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {
@@ -407,6 +439,8 @@ describe("POST /api/billing/subscription/change", () => {
             created_at: "2026-04-01T00:00:00.000Z",
           },
         ],
+        onIntentInsert: (payload) => insertedIntents.push(payload),
+        onIntentUpdate: (payload) => updatedIntents.push(payload),
       })
     );
     readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
@@ -417,9 +451,8 @@ describe("POST /api/billing/subscription/change", () => {
       },
     });
     stripePostFormMock.mockResolvedValue({
-      id: "sub_123",
-      pending_update: null,
-      latest_invoice: { id: "in_upgrade_paid", status: "paid", paid: true },
+      id: "bps_123",
+      url: "https://stripe.test/portal_upgrade",
     });
 
     const req = {
@@ -431,31 +464,128 @@ describe("POST /api/billing/subscription/change", () => {
     await handler(req as never, res as never);
 
     expect(stripePostFormMock).toHaveBeenCalledWith(
-      "/subscriptions/sub_123",
+      "/billing_portal/sessions",
       expect.objectContaining({
-        payment_behavior: "pending_if_incomplete",
-        proration_behavior: "always_invoice",
-        billing_cycle_anchor: "now",
-        "items[0][id]": "si_base",
-        "items[0][price]": "price_business",
-        "items[0][quantity]": 1,
-        "metadata[billing_plan_id]": "business",
-        "metadata[shortpulse_plan_change_kind]": "immediate_paid_upgrade",
-        "expand[0]": "latest_invoice",
+        "flow_data[type]": "subscription_update_confirm",
+        "flow_data[subscription_update_confirm][subscription]": "sub_123",
+        "flow_data[subscription_update_confirm][items][0][id]": "si_base",
+        "flow_data[subscription_update_confirm][items][0][price]": "price_business",
+        "flow_data[subscription_update_confirm][items][0][quantity]": 1,
+        configuration: "bpc_full_price_upgrade_test",
       })
     );
+    expect(stripePostFormMock).not.toHaveBeenCalledWith(
+      "/subscriptions/sub_123",
+      expect.any(Object)
+    );
+    expect(insertedIntents).toHaveLength(1);
+    expect(insertedIntents[0]).toEqual(
+      expect.objectContaining({
+        user_id: "user-1",
+        intent_kind: "full_price_upgrade",
+        status: "pending",
+        stripe_customer_id: "cus_123",
+        stripe_subscription_id: "sub_123",
+        active_plan_id: "media",
+        active_offer_id: null,
+        active_billing_interval: "month",
+        active_stripe_price_id: "price_media",
+        target_plan_id: "business",
+        target_offer_id: "business__current",
+        target_billing_interval: "month",
+        target_stripe_price_id: "price_business",
+        expires_at: expect.any(String),
+      })
+    );
+    expect(updatedIntents).toEqual([
+      expect.objectContaining({ status: "expired" }),
+      expect.objectContaining({
+        status: "portal_created",
+        stripe_portal_session_id: "bps_123",
+      }),
+    ]);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      redirectUrl: "https://stripe.test/portal_upgrade",
+      mode: "portal",
+    });
+  });
+
+  it("fails closed before Stripe when a higher-plan upgrade has no full-price Portal configuration", async () => {
+    delete process.env.STRIPE_BILLING_PORTAL_FULL_PRICE_UPGRADE_CONFIG_ID;
+    const intentInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlans: [
+          {
+            id: "media",
+            display_name: "Media",
+            sort_order: 20,
+            is_active: true,
+          },
+          {
+            id: "business",
+            display_name: "Business",
+            sort_order: 40,
+            is_active: true,
+          },
+        ],
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            max_concurrent_generations: 8,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+        onIntentInsert: intentInsertSpy,
+      })
+    );
+    stripePostFormMock.mockResolvedValue({
+      id: "bps_123",
+      url: "https://stripe.test/portal_upgrade",
+    });
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(intentInsertSpy).not.toHaveBeenCalled();
     expect(stripePostFormMock).not.toHaveBeenCalledWith(
       "/billing_portal/sessions",
       expect.any(Object)
     );
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(501);
     expect(res.json).toHaveBeenCalledWith({
-      redirectUrl: "https://app.shortpulse.test/profile?section=subscription&plan_change=updated",
-      mode: "app",
+      error: "This plan change is temporarily unavailable. Try again later.",
     });
   });
 
-  it("charges a single-item monthly-to-annual higher-plan upgrade immediately", async () => {
+  it("opens Stripe confirmation for a single-item monthly-to-annual higher-plan upgrade", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {
@@ -522,9 +652,8 @@ describe("POST /api/billing/subscription/change", () => {
       product: null,
     });
     stripePostFormMock.mockResolvedValue({
-      id: "sub_123",
-      pending_update: null,
-      latest_invoice: { id: "in_upgrade_paid", status: "paid", paid: true },
+      id: "bps_123",
+      url: "https://stripe.test/portal_upgrade_annual",
     });
 
     const req = {
@@ -536,33 +665,27 @@ describe("POST /api/billing/subscription/change", () => {
     await handler(req as never, res as never);
 
     expect(stripePostFormMock).toHaveBeenCalledWith(
-      "/subscriptions/sub_123",
+      "/billing_portal/sessions",
       expect.objectContaining({
-        payment_behavior: "pending_if_incomplete",
-        proration_behavior: "always_invoice",
-        billing_cycle_anchor: "now",
-        "items[0][id]": "si_base",
-        "items[0][price]": "price_business_year",
-        "items[0][quantity]": 1,
-        "metadata[billing_plan_id]": "business",
-        "metadata[billing_offer_id]": "business__year_current",
-        "metadata[billing_interval]": "year",
-        "metadata[shortpulse_plan_change_kind]": "immediate_paid_upgrade",
-        "expand[0]": "latest_invoice",
+        "flow_data[type]": "subscription_update_confirm",
+        "flow_data[subscription_update_confirm][subscription]": "sub_123",
+        "flow_data[subscription_update_confirm][items][0][id]": "si_base",
+        "flow_data[subscription_update_confirm][items][0][price]": "price_business_year",
+        "flow_data[subscription_update_confirm][items][0][quantity]": 1,
       })
     );
     expect(stripePostFormMock).not.toHaveBeenCalledWith(
-      "/billing_portal/sessions",
+      "/subscriptions/sub_123",
       expect.any(Object)
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      redirectUrl: "https://app.shortpulse.test/profile?section=subscription&plan_change=updated",
-      mode: "app",
+      redirectUrl: "https://stripe.test/portal_upgrade_annual",
+      mode: "portal",
     });
   });
 
-  it("redirects to the hosted Stripe invoice when an immediate upgrade payment is pending", async () => {
+  it("does not open a hosted invoice fallback for higher-plan upgrades", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
         billingProfile: {
@@ -610,12 +733,8 @@ describe("POST /api/billing/subscription/change", () => {
       })
     );
     stripePostFormMock.mockResolvedValue({
-      id: "sub_123",
-      pending_update: { expires_at: 1783472000 },
-      latest_invoice: {
-        id: "in_upgrade_open",
-        hosted_invoice_url: "https://invoice.stripe.test/pay",
-      },
+      id: "bps_123",
+      url: "https://stripe.test/portal_upgrade",
     });
 
     const req = {
@@ -626,10 +745,20 @@ describe("POST /api/billing/subscription/change", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
+    expect(stripePostFormMock).toHaveBeenCalledWith(
+      "/billing_portal/sessions",
+      expect.objectContaining({
+        "flow_data[type]": "subscription_update_confirm",
+      })
+    );
+    expect(stripePostFormMock).not.toHaveBeenCalledWith(
+      "/subscriptions/sub_123",
+      expect.any(Object)
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      redirectUrl: "https://invoice.stripe.test/pay",
-      mode: "stripe_invoice",
+      redirectUrl: "https://stripe.test/portal_upgrade",
+      mode: "portal",
     });
   });
 
@@ -696,6 +825,66 @@ describe("POST /api/billing/subscription/change", () => {
       error: "This plan change is temporarily unavailable. Try again later.",
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Stripe does not return a base subscription item", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        billingProfile: {
+          user_id: "user-1",
+          plan_id: "media",
+          stripe_customer_id: "cus_123",
+          stripe_subscription_id: "sub_123",
+        },
+        billingContract: {
+          id: "contract_1",
+          plan_id: "media",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          billing_interval: "month",
+          contract_source: "stripe",
+        },
+        billingPlan: {
+          id: "business",
+          display_name: "Business",
+          is_active: true,
+        },
+        billingOffers: [
+          {
+            id: "business__current",
+            plan_id: "business",
+            stripe_price_id: "price_business",
+            billing_interval: "month",
+            recurring_price_cents: 12900,
+            acquisition_enabled: true,
+            is_active: true,
+            effective_start_at: "2026-04-01T00:00:00.000Z",
+            created_at: "2026-04-01T00:00:00.000Z",
+          },
+        ],
+      })
+    );
+    readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
+      id: "sub_123",
+      customer: "cus_123",
+      items: {
+        data: [],
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: { targetPlanId: "business" },
+      socket: { remoteAddress: "127.0.0.1" },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "This plan change is temporarily unavailable. Try again later.",
+    });
   });
 
   it("uses the portal update flow for a legacy Stripe paid profile without a contract row", async () => {
@@ -1090,7 +1279,7 @@ describe("POST /api/billing/subscription/change", () => {
     expect(stripePostFormMock).not.toHaveBeenCalled();
   });
 
-  it("updates only the base item for compatible multi-item subscription upgrades", async () => {
+  it("blocks compatible multi-item subscription upgrades instead of mutating Stripe directly", async () => {
     getSupabaseAdminMock.mockReturnValue(createMultiItemUpgradeSupabaseMock());
     readVerifiedStripeSubscriptionForUserMock.mockResolvedValue({
       id: "sub_123",
@@ -1102,8 +1291,6 @@ describe("POST /api/billing/subscription/change", () => {
         ],
       },
     });
-    stripePostFormMock.mockResolvedValue({ id: "sub_123" });
-
     const req = {
       method: "POST",
       body: { targetPlanId: "business" },
@@ -1112,23 +1299,11 @@ describe("POST /api/billing/subscription/change", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(stripePostFormMock).toHaveBeenCalledWith(
-      "/subscriptions/sub_123",
-      expect.objectContaining({
-        payment_behavior: "pending_if_incomplete",
-        proration_behavior: "always_invoice",
-        billing_cycle_anchor: "now",
-        "items[0][id]": "si_base",
-        "items[0][price]": "price_business",
-        "items[0][quantity]": 1,
-        "metadata[billing_plan_id]": "business",
-        "metadata[shortpulse_plan_change_kind]": "immediate_paid_upgrade",
-      })
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
-      redirectUrl: "https://app.shortpulse.test/profile?section=subscription&plan_change=updated",
-      mode: "app",
+      error:
+        "Remove or change your active storage add-on before downgrading or changing billing intervals.",
     });
   });
 
@@ -1171,7 +1346,8 @@ describe("POST /api/billing/subscription/change", () => {
     );
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
-      error: "This plan change is temporarily unavailable. Try again later.",
+      error:
+        "Remove or change your active storage add-on before downgrading or changing billing intervals.",
     });
   });
 

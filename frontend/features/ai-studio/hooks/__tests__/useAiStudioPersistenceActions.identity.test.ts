@@ -1039,6 +1039,63 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(reportAppErrorMock).not.toHaveBeenCalled();
   });
 
+  it("keeps expected media library rate-limit save failures out of app-error incidents", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/rate-limited-upload.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(new Error("Too many requests"));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let persistResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      persistResult = await result.current.persistOutputSave("out-1");
+    });
+
+    expect(persistResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Too many requests",
+      })
+    );
+    expect(setUiError).toHaveBeenCalledWith(
+      "Unable to save media to the library right now. Please try again."
+    );
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Too many requests",
+      })
+    );
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+  });
+
   it("clears the prior generic library banner after a later save succeeds", async () => {
     const outputs = new Map<string, StudioOutput>([
       [

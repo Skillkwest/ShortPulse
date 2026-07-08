@@ -52,7 +52,9 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionStorageLimitBytes: number;
   currentSubscriptionMaxConcurrentGenerations: number;
   recurringPaymentLabel: string;
+  subscriptionPeriodLabel: string;
   subscriptionRenewalText: string;
+  isSubscriptionCancellationScheduled: boolean;
   billingPlans: BillingPlanRecord[];
   billingPlansLoading: boolean;
   isInternalCompContract: boolean;
@@ -78,7 +80,9 @@ export function ProfileSubscriptionSection({
   currentSubscriptionStorageLimitBytes,
   currentSubscriptionMaxConcurrentGenerations,
   recurringPaymentLabel,
+  subscriptionPeriodLabel,
   subscriptionRenewalText,
+  isSubscriptionCancellationScheduled,
   billingPlans,
   billingPlansLoading,
   isInternalCompContract,
@@ -116,7 +120,7 @@ export function ProfileSubscriptionSection({
   const activePlanDisplayName = activePlan.displayName;
   const showBaselinePlanCta = activePlan.id === "free";
   const cancelSubscriptionButton =
-    activePlan.id !== "free" ? (
+    activePlan.id !== "free" && !isSubscriptionCancellationScheduled ? (
       <button
         type="button"
         className={profileClass(
@@ -170,7 +174,7 @@ export function ProfileSubscriptionSection({
             {showRenewalChip ? (
               <ProfileMetricCard
                 className="profile-hero-stat-card"
-                label="Next renewal"
+                label={subscriptionPeriodLabel}
                 value={subscriptionRenewalText}
               />
             ) : null}
@@ -202,6 +206,17 @@ export function ProfileSubscriptionSection({
           </div>
         )}
       </article>
+
+      {isSubscriptionCancellationScheduled ? (
+        <aside className={profileClass("profile-callout")}>
+          <WarningCircle size={18} />
+          <p className="tiny">
+            Cancellation scheduled. You can keep using this plan, remaining subscription credits,
+            and recurring storage add-ons until {subscriptionRenewalText}. Paid top-up credits stay
+            available.
+          </p>
+        </aside>
+      ) : null}
 
       {showBaselinePlanCta ? null : (
         <ProfilePanel

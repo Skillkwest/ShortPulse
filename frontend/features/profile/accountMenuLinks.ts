@@ -2,10 +2,18 @@
  * Shared account-menu navigation targets for authenticated app surfaces.
  */
 import { CUSTOMER_SUPPORT_LABEL, CUSTOMER_SUPPORT_MAILTO_HREF } from "../../lib/customerSupport";
+import type { ProfileSection } from "./profilePageModel";
+import { buildProfileSectionHref } from "./profileNavigation";
 
 export type AccountMenuLink = {
   href: string;
   label: string;
+};
+
+type AccountMenuLinkDefinition = {
+  hash?: string;
+  label: string;
+  section: ProfileSection;
 };
 
 /**
@@ -17,13 +25,28 @@ export const CUSTOMER_SUPPORT_MENU_LINK: AccountMenuLink = {
 };
 
 /**
- * Returns the canonical profile-section links shown from account menus.
+ * Canonical profile-section links shown from account menus.
  */
-export const ACCOUNT_MENU_LINKS: AccountMenuLink[] = [
-  { href: "/profile?section=account", label: "Account settings" },
-  { href: "/profile?section=account#billing", label: "Billing" },
-  { href: "/profile?section=subscription", label: "Subscription" },
-  { href: "/profile?section=credits", label: "Credits" },
-  { href: "/profile?section=storage", label: "Storage" },
-  { href: "/profile?section=transactions", label: "Transactions" },
+const ACCOUNT_MENU_LINK_DEFINITIONS: AccountMenuLinkDefinition[] = [
+  { section: "account", label: "Account settings" },
+  { section: "account", hash: "billing", label: "Billing" },
+  { section: "subscription", label: "Subscription" },
+  { section: "credits", label: "Credits" },
+  { section: "storage", label: "Storage" },
+  { section: "transactions", label: "Transactions" },
 ];
+
+/**
+ * Builds the canonical profile-section links shown from account menus.
+ */
+export const buildAccountMenuLinks = (options: { fromPath?: unknown } = {}): AccountMenuLink[] =>
+  ACCOUNT_MENU_LINK_DEFINITIONS.map((item) => ({
+    href: buildProfileSectionHref({
+      section: item.section,
+      fromPath: options.fromPath,
+      hash: item.hash,
+    }),
+    label: item.label,
+  }));
+
+export const ACCOUNT_MENU_LINKS: AccountMenuLink[] = buildAccountMenuLinks();

@@ -11,7 +11,10 @@ import {
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
 } from "./studioAgentResponseNormalization";
-import { resolveStudioAgentPulseKind } from "./studioAgentPulseRuntime";
+import {
+  resolveLatestStudioAgentUserInput,
+  resolveStudioAgentPulseKind,
+} from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 
 type StageMarker = (stage: string, startedAt: number) => void;
@@ -145,18 +148,58 @@ const resolveLatestUserInput = (messages: AgentMessage[]): string | null => {
   return null;
 };
 
+const normalizePulseRepeatComparisonValue = (value: string | null | undefined): string =>
+  typeof value === "string" ? value.trim().toLowerCase().replace(/\s+/g, "") : "";
+
+const isGuidedWorkflowRepeatAfterUserInput = ({
+  context,
+  messages,
+  parsed,
+  semanticStatus,
+}: {
+  context: AgentContext;
+  messages: AgentMessage[];
+  parsed: AgentResponse | null | undefined;
+  semanticStatus: string | null | undefined;
+}): boolean => {
+  if (resolveStudioAgentPulseKind(context.pulse) !== "guided_workflow") return false;
+  const latestUserInput = resolveLatestStudioAgentUserInput(messages);
+  if (!latestUserInput) return false;
+  const status = typeof semanticStatus === "string" ? semanticStatus.trim().toLowerCase() : "";
+  if (status && status !== "needs_input" && status !== "awaiting_input" && status !== "running") {
+    return false;
+  }
+  const responseMessage = normalizePulseRepeatComparisonValue(parsed?.message);
+  if (!responseMessage) return false;
+  const workflowSession = context.pulse?.workflowSession ?? null;
+  const repeatedCandidates = [
+    workflowSession?.currentStepPrompt,
+    workflowSession?.currentStepLabel,
+    context.pulse?.starterAssistantMessage,
+  ].map(normalizePulseRepeatComparisonValue);
+  return repeatedCandidates.some(
+    (candidate) => candidate.length > 0 && candidate === responseMessage
+  );
+};
+
 const buildFastPathRepairMessagesWithContext = ({
   contentText,
   latestUserInput,
   canonicalPrompt,
   activePrompt,
   pulseKind,
+  workflowSession,
+  workflowStageHints,
+  repairReason = "malformed_output",
 }: {
   contentText: string;
   latestUserInput: string | null;
   canonicalPrompt: string | null;
   activePrompt: string | null;
   pulseKind: "guided_workflow" | "custom_gpt" | null;
+  workflowSession?: unknown;
+  workflowStageHints?: readonly string[] | null;
+  repairReason?: "malformed_output" | "repeated_workflow_step";
 }) => {
   const guidedWorkflowPulseRepair = pulseKind === "guided_workflow";
   const customPulseRepair = pulseKind === "custom_gpt";
@@ -167,6 +210,7 @@ const buildFastPathRepairMessagesWithContext = ({
         "Return only valid JSON with keys: status (needs_input|ready|refuse), message (string), and actions (null or object with applyPrompt).",
         "Do not include markdown or explanation text.",
         "If SOURCE_OUTPUT is a follow-up question, checklist continuation, or clarification request, set status to needs_input and actions to null.",
+        "If repair_reason is repeated_workflow_step, do not preserve the repeated question. Use latest_user_input and workflow_session_state to continue to the next useful question or final artifact.",
         "If SOURCE_OUTPUT is a final generation-ready artifact, set status to ready and put the exact final artifact text in actions.applyPrompt.",
         "If content is unsafe/refusal, set status to refuse and omit applyPrompt.",
       ].join(" ")
@@ -190,12 +234,17 @@ const buildFastPathRepairMessagesWithContext = ({
     ? JSON.stringify({
         instruction: customPulseRepair
           ? "Repair SOURCE_OUTPUT into custom-Pulse JSON. Preserve question-vs-direct-answer-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Ordinary direct answers must return status ready with actions null. Use actions.applyPrompt only for a clearly reusable final prompt or artifact."
-          : "Repair SOURCE_OUTPUT into Pulse JSON. Preserve question-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Final generation-ready artifacts must return status ready with actions.applyPrompt equal to the exact artifact text.",
+          : repairReason === "repeated_workflow_step"
+            ? "Repair SOURCE_OUTPUT into Pulse JSON by continuing the active guided workflow. The assistant repeated the previous workflow question after the user answered it. Accept latest_user_input as progress and ask the next useful question, or produce the final artifact if enough information is present. Do not repeat SOURCE_OUTPUT verbatim."
+            : "Repair SOURCE_OUTPUT into Pulse JSON. Preserve question-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Final generation-ready artifacts must return status ready with actions.applyPrompt equal to the exact artifact text.",
+        repair_reason: repairReason,
         pulse_kind: pulseKind,
         source_output: contentText,
         latest_user_input: latestUserInput,
         canonical_prompt: canonicalPrompt,
         active_prompt: activePrompt,
+        workflow_session_state: workflowSession ?? null,
+        workflow_stage_hints: workflowStageHints ?? null,
       })
     : JSON.stringify({
         instruction:
@@ -290,8 +339,19 @@ export const executeStudioAgentFastPathTurn = async ({
         allowUnstructured: !pulseActive,
       });
   let repairUsed = false;
-  if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
-    const latestUserInput = resolveLatestUserInput(messages);
+  const shouldRepairRepeatedGuidedStep = isGuidedWorkflowRepeatAfterUserInput({
+    context,
+    messages,
+    parsed: parsedWithStatus?.response ?? null,
+    semanticStatus: parsedWithStatus?.status ?? null,
+  });
+  if (
+    !hasUsableFastPathPayload(parsedWithStatus?.response ?? null) ||
+    shouldRepairRepeatedGuidedStep
+  ) {
+    const latestUserInput = pulseActive
+      ? resolveLatestStudioAgentUserInput(messages)
+      : resolveLatestUserInput(messages);
     const repairStartedAt = Date.now();
     let repairResponse: Response;
     try {
@@ -308,6 +368,11 @@ export const executeStudioAgentFastPathTurn = async ({
               ? context.activePrompt.trim()
               : null,
           pulseKind,
+          workflowSession: context.pulse?.workflowSession ?? null,
+          workflowStageHints: context.pulse?.workflowStageHints ?? null,
+          repairReason: shouldRepairRepeatedGuidedStep
+            ? "repeated_workflow_step"
+            : "malformed_output",
         }),
         timeoutMs,
         responseFormat: pulseActive ? STUDIO_AGENT_PULSE_RESPONSE_FORMAT : undefined,

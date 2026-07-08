@@ -105,15 +105,12 @@ describe("POST /api/report-issue", () => {
   });
 
   it("stores a validated report for an authenticated user", async () => {
-    const singleMock = vi.fn().mockResolvedValue({
-      data: { id: "report-1" },
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: "report-1",
       error: null,
     });
-    const selectMock = vi.fn(() => ({ single: singleMock }));
-    const insertMock = vi.fn(() => ({ select: selectMock }));
-    const fromMock = vi.fn(() => ({ insert: insertMock }));
     getSupabaseAdminMock.mockReturnValue({
-      from: fromMock,
+      rpc: rpcMock,
     });
 
     const req = {
@@ -130,13 +127,13 @@ describe("POST /api/report-issue", () => {
 
     await handler(req as never, res as never);
 
-    expect(fromMock).toHaveBeenCalledWith("user_issue_reports");
-    expect(insertMock).toHaveBeenCalledWith({
-      user_id: "user-1",
-      submitter_email: "user@example.com",
-      message: "The upload button stops responding after I rename a project.",
-      source_path: "/dashboard",
-      user_agent: "Mozilla/5.0 Test Browser",
+    expect(rpcMock).toHaveBeenCalledWith("create_user_issue_report_with_screenshots", {
+      p_user_id: "user-1",
+      p_submitter_email: "user@example.com",
+      p_message: "The upload button stops responding after I rename a project.",
+      p_source_path: "/dashboard",
+      p_user_agent: "Mozilla/5.0 Test Browser",
+      p_screenshots: [],
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -147,15 +144,12 @@ describe("POST /api/report-issue", () => {
 
   it("logs report insert failures while returning the safe customer error", async () => {
     const insertError = new Error("database temporarily unavailable");
-    const singleMock = vi.fn().mockResolvedValue({
+    const rpcMock = vi.fn().mockResolvedValue({
       data: null,
       error: insertError,
     });
-    const selectMock = vi.fn(() => ({ single: singleMock }));
-    const insertMock = vi.fn(() => ({ select: selectMock }));
-    const fromMock = vi.fn(() => ({ insert: insertMock }));
     getSupabaseAdminMock.mockReturnValue({
-      from: fromMock,
+      rpc: rpcMock,
     });
 
     const req = {
@@ -199,6 +193,83 @@ describe("POST /api/report-issue", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: `Issue context paths must be ${ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH} characters or fewer.`,
+    });
+  });
+
+  it("rejects too many screenshot references before opening Supabase", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        message: "Help",
+        screenshots: Array.from({ length: 4 }, (_value, index) => ({
+          storagePath: `issue-reports/user-1/upload-${index}.png`,
+          sourceName: `upload-${index}.png`,
+          sourceMimeType: "image/png",
+          sourceSize: 120,
+        })),
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Issue reports can include up to 3 screenshots.",
+      details: undefined,
+    });
+  });
+
+  it("cleans up uploaded screenshot objects when verification fails", async () => {
+    const userId = "11111111-1111-4111-8111-111111111111";
+    const uploadId = "22222222-2222-4222-8222-222222222222";
+    const storagePath = `issue-reports/${userId}/${uploadId}.png`;
+    const downloadMock = vi.fn().mockResolvedValue({
+      data: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
+      error: null,
+    });
+    const removeMock = vi.fn().mockResolvedValue({ data: [], error: null });
+    const rpcMock = vi.fn();
+    const fromMock = vi.fn().mockReturnValue({
+      download: downloadMock,
+      remove: removeMock,
+    });
+    requireApiUserMock.mockResolvedValue({ id: userId, email: "user@example.com" });
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: fromMock,
+      },
+      rpc: rpcMock,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        message: "The image upload flow broke.",
+        screenshots: [
+          {
+            storagePath,
+            sourceName: "broken.png",
+            sourceMimeType: "image/png",
+            sourceSize: 4,
+          },
+        ],
+      },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(downloadMock).toHaveBeenCalledWith(storagePath);
+    expect(removeMock).toHaveBeenCalledWith([storagePath]);
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Screenshot upload size did not match.",
+      details: undefined,
     });
   });
 });

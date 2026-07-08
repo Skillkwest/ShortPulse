@@ -560,6 +560,10 @@ a.ai-credit-inline:focus-visible {
   color: #f8fcff;
 }
 
+.ai-credit-inline .ai-credit-surplus-value {
+  color: var(--color-teal);
+}
+
 .ai-credit-inline.header-embedded {
   align-items: center;
   border-right: none;

@@ -39,6 +39,9 @@ const buildIncident = (overrides: Partial<AdminErrorLogRow> = {}): AdminErrorLog
   userId: "user-1",
   userEmail: "user@example.com",
   metadata: null,
+  watchItem: false,
+  watchNote: null,
+  watchMarkedAt: null,
   firstSeenAt: "2026-02-20T10:00:00.000Z",
   lastSeenAt: "2026-02-20T10:05:00.000Z",
   occurrencesCount: 1,
@@ -74,10 +77,15 @@ type HookParams = {
   errorEventsPagination?: AdminPagination;
   errorEventIncidentFilter?: AdminErrorEventIncidentFilter;
   onEventNextPage?: () => void;
-  onUpdateErrorStatus?: (errorId: string, status: "open" | "resolved" | "ignored") => Promise<void>;
+  onUpdateErrorStatus?: (
+    errorId: string,
+    status: "open" | "resolved" | "ignored",
+    options?: { note?: string; watch?: boolean }
+  ) => Promise<void>;
   onUpdateErrorEventStatus?: (
     eventId: string,
-    status: "open" | "resolved" | "ignored"
+    status: "open" | "resolved" | "ignored",
+    options?: { note?: string; watch?: boolean }
   ) => Promise<void>;
 };
 
@@ -255,6 +263,79 @@ describe("useAdminErrorIncidentsPanelState", () => {
 
     expect(result.current.copiedIncidentId).toBeNull();
     expect(result.current.inProgressIncidentIds.has("incident-1")).toBe(true);
+  });
+
+  it("copies only visible new incident packets and marks them in progress", async () => {
+    copyToClipboardMock.mockResolvedValue(true);
+    window.localStorage.setItem(
+      "shortpulse.admin.errors.in_progress_incidents",
+      JSON.stringify(["incident-in-progress"])
+    );
+    const firstNewIncident = buildIncident({ id: "incident-new-1", message: "First new issue" });
+    const secondNewIncident = buildIncident({
+      id: "incident-new-2",
+      message: "Second new issue",
+    });
+    const inProgressIncident = buildIncident({
+      id: "incident-in-progress",
+      message: "Already copied issue",
+    });
+    const resolvedIncident = buildIncident({
+      id: "incident-resolved",
+      message: "Resolved issue",
+      status: "resolved",
+    });
+
+    const { result } = renderHook(() =>
+      useAdminErrorIncidentsPanelState(
+        buildParams({
+          errors: [firstNewIncident, secondNewIncident, inProgressIncident, resolvedIncident],
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.visibleNewIncidentCount).toBe(2);
+    });
+
+    await act(async () => {
+      await result.current.handleCopyVisibleNewIncidents();
+    });
+
+    expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
+    const copiedText = String(copyToClipboardMock.mock.calls[0]?.[0] ?? "");
+    expect(copiedText).toContain("First new issue");
+    expect(copiedText).toContain("Second new issue");
+    expect(copiedText).not.toContain("Already copied issue");
+    expect(copiedText).not.toContain("Resolved issue");
+    expect(copiedText.match(/shortpulseIncidentVersion/g)).toHaveLength(2);
+    expect(copiedText).toContain("---");
+    expect(result.current.copiedVisibleNewIncidentCount).toBe(2);
+    expect(result.current.visibleNewIncidentCount).toBe(0);
+    expect(result.current.inProgressIncidentIds.has("incident-new-1")).toBe(true);
+    expect(result.current.inProgressIncidentIds.has("incident-new-2")).toBe(true);
+    expect(result.current.inProgressIncidentIds.has("incident-in-progress")).toBe(true);
+  });
+
+  it("does not mark visible new incidents in progress when bulk clipboard copy fails", async () => {
+    copyToClipboardMock.mockResolvedValue(false);
+    const incident = buildIncident({ id: "incident-copy-failure" });
+
+    const { result } = renderHook(() =>
+      useAdminErrorIncidentsPanelState(buildParams({ errors: [incident] }))
+    );
+
+    expect(result.current.visibleNewIncidentCount).toBe(1);
+
+    await act(async () => {
+      await result.current.handleCopyVisibleNewIncidents();
+    });
+
+    expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
+    expect(result.current.copiedVisibleNewIncidentCount).toBeNull();
+    expect(result.current.visibleNewIncidentCount).toBe(1);
+    expect(result.current.inProgressIncidentIds.has("incident-copy-failure")).toBe(false);
+    expect(window.localStorage.getItem("shortpulse.admin.errors.in_progress_incidents")).toBeNull();
   });
 
   it("closes the selected event when Escape is pressed", async () => {

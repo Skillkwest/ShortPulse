@@ -302,8 +302,20 @@ describe("Admin agent instructions page", () => {
     };
     expect(payload.builtInDefinitions[0]).toMatchObject({
       presetId: "image",
+      label: "Global Prompt Director",
       title: "Global Prompt Director",
+      description: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].description,
+      starterAssistantMessage: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].starterAssistantMessage,
+      workflowStageHints: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints,
+      artifactTarget: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].artifactTarget,
+      systemInstructions: "Draft pulse instructions.",
       prompt: "Draft pulse instructions.",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      schemaVersion: 2,
       publicationStatus: "published",
     });
 
@@ -371,8 +383,20 @@ describe("Admin agent instructions page", () => {
       builtInDefinitions: Array<Record<string, unknown>>;
     };
     expect(payload.builtInDefinitions[3]).toMatchObject({
+      label: "Prompt Modifier",
       title: "Prompt Modifier",
+      description: "",
+      starterAssistantMessage: "",
+      workflowStageHints: [],
+      artifactTarget: "text_artifact",
+      systemInstructions: "Ask for the source prompt, then return a cleaner version.",
       prompt: "Ask for the source prompt, then return a cleaner version.",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      schemaVersion: 2,
       publicationStatus: "published",
     });
   }, 10_000);
@@ -635,8 +659,16 @@ describe("Admin agent instructions page", () => {
     };
 
     expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
+    expect(payload.builtInDefinitions[0]?.label).toBe("Global Prompt Director");
     expect(payload.builtInDefinitions[0]?.title).toBe("Global Prompt Director");
+    expect(payload.builtInDefinitions[0]?.workflowStageHints).toEqual(
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints
+    );
+    expect(payload.builtInDefinitions[1]?.label).toBe("Multi Sequence Video Prompt");
     expect(payload.builtInDefinitions[1]?.title).toBe("Multi Sequence Video Prompt");
+    expect(payload.builtInDefinitions[1]?.workflowStageHints).toEqual(
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1].workflowStageHints
+    );
     expect(payload.builtInDefinitions[0]?.publicationStatus).toBe("published");
     expect(payload.builtInDefinitions[1]?.publicationStatus).toBe("published");
 
@@ -711,7 +743,9 @@ describe("Admin agent instructions page", () => {
 
     expect(payload.builtInDefinitions[0]).toMatchObject({
       presetId: "image",
+      label: "Video Prompt Magic",
       title: "Video Prompt Magic",
+      workflowStageHints: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints,
       publicationStatus: "draft",
     });
   });

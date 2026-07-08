@@ -5,6 +5,7 @@ import {
 } from "../../../../lib/issueReports";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
+import { loadIssueReportScreenshotsByReportId } from "../../../../lib/server/api/issueReportScreenshots";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 
 const toTrimmedString = (value: unknown, maxLength: number, allowEmpty = false): string | null => {
@@ -18,6 +19,36 @@ const toTrimmedString = (value: unknown, maxLength: number, allowEmpty = false):
 const getReportId = (value: string | string[] | undefined): string | null => {
   if (typeof value === "string" && value.trim()) return value.trim();
   return null;
+};
+
+const attachScreenshotsToReport = async (
+  req: NextApiRequest,
+  adminUser: Awaited<ReturnType<typeof requireAdminUser>>,
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  report: Record<string, unknown>
+): Promise<Record<string, unknown>> => {
+  const reportId = typeof report.id === "string" ? report.id : "";
+  const screenshotsByReportId = await loadIssueReportScreenshotsByReportId(
+    supabaseAdmin,
+    [reportId],
+    {
+      onSignError: ({ error, screenshotId }) =>
+        logApiRouteException({
+          req,
+          error,
+          routeLabel: "api.admin.reports.[reportId].screenshot-sign",
+          user: adminUser,
+          metadata: {
+            report_id: reportId,
+            screenshot_id: screenshotId,
+          },
+        }),
+    }
+  );
+  return {
+    ...report,
+    screenshots: screenshotsByReportId.get(reportId) ?? [],
+  };
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -68,7 +99,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: "Report not found." });
       }
 
-      return res.status(200).json({ report: data });
+      return res.status(200).json({
+        report: await attachScreenshotsToReport(
+          req,
+          adminUser,
+          supabaseAdmin,
+          data as Record<string, unknown>
+        ),
+      });
     } catch (error) {
       await logApiRouteException({
         req,
@@ -148,7 +186,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: "Report not found." });
     }
 
-    return res.status(200).json({ report: data });
+    return res.status(200).json({
+      report: await attachScreenshotsToReport(
+        req,
+        adminUser,
+        supabaseAdmin,
+        data as Record<string, unknown>
+      ),
+    });
   } catch (error) {
     await logApiRouteException({
       req,

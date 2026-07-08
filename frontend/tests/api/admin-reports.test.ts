@@ -109,8 +109,37 @@ describe("GET /api/admin/reports", () => {
       }
       return listQuery;
     });
-    const fromMock = vi.fn(() => ({ select: selectMock }));
-    getSupabaseAdminMock.mockReturnValue({ from: fromMock });
+    const screenshotOrderMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "screenshot-1",
+          report_id: "report-1",
+          storage_path:
+            "issue-reports/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.png",
+          original_filename: "failure.png",
+          content_type: "image/png",
+          file_size_bytes: 120,
+          width: 640,
+          height: 480,
+          display_order: 0,
+          created_at: "2026-05-25T14:46:50.000Z",
+        },
+      ],
+      error: null,
+    });
+    const screenshotInMock = vi.fn(() => ({ order: screenshotOrderMock }));
+    const screenshotSelectMock = vi.fn(() => ({ in: screenshotInMock }));
+    const fromMock = vi.fn((table: string) =>
+      table === "user_issue_report_screenshots"
+        ? { select: screenshotSelectMock }
+        : { select: selectMock }
+    );
+    const createSignedUrlMock = vi.fn().mockResolvedValue({
+      data: { signedUrl: "https://signed.example/screenshot.png" },
+      error: null,
+    });
+    const storageFromMock = vi.fn(() => ({ createSignedUrl: createSignedUrlMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock, storage: { from: storageFromMock } });
 
     const req = { method: "GET", query: { page: "1", status: "open" } };
     const res = createMockResponse();
@@ -120,7 +149,28 @@ describe("GET /api/admin/reports", () => {
     expect(neqMock).toHaveBeenCalledWith("status", "resolved");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      reports: [{ id: "report-1", status: "new" }],
+      reports: [
+        {
+          id: "report-1",
+          status: "new",
+          screenshots: [
+            {
+              id: "screenshot-1",
+              storage_path:
+                "issue-reports/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.png",
+              signed_url: "https://signed.example/screenshot.png",
+              unavailable_reason: null,
+              original_filename: "failure.png",
+              content_type: "image/png",
+              file_size_bytes: 120,
+              width: 640,
+              height: 480,
+              display_order: 0,
+              created_at: "2026-05-25T14:46:50.000Z",
+            },
+          ],
+        },
+      ],
       summary: {
         totalCount: 4,
         openCount: 2,
@@ -137,6 +187,95 @@ describe("GET /api/admin/reports", () => {
         hasPrevPage: false,
       },
     });
+  });
+
+  it("keeps reports loadable when one screenshot URL cannot be signed", async () => {
+    const signError = new Error("object missing");
+    const rangeMock = vi.fn().mockResolvedValue({
+      data: [{ id: "report-1", status: "new" }],
+      count: 1,
+      error: null,
+    });
+    const orderMock = vi.fn(() => ({ range: rangeMock }));
+    const eqMock = vi
+      .fn()
+      .mockResolvedValueOnce({ count: 1, error: null })
+      .mockResolvedValueOnce({ count: 0, error: null })
+      .mockResolvedValueOnce({ count: 0, error: null });
+    const selectMock = vi.fn((_columns: string, options?: { head?: boolean }) => {
+      if (options?.head) {
+        return {
+          count: 1,
+          error: null,
+          eq: eqMock,
+        };
+      }
+      return { order: orderMock };
+    });
+    const screenshotOrderMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "screenshot-1",
+          report_id: "report-1",
+          storage_path:
+            "issue-reports/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.png",
+          original_filename: "failure.png",
+          content_type: "image/png",
+          file_size_bytes: 120,
+          width: null,
+          height: null,
+          display_order: 0,
+          created_at: "2026-05-25T14:46:50.000Z",
+        },
+      ],
+      error: null,
+    });
+    const screenshotInMock = vi.fn(() => ({ order: screenshotOrderMock }));
+    const screenshotSelectMock = vi.fn(() => ({ in: screenshotInMock }));
+    const fromMock = vi.fn((table: string) =>
+      table === "user_issue_report_screenshots"
+        ? { select: screenshotSelectMock }
+        : { select: selectMock }
+    );
+    const createSignedUrlMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: signError,
+    });
+    const storageFromMock = vi.fn(() => ({ createSignedUrl: createSignedUrlMock }));
+    getSupabaseAdminMock.mockReturnValue({ from: fromMock, storage: { from: storageFromMock } });
+
+    const req = { method: "GET", query: { page: "1" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith({
+      req,
+      error: signError,
+      routeLabel: "api.admin.reports.screenshot-sign",
+      user: { id: "admin-1", email: "admin@example.com" },
+      metadata: {
+        report_id: "report-1",
+        screenshot_id: "screenshot-1",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reports: [
+          expect.objectContaining({
+            id: "report-1",
+            screenshots: [
+              expect.objectContaining({
+                id: "screenshot-1",
+                signed_url: null,
+                unavailable_reason: "Screenshot file is unavailable.",
+              }),
+            ],
+          }),
+        ],
+      })
+    );
   });
 
   it("logs degraded summary count queries while preserving the report list response", async () => {
@@ -162,7 +301,14 @@ describe("GET /api/admin/reports", () => {
       }
       return { order: orderMock };
     });
-    const fromMock = vi.fn(() => ({ select: selectMock }));
+    const screenshotOrderMock = vi.fn().mockResolvedValue({ data: [], error: null });
+    const screenshotInMock = vi.fn(() => ({ order: screenshotOrderMock }));
+    const screenshotSelectMock = vi.fn(() => ({ in: screenshotInMock }));
+    const fromMock = vi.fn((table: string) =>
+      table === "user_issue_report_screenshots"
+        ? { select: screenshotSelectMock }
+        : { select: selectMock }
+    );
     getSupabaseAdminMock.mockReturnValue({ from: fromMock });
 
     const req = { method: "GET", query: { page: "1" } };
@@ -184,7 +330,7 @@ describe("GET /api/admin/reports", () => {
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      reports: [{ id: "report-1", status: "new" }],
+      reports: [{ id: "report-1", status: "new", screenshots: [] }],
       summary: {
         totalCount: 0,
         openCount: 0,

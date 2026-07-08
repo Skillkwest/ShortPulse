@@ -6,6 +6,7 @@ import {
 } from "../../../lib/issueReports";
 import type { AdminIssueReportRow } from "../types";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
+import reportStyles from "./AdminReportLog.module.css";
 import styles from "../../../styles/admin.module.css";
 
 type AdminReportDetailModalProps = {
@@ -29,6 +30,18 @@ const statusLabel = (status: IssueReportStatus): string => {
   if (status === "reviewing") return "Reviewing";
   if (status === "resolved") return "Resolved";
   return "New";
+};
+
+const formatBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
 };
 
 export function AdminReportDetailModal({
@@ -96,6 +109,65 @@ export function AdminReportDetailModal({
         <div className={styles.errorCell}>
           <span className="tiny subdued">Message</span>
           <pre className={styles.adminPreBlock}>{selectedReport.message}</pre>
+        </div>
+
+        <div className={styles.errorCell}>
+          <span className="tiny subdued">Screenshots</span>
+          {selectedReport.screenshots.length > 0 ? (
+            <div className={reportStyles.reportScreenshotGallery}>
+              {selectedReport.screenshots.map((screenshot) => {
+                const metadata = `${formatBytes(screenshot.fileSizeBytes)}${
+                  screenshot.width && screenshot.height
+                    ? ` - ${screenshot.width}x${screenshot.height}`
+                    : ""
+                }`;
+                if (!screenshot.signedUrl) {
+                  return (
+                    <div
+                      key={screenshot.id}
+                      className={`${reportStyles.reportScreenshotCard} ${reportStyles.reportScreenshotUnavailable}`}
+                    >
+                      <div className={reportStyles.reportScreenshotUnavailablePreview}>
+                        Unavailable
+                      </div>
+                      <span>
+                        <strong>{screenshot.originalFilename}</strong>
+                        <small>{metadata}</small>
+                        <small>
+                          {screenshot.unavailableReason ?? "Screenshot file is unavailable."}
+                        </small>
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <a
+                    key={screenshot.id}
+                    className={reportStyles.reportScreenshotCard}
+                    href={screenshot.signedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Admin previews use short-lived signed URLs that should not enter Next image optimization. */}
+                    <img
+                      src={screenshot.signedUrl}
+                      alt=""
+                      className={reportStyles.reportScreenshotPreview}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span>
+                      <strong>{screenshot.originalFilename}</strong>
+                      <small>{metadata}</small>
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          ) : (
+            <span>No screenshots attached.</span>
+          )}
         </div>
 
         <div className={styles.adminModalGrid}>

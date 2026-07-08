@@ -20,8 +20,10 @@ import type {
   AdminErrorEventSignalFilter,
   AdminErrorEventsHealth,
   AdminErrorEventSummary,
+  AdminErrorIncidentViewMode,
   AdminErrorLogRow,
   AdminErrorStatus,
+  AdminErrorStatusUpdateOptions,
   AdminErrorSummary,
   AdminPagination,
 } from "../types";
@@ -30,6 +32,7 @@ const ERROR_REFRESH_INTERVAL_MS = 30000;
 
 type ErrorLoadOverrides = {
   page?: number;
+  view?: AdminErrorIncidentViewMode;
   status?: "open" | "all";
   scope?: "all" | "app" | "generation";
   severity?: "all" | "high" | "medium" | "low";
@@ -65,6 +68,7 @@ type UseAdminErrorsEventsControllerResult = {
   errorEventsSummary: AdminErrorEventSummary;
   errorEventsHealth: AdminErrorEventsHealth;
   errorEventsPagination: AdminPagination;
+  errorIncidentViewMode: AdminErrorIncidentViewMode;
   errorStatusFilter: "open" | "all";
   errorScopeFilter: "all" | "app" | "generation";
   errorSeverityFilter: "all" | "high" | "medium" | "low";
@@ -79,6 +83,7 @@ type UseAdminErrorsEventsControllerResult = {
   bulkIncidentStatusResult: string | null;
   testIncidentSubmittingScope: "app" | "generation" | null;
   testIncidentResult: string | null;
+  handleErrorIncidentViewModeChange: (value: AdminErrorIncidentViewMode) => void;
   handleErrorStatusFilterChange: (value: "open" | "all") => void;
   handleErrorScopeFilterChange: (value: "all" | "app" | "generation") => void;
   handleErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
@@ -87,8 +92,16 @@ type UseAdminErrorsEventsControllerResult = {
   handleErrorEventSignalFilterChange: (value: AdminErrorEventSignalFilter) => void;
   handleErrorEventIncidentFilterChange: (value: AdminErrorEventIncidentFilter) => void;
   handleErrorSearchChange: (value: string) => void;
-  handleUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => Promise<void>;
-  handleUpdateErrorEventStatus: (eventId: string, status: AdminErrorStatus) => Promise<void>;
+  handleUpdateErrorStatus: (
+    errorId: string,
+    status: AdminErrorStatus,
+    options?: AdminErrorStatusUpdateOptions
+  ) => Promise<void>;
+  handleUpdateErrorEventStatus: (
+    eventId: string,
+    status: AdminErrorStatus,
+    options?: AdminErrorStatusUpdateOptions
+  ) => Promise<void>;
   handleBulkUpdateListedErrorStatus: (status: "resolved" | "ignored") => Promise<void>;
   handleTriggerTestIncident: (scope: "app" | "generation") => Promise<void>;
   handleErrorsPrevPage: () => void;
@@ -145,6 +158,8 @@ export const useAdminErrorsEventsController = ({
     appOpenCount: 0,
     generationOpenCount: 0,
   });
+  const [errorIncidentViewMode, setErrorIncidentViewMode] =
+    React.useState<AdminErrorIncidentViewMode>("queue");
   const [errorStatusFilter, setErrorStatusFilter] = React.useState<"open" | "all">("open");
   const [errorScopeFilter, setErrorScopeFilter] = React.useState<"all" | "app" | "generation">(
     "all"
@@ -178,6 +193,7 @@ export const useAdminErrorsEventsController = ({
       setErrorsError(null);
       try {
         const activePage = overrides?.page ?? errorsPage;
+        const activeView = overrides?.view ?? errorIncidentViewMode;
         const activeStatus = overrides?.status ?? errorStatusFilter;
         const activeScope = overrides?.scope ?? errorScopeFilter;
         const activeSeverity = overrides?.severity ?? errorSeverityFilter;
@@ -186,6 +202,7 @@ export const useAdminErrorsEventsController = ({
 
         const params = buildAdminErrorsParams({
           page: activePage,
+          view: activeView,
           status: activeStatus,
           scope: activeScope,
           severity: activeSeverity,
@@ -224,6 +241,7 @@ export const useAdminErrorsEventsController = ({
       errorScopeFilter,
       errorSeverityFilter,
       errorSourceFilter,
+      errorIncidentViewMode,
       errorStatusFilter,
       errorsPage,
     ]
@@ -313,7 +331,7 @@ export const useAdminErrorsEventsController = ({
   }, [enabled, loadErrorEvents, loadEventStreamEnabled]);
 
   const handleUpdateErrorStatus = React.useCallback(
-    async (errorId: string, status: AdminErrorStatus) => {
+    async (errorId: string, status: AdminErrorStatus, options?: AdminErrorStatusUpdateOptions) => {
       setErrorStatusUpdatingId(errorId);
       setErrorsError(null);
       setErrorEventsError(null);
@@ -321,7 +339,7 @@ export const useAdminErrorsEventsController = ({
         const response = await fetchWithAuth("/api/admin/errors-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ errorId, status }),
+          body: JSON.stringify({ errorId, status, ...options }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -344,7 +362,7 @@ export const useAdminErrorsEventsController = ({
   );
 
   const handleUpdateErrorEventStatus = React.useCallback(
-    async (eventId: string, status: AdminErrorStatus) => {
+    async (eventId: string, status: AdminErrorStatus, options?: AdminErrorStatusUpdateOptions) => {
       setErrorStatusUpdatingId(eventId);
       setErrorsError(null);
       setErrorEventsError(null);
@@ -352,7 +370,7 @@ export const useAdminErrorsEventsController = ({
         const response = await fetchWithAuth("/api/admin/errors-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId, status }),
+          body: JSON.stringify({ eventId, status, ...options }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -499,6 +517,7 @@ export const useAdminErrorsEventsController = ({
           throw new Error(data?.error || "Failed to create synthetic incident.");
         }
 
+        setErrorIncidentViewMode("queue");
         setErrorStatusFilter("open");
         setErrorScopeFilter("all");
         setErrorSeverityFilter("all");
@@ -513,6 +532,7 @@ export const useAdminErrorsEventsController = ({
         await Promise.all([
           loadErrors({
             page: 1,
+            view: "queue",
             status: "open",
             scope: "all",
             severity: "all",
@@ -542,6 +562,15 @@ export const useAdminErrorsEventsController = ({
       }
     },
     [loadErrorEvents, loadErrors]
+  );
+
+  const handleErrorIncidentViewModeChange = React.useCallback(
+    (value: AdminErrorIncidentViewMode) => {
+      setErrorIncidentViewMode(value);
+      setErrorStatusFilter(value === "history" ? "all" : "open");
+      setErrorsPage(1);
+    },
+    []
   );
 
   const handleErrorStatusFilterChange = React.useCallback((value: "open" | "all") => {
@@ -629,6 +658,7 @@ export const useAdminErrorsEventsController = ({
     errorEventsSummary,
     errorEventsHealth,
     errorEventsPagination,
+    errorIncidentViewMode,
     errorStatusFilter,
     errorScopeFilter,
     errorSeverityFilter,
@@ -643,6 +673,7 @@ export const useAdminErrorsEventsController = ({
     bulkIncidentStatusResult,
     testIncidentSubmittingScope,
     testIncidentResult,
+    handleErrorIncidentViewModeChange,
     handleErrorStatusFilterChange,
     handleErrorScopeFilterChange,
     handleErrorSeverityFilterChange,

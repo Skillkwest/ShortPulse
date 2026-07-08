@@ -16,6 +16,7 @@ type UpdateStatusRequest = {
   eventId?: string;
   status?: ErrorStatus;
   note?: string;
+  watch?: boolean;
 };
 
 type RpcIncidentPayload = {
@@ -112,12 +113,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const eventId = asTrimmedString(body.eventId, 120);
   const status = asStatus(body.status);
   const note = asTrimmedString(body.note, MAX_NOTE_LENGTH);
+  const watch = body.watch === true;
 
   if (!errorId && !eventId) {
     return res.status(400).json({ error: "errorId or eventId is required." });
   }
   if (!status) {
     return res.status(400).json({ error: "status must be one of open, resolved, ignored." });
+  }
+  if (watch && status !== "resolved") {
+    return res.status(400).json({ error: "watch items must use resolved status." });
   }
 
   try {
@@ -159,6 +164,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       p_note: note,
       p_admin_user_id: adminUser.id,
       p_admin_user_email: adminUser.email ?? null,
+      p_watch_item: watch,
     });
 
     if (error) {
@@ -171,6 +177,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           target_error_id: errorId,
           target_event_id: eventId,
           target_status: status,
+          target_watch_item: watch,
           rpc_error_code: error.code ?? null,
         },
       });
@@ -194,6 +201,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           target_error_id: errorId,
           target_event_id: eventId,
           target_status: status,
+          target_watch_item: watch,
         },
       });
       return res.status(500).json({ error: "Unable to update incident status." });
@@ -218,6 +226,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         target_error_id: errorId,
         target_event_id: eventId,
         target_status: status,
+        target_watch_item: watch,
       },
     });
     return res.status(500).json({

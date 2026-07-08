@@ -18,4 +18,12 @@ describe("billing launch readiness source", () => {
     expect(source).toContain("allowDisabledNotFound && response.status === 404");
     expect(source).toContain("allowDisabledNotFound: true");
   });
+
+  it("probes the full-price Stripe Portal upgrade configuration", () => {
+    const source = fs.readFileSync(readinessScriptPath, "utf8");
+
+    expect(source).toContain("checkStripeFullPriceUpgradePortalConfig");
+    expect(source).toContain("scripts/check_stripe_billing_portal_upgrade_config.mjs");
+    expect(source).toContain("stripe_full_price_upgrade_portal_config");
+  });
 });

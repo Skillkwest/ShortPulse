@@ -8,6 +8,14 @@ import {
 } from "../../lib/issueReports";
 import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../lib/server/api/auth";
+import {
+  cleanupIssueReportScreenshotUploads,
+  IssueReportScreenshotError,
+  normalizeIssueReportScreenshotSubmissions,
+  verifyIssueReportScreenshotUpload,
+  type IssueReportScreenshotSubmission,
+  type VerifiedIssueReportScreenshot,
+} from "../../lib/server/api/issueReportScreenshots";
 import { enforceApiRateLimit } from "../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../lib/server/api/supabaseAdmin";
 
@@ -127,22 +135,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const userAgent = toTrimmedString(req.headers["user-agent"], ISSUE_REPORT_USER_AGENT_MAX_LENGTH);
+  let screenshotSubmissions: IssueReportScreenshotSubmission[] = [];
+  let supabaseAdmin: ReturnType<typeof getSupabaseAdmin> | null = null;
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("user_issue_reports")
-      .insert({
-        user_id: user.id,
-        submitter_email: submitterEmail,
-        message,
-        source_path: sourcePath,
-        user_agent: userAgent,
-      })
-      .select("id")
-      .single();
+    screenshotSubmissions = normalizeIssueReportScreenshotSubmissions(req.body?.screenshots);
+    supabaseAdmin = getSupabaseAdmin();
+    const verifiedScreenshots: VerifiedIssueReportScreenshot[] = [];
+
+    for (const submission of screenshotSubmissions) {
+      const verifiedScreenshot = await verifyIssueReportScreenshotUpload(supabaseAdmin, {
+        userId: user.id,
+        submission,
+      });
+      verifiedScreenshots.push(verifiedScreenshot);
+    }
+
+    const { data, error } = await supabaseAdmin.rpc("create_user_issue_report_with_screenshots", {
+      p_user_id: user.id,
+      p_submitter_email: submitterEmail,
+      p_message: message,
+      p_source_path: sourcePath,
+      p_user_agent: userAgent,
+      p_screenshots: verifiedScreenshots.map((screenshot) => ({
+        storagePath: screenshot.storagePath,
+        originalFilename: screenshot.originalFilename,
+        contentType: screenshot.contentType,
+        fileSizeBytes: screenshot.fileSizeBytes,
+        width: screenshot.width,
+        height: screenshot.height,
+      })),
+    });
 
     if (error) {
+      await cleanupIssueReportScreenshotUploads(
+        supabaseAdmin,
+        verifiedScreenshots.map((screenshot) => screenshot.storagePath),
+        user.id
+      );
       await logApiRouteException({
         req,
         error,
@@ -154,9 +184,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       ok: true,
-      reportId: typeof data?.id === "string" ? data.id : null,
+      reportId: typeof data === "string" ? data : null,
     });
   } catch (error) {
+    if (error instanceof IssueReportScreenshotError) {
+      if (supabaseAdmin && screenshotSubmissions.length) {
+        await cleanupIssueReportScreenshotUploads(
+          supabaseAdmin,
+          screenshotSubmissions.map((screenshot) => screenshot.storagePath),
+          user.id
+        ).catch((cleanupError) =>
+          logApiRouteException({
+            req,
+            error: cleanupError,
+            routeLabel: "api.report-issue.screenshots.cleanup",
+            user,
+          })
+        );
+      }
+      return res.status(error.status).json({ error: error.message, details: error.details });
+    }
+
     await logApiRouteException({
       req,
       error,

@@ -9,9 +9,11 @@ import type {
   AdminErrorEventSignalFilter,
   AdminErrorEventsHealth,
   AdminErrorEventSummary,
+  AdminErrorIncidentViewMode,
   AdminErrorSummary,
   AdminPagination,
   AdminErrorStatus,
+  AdminErrorStatusUpdateOptions,
 } from "../types";
 import { useAdminErrorIncidentsPanelState } from "../logic/useAdminErrorIncidentsPanelState";
 import { ErrorIncidentsOverviewSection } from "./ErrorIncidentsOverviewSection";
@@ -27,6 +29,7 @@ type ErrorIncidentsPanelProps = {
   errorEventsSummary: AdminErrorEventSummary;
   errorEventsHealth: AdminErrorEventsHealth;
   errorEventsPagination: AdminPagination;
+  errorIncidentViewMode: AdminErrorIncidentViewMode;
   errorStatusFilter: "open" | "all";
   errorScopeFilter: "all" | "app" | "generation";
   errorSeverityFilter: "all" | "high" | "medium" | "low";
@@ -41,6 +44,7 @@ type ErrorIncidentsPanelProps = {
   bulkIncidentStatusResult: string | null;
   testIncidentSubmittingScope: "app" | "generation" | null;
   testIncidentResult: string | null;
+  onErrorIncidentViewModeChange: (value: AdminErrorIncidentViewMode) => void;
   onErrorStatusFilterChange: (value: "open" | "all") => void;
   onErrorScopeFilterChange: (value: "all" | "app" | "generation") => void;
   onErrorSeverityFilterChange: (value: "all" | "high" | "medium" | "low") => void;
@@ -49,8 +53,16 @@ type ErrorIncidentsPanelProps = {
   onErrorEventSignalFilterChange: (value: AdminErrorEventSignalFilter) => void;
   onErrorEventIncidentFilterChange: (value: AdminErrorEventIncidentFilter) => void;
   onErrorSearchChange: (value: string) => void;
-  onUpdateErrorStatus: (errorId: string, status: AdminErrorStatus) => Promise<void>;
-  onUpdateErrorEventStatus: (eventId: string, status: AdminErrorStatus) => Promise<void>;
+  onUpdateErrorStatus: (
+    errorId: string,
+    status: AdminErrorStatus,
+    options?: AdminErrorStatusUpdateOptions
+  ) => Promise<void>;
+  onUpdateErrorEventStatus: (
+    eventId: string,
+    status: AdminErrorStatus,
+    options?: AdminErrorStatusUpdateOptions
+  ) => Promise<void>;
   onBulkUpdateListedErrorStatus: (status: "resolved" | "ignored") => Promise<void>;
   onTriggerTestIncident: (scope: "app" | "generation") => void;
   onPrevPage: () => void;
@@ -71,9 +83,11 @@ export function ErrorIncidentsPanel({
   errorEventsLoading,
   errorEventsPagination,
   errorEventIncidentFilter,
+  errorIncidentViewMode,
   errorSearch,
   errorPagination,
   statusUpdatingErrorId,
+  onErrorIncidentViewModeChange,
   onErrorSearchChange,
   onUpdateErrorStatus,
   onUpdateErrorEventStatus,
@@ -82,17 +96,23 @@ export function ErrorIncidentsPanel({
   onEventNextPage,
   onRefresh,
 }: ErrorIncidentsPanelProps) {
-  const { copiedIncidentId, inProgressIncidentIds, handleCopyIncident } =
-    useAdminErrorIncidentsPanelState({
-      errors,
-      errorEvents,
-      errorEventsLoading,
-      errorEventsPagination,
-      errorEventIncidentFilter,
-      onEventNextPage,
-      onUpdateErrorStatus,
-      onUpdateErrorEventStatus,
-    });
+  const {
+    copiedIncidentId,
+    copiedVisibleNewIncidentCount,
+    inProgressIncidentIds,
+    visibleNewIncidentCount,
+    handleCopyIncident,
+    handleCopyVisibleNewIncidents,
+  } = useAdminErrorIncidentsPanelState({
+    errors,
+    errorEvents,
+    errorEventsLoading,
+    errorEventsPagination,
+    errorEventIncidentFilter,
+    onEventNextPage,
+    onUpdateErrorStatus,
+    onUpdateErrorEventStatus,
+  });
 
   return (
     <>
@@ -100,11 +120,15 @@ export function ErrorIncidentsPanel({
         errors={errors}
         errorsLoading={errorsLoading}
         errorsError={errorsError}
+        errorIncidentViewMode={errorIncidentViewMode}
         errorSearch={errorSearch}
         errorPagination={errorPagination}
         copiedIncidentId={copiedIncidentId}
+        copiedVisibleNewIncidentCount={copiedVisibleNewIncidentCount}
         inProgressIncidentIds={inProgressIncidentIds}
+        visibleNewIncidentCount={visibleNewIncidentCount}
         statusUpdatingErrorId={statusUpdatingErrorId}
+        onErrorIncidentViewModeChange={onErrorIncidentViewModeChange}
         onErrorSearchChange={onErrorSearchChange}
         onPrevPage={onPrevPage}
         onNextPage={onNextPage}
@@ -112,8 +136,14 @@ export function ErrorIncidentsPanel({
         onCopyIncident={(row) => {
           void handleCopyIncident(row);
         }}
+        onCopyVisibleNewIncidents={() => {
+          void handleCopyVisibleNewIncidents();
+        }}
         onResolveIncident={(row) => {
           void onUpdateErrorStatus(row.id, "resolved");
+        }}
+        onResolveWatchIncident={(row, note) => {
+          void onUpdateErrorStatus(row.id, "resolved", { note, watch: true });
         }}
       />
     </>

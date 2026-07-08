@@ -37,6 +37,11 @@ const useMediaPreviewSigningControllerMock = vi.fn();
 const useMediaStorageQuotaSummaryMock = vi.fn();
 const requestMediaStorageQuotaSummaryRefreshMock = vi.fn();
 const useResolvedProtectedSessionStateMock = vi.fn();
+const useRouterMock = vi.hoisted(() => vi.fn());
+
+vi.mock("next/router", () => ({
+  useRouter: (...args: unknown[]) => useRouterMock(...args),
+}));
 
 vi.mock("../../../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: (...args: unknown[]) => isAdaptiveSurfaceEnabledMock(...args),
@@ -496,6 +501,7 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
 describe("MediaLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useRouterMock.mockReturnValue({ asPath: "/ai-studio?projectId=project-1" });
     useResolvedProtectedSessionStateMock.mockReturnValue({
       initialized: true,
       session: { user: { id: "user-1" } },
@@ -4532,7 +4538,7 @@ describe("MediaLibraryPanel", () => {
     });
     expect(screen.getByRole("link", { name: "Manage storage" })).toHaveAttribute(
       "href",
-      "/profile?section=storage"
+      "/profile?section=storage&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("button", { name: "Add files" })).toBeDisabled();
   });

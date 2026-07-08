@@ -102,7 +102,7 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(context.pulse?.presetId).toBe("story_builder");
     expect(context.pulse?.runtimeMode).toBe("workflow_gpt");
     expect(context.pulse?.source).toBe("builtin");
-    expect(context.pulse?.instructions).toBe("");
+    expect(context.pulse?.instructions).toContain("Story Circle Scene-Prompt GPT");
   });
 
   it("recovers a restored custom Pulse snapshot from saved presets", () => {

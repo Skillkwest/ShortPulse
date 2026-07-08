@@ -606,6 +606,45 @@ const checkStripeWebhookEndpoint = async (args, reporter) => {
   );
 };
 
+const checkStripeFullPriceUpgradePortalConfig = async (args, reporter) => {
+  if (args.skipStripe) {
+    reporter.warn(
+      "stripe_full_price_upgrade_portal_config",
+      "Skipped Stripe full-price upgrade Portal configuration check by request.",
+    );
+    return;
+  }
+
+  try {
+    const result = await runNodeScript(
+      "scripts/check_stripe_billing_portal_upgrade_config.mjs",
+      [],
+    );
+    reporter.pass(
+      "stripe_full_price_upgrade_portal_config",
+      "Stripe Billing Portal full-price upgrade configuration matches the no-proration contract.",
+      result.split("\n").find((line) => line.includes("PASS")) ?? null,
+    );
+  } catch (error) {
+    const diagnostic = redactSensitiveDiagnostics(
+      error?.stderr || error?.message || error,
+    );
+    if (
+      /Missing (STRIPE_SECRET_KEY|--config-id|STRIPE_BILLING_PORTAL_FULL_PRICE_UPGRADE_CONFIG_ID)/i.test(
+        diagnostic,
+      )
+    ) {
+      reporter.warn(
+        "stripe_full_price_upgrade_portal_config",
+        "Stripe full-price upgrade Portal configuration is unproven because required local Stripe credentials or config id are unavailable.",
+        diagnostic,
+      );
+      return;
+    }
+    throw error;
+  }
+};
+
 const checkSubscriptionCreditGrantReconciliation = async (reporter) => {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
   const hasSupabaseCredentials = Boolean(
@@ -755,6 +794,10 @@ const main = async () => {
     [
       "stripe_webhook_endpoint",
       () => checkStripeWebhookEndpoint(args, reporter),
+    ],
+    [
+      "stripe_full_price_upgrade_portal_config",
+      () => checkStripeFullPriceUpgradePortalConfig(args, reporter),
     ],
     [
       "subscription_credit_grant_reconciliation",

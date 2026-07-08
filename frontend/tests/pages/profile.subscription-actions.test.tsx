@@ -383,6 +383,23 @@ describe("Profile subscription actions", () => {
     );
   }, 15000);
 
+  it("shows scheduled cancellation access state and hides repeat cancel action", async () => {
+    billingContractState.value = {
+      ...(billingContractState.value as Record<string, unknown>),
+      cancel_at_period_end: true,
+    };
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getByText("Access ends")).toBeInTheDocument();
+    expect(screen.getByText(/Cancellation scheduled/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/remaining subscription credits, and recurring storage add-ons/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel subscription" })).not.toBeInTheDocument();
+  });
+
   it("does not show the legacy plan notice for a current public offer", async () => {
     billingProfileState.plan_id = "starter";
     billingProfileState.current_period_end = "2026-07-15T00:00:00.000Z";

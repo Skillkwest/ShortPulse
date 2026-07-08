@@ -1,47 +1,71 @@
+import { useState } from "react";
 import { AppMessage } from "../../../components/AppMessage";
-import type { AdminErrorLogRow, AdminPagination } from "../types";
+import type { AdminErrorIncidentViewMode, AdminErrorLogRow, AdminPagination } from "../types";
 import { formatDateTime, sourceLabel } from "../logic/errorIncidentViewUtils";
 import styles from "../../../styles/admin.module.css";
+
+const MAX_WATCH_NOTE_LENGTH = 400;
 
 type ErrorIncidentsOverviewSectionProps = {
   errors: AdminErrorLogRow[];
   errorsLoading: boolean;
   errorsError: string | null;
+  errorIncidentViewMode: AdminErrorIncidentViewMode;
   errorSearch: string;
   errorPagination: AdminPagination;
   copiedIncidentId: string | null;
+  copiedVisibleNewIncidentCount: number | null;
   inProgressIncidentIds: Set<string>;
+  visibleNewIncidentCount: number;
   statusUpdatingErrorId: string | null;
+  onErrorIncidentViewModeChange: (value: AdminErrorIncidentViewMode) => void;
   onErrorSearchChange: (value: string) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
   onRefresh: () => void;
   onCopyIncident: (row: AdminErrorLogRow) => void;
+  onCopyVisibleNewIncidents: () => void;
   onResolveIncident: (row: AdminErrorLogRow) => void;
+  onResolveWatchIncident: (row: AdminErrorLogRow, note: string) => void;
 };
 
 export function ErrorIncidentsOverviewSection({
   errors,
   errorsLoading,
   errorsError,
+  errorIncidentViewMode,
   errorSearch,
   errorPagination,
   copiedIncidentId,
+  copiedVisibleNewIncidentCount,
   inProgressIncidentIds,
+  visibleNewIncidentCount,
   statusUpdatingErrorId,
+  onErrorIncidentViewModeChange,
   onErrorSearchChange,
   onPrevPage,
   onNextPage,
   onRefresh,
   onCopyIncident,
+  onCopyVisibleNewIncidents,
   onResolveIncident,
+  onResolveWatchIncident,
 }: ErrorIncidentsOverviewSectionProps) {
+  const [watchDraft, setWatchDraft] = useState<{ row: AdminErrorLogRow; note: string } | null>(
+    null
+  );
   const resultStart =
     errorPagination.totalCount === 0 ? 0 : (errorPagination.page - 1) * errorPagination.perPage + 1;
   const resultEnd = Math.min(
     errorPagination.page * errorPagination.perPage,
     errorPagination.totalCount
   );
+  const isHistoryView = errorIncidentViewMode === "history";
+  const submitWatchDraft = () => {
+    if (!watchDraft) return;
+    onResolveWatchIncident(watchDraft.row, watchDraft.note.trim());
+    setWatchDraft(null);
+  };
 
   return (
     <section className={styles.adminSection}>
@@ -50,14 +74,53 @@ export function ErrorIncidentsOverviewSection({
           <p className="eyebrow">Errors</p>
           <p className="tiny subdued">Copy one error packet, then paste it into Codex.</p>
         </div>
-        <button
-          type="button"
-          className="ghost-btn mini"
-          onClick={onRefresh}
-          disabled={errorsLoading}
-        >
-          {errorsLoading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className={styles.adminSectionActions}>
+          <div
+            className={styles.adminIncidentViewToggle}
+            role="tablist"
+            aria-label="Error rows view"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isHistoryView}
+              className={`${styles.tabButton} ${!isHistoryView ? styles.tabActive : ""}`}
+              onClick={() => onErrorIncidentViewModeChange("queue")}
+            >
+              Queue
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isHistoryView}
+              className={`${styles.tabButton} ${isHistoryView ? styles.tabActive : ""}`}
+              onClick={() => onErrorIncidentViewModeChange("history")}
+            >
+              History
+            </button>
+          </div>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={onCopyVisibleNewIncidents}
+            disabled={errorsLoading || visibleNewIncidentCount === 0}
+            title={`Copy triage packets for ${visibleNewIncidentCount} new visible error row${
+              visibleNewIncidentCount === 1 ? "" : "s"
+            }`}
+          >
+            {copiedVisibleNewIncidentCount
+              ? `Copied ${copiedVisibleNewIncidentCount}`
+              : "Copy all new"}
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={onRefresh}
+            disabled={errorsLoading}
+          >
+            {errorsLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       <div className={styles.adminErrorsToolbar}>
@@ -129,6 +192,18 @@ export function ErrorIncidentsOverviewSection({
             const isInProgress = inProgressIncidentIds.has(row.id);
             const isUpdatingStatus = statusUpdatingErrorId === row.id;
             const canResolve = row.status === "open";
+            const statusLabel = isInProgress
+              ? "In progress"
+              : row.status === "open"
+                ? "New"
+                : row.status === "ignored"
+                  ? "Ignored"
+                  : "Resolved";
+            const statusPillClass = isInProgress
+              ? styles.pillWarn
+              : row.status === "open"
+                ? styles.pillOk
+                : styles.pillNeutral;
             return (
               <div
                 key={row.id}
@@ -140,11 +215,7 @@ export function ErrorIncidentsOverviewSection({
                       : styles.severityMedium
                 }`}
               >
-                <span
-                  className={`${styles.pill} ${isInProgress ? styles.pillWarn : styles.pillOk}`}
-                >
-                  {isInProgress ? "In progress" : "New"}
-                </span>
+                <span className={`${styles.pill} ${statusPillClass}`}>{statusLabel}</span>
                 <span
                   className={`${styles.pill} ${
                     row.severity === "high"
@@ -158,6 +229,12 @@ export function ErrorIncidentsOverviewSection({
                 </span>
                 <div className={styles.errorCell}>
                   <span>{row.message}</span>
+                  {row.watchItem ? (
+                    <span className="tiny subdued">
+                      <span className={`${styles.pill} ${styles.pillWarn}`}>Watch</span>
+                      {row.watchNote ? ` ${row.watchNote}` : ""}
+                    </span>
+                  ) : null}
                   <span className="tiny subdued">
                     {row.httpStatus ? `HTTP ${row.httpStatus}` : "No HTTP status"}
                     {row.requestId ? ` · req ${row.requestId}` : ""}
@@ -192,7 +269,15 @@ export function ErrorIncidentsOverviewSection({
                     onClick={() => onResolveIncident(row)}
                     disabled={!canResolve || isUpdatingStatus}
                   >
-                    {isUpdatingStatus ? "Resolving..." : canResolve ? "Resolve" : "Resolved"}
+                    {isUpdatingStatus ? "Resolving..." : canResolve ? "Resolve" : statusLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => setWatchDraft({ row, note: "" })}
+                    disabled={!canResolve || isUpdatingStatus}
+                  >
+                    Resolve + Watch
                   </button>
                 </div>
               </div>
@@ -200,6 +285,41 @@ export function ErrorIncidentsOverviewSection({
           })
         )}
       </div>
+      {watchDraft ? (
+        <div className={styles.adminModalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.adminModalCard}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">Resolve + Watch</p>
+                <h3>{watchDraft.row.message}</h3>
+                <p className="tiny subdued">
+                  {watchDraft.row.endpoint ?? watchDraft.row.route ?? "Unknown route"} ·{" "}
+                  {formatDateTime(watchDraft.row.lastSeenAt)}
+                </p>
+              </div>
+            </div>
+            <textarea
+              className={styles.reportNotesInput}
+              value={watchDraft.note}
+              maxLength={MAX_WATCH_NOTE_LENGTH}
+              onChange={(event) =>
+                setWatchDraft((current) =>
+                  current ? { ...current, note: event.target.value } : current
+                )
+              }
+              placeholder="Add a short watch note for history"
+            />
+            <div className={styles.errorActions}>
+              <button type="button" className="primary-btn mini" onClick={submitWatchDraft}>
+                Resolve + watch
+              </button>
+              <button type="button" className="ghost-btn mini" onClick={() => setWatchDraft(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

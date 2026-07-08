@@ -265,6 +265,21 @@ export const formatStatusLabel = (status: string | null): string => {
   return status.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
 };
 
+const REVOKED_SUBSCRIPTION_STATUSES = new Set([
+  "canceled",
+  "incomplete",
+  "incomplete_expired",
+  "inactive",
+  "paused",
+  "unpaid",
+]);
+
+/**
+ * Returns whether a subscription status represents revoked paid access.
+ */
+export const isRevokedSubscriptionStatus = (status: string | null): boolean =>
+  Boolean(status && REVOKED_SUBSCRIPTION_STATUSES.has(status));
+
 /**
  * Resolves the plan id shown on the profile page from loaded billing account state.
  */
@@ -274,7 +289,15 @@ export const resolveProfileActivePlanId = ({
 }: {
   billingContract: BillingSubscriptionContract | null;
   billingProfile: BillingProfile | null;
-}): string | null => billingContract?.plan_id ?? billingProfile?.plan_id ?? null;
+}): string | null => {
+  if (billingContract?.plan_id && !isRevokedSubscriptionStatus(billingContract.status)) {
+    return billingContract.plan_id;
+  }
+  if (isRevokedSubscriptionStatus(billingProfile?.subscription_status ?? null)) {
+    return "free";
+  }
+  return billingProfile?.plan_id ?? null;
+};
 
 /**
  * Pulls the most useful reference id from a billing ledger event.

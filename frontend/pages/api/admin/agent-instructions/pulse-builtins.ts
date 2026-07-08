@@ -27,6 +27,22 @@ const readTrimmedString = (record: Record<string, unknown>, key: string): string
   return typeof value === "string" ? value.trim() : "";
 };
 
+const readWorkflowStageHints = (record: Record<string, unknown>): string[] => {
+  const value = record.workflowStageHints;
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter((entry) => entry.length > 0);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(/[,\n]/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+  return [];
+};
+
 const isCreatePulsePublicationStatus = (value: string): value is CreatePulsePublicationStatus =>
   value === "published" || value === "draft";
 
@@ -62,6 +78,8 @@ const inferStarterAssistantMessage = (label: string, prompt: string): string => 
     /first assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
     /starter assistant message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
     /starter message(?:\s+must\s+be\s+exactly)?\s*:?\s*\n\s*([^\n]+)/i,
+    /user prompt to show\s*\(verbatim\)\s*:?\s*\n\s*([^\n]+)/i,
+    /ask\s*:?\s*\n\s*([^\n]+)/i,
   ];
   for (const pattern of starterPatterns) {
     const match = prompt.match(pattern);
@@ -75,13 +93,71 @@ const inferStarterAssistantMessage = (label: string, prompt: string): string => 
 
 const inferArtifactTarget = (label: string, prompt: string): CreatePulseArtifactTarget => {
   const searchable = `${label} ${prompt}`.toLowerCase();
-  if (/\bstoryboard\b|\bstory board\b/.test(searchable)) return "storyboard";
+  if (/\bimage\s+prompts?\b|\bimages?\s+only\b/.test(searchable)) return "image_prompt";
   if (/\bvideo\b|\bshot\b|\bmotion\b|\bcamera\b|\bscene\b/.test(searchable)) return "video_prompt";
   if (/\bimage\b|\bphoto\b|\bvisual\b|\billustration\b/.test(searchable)) return "image_prompt";
+  if (/\bstoryboard\b|\bstory board\b/.test(searchable)) return "storyboard";
   return "text_artifact";
 };
 
 const buildDefaultDescription = (label: string): string => `Built-in guided Pulse for ${label}.`;
+
+const normalizeInferredStageLabel = (value: string): string => {
+  const withoutFormatting = value
+    .replace(/[*_`#>]+/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const [beforeColon] = withoutFormatting.split(":");
+  return (beforeColon ?? withoutFormatting).trim().slice(0, 80);
+};
+
+const inferWorkflowStageHints = ({
+  label,
+  prompt,
+  starterAssistantMessage,
+  artifactTarget,
+}: {
+  label: string;
+  prompt: string;
+  starterAssistantMessage: string;
+  artifactTarget: CreatePulseArtifactTarget;
+}): string[] => {
+  const stageLabelsByIndex = new Map<number, string>();
+  const stepHeadingPattern =
+    /^\s*(?:#{1,6}\s*)?(?:\*\*)?step\s+(\d+)\s*[—–-]\s*([^\n*]+?)(?:\*\*)?\s*$/gim;
+  for (const match of prompt.matchAll(stepHeadingPattern)) {
+    const index = Number.parseInt(match[1] ?? "", 10);
+    const rawLabel = normalizeInferredStageLabel(match[2] ?? "");
+    if (Number.isFinite(index) && index > 0 && rawLabel) {
+      stageLabelsByIndex.set(index, rawLabel);
+    }
+  }
+
+  const starterDescriptor = starterAssistantMessage.match(/\bstep\s+(\d+)\s*[—–-]\s*([^.\n]+)/i);
+  if (starterDescriptor) {
+    const index = Number.parseInt(starterDescriptor[1] ?? "", 10);
+    const rawLabel = normalizeInferredStageLabel(starterDescriptor[2] ?? "");
+    if (Number.isFinite(index) && index > 0 && rawLabel && !stageLabelsByIndex.has(index)) {
+      stageLabelsByIndex.set(index, rawLabel);
+    }
+  }
+
+  const orderedLabels = [...stageLabelsByIndex.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([, stageLabel]) => stageLabel)
+    .filter((stageLabel, index, allLabels) => allLabels.indexOf(stageLabel) === index);
+  if (orderedLabels.length > 0) return orderedLabels;
+
+  const searchable = `${label} ${prompt}`.toLowerCase();
+  if (/\bsource\s+prompt\b|\bmodify\b|\brewrite\b|\bimprove\b/.test(searchable)) {
+    return ["Prompt Intake"];
+  }
+  if (artifactTarget === "video_prompt") return ["Concept Intake", "Final Video Prompt"];
+  if (artifactTarget === "image_prompt") return ["Concept Intake", "Final Image Prompts"];
+  if (artifactTarget === "storyboard") return ["Concept Intake", "Storyboard Draft"];
+  return ["Intake"];
+};
 
 const normalizeAdminBuiltInDefinitionRecord = (
   value: unknown,
@@ -155,6 +231,34 @@ const normalizeAdminBuiltInDefinitionRecord = (
       message: `Pulse "${presetId}" publication status must be "published" or "draft".`,
     };
   }
+  const publicationStatus = suppliedPublicationStatus || "published";
+  const starterAssistantMessage =
+    readTrimmedString(record, "starterAssistantMessage") ||
+    inferStarterAssistantMessage(label, systemInstructions);
+  const artifactTarget = (suppliedArtifactTarget ||
+    inferArtifactTarget(label, systemInstructions)) as CreatePulseArtifactTarget;
+  const suppliedWorkflowStageHints = readWorkflowStageHints(record);
+  const workflowStageHints =
+    suppliedWorkflowStageHints.length > 0
+      ? suppliedWorkflowStageHints
+      : publicationStatus === "published"
+        ? inferWorkflowStageHints({
+            label,
+            prompt: systemInstructions,
+            starterAssistantMessage,
+            artifactTarget,
+          })
+        : null;
+
+  if (
+    publicationStatus === "published" &&
+    (!workflowStageHints || workflowStageHints.length === 0)
+  ) {
+    return {
+      ok: false,
+      message: `Pulse "${presetId}" needs at least one workflow stage hint before it can be published.`,
+    };
+  }
 
   return {
     ok: true,
@@ -163,17 +267,16 @@ const normalizeAdminBuiltInDefinitionRecord = (
       presetId,
       label,
       description: readTrimmedString(record, "description") || buildDefaultDescription(label),
-      starterAssistantMessage:
-        readTrimmedString(record, "starterAssistantMessage") ||
-        inferStarterAssistantMessage(label, systemInstructions),
-      artifactTarget: suppliedArtifactTarget || inferArtifactTarget(label, systemInstructions),
+      starterAssistantMessage,
+      workflowStageHints,
+      artifactTarget,
       systemInstructions,
       pulseKind: "guided_workflow",
       runtimeMode: "workflow_gpt",
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
-      publicationStatus: suppliedPublicationStatus || "published",
+      publicationStatus,
     },
   };
 };

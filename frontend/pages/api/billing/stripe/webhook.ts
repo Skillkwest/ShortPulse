@@ -47,6 +47,12 @@ type ResolvedOffer = {
   maxConcurrentGenerations: number;
 };
 
+type InvoicePlanLine = {
+  line: JsonObject;
+  amountCents: number;
+  offer: ResolvedOffer;
+};
+
 type ResolvedStorageAddonOffer = {
   storageAddonId: string | null;
   offerId: string | null;
@@ -88,6 +94,24 @@ type BillingStorageAddonContractProjection = {
   quantity: number | null;
   recurring_price_cents: number | null;
   status: string | null;
+};
+
+type BillingSubscriptionChangeIntentProjection = {
+  id: string;
+  user_id: string;
+  active_plan_id: string | null;
+  active_offer_id: string | null;
+  target_plan_id: string;
+  target_offer_id: string;
+  target_stripe_price_id: string;
+  target_billing_interval: "month" | "year";
+  status: string;
+  expires_at: string;
+};
+
+type SubscriptionUpdateGrant = {
+  offer: ResolvedOffer;
+  subscriptionChangeIntentId: string | null;
 };
 
 const SUBSCRIPTION_CREDIT_GRANT_BILLING_REASONS = new Set([
@@ -459,6 +483,216 @@ const findInvoiceLineForPriceId = (
   return toRecord(matchingLine);
 };
 
+const resolveInvoiceLineAmountCents = (line: JsonObject): number => {
+  const amount = Number(line.amount ?? 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const resolveInvoicePlanLine = async (lineValue: unknown): Promise<InvoicePlanLine | null> => {
+  const line = toRecord(lineValue);
+  const priceId = resolveInvoiceLinePriceId(line) ?? undefined;
+  if (!priceId) return null;
+
+  const directPrice = toRecord(line.price);
+  const pricing = toRecord(line.pricing);
+  const metadata = toRecord(directPrice.metadata);
+  const fallbackRecurringPriceCents =
+    Number(directPrice.unit_amount ?? pricing.unit_amount_decimal ?? line.amount ?? 0) || 0;
+  const fallbackMonthlyCreditsCents = Number(metadata.monthly_credits_cents ?? 0) || 0;
+  const offer = await resolveOfferFromPriceId(priceId, {
+    recurringPriceCents: fallbackRecurringPriceCents,
+    monthlyCreditsCents: fallbackMonthlyCreditsCents,
+  });
+  if (!offer?.planId || !offer.stripePriceId || Number(offer.monthlyCreditsCents ?? 0) <= 0) {
+    return null;
+  }
+
+  return {
+    line,
+    amountCents: resolveInvoiceLineAmountCents(line),
+    offer,
+  };
+};
+
+const loadPlanSortOrder = async (planId: string | null): Promise<number | null> => {
+  if (!planId) return null;
+  const { data, error } = await getSupabaseAdmin()
+    .from("billing_plans")
+    .select("id, sort_order")
+    .eq("id", planId)
+    .maybeSingle();
+  if (error && !isIgnorableSchemaDriftError(error)) {
+    throw new Error(error.message || "Failed to load billing plan rank.");
+  }
+  const sortOrder = Number(data?.sort_order);
+  return Number.isFinite(sortOrder) ? sortOrder : null;
+};
+
+const isHigherPlanOffer = async (targetOffer: ResolvedOffer, previousOffer: ResolvedOffer) => {
+  if (!targetOffer.planId || !previousOffer.planId || targetOffer.planId === previousOffer.planId) {
+    return false;
+  }
+  const [targetSortOrder, previousSortOrder] = await Promise.all([
+    loadPlanSortOrder(targetOffer.planId),
+    loadPlanSortOrder(previousOffer.planId),
+  ]);
+  return (
+    typeof targetSortOrder === "number" &&
+    typeof previousSortOrder === "number" &&
+    targetSortOrder > previousSortOrder
+  );
+};
+
+const resolvePaidSubscriptionUpdateGrantOffer = async (
+  invoice: JsonObject
+): Promise<ResolvedOffer | null> => {
+  const invoiceMetadata = readInvoiceMetadata(invoice);
+  if (isImmediatePaidUpgradeInvoice(invoice)) {
+    const targetOffer = await resolveOfferFromOfferId(
+      normalizeString(invoiceMetadata.billing_offer_id) ?? undefined,
+      normalizeString(invoiceMetadata.billing_plan_id)
+    );
+    if (targetOffer?.planId) return targetOffer;
+    if (normalizeString(invoiceMetadata.billing_offer_id)) return null;
+  }
+
+  const lines = toRecord(invoice.lines);
+  const lineData = Array.isArray(lines.data) ? lines.data : [];
+  const planLines: InvoicePlanLine[] = [];
+  for (const lineValue of lineData) {
+    const planLine = await resolveInvoicePlanLine(lineValue);
+    if (planLine) planLines.push(planLine);
+  }
+
+  const previousLines = planLines.filter((line) => line.amountCents < 0);
+  if (previousLines.length === 0) return null;
+
+  const targetLines = planLines
+    .filter((line) => line.amountCents > 0)
+    .sort((left, right) => right.amountCents - left.amountCents);
+
+  for (const targetLine of targetLines) {
+    for (const previousLine of previousLines) {
+      if (await isHigherPlanOffer(targetLine.offer, previousLine.offer)) {
+        return targetLine.offer;
+      }
+    }
+  }
+
+  return null;
+};
+
+const resolveInvoiceSubscriptionId = (invoice: JsonObject): string | null => {
+  const parent = toRecord(invoice.parent);
+  const parentSubscriptionDetails = toRecord(parent.subscription_details);
+  return (
+    normalizeString(invoice.subscription) ??
+    normalizeString(toRecord(invoice.subscription_details).subscription) ??
+    normalizeString(parentSubscriptionDetails.subscription)
+  );
+};
+
+const resolveFullPriceSubscriptionUpdateTargetOffer = async (
+  invoice: JsonObject
+): Promise<ResolvedOffer | null> => {
+  const lines = toRecord(invoice.lines);
+  const lineData = Array.isArray(lines.data) ? lines.data : [];
+  const targetLines: InvoicePlanLine[] = [];
+
+  for (const lineValue of lineData) {
+    const planLine = await resolveInvoicePlanLine(lineValue);
+    if (!planLine) continue;
+    if (planLine.amountCents <= 0) continue;
+    if (planLine.amountCents !== Number(planLine.offer.recurringPriceCents ?? 0)) continue;
+    if (!planLine.offer.offerId || !planLine.offer.stripePriceId) continue;
+    targetLines.push(planLine);
+  }
+
+  return targetLines.sort((left, right) => right.amountCents - left.amountCents)[0]?.offer ?? null;
+};
+
+const resolveFullPriceUpgradeIntentGrant = async (
+  invoice: JsonObject,
+  stripeCustomerId: string
+): Promise<SubscriptionUpdateGrant | null> => {
+  const targetOffer = await resolveFullPriceSubscriptionUpdateTargetOffer(invoice);
+  if (!targetOffer?.offerId || !targetOffer.stripePriceId || !targetOffer.planId) return null;
+
+  const stripeSubscriptionId = resolveInvoiceSubscriptionId(invoice);
+  if (!stripeSubscriptionId) return null;
+
+  const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
+  if (!profile?.user_id) return null;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("billing_subscription_change_intents")
+    .select(
+      "id, user_id, active_plan_id, active_offer_id, target_plan_id, target_offer_id, target_stripe_price_id, target_billing_interval, status, expires_at"
+    )
+    .eq("user_id", profile.user_id)
+    .eq("intent_kind", "full_price_upgrade")
+    .eq("stripe_customer_id", stripeCustomerId)
+    .eq("stripe_subscription_id", stripeSubscriptionId)
+    .eq("target_offer_id", targetOffer.offerId)
+    .eq("target_stripe_price_id", targetOffer.stripePriceId)
+    .in("status", ["pending", "portal_created"])
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isIgnorableSchemaDriftError(error)) return null;
+    throw new Error(error.message || "Failed to load subscription change intent.");
+  }
+
+  const intent = data as BillingSubscriptionChangeIntentProjection | null;
+  if (!intent?.id || intent.user_id !== profile.user_id) return null;
+  if (
+    intent.target_plan_id !== targetOffer.planId ||
+    intent.target_offer_id !== targetOffer.offerId ||
+    intent.target_stripe_price_id !== targetOffer.stripePriceId
+  ) {
+    return null;
+  }
+
+  const previousOffer: ResolvedOffer = {
+    offerId: intent.active_offer_id,
+    planId: intent.active_plan_id,
+    billingInterval: BILLING_INTERVAL_MONTH,
+    stripePriceId: null,
+    recurringPriceCents: 0,
+    monthlyCreditsCents: 0,
+    storageLimitBytes: 0,
+    maxConcurrentGenerations: 0,
+  };
+  if (!(await isHigherPlanOffer(targetOffer, previousOffer))) return null;
+
+  return {
+    offer: targetOffer,
+    subscriptionChangeIntentId: intent.id,
+  };
+};
+
+const markSubscriptionChangeIntentCompleted = async (params: {
+  intentId: string;
+  stripeInvoiceId: string | null;
+}) => {
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_change_intents")
+    .update({
+      status: "completed",
+      stripe_invoice_id: params.stripeInvoiceId,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", params.intentId);
+
+  if (error && !isIgnorableSchemaDriftError(error)) {
+    throw new Error(error.message || "Failed to complete subscription change intent.");
+  }
+};
+
 const withWebhookMetadata = (
   error: unknown,
   metadata: Record<string, unknown>
@@ -706,16 +940,22 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
   return null;
 };
 
-const resolveBillingContextFromInvoice = async (invoice: JsonObject, stripeCustomerId: string) => {
+const resolveBillingContextFromInvoice = async (
+  invoice: JsonObject,
+  stripeCustomerId: string,
+  preferredOffer?: ResolvedOffer | null
+) => {
   const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
   if (!profile?.user_id) return null;
 
   const invoiceMetadata = readInvoiceMetadata(invoice);
   const targetOfferId = normalizeString(invoiceMetadata.billing_offer_id);
-  const targetOffer = await resolveOfferFromOfferId(
-    targetOfferId ?? undefined,
-    normalizeString(invoiceMetadata.billing_plan_id)
-  );
+  const targetOffer =
+    preferredOffer ??
+    (await resolveOfferFromOfferId(
+      targetOfferId ?? undefined,
+      normalizeString(invoiceMetadata.billing_plan_id)
+    ));
   if (targetOffer?.planId) {
     const period = toRecord(findInvoiceLineForPriceId(invoice, targetOffer.stripePriceId).period);
     return {
@@ -824,10 +1064,11 @@ const syncSubscriptionContract = async (params: {
       : null;
 
   const current = await resolveCurrentContractForUser(params.userId);
-  const endedAt =
-    params.status === "canceled" && !params.cancelAtPeriodEnd
-      ? (params.currentPeriodEnd ?? new Date().toISOString())
-      : null;
+  const isFinalCancellation = params.status === "canceled";
+  const endedAt = isFinalCancellation
+    ? (params.currentPeriodEnd ?? new Date().toISOString())
+    : null;
+  const effectiveCancelAtPeriodEnd = isFinalCancellation ? false : params.cancelAtPeriodEnd;
 
   const supabaseAdmin = getSupabaseAdmin();
   const payload = {
@@ -850,7 +1091,7 @@ const syncSubscriptionContract = async (params: {
     last_credit_grant_at:
       billingInterval === BILLING_INTERVAL_YEAR ? (current?.last_credit_grant_at ?? null) : null,
     next_credit_grant_at: billingInterval === BILLING_INTERVAL_YEAR ? nextCreditGrantAt : null,
-    cancel_at_period_end: params.cancelAtPeriodEnd,
+    cancel_at_period_end: effectiveCancelAtPeriodEnd,
     started_at: params.currentPeriodStart ?? new Date().toISOString(),
     ended_at: endedAt,
   };
@@ -956,10 +1197,12 @@ const syncSubscriptionStorageAddons = async (params: {
       .filter((value): value is string => typeof value === "string" && value.length > 0)
   );
   const transitionTime = new Date().toISOString();
+  const isFinalCancellation = params.status === "canceled";
+  const finalCancellationEndedAt = params.currentPeriodEnd ?? transitionTime;
 
   for (const current of currentRows) {
     const currentItemId = current.stripe_subscription_item_id;
-    if (!currentItemId || nextItemIds.has(currentItemId)) {
+    if (!isFinalCancellation && (!currentItemId || nextItemIds.has(currentItemId))) {
       continue;
     }
 
@@ -967,7 +1210,7 @@ const syncSubscriptionStorageAddons = async (params: {
       .from("billing_subscription_storage_addons")
       .update({
         status: "canceled",
-        ended_at: transitionTime,
+        ended_at: isFinalCancellation ? finalCancellationEndedAt : transitionTime,
         current_period_end: params.currentPeriodEnd,
         cancel_at_period_end: false,
       })
@@ -975,6 +1218,10 @@ const syncSubscriptionStorageAddons = async (params: {
     if (error && !isIgnorableSchemaDriftError(error)) {
       throw new Error(error.message || "Failed to close removed billing storage add-on contract.");
     }
+  }
+
+  if (isFinalCancellation) {
+    return;
   }
 
   for (const addon of params.resolvedAddons) {
@@ -996,10 +1243,7 @@ const syncSubscriptionStorageAddons = async (params: {
       current_period_end: params.currentPeriodEnd,
       cancel_at_period_end: params.cancelAtPeriodEnd,
       started_at: transitionTime,
-      ended_at:
-        params.status === "canceled" && !params.cancelAtPeriodEnd
-          ? (params.currentPeriodEnd ?? transitionTime)
-          : null,
+      ended_at: null,
     };
     const current = currentByItemId.get(addon.stripeSubscriptionItemId);
 
@@ -1226,7 +1470,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
   const subscriptionStatus =
     typeof subscription.status === "string" ? subscription.status : "inactive";
   const cancelAtPeriodEnd = normalizeBoolean(subscription.cancel_at_period_end);
-  const isImmediateCancellation = subscriptionStatus === "canceled" && !cancelAtPeriodEnd;
+  const isFinalCancellation = subscriptionStatus === "canceled";
   const resolvedCurrentPeriodStart =
     asIsoDate(
       typeof subscription.current_period_start === "number"
@@ -1239,11 +1483,11 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     asIsoDate(
       typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
     ) ?? fallbackPeriod.currentPeriodEnd;
-  const runtimePlanId = isImmediateCancellation ? "free" : resolvedPlanId;
-  const runtimeCurrentPeriodEnd = isImmediateCancellation ? null : resolvedCurrentPeriodEnd;
+  const runtimePlanId = isFinalCancellation ? "free" : resolvedPlanId;
+  const runtimeCurrentPeriodEnd = isFinalCancellation ? null : resolvedCurrentPeriodEnd;
 
   const updatePayload: JsonObject = {
-    stripe_subscription_id: isImmediateCancellation ? null : (subscription.id ?? null),
+    stripe_subscription_id: isFinalCancellation ? null : (subscription.id ?? null),
     subscription_status: subscriptionStatus,
     stripe_customer_id: stripeCustomerId,
     current_period_end: runtimeCurrentPeriodEnd,
@@ -1290,12 +1534,20 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
     return;
   }
   const isSubscriptionUpdateInvoice = billingReason === "subscription_update";
-  if (isSubscriptionUpdateInvoice && !isImmediatePaidUpgradeInvoice(invoice)) {
-    return;
-  }
-
   const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : undefined;
   if (!stripeCustomerId) return;
+  let subscriptionUpdateGrant: SubscriptionUpdateGrant | null = null;
+  if (isSubscriptionUpdateInvoice) {
+    const legacyGrantOffer = await resolvePaidSubscriptionUpdateGrantOffer(invoice);
+    subscriptionUpdateGrant = legacyGrantOffer
+      ? {
+          offer: legacyGrantOffer,
+          subscriptionChangeIntentId: null,
+        }
+      : await resolveFullPriceUpgradeIntentGrant(invoice, stripeCustomerId);
+    if (!subscriptionUpdateGrant) return;
+  }
+
   const sourceRef = buildSubscriptionGrantSourceRef(invoice, eventId);
 
   let billingContext:
@@ -1304,7 +1556,11 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
     | null = null;
   try {
     billingContext = isSubscriptionUpdateInvoice
-      ? await resolveBillingContextFromInvoice(invoice, stripeCustomerId)
+      ? await resolveBillingContextFromInvoice(
+          invoice,
+          stripeCustomerId,
+          subscriptionUpdateGrant?.offer ?? null
+        )
       : ((await resolveCurrentBillingContextByCustomer(stripeCustomerId)) ??
         (await resolveBillingContextFromInvoice(invoice, stripeCustomerId)));
     if (!billingContext?.userId || !billingContext.planId) return;
@@ -1327,8 +1583,16 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
         offer_id: billingContext.offerId,
         stripe_customer_id: stripeCustomerId,
         stripe_price_id: billingContext.stripePriceId,
+        subscription_change_intent_id: subscriptionUpdateGrant?.subscriptionChangeIntentId ?? null,
       },
     });
+
+    if (subscriptionUpdateGrant?.subscriptionChangeIntentId) {
+      await markSubscriptionChangeIntentCompleted({
+        intentId: subscriptionUpdateGrant.subscriptionChangeIntentId,
+        stripeInvoiceId: normalizeString(invoice.id),
+      });
+    }
 
     if (billingContext.billingInterval === BILLING_INTERVAL_YEAR && billingContext.contractId) {
       const annualNextGrantAt = resolveAnnualNextCreditGrantAt({
@@ -1360,6 +1624,7 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
       offer_id: billingContext?.offerId ?? null,
       stripe_price_id: billingContext?.stripePriceId ?? null,
       monthly_credits_cents: billingContext?.monthlyCreditsCents ?? null,
+      subscription_change_intent_id: subscriptionUpdateGrant?.subscriptionChangeIntentId ?? null,
     });
   }
 };

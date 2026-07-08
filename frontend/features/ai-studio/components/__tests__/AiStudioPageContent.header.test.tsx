@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent } from "../AiStudioPageContent";
 import {
@@ -18,6 +18,7 @@ import type { StudioOutput, ToolId } from "../../types";
 const voicePanelActiveSourceEffectMock = vi.hoisted(() => vi.fn());
 const mediaLibraryPanelPropsMock = vi.hoisted(() => vi.fn());
 const downloadUrlToFileMock = vi.hoisted(() => vi.fn());
+const useRouterMock = vi.hoisted(() => vi.fn());
 const shellResizeActionsMock = vi.hoisted(() => ({
   collapseToMin: vi.fn(),
   resetToDefaultWidth: vi.fn(),
@@ -219,6 +220,10 @@ vi.mock("../../hooks/useAiStudioShellDndController", () => ({
   }),
 }));
 
+vi.mock("next/router", () => ({
+  useRouter: (...args: unknown[]) => useRouterMock(...args),
+}));
+
 vi.mock("../../hooks/useVoiceChangerSourceController", () => ({
   useVoiceChangerSourceController: () => ({
     voiceChangerSource: null,
@@ -351,6 +356,7 @@ function StatefulAiStudioPageContent({
 
 describe("AiStudioPageContent header project name", () => {
   beforeEach(() => {
+    useRouterMock.mockReturnValue({ asPath: "/ai-studio?projectId=project-1" });
     mediaLibraryPanelPropsMock.mockClear();
     downloadUrlToFileMock.mockClear();
     useAiStudioShellResizeMock.mockClear();
@@ -380,9 +386,27 @@ describe("AiStudioPageContent header project name", () => {
 
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("9,748 / 10,000")).toBeInTheDocument();
-    expect(creditLink).toHaveAttribute("href", "/profile?section=credits");
+    expect(creditLink).toHaveAttribute(
+      "href",
+      "/profile?section=credits&from=%2Fai-studio%3FprojectId%3Dproject-1"
+    );
     expect(coin).toHaveAttribute("data-fill-state", "ready");
     expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 9.07deg");
+  });
+
+  it("marks surplus AI Studio header credits with the blue surplus class", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          balanceCredits: 1542,
+          creditTotalCredits: 1200,
+        })}
+      />
+    );
+
+    const creditLink = screen.getByRole("link", { name: "Open credits and billing" });
+    expect(creditLink).toHaveTextContent("1,542 / 1,200");
+    expect(within(creditLink).getByText("1,542")).toHaveClass("ai-credit-surplus-value");
   });
 
   it("keeps the fraction label shape when the total is unavailable", () => {
@@ -410,8 +434,9 @@ describe("AiStudioPageContent header project name", () => {
     );
 
     const coin = screen.getByTestId("credit-fill-coin");
+    const creditLink = screen.getByRole("link", { name: "Open credits and billing" });
 
-    expect(screen.getByText("12,000 / 10,000")).toBeInTheDocument();
+    expect(creditLink).toHaveTextContent("12,000 / 10,000");
     expect(coin).toHaveAttribute("data-fill-state", "ready");
     expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 0deg");
   });

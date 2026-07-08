@@ -14,7 +14,7 @@ const auditScriptPath = path.resolve(
 );
 
 const REQUIRED_SIGNATURES = [
-  "public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text)",
+  "public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)",
   "public.create_admin_kanban_item(text,text,uuid,text)",
   "public.update_admin_kanban_item(uuid,text,text,uuid,text)",
   "public.move_admin_kanban_item(uuid,text,uuid,text)",
@@ -52,7 +52,9 @@ const REQUIRED_SIGNATURES = [
   "public.get_admin_global_stats_summary()",
   "public.list_admin_model_usage_stats(integer)",
   "public.get_admin_global_stats_v1()",
+  "public.get_admin_generation_breakdown_v1()",
   "public.get_admin_growth_stats_v1()",
+  "public.get_admin_first_value_funnel_v1()",
   "public.get_admin_error_events_summary_v1(timestamptz,timestamptz,timestamptz)",
   "public.publish_dashboard_announcement(text,text,uuid)",
   "public.reorder_dashboard_tutorials(uuid[],uuid)",

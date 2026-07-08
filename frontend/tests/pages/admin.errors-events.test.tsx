@@ -55,6 +55,7 @@ const jsonResponse = (body: unknown, ok = true) => ({
 describe("Admin errors handoff queue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     copyToClipboardMock.mockResolvedValue(true);
 
     useProtectedRouteMock.mockReturnValue({
@@ -192,6 +193,32 @@ describe("Admin errors handoff queue", () => {
 
     const calls = fetchWithAuthMock.mock.calls.map(([value]) => String(value));
     expect(calls.some((value) => value === "/api/admin/errors-status")).toBe(false);
+    expect(calls.some((value) => value.startsWith("/api/admin/error-events?"))).toBe(false);
+  });
+
+  it("copies all visible new incident packets without mutating incident status", async () => {
+    render(<AdminErrorsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Generation timeout")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy all new" }));
+
+    await waitFor(() => {
+      expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Copied 1" })).toBeInTheDocument();
+      expect(screen.getByText("In progress")).toBeInTheDocument();
+    });
+
+    expect(copyToClipboardMock.mock.calls[0]?.[0]).toContain("Generation timeout");
+    expect(String(copyToClipboardMock.mock.calls[0]?.[0] ?? "")).toContain(
+      "shortpulseIncidentVersion"
+    );
+
+    const calls = fetchWithAuthMock.mock.calls.map(([value]) => String(value));
+    expect(calls.some((value) => value === "/api/admin/errors-status")).toBe(false);
+    expect(calls.some((value) => value === "/api/admin/errors-status-bulk")).toBe(false);
     expect(calls.some((value) => value.startsWith("/api/admin/error-events?"))).toBe(false);
   });
 });

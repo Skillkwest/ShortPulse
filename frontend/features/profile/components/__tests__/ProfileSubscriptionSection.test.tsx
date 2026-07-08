@@ -118,7 +118,9 @@ const renderSubscriptionSection = ({
             ? "$180.00 / year"
             : "$15.00 / month"
       }
+      subscriptionPeriodLabel="Current period"
       subscriptionRenewalText="July 15, 2026"
+      isSubscriptionCancellationScheduled={false}
       billingPlans={billingPlans}
       billingPlansLoading={false}
       isInternalCompContract={false}

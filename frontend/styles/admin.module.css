@@ -1339,6 +1339,14 @@
   margin-bottom: 10px;
 }
 
+.adminSectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .adminAgentInstructionsPage .adminSectionHead {
   margin-bottom: 14px;
 }
@@ -2099,6 +2107,20 @@
   transition:
     border-color 0.12s ease,
     transform 0.12s ease;
+}
+
+.adminIncidentViewToggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.adminIncidentViewToggle .tabButton {
+  padding: 7px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .tabButton:hover {

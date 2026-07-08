@@ -222,7 +222,9 @@ describe("AiStudioInsufficientCreditsModal", () => {
       expect(await screen.findByText("Insufficient Credits")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /manage credits/i }));
 
-      expect(assignMock).toHaveBeenCalledWith("/profile?section=credits");
+      expect(assignMock).toHaveBeenCalledWith(
+        "/profile?section=credits&from=%2Fai-studio%3FprojectId%3Dproject-1"
+      );
       expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
         "/api/billing/stripe/checkout",
         expect.anything()

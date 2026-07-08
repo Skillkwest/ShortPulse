@@ -54,7 +54,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - monthly and annual recurring offers are versioned separately in `billing_plan_offers`
   - only one current acquisition-enabled offer may exist per `plan_id + billing_interval`
 - Existing subscribers keep the recurring price and included monthly credits from the offer they originally bought while the subscription remains continuously active.
-- Plan changes move the subscriber onto the current public offer for the target plan unless an operator explicitly preserves a legacy contract.
+- Plan changes move the subscriber onto the current public offer for the target plan unless an operator explicitly preserves a legacy contract. Self-serve higher-plan upgrades for existing Stripe subscriptions are full-price, no-proration changes: the dedicated Stripe Billing Portal configuration must charge the full target-plan price immediately and reset the billing period to the upgrade date.
 - Canceling and later restarting defaults to the current public offer rather than restoring the old legacy price automatically.
 - Internal comp policy:
   - internal/admin comp access is never acquisition-enabled
@@ -147,7 +147,7 @@ exist and the package rows are activated with `stripe_price_id`.
    - Webhook grants expected credits after successful payment.
    - Webhook sync captures recurring storage add-on subscription items into `billing_subscription_storage_addons`.
    - Existing subscribers still see their locked recurring price from `billing_subscription_contracts`.
-   - If users change subscriptions through Stripe Billing Portal, confirm the Stripe portal configuration exposes the new recurring price as intended.
+   - If users change subscriptions through Stripe Billing Portal, confirm the Stripe portal configuration exposes the new recurring price as intended. Higher-plan upgrades must pass `npm -C frontend run billing:portal-upgrade-config:verify` for the dedicated no-proration/full-price configuration before production use.
    - If the model-pricing policy changed, AI Studio estimate chips and server debits should both reflect the new active runtime policy from `/api/pricing/model-policy`.
 
 ## Quick verification SQL

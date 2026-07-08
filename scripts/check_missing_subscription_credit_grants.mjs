@@ -203,6 +203,38 @@ const isImmediatePaidUpgradeInvoice = (invoice) =>
   String(readInvoiceMetadata(invoice).shortpulse_plan_change_kind ?? "") ===
   IMMEDIATE_PAID_UPGRADE_METADATA_VALUE;
 
+const extractInvoiceLinePriceId = (line) =>
+  (typeof line?.pricing?.price_details?.price === "string"
+    ? line.pricing.price_details.price
+    : null) ??
+  (typeof line?.price?.id === "string" ? line.price.id : null) ??
+  (typeof line?.plan?.id === "string" ? line.plan.id : null);
+
+const resolveInvoicePlanLine = (line, offerByStripePriceId) => {
+  const priceId = extractInvoiceLinePriceId(line);
+  const offer = priceId ? (offerByStripePriceId.get(priceId) ?? null) : null;
+  if (!offer?.plan_id || !offer?.stripe_price_id) return null;
+  const amountCents = Number(line?.amount ?? 0);
+  return {
+    offer,
+    amountCents: Number.isFinite(amountCents) ? amountCents : 0,
+  };
+};
+
+const isHigherPlanOffer = (targetOffer, previousOffer, planSortOrderById) => {
+  if (!targetOffer?.plan_id || !previousOffer?.plan_id) return false;
+  if (targetOffer.plan_id === previousOffer.plan_id) return false;
+  const targetSortOrder = Number(planSortOrderById.get(targetOffer.plan_id));
+  const previousSortOrder = Number(
+    planSortOrderById.get(previousOffer.plan_id),
+  );
+  return (
+    Number.isFinite(targetSortOrder) &&
+    Number.isFinite(previousSortOrder) &&
+    targetSortOrder > previousSortOrder
+  );
+};
+
 const resolveInvoiceOfferFromMetadata = (invoice, offerById) => {
   if (!isImmediatePaidUpgradeInvoice(invoice)) return null;
   const metadata = readInvoiceMetadata(invoice);
@@ -222,39 +254,98 @@ const resolveInvoiceOfferFromMetadata = (invoice, offerById) => {
   return offer;
 };
 
-const extractInvoicePriceId = (invoice, offerById = new Map()) => {
-  const invoiceOffer = resolveInvoiceOfferFromMetadata(invoice, offerById);
-  if (typeof invoiceOffer?.stripe_price_id === "string") {
-    return invoiceOffer.stripe_price_id;
+const resolvePortalUpgradeInvoiceOffer = (
+  invoice,
+  offerByStripePriceId,
+  planSortOrderById,
+) => {
+  const lines = Array.isArray(invoice?.lines?.data) ? invoice.lines.data : [];
+  const planLines = lines
+    .map((line) => resolveInvoicePlanLine(line, offerByStripePriceId))
+    .filter(Boolean);
+  const previousLines = planLines.filter((line) => line.amountCents < 0);
+  if (previousLines.length === 0) return null;
+  const targetLines = planLines
+    .filter((line) => line.amountCents > 0)
+    .sort((left, right) => right.amountCents - left.amountCents);
+  for (const targetLine of targetLines) {
+    for (const previousLine of previousLines) {
+      if (
+        isHigherPlanOffer(
+          targetLine.offer,
+          previousLine.offer,
+          planSortOrderById,
+        )
+      ) {
+        return targetLine.offer;
+      }
+    }
   }
+  return null;
+};
+
+const resolveInvoiceOffer = (
+  invoice,
+  offerById = new Map(),
+  offerByStripePriceId = new Map(),
+  planSortOrderById = new Map(),
+) => {
+  const invoiceOffer = resolveInvoiceOfferFromMetadata(invoice, offerById);
+  if (invoiceOffer?.stripe_price_id) return invoiceOffer;
   if (
     isImmediatePaidUpgradeInvoice(invoice) &&
     typeof readInvoiceMetadata(invoice).billing_offer_id === "string"
   ) {
     return null;
   }
+  if (
+    String(invoice?.billing_reason ?? "").toLowerCase() ===
+    "subscription_update"
+  ) {
+    return resolvePortalUpgradeInvoiceOffer(
+      invoice,
+      offerByStripePriceId,
+      planSortOrderById,
+    );
+  }
 
   const lines = Array.isArray(invoice?.lines?.data) ? invoice.lines.data : [];
   for (const line of lines) {
-    const priceId =
-      (typeof line?.pricing?.price_details?.price === "string"
-        ? line.pricing.price_details.price
-        : null) ??
-      (typeof line?.price?.id === "string" ? line.price.id : null) ??
-      (typeof line?.plan?.id === "string" ? line.plan.id : null);
-    if (priceId) return priceId;
+    const priceId = extractInvoiceLinePriceId(line);
+    const offer = priceId ? (offerByStripePriceId.get(priceId) ?? null) : null;
+    if (offer) return offer;
   }
   return null;
 };
+
+const extractInvoicePriceId = (
+  invoice,
+  offerById = new Map(),
+  offerByStripePriceId = new Map(),
+  planSortOrderById = new Map(),
+) =>
+  resolveInvoiceOffer(
+    invoice,
+    offerById,
+    offerByStripePriceId,
+    planSortOrderById,
+  )?.stripe_price_id ?? null;
 
 const invoiceMatchesStripePrice = (
   invoice,
   stripePriceId,
   offerById = new Map(),
+  offerByStripePriceId = new Map(),
+  planSortOrderById = new Map(),
 ) =>
   Boolean(
     stripePriceId &&
-    extractInvoicePriceId(invoice, offerById) === stripePriceId,
+    extractInvoicePriceId(
+      invoice,
+      offerById,
+      offerByStripePriceId,
+      planSortOrderById,
+    ) === stripePriceId,
   );
 
 const extractLedgerInvoiceId = (row) => {
@@ -278,6 +369,9 @@ const fetchPaidAllocationInvoices = async ({
   secretKey,
   customerId,
   createdGte,
+  offerById,
+  offerByStripePriceId,
+  planSortOrderById,
 }) => {
   if (!customerId) return [];
   const payload = await stripeGet(secretKey, "/invoices", {
@@ -290,7 +384,12 @@ const fetchPaidAllocationInvoices = async ({
     const amountPaid = Number(invoice.amount_paid ?? 0);
     if (
       billingReason === "subscription_update" &&
-      !isImmediatePaidUpgradeInvoice(invoice)
+      !resolveInvoiceOffer(
+        invoice,
+        offerById,
+        offerByStripePriceId,
+        planSortOrderById,
+      )
     ) {
       return false;
     }
@@ -302,7 +401,7 @@ const fetchPaidAllocationInvoices = async ({
 };
 
 const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
-  const [profiles, contracts, offers] = await Promise.all([
+  const [profiles, contracts, offers, plans] = await Promise.all([
     supabaseSelect(
       supabaseConfig,
       "billing_profiles",
@@ -349,6 +448,10 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       stripe_price_id: "not.is.null",
       limit: 1000,
     }),
+    supabaseSelect(supabaseConfig, "billing_plans", {
+      select: "id,sort_order",
+      limit: 1000,
+    }),
   ]);
   const offerByStripePriceId = new Map(
     offers
@@ -359,6 +462,11 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
     offers
       .filter((offer) => typeof offer.id === "string")
       .map((offer) => [offer.id, offer]),
+  );
+  const planSortOrderById = new Map(
+    plans
+      .filter((plan) => typeof plan.id === "string")
+      .map((plan) => [plan.id, plan.sort_order]),
   );
   const profileByUser = new Map(
     profiles.map((profile) => [profile.user_id, profile]),
@@ -458,6 +566,9 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
           secretKey: stripeSecretKey,
           customerId: subject.stripeCustomerId,
           createdGte,
+          offerById,
+          offerByStripePriceId,
+          planSortOrderById,
         });
       } catch (error) {
         stripeLookupError =
@@ -495,10 +606,13 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       const sourceRef = sourceRefForInvoice(invoiceId);
       const hasLedger = Boolean(ledger);
       const hasGrant = grants.length > 0;
-      const invoiceStripePriceId = extractInvoicePriceId(invoice, offerById);
-      const invoiceOffer = invoiceStripePriceId
-        ? (offerByStripePriceId.get(invoiceStripePriceId) ?? null)
-        : null;
+      const invoiceOffer = resolveInvoiceOffer(
+        invoice,
+        offerById,
+        offerByStripePriceId,
+        planSortOrderById,
+      );
+      const invoiceStripePriceId = invoiceOffer?.stripe_price_id ?? null;
       const invoiceExpectedCreditsCents =
         asCents(invoiceOffer?.monthly_credits_cents) ??
         subject.expectedCreditsCents;
@@ -558,7 +672,13 @@ const buildRows = async ({ args, supabaseConfig, stripeSecretKey }) => {
       asUnixSeconds(subject.contractStartedAt) != null &&
       asUnixSeconds(subject.contractStartedAt) >= createdGte &&
       !invoices.some((invoice) =>
-        invoiceMatchesStripePrice(invoice, subject.stripePriceId, offerById),
+        invoiceMatchesStripePrice(
+          invoice,
+          subject.stripePriceId,
+          offerById,
+          offerByStripePriceId,
+          planSortOrderById,
+        ),
       )
     ) {
       rows.push({

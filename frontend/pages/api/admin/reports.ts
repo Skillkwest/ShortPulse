@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { ISSUE_REPORT_PAGE_SIZE, isIssueReportStatus } from "../../../lib/issueReports";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../lib/server/api/auth";
+import { loadIssueReportScreenshotsByReportId } from "../../../lib/server/api/issueReportScreenshots";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 const DEFAULT_LIMIT = ISSUE_REPORT_PAGE_SIZE;
@@ -82,6 +83,19 @@ const applyListFilters = (
 const countOrZero = (result: CountQueryResult): number => Number(result.count ?? 0);
 
 const hasQueryError = (result: CountQueryResult): boolean => Boolean(result.error);
+
+const attachScreenshotsToReports = (
+  reports: unknown[],
+  screenshotsByReportId: Awaited<ReturnType<typeof loadIssueReportScreenshotsByReportId>>
+): unknown[] =>
+  reports.map((report) => {
+    const row = report && typeof report === "object" ? (report as Record<string, unknown>) : {};
+    const reportId = typeof row.id === "string" ? row.id : "";
+    return {
+      ...row,
+      screenshots: screenshotsByReportId.get(reportId) ?? [],
+    };
+  });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -195,8 +209,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    const reports = listResult.data ?? [];
+    const screenshotsByReportId = await loadIssueReportScreenshotsByReportId(
+      supabaseAdmin,
+      reports
+        .map((report) =>
+          report && typeof report === "object" && "id" in report
+            ? String((report as { id?: unknown }).id ?? "")
+            : ""
+        )
+        .filter(Boolean),
+      {
+        onSignError: ({ error, reportId, screenshotId }) =>
+          logApiRouteException({
+            req,
+            error,
+            routeLabel: "api.admin.reports.screenshot-sign",
+            user: adminUser,
+            metadata: {
+              report_id: reportId,
+              screenshot_id: screenshotId,
+            },
+          }),
+      }
+    );
+
     return res.status(200).json({
-      reports: listResult.data ?? [],
+      reports: attachScreenshotsToReports(reports, screenshotsByReportId),
       summary: {
         totalCount: healthDegraded ? 0 : countOrZero(totalCountResult),
         openCount: healthDegraded

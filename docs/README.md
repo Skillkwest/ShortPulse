@@ -158,6 +158,13 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/hybervees/ownership-manifest.md`
 - `docs/agents/hybervees/workspace/README.md`
 - `docs/agents/Money Stuff/README.md`
+- `docs/agents/badu/README.md`
+- `docs/agents/badu/AGENTS.md`
+- `docs/agents/badu/memory.md`
+- `docs/agents/badu/standard-operating-procedure.md`
+- `docs/agents/badu/ownership-manifest.md`
+- `docs/agents/badu/tools/README.md`
+- `docs/agents/badu/workspace/README.md`
 - `docs/agents/nogo/README.md`
 - `docs/agents/nogo/AGENTS.md`
 - `docs/agents/nogo/memory.md`

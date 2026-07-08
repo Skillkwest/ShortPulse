@@ -14,7 +14,7 @@ import { useCustomerSupportDialog } from "../../../components/CustomerSupportDia
 import { normalizeIssueReportSourcePath } from "../../../lib/issueReports";
 import { useResolvedProtectedSessionState } from "../../../lib/protectedRouteSessionContext";
 import { signOutSupabaseSession } from "../../../lib/supabaseClient";
-import { ACCOUNT_MENU_LINKS, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
+import { buildAccountMenuLinks, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
 
 type MenuStyle = React.CSSProperties & {
   "--ai-toolbar-account-menu-transform-origin"?: string;
@@ -63,6 +63,10 @@ export function AiStudioToolbarAccountMenu() {
   const email = sessionSnapshot.user?.email ?? null;
   const initials = resolveInitials(displayName);
   const reportIssueHref = useMemo(() => resolveReportIssueHref(router.asPath), [router.asPath]);
+  const accountMenuLinks = useMemo(
+    () => buildAccountMenuLinks({ fromPath: router.asPath }),
+    [router.asPath]
+  );
 
   const syncMenuPosition = React.useCallback(() => {
     const triggerRect = triggerRef.current?.getBoundingClientRect();
@@ -152,7 +156,7 @@ export function AiStudioToolbarAccountMenu() {
               </span>
             </div>
             <div className="toolbar-account-menu__links">
-              {ACCOUNT_MENU_LINKS.map((item) => (
+              {accountMenuLinks.map((item) => (
                 <Link key={item.href} href={item.href} role="menuitem" onClick={closeMenu}>
                   {item.label}
                 </Link>

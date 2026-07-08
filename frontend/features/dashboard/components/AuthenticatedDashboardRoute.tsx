@@ -12,7 +12,9 @@ import { buildPlanView, type BillingCatalogSnapshot } from "../../billing/catalo
 import { fetchBillingAccountSummary } from "../../billing/accountSummary";
 import { formatStorageBytes } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
-import { ACCOUNT_MENU_LINKS, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
+import { buildAccountMenuLinks, CUSTOMER_SUPPORT_MENU_LINK } from "../../profile/accountMenuLinks";
+import { buildProfileSectionHref } from "../../profile/profileNavigation";
+import { resolveAccountCreditsSummary } from "../../profile/profilePageModel";
 import {
   AuthenticatedDashboardView,
   type DashboardAnnouncement,
@@ -43,6 +45,7 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your next great idea is waiting! Start a project and let's make it happen.";
+const DASHBOARD_PROFILE_RETURN_PATH = "/dashboard";
 
 type ProjectsModalComponent =
   (typeof import("../../ai-studio/components/ProjectsModal"))["ProjectsModal"];
@@ -377,6 +380,28 @@ export function AuthenticatedDashboardRoute({
     balanceLoading && balanceCents == null
       ? "…"
       : formatCreditUsageValue(balanceCents, planMeta.monthlyCreditsCents);
+  const aiCreditsSummary =
+    balanceLoading && balanceCents == null
+      ? null
+      : resolveAccountCreditsSummary({
+          balanceCents,
+          balanceLoading: false,
+          planCreditsCents: planMeta.monthlyCreditsCents,
+        });
+  const aiCreditsValueNode =
+    planMeta.monthlyCreditsCents > 0 &&
+    aiCreditsSummary?.state === "ready" &&
+    aiCreditsSummary.isSurplus ? (
+      <>
+        <span className="dashboard-credit-surplus-value">{aiCreditsSummary.currentLabel}</span>
+        {" /\n"}
+        {aiCreditsSummary.planLabel}
+      </>
+    ) : undefined;
+  const accountMenuLinks = useMemo(
+    () => buildAccountMenuLinks({ fromPath: DASHBOARD_PROFILE_RETURN_PATH }),
+    []
+  );
 
   const authHeaderCards = [
     {
@@ -392,7 +417,10 @@ export function AuthenticatedDashboardRoute({
       key: "auth-storage",
       label: "Media Storage",
       value: storageUsageValue,
-      href: "/profile?section=storage",
+      href: buildProfileSectionHref({
+        section: "storage",
+        fromPath: DASHBOARD_PROFILE_RETURN_PATH,
+      }),
       iconSrc: "/Media.svg",
     },
     ...(DASHBOARD_HIDE_LEGACY_SECTIONS
@@ -409,7 +437,11 @@ export function AuthenticatedDashboardRoute({
       key: "auth-credits",
       label: "AI credits",
       value: aiCreditsValue,
-      href: "/profile?section=credits",
+      valueNode: aiCreditsValueNode,
+      href: buildProfileSectionHref({
+        section: "credits",
+        fromPath: DASHBOARD_PROFILE_RETURN_PATH,
+      }),
       iconSrc: "/Credits.svg",
     },
     {
@@ -417,7 +449,10 @@ export function AuthenticatedDashboardRoute({
       label: "Plan",
       value: planMeta.label,
       className: planMeta.className,
-      href: "/profile?section=subscription",
+      href: buildProfileSectionHref({
+        section: "subscription",
+        fromPath: DASHBOARD_PROFILE_RETURN_PATH,
+      }),
       iconSrc: "/Plan.svg",
     },
   ];
@@ -467,7 +502,7 @@ export function AuthenticatedDashboardRoute({
                     </span>
                   </div>
                   <div className="toolbar-account-menu__links">
-                    {ACCOUNT_MENU_LINKS.map((item) => (
+                    {accountMenuLinks.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}

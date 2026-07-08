@@ -1,7 +1,7 @@
 /**
  * Operator issue-report queue for reviewing signed-in user submissions.
  */
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { IssueReportStatus } from "../../../lib/issueReports";
 import type {
   AdminIssueReportFilter,
@@ -177,6 +177,7 @@ export function AdminReportsPanel({
                 <span>Status</span>
                 <span>Reporter</span>
                 <span>Message</span>
+                <span>Screenshots</span>
                 <span>Actions</span>
               </div>
               {reportsLoading ? (
@@ -252,6 +253,35 @@ export function AdminReportsPanel({
                       </span>
                       <span className={reportStyles.reportPreviewCell}>
                         {buildMessagePreview(report.message)}
+                      </span>
+                      <span className={reportStyles.reportScreenshotsCell}>
+                        {report.screenshots.length > 0 ? (
+                          <>
+                            <strong>{report.screenshots.length}</strong>
+                            <span className={reportStyles.reportScreenshotThumbStrip}>
+                              {report.screenshots
+                                .filter((screenshot) => screenshot.signedUrl)
+                                .slice(0, 3)
+                                .map((screenshot) => (
+                                  <Fragment key={screenshot.id}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element -- Admin thumbnails use short-lived signed URLs that should not enter Next image optimization. */}
+                                    <img
+                                      src={screenshot.signedUrl ?? ""}
+                                      alt=""
+                                      className={reportStyles.reportScreenshotTinyThumb}
+                                      loading="lazy"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </Fragment>
+                                ))}
+                            </span>
+                            {report.screenshots.some((screenshot) => !screenshot.signedUrl) ? (
+                              <span className="tiny subdued">Unavailable</span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="tiny subdued">None</span>
+                        )}
                       </span>
                       <span className={reportStyles.reportActionsCell}>
                         <button

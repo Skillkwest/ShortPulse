@@ -45,19 +45,25 @@ const AUTH_SHOWCASE_PORTRAIT_SRC = "/dashboard/gallery/anime-cat-dance-demo.mp4"
 const AUTH_SHOWCASE_PODCAST_SRC = "/dashboard/gallery/seedance-podcast-demo.mp4";
 const AUTH_SHOWCASE_MONSTER_SRC = "/dashboard/gallery/monster-wall-break-demo.mp4";
 const AUTH_SHOWCASE_SKI_SRC = "/dashboard/gallery/alpine-ski-pov-demo.mp4";
+const AUTH_SHOWCASE_FUFKIN_SRC = "/dashboard/gallery/fufkin-butterfly-meadow-demo.mp4";
+const AUTH_SHOWCASE_MOONBOUND_SRC = "/dashboard/gallery/moonbound-crossing-demo.mp4";
 const AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT = 2;
-const AUTH_SHOWCASE_MAX_ATTACHED_VIDEO_COUNT = 2;
+const AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS = 420;
 const AUTH_SHOWCASE_TILE_CLASS_BY_SRC = new Map<string, string>([
   [AUTH_SHOWCASE_MONSTER_SRC, "auth-showcase-gallery-tile-alpine"],
   [AUTH_SHOWCASE_PORTRAIT_SRC, "auth-showcase-gallery-tile-seedance"],
   [AUTH_SHOWCASE_FEATURE_SRC, "auth-showcase-gallery-tile-feature"],
-  ["/dashboard/gallery/fufkin-butterfly-meadow-demo.mp4", "auth-showcase-gallery-tile-fufkin"],
-  ["/dashboard/gallery/moonbound-crossing-demo.mp4", "auth-showcase-gallery-tile-moonbound"],
+  [AUTH_SHOWCASE_FUFKIN_SRC, "auth-showcase-gallery-tile-fufkin"],
+  [AUTH_SHOWCASE_MOONBOUND_SRC, "auth-showcase-gallery-tile-moonbound"],
   [AUTH_SHOWCASE_SKI_SRC, "auth-showcase-gallery-tile-bottom-right"],
   [AUTH_SHOWCASE_PODCAST_SRC, "auth-showcase-gallery-tile-portrait-9x16"],
   ["/dashboard/gallery/luxury-purse-ugc-demo.mp4", "auth-showcase-gallery-tile-luxury"],
   ["/dashboard/gallery/viking-longship-storm-demo.mp4", "auth-showcase-gallery-tile-viking"],
   [AUTH_SHOWCASE_FOREST_BEAR_SRC, "auth-showcase-gallery-tile-wide-band"],
+]);
+const AUTH_SHOWCASE_HIDDEN_VIDEO_SRC_SET = new Set([
+  AUTH_SHOWCASE_FUFKIN_SRC,
+  AUTH_SHOWCASE_MOONBOUND_SRC,
 ]);
 const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
   const items = publicHomeGalleryVideoRows.flat();
@@ -65,6 +71,11 @@ const AUTH_SHOWCASE_GALLERY_ITEMS = (() => {
   if (!forestBearItem) return items;
   return [...items.filter((item) => item.src !== AUTH_SHOWCASE_FOREST_BEAR_SRC), forestBearItem];
 })();
+const AUTH_SHOWCASE_MOTION_ITEM_INDEX_BY_SRC = new Map(
+  AUTH_SHOWCASE_GALLERY_ITEMS.filter(
+    (item) => !AUTH_SHOWCASE_HIDDEN_VIDEO_SRC_SET.has(item.src)
+  ).map((item, index) => [item.src, index] as const)
+);
 
 type SignupIntentProvider = "email" | "google";
 
@@ -341,17 +352,22 @@ export default function AuthPage() {
 
     let cancelled = false;
     let timeoutId: number | null = null;
-    const maxCount = Math.min(
-      AUTH_SHOWCASE_MAX_ATTACHED_VIDEO_COUNT,
-      AUTH_SHOWCASE_GALLERY_ITEMS.length
-    );
+    let nextCount = 0;
+    const maxCount = AUTH_SHOWCASE_MOTION_ITEM_INDEX_BY_SRC.size;
 
-    const attachInitialBatch = () => {
+    const attachNextBatch = () => {
       if (cancelled) return;
-      setAttachedShowcaseVideoCount(Math.min(AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT, maxCount));
+      nextCount =
+        nextCount === 0
+          ? Math.min(AUTH_SHOWCASE_INITIAL_VIDEO_ATTACH_COUNT, maxCount)
+          : Math.min(nextCount + 1, maxCount);
+      setAttachedShowcaseVideoCount(nextCount);
+      if (nextCount < maxCount) {
+        timeoutId = window.setTimeout(attachNextBatch, AUTH_SHOWCASE_VIDEO_ATTACH_STAGGER_MS);
+      }
     };
 
-    timeoutId = window.setTimeout(attachInitialBatch, 0);
+    timeoutId = window.setTimeout(attachNextBatch, 0);
 
     return () => {
       cancelled = true;
@@ -540,8 +556,10 @@ export default function AuthPage() {
         <div className={authClass("auth-glow", "auth-glow-right")} />
         <section className={authClass("auth-showcase")} aria-label="ShortPulse examples">
           <div className={authClass("auth-showcase-gallery")} aria-hidden="true">
-            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item, index) => {
-              const shouldAttachVideoSource = index < attachedShowcaseVideoCount;
+            {AUTH_SHOWCASE_GALLERY_ITEMS.map((item) => {
+              const motionIndex = AUTH_SHOWCASE_MOTION_ITEM_INDEX_BY_SRC.get(item.src);
+              const shouldAttachVideoSource =
+                motionIndex !== undefined && motionIndex < attachedShowcaseVideoCount;
               return (
                 <div
                   key={item.src}

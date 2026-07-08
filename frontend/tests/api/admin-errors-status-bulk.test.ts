@@ -108,6 +108,7 @@ describe("POST /api/admin/errors-status-bulk", () => {
       p_note: "bulk close",
       p_admin_user_id: "admin-1",
       p_admin_user_email: "admin@example.com",
+      p_watch_item: false,
     });
     expect(rpcMock).toHaveBeenNthCalledWith(2, "admin_update_app_error_status", {
       p_error_id: "inc-2",
@@ -116,6 +117,7 @@ describe("POST /api/admin/errors-status-bulk", () => {
       p_note: "bulk close",
       p_admin_user_id: "admin-1",
       p_admin_user_email: "admin@example.com",
+      p_watch_item: false,
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -130,6 +132,57 @@ describe("POST /api/admin/errors-status-bulk", () => {
       updatedIncidentIds: ["inc-1", "inc-2"],
       failed: [],
     });
+  });
+
+  it("passes watch metadata for resolved batch updates", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: {
+        incident_id: "inc-watch",
+        status: "resolved",
+        updated_at: "2026-02-27T22:05:00.000Z",
+      },
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      method: "POST",
+      body: {
+        errorIds: ["inc-watch"],
+        status: "resolved",
+        note: "Resolved but monitor next provider run.",
+        watch: true,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).toHaveBeenCalledWith("admin_update_app_error_status", {
+      p_error_id: "inc-watch",
+      p_event_id: null,
+      p_status: "resolved",
+      p_note: "Resolved but monitor next provider run.",
+      p_admin_user_id: "admin-1",
+      p_admin_user_email: "admin@example.com",
+      p_watch_item: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("rejects watch batch updates for non-resolved statuses", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      method: "POST",
+      body: { errorIds: ["inc-1"], status: "ignored", watch: true },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "watch items must use resolved status." });
   });
 
   it("returns partial success when some incidents fail", async () => {
@@ -163,6 +216,7 @@ describe("POST /api/admin/errors-status-bulk", () => {
       user: { id: "admin-1", email: "admin@example.com" },
       metadata: {
         requested_status: "ignored",
+        requested_watch_item: false,
         requested_count: 2,
         updated_count: 1,
         failed_count: 1,
@@ -205,6 +259,7 @@ describe("POST /api/admin/errors-status-bulk", () => {
       user: { id: "admin-1", email: "admin@example.com" },
       metadata: {
         requested_status: "resolved",
+        requested_watch_item: false,
         requested_count: 1,
         updated_count: 0,
         failed_count: 1,

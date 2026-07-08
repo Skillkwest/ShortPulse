@@ -13,6 +13,7 @@ type BulkUpdateStatusRequest = {
   errorIds?: unknown;
   status?: ErrorStatus;
   note?: string;
+  watch?: boolean;
 };
 
 type RpcIncidentPayload = {
@@ -117,6 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const errorIds = asErrorIds(body.errorIds);
   const status = asStatus(body.status);
   const note = asTrimmedString(body.note, MAX_NOTE_LENGTH);
+  const watch = body.watch === true;
 
   if (!errorIds.length) {
     return res.status(400).json({ error: "errorIds must be a non-empty array." });
@@ -128,6 +130,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!status) {
     return res.status(400).json({ error: "status must be one of open, resolved, ignored." });
+  }
+  if (watch && status !== "resolved") {
+    return res.status(400).json({ error: "watch items must use resolved status." });
   }
 
   try {
@@ -147,6 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             p_note: note,
             p_admin_user_id: verifiedAdminUser.id,
             p_admin_user_email: verifiedAdminUser.email ?? null,
+            p_watch_item: watch,
           });
           if (error) {
             failures.push(toFailureRow(errorId, error));
@@ -181,6 +187,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user: verifiedAdminUser,
         metadata: {
           requested_status: status,
+          requested_watch_item: watch,
           requested_count: errorIds.length,
           updated_count: updatedCount,
           failed_count: failedCount,
@@ -213,6 +220,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user: adminUser,
       metadata: {
         requested_status: status,
+        requested_watch_item: watch,
         requested_count: errorIds.length,
       },
     });

@@ -12,6 +12,13 @@ const normalizeCreditCount = (value: number | null | undefined): number | null =
 const formatCreditCount = (value: number | null): string =>
   value == null ? "—" : value.toLocaleString();
 
+export type CreditFractionDisplay = {
+  label: string;
+  remainingLabel: string;
+  totalLabel: string;
+  isSurplus: boolean;
+};
+
 const resolveCreditFillRatio = ({
   remainingCredits,
   totalCredits,
@@ -29,6 +36,39 @@ const resolveCreditFillRatio = ({
 };
 
 /**
+ * Resolves the header credit value as remaining over total, including surplus state.
+ */
+export const resolveCreditFractionDisplay = ({
+  remainingCredits,
+  totalCredits,
+  loading,
+}: {
+  remainingCredits: number | null | undefined;
+  totalCredits: number | null | undefined;
+  loading: boolean;
+}): CreditFractionDisplay => {
+  if (loading) {
+    return {
+      label: "…",
+      remainingLabel: "…",
+      totalLabel: "—",
+      isSurplus: false,
+    };
+  }
+
+  const remaining = normalizeCreditCount(remainingCredits);
+  const total = normalizeCreditCount(totalCredits);
+  const remainingLabel = formatCreditCount(remaining);
+  const totalLabel = formatCreditCount(total);
+  return {
+    label: `${remainingLabel} / ${totalLabel}`,
+    remainingLabel,
+    totalLabel,
+    isSurplus: remaining != null && total != null && remaining > total,
+  };
+};
+
+/**
  * Formats the header credit value as remaining over total.
  */
 export const formatCreditFractionLabel = ({
@@ -40,10 +80,7 @@ export const formatCreditFractionLabel = ({
   totalCredits: number | null | undefined;
   loading: boolean;
 }): string => {
-  if (loading) return "…";
-  return `${formatCreditCount(normalizeCreditCount(remainingCredits))} / ${formatCreditCount(
-    normalizeCreditCount(totalCredits)
-  )}`;
+  return resolveCreditFractionDisplay({ remainingCredits, totalCredits, loading }).label;
 };
 
 /**

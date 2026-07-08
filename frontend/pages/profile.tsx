@@ -4,7 +4,7 @@
  */
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { CreditCard, HardDrives, Receipt, Stack, UserCircle } from "phosphor-react";
 import {
@@ -31,6 +31,7 @@ import {
   formatDateLabel,
   formatLongDateLabel,
   getProfileSectionContent,
+  isRevokedSubscriptionStatus,
   resolveProfileActivePlanId,
   resolveAccountCreditsSummary,
   resolveRecurringPaymentSummary,
@@ -44,6 +45,11 @@ import {
   type ProfileSectionItem,
   type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
+import {
+  buildProfileSectionHref,
+  normalizeProfileReturnPath,
+  resolveProfileBackTarget,
+} from "../features/profile/profileNavigation";
 import { profileClass } from "../features/profile/profileRouteStyles";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
@@ -181,6 +187,7 @@ export default function ProfilePage() {
     scope: BillingSyncScope;
     key: number;
   } | null>(null);
+  const handledBillingPortalReturnRef = useRef(false);
 
   const section = useMemo<ProfileSection>(() => {
     const query = (router.query.section as string | undefined)?.toLowerCase();
@@ -198,6 +205,19 @@ export default function ProfilePage() {
     return "account";
   }, [router.query.section]);
 
+  const profileFromPath = useMemo(
+    () => normalizeProfileReturnPath(router.query.from),
+    [router.query.from]
+  );
+  const profileBackTarget = useMemo(
+    () => resolveProfileBackTarget(profileFromPath),
+    [profileFromPath]
+  );
+  const profileSubscriptionHref = useMemo(
+    () => buildProfileSectionHref({ section: "subscription", fromPath: profileFromPath }),
+    [profileFromPath]
+  );
+
   const checkoutStatus = useMemo(() => {
     const queryValue = router.query.checkout;
     return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
@@ -207,6 +227,11 @@ export default function ProfilePage() {
     const queryValue = router.query.plan_change;
     return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
   }, [router.query.plan_change]);
+
+  const billingPortalStatus = useMemo(() => {
+    const queryValue = router.query.billing_portal;
+    return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
+  }, [router.query.billing_portal]);
 
   const requestBillingSync = (scope: BillingSyncScope) => {
     setBillingSyncRequest({ scope, key: Date.now() });
@@ -532,7 +557,7 @@ export default function ProfilePage() {
     } else if (planChangeStatus === "canceled") {
       setNotice({
         tone: "success",
-        message: "Downgrade requested. Stripe will update your subscription shortly.",
+        message: "Cancellation submitted. Your billing details are syncing from Stripe.",
       });
       requestBillingSync("subscription");
     } else if (planChangeStatus === "switched_free") {
@@ -549,6 +574,29 @@ export default function ProfilePage() {
       shallow: true,
     });
   }, [planChangeStatus, router]);
+
+  useEffect(() => {
+    if (!router.isReady || billingPortalStatus !== "return") {
+      if (billingPortalStatus !== "return") {
+        handledBillingPortalReturnRef.current = false;
+      }
+      return;
+    }
+    if (handledBillingPortalReturnRef.current) return;
+    handledBillingPortalReturnRef.current = true;
+
+    setNotice({
+      tone: "info",
+      message: "Billing details are syncing from Stripe.",
+    });
+    requestBillingSync("subscription");
+
+    const nextQuery = { ...router.query };
+    delete nextQuery.billing_portal;
+    void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, {
+      shallow: true,
+    });
+  }, [billingPortalStatus, router]);
 
   useEffect(() => {
     if (!user || section !== "credits") return;
@@ -585,6 +633,15 @@ export default function ProfilePage() {
   const subscriptionRenewalText = resolvedSubscriptionRenewalAt
     ? formatLongDateLabel(resolvedSubscriptionRenewalAt)
     : "Not scheduled";
+  const isSubscriptionCancellationScheduled = Boolean(
+    billingContract?.cancel_at_period_end &&
+    billingContract.current_period_end &&
+    !billingContract.ended_at &&
+    !isRevokedSubscriptionStatus(billingContract.status)
+  );
+  const subscriptionPeriodLabel = isSubscriptionCancellationScheduled
+    ? "Access ends"
+    : "Next renewal";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
   const visibleStorageAddons = useMemo(() => {
@@ -972,6 +1029,8 @@ export default function ProfilePage() {
           sections={sections}
           title={content.title}
           notice={notice}
+          profileBackTarget={profileBackTarget}
+          profileFromPath={profileFromPath}
           onRequestLogout={() => setShowLogoutConfirm(true)}
         >
           {section === "account" ? (
@@ -986,6 +1045,7 @@ export default function ProfilePage() {
               portalActionLabel={portalActionLabel}
               portalLoading={portalLoading}
               portalManagementAvailable={portalManagementAvailable}
+              subscriptionHref={profileSubscriptionHref}
               onDisplayNameInputChange={setDisplayNameInput}
               onWorkspaceEmailChange={setWorkspaceEmail}
               onProfileSave={handleProfileSave}
@@ -1009,7 +1069,9 @@ export default function ProfilePage() {
                 currentSubscriptionMaxConcurrentGenerations
               }
               recurringPaymentLabel={recurringPaymentSummary.primaryLabel}
+              subscriptionPeriodLabel={subscriptionPeriodLabel}
               subscriptionRenewalText={subscriptionRenewalText}
+              isSubscriptionCancellationScheduled={isSubscriptionCancellationScheduled}
               billingPlans={billingPlans}
               billingPlansLoading={billingPlansLoading}
               isInternalCompContract={isInternalCompContract}

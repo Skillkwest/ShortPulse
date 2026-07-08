@@ -334,27 +334,27 @@ describe("AiStudioToolbar current mode", () => {
     expect(screen.getByText("kirk@example.com")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Account settings" })).toHaveAttribute(
       "href",
-      "/profile?section=account"
+      "/profile?section=account&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("menuitem", { name: "Billing" })).toHaveAttribute(
       "href",
-      "/profile?section=account#billing"
+      "/profile?section=account&from=%2Fai-studio%3FprojectId%3Dproject-1#billing"
     );
     expect(screen.getByRole("menuitem", { name: "Subscription" })).toHaveAttribute(
       "href",
-      "/profile?section=subscription"
+      "/profile?section=subscription&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("menuitem", { name: "Credits" })).toHaveAttribute(
       "href",
-      "/profile?section=credits"
+      "/profile?section=credits&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("menuitem", { name: "Storage" })).toHaveAttribute(
       "href",
-      "/profile?section=storage"
+      "/profile?section=storage&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("menuitem", { name: "Transactions" })).toHaveAttribute(
       "href",
-      "/profile?section=transactions"
+      "/profile?section=transactions&from=%2Fai-studio%3FprojectId%3Dproject-1"
     );
     expect(screen.getByRole("menuitem", { name: "Customer Support" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Report an issue" })).toHaveAttribute(

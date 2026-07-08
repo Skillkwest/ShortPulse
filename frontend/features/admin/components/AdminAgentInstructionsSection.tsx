@@ -162,10 +162,28 @@ const buildPulseDraftsFromDefinitions = (
     )
   );
 
-const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, string> => ({
+const parsePulseDraftWorkflowStageHints = (value: string): string[] =>
+  value
+    .split(/[,\n]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, unknown> => ({
   ...(draft.presetId.trim() ? { presetId: draft.presetId.trim() } : {}),
+  label: draft.label.trim(),
   title: draft.label.trim(),
+  description: draft.description.trim(),
+  starterAssistantMessage: draft.starterAssistantMessage.trim(),
+  workflowStageHints: parsePulseDraftWorkflowStageHints(draft.workflowStageHints),
+  artifactTarget: draft.artifactTarget,
+  systemInstructions: draft.systemInstructions.trim(),
   prompt: draft.systemInstructions.trim(),
+  pulseKind: draft.pulseKind,
+  runtimeMode: draft.runtimeMode,
+  activationMode: draft.activationMode,
+  outputMode: draft.outputMode,
+  memoryPolicy: draft.memoryPolicy,
+  schemaVersion: draft.schemaVersion,
   publicationStatus: draft.publicationStatus,
 });
 

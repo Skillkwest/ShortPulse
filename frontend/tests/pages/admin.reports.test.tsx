@@ -77,6 +77,20 @@ describe("AdminReportsPage", () => {
               reviewed_by_user_id: null,
               created_at: "2026-05-25T14:46:50.000Z",
               updated_at: "2026-05-25T14:46:50.000Z",
+              screenshots: [
+                {
+                  id: "screenshot-1",
+                  storage_path: "issue-reports/user-1/screenshot.png",
+                  signed_url: "https://signed.example/screenshot.png",
+                  original_filename: "screenshot.png",
+                  content_type: "image/png",
+                  file_size_bytes: 512,
+                  width: 640,
+                  height: 480,
+                  display_order: 0,
+                  created_at: "2026-05-25T14:46:50.000Z",
+                },
+              ],
             },
           ],
           summary: {
@@ -119,5 +133,17 @@ describe("AdminReportsPage", () => {
         expect.objectContaining({ method: "GET" })
       );
     });
+  });
+
+  it("shows report screenshots in the detail modal", async () => {
+    render(<AdminReportsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    expect(await screen.findByText("screenshot.png")).toBeInTheDocument();
   });
 });

@@ -9,6 +9,7 @@ import {
   buildInsufficientCreditsModalCopy,
   INSUFFICIENT_CREDITS_TITLE,
 } from "../logic/insufficientCredits";
+import { buildProfileSectionHref } from "../../profile/profileNavigation";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type CreditPackage = {
@@ -137,7 +138,9 @@ export function AiStudioInsufficientCreditsModal({
   );
 
   const handleOpenAccountCredits = React.useCallback(() => {
-    window.location.assign("/profile?section=credits");
+    window.location.assign(
+      buildProfileSectionHref({ section: "credits", fromPath: resolveReturnPath() })
+    );
   }, []);
 
   React.useEffect(() => {

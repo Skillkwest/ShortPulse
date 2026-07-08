@@ -8,6 +8,21 @@ export const ISSUE_REPORT_EMAIL_MAX_LENGTH = 320;
 export const ISSUE_REPORT_SOURCE_PATH_MAX_LENGTH = 1024;
 export const ISSUE_REPORT_USER_AGENT_MAX_LENGTH = 1000;
 export const ISSUE_REPORT_PAGE_SIZE = 50;
+export const ISSUE_REPORT_SCREENSHOT_BUCKET = "issue_report_screenshots";
+export const ISSUE_REPORT_SCREENSHOT_MAX_COUNT = 3;
+export const ISSUE_REPORT_SCREENSHOT_MAX_BYTES = 10 * 1024 * 1024;
+export const ISSUE_REPORT_SCREENSHOT_FILENAME_MAX_LENGTH = 255;
+export const ISSUE_REPORT_SCREENSHOT_SIGNED_URL_TTL_SECONDS = 60 * 60;
+export const ISSUE_REPORT_SCREENSHOT_ORPHAN_CLEANUP_AGE_MS = 24 * 60 * 60 * 1000;
+export const ISSUE_REPORT_SCREENSHOT_ORPHAN_CLEANUP_LIMIT = 50;
+export const ISSUE_REPORT_SCREENSHOT_MIME_TYPES = [
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+export type IssueReportScreenshotMimeType = (typeof ISSUE_REPORT_SCREENSHOT_MIME_TYPES)[number];
 
 const toTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -73,3 +88,9 @@ export const resolveIssueReportSourcePath = ({
 
 export const isIssueReportStatus = (value: unknown): value is IssueReportStatus =>
   typeof value === "string" && (ISSUE_REPORT_STATUS_VALUES as readonly string[]).includes(value);
+
+export const isIssueReportScreenshotMimeType = (
+  value: unknown
+): value is IssueReportScreenshotMimeType =>
+  typeof value === "string" &&
+  (ISSUE_REPORT_SCREENSHOT_MIME_TYPES as readonly string[]).includes(value);

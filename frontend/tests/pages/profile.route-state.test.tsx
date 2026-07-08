@@ -285,6 +285,32 @@ describe("Profile route state", () => {
     expect(screen.getByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
   });
 
+  it("preserves a safe AI Studio return path across profile section navigation", () => {
+    routerState.query = { from: "/ai-studio?projectId=project-1" };
+
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("link", { name: "Back to AI Studio" })).toHaveAttribute(
+      "href",
+      "/ai-studio?projectId=project-1"
+    );
+    expect(screen.getByRole("link", { name: "Subscription" })).toHaveAttribute(
+      "href",
+      "/profile?section=subscription&from=%2Fai-studio%3FprojectId%3Dproject-1"
+    );
+  });
+
+  it("falls back to the dashboard back target when the return path is unsafe", () => {
+    routerState.query = { from: "https://evil.test/dashboard" };
+
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute(
+      "href",
+      "/dashboard"
+    );
+  });
+
   it("shows account syncing instead of baseline access while billing account state loads", async () => {
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -336,7 +362,7 @@ describe("Profile route state", () => {
       balanceLoading: false,
       refreshBalance,
     });
-    routerState.query = { checkout: "success" };
+    routerState.query = { checkout: "success", from: "/ai-studio?projectId=project-1" };
 
     render(<ProfilePage />);
 
@@ -347,7 +373,7 @@ describe("Profile route state", () => {
     await waitFor(() => {
       expect(refreshBalance).toHaveBeenCalledWith({ silent: true });
       expect(routerReplaceMock).toHaveBeenCalledWith(
-        { pathname: "/profile", query: {} },
+        { pathname: "/profile", query: { from: "/ai-studio?projectId=project-1" } },
         undefined,
         { shallow: true }
       );

@@ -9,7 +9,7 @@ with expected_functions as (
     select *
     from (
         values
-            ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text)', null),
+            ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
             ('public.create_admin_kanban_item(text,text,uuid,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),
@@ -367,7 +367,7 @@ with expected_functions as (
     select *
     from (
         values
-            ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text)', null),
+            ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
             ('public.create_admin_kanban_item(text,text,uuid,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),

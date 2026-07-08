@@ -229,7 +229,7 @@ describe("Auth route behavior", () => {
     expect(screen.getByRole("button", { name: "Sign in" })).not.toBeDisabled();
   });
 
-  it("caps auth showcase motion sources to the first two gallery tiles", async () => {
+  it("staggers auth showcase motion sources across visible gallery tiles", async () => {
     vi.useFakeTimers();
 
     const { container } = render(<AuthPage />);
@@ -261,7 +261,26 @@ describe("Auth route behavior", () => {
       vi.advanceTimersByTime(5000);
     });
 
-    expect(showcaseMedia.filter((media) => media.hasAttribute("src"))).toHaveLength(2);
+    expect(showcaseMedia.filter((media) => media.hasAttribute("src"))).toHaveLength(8);
+    expect(showcaseMedia[2]).toHaveAttribute("src", "/dashboard/gallery/panda-villa-tour-demo.mp4");
+    expect(showcaseMedia[3]).not.toHaveAttribute("src");
+    expect(showcaseMedia[4]).not.toHaveAttribute("src");
+    expect(showcaseMedia[5]).toHaveAttribute("src", "/dashboard/gallery/alpine-ski-pov-demo.mp4");
+    expect(showcaseMedia[6]).toHaveAttribute("src", "/dashboard/gallery/seedance-podcast-demo.mp4");
+    expect(showcaseMedia[7]).toHaveAttribute("src", "/dashboard/gallery/luxury-purse-ugc-demo.mp4");
+    expect(showcaseMedia[8]).toHaveAttribute(
+      "src",
+      "/dashboard/gallery/viking-longship-storm-demo.mp4"
+    );
+    expect(showcaseMedia[9]).toHaveAttribute(
+      "src",
+      "/dashboard/gallery/forest-bear-encounter-demo.mp4"
+    );
+    expect(showcaseMedia[3]).toHaveAttribute("preload", "none");
+    expect(showcaseMedia[4]).toHaveAttribute("preload", "none");
+    showcaseMedia
+      .filter((media) => media.hasAttribute("src"))
+      .forEach((media) => expect(media).toHaveAttribute("preload", "metadata"));
   });
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {

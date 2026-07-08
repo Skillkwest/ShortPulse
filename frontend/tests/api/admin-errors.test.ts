@@ -90,6 +90,8 @@ const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
   "%layer%images%are%unavailable%",
   "%layer%images%expired%",
   "%API%429%response%from%/api/kie/upload-url%",
+  "%API%429%response%from%/api/media/prepare-upload%",
+  "%API%429%response%from%/api/media/finalize-upload%",
   "%reference%preparation%failed:%Too%many%requests%",
   "%too%many%active%generations%",
   "%max%active%generations%",
@@ -245,6 +247,55 @@ describe("GET /api/admin/errors", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(notFilters).toEqual(expectedAdminQueueVisibilityFilters(7));
+  });
+
+  it("returns historical incidents without default queue visibility filters", async () => {
+    const notFilters: Array<{ column: string; operator: string; value: string }> = [];
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock(
+        {
+          app_error_logs: [
+            {
+              data: [
+                {
+                  id: "inc-history-1",
+                  source: "client.api_response",
+                  scope: "app",
+                  severity: "medium",
+                  status: "ignored",
+                  message: "API 429 response from /api/media/prepare-upload",
+                },
+              ],
+              error: null,
+            },
+            { count: 1, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 0, error: null },
+            { count: 1, error: null },
+          ],
+        },
+        [],
+        notFilters
+      )
+    );
+
+    const req = { method: "GET", query: { view: "history", status: "all" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(notFilters).toEqual([]);
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      view: string;
+      errors: Array<{ id: string; status: string }>;
+      pagination: { totalCount: number };
+    };
+    expect(payload.view).toBe("history");
+    expect(payload.errors[0]).toMatchObject({ id: "inc-history-1", status: "ignored" });
+    expect(payload.pagination.totalCount).toBe(1);
   });
 
   it("returns degraded health when non-core summary queries fail", async () => {

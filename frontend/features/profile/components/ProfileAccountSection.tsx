@@ -19,6 +19,7 @@ type ProfileAccountSectionProps = {
   portalActionLabel: string;
   portalLoading: boolean;
   portalManagementAvailable: boolean;
+  subscriptionHref: string;
   onDisplayNameInputChange: (value: string) => void;
   onWorkspaceEmailChange: (value: string) => void;
   onProfileSave: () => void;
@@ -42,6 +43,7 @@ export function ProfileAccountSection({
   portalActionLabel,
   portalLoading,
   portalManagementAvailable,
+  subscriptionHref,
   onDisplayNameInputChange,
   onWorkspaceEmailChange,
   onProfileSave,
@@ -114,7 +116,7 @@ export function ProfileAccountSection({
       >
         <div className={profileClass("profile-actions")}>
           <Link
-            href="/profile?section=subscription"
+            href={subscriptionHref}
             className={profileClass(
               "profile-button",
               portalManagementAvailable ? "ghost-btn" : "primary-btn"

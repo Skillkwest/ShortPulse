@@ -34,6 +34,8 @@ type AdminErrorsHealth = {
   reason: string | null;
 };
 
+type AdminErrorsViewMode = "queue" | "history";
+
 const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
   "%flagged%as%sensitive%",
   "%content%polic%",
@@ -46,6 +48,8 @@ const ADMIN_QUEUE_NON_ACTIONABLE_MESSAGE_PATTERNS = [
   "%layer%images%are%unavailable%",
   "%layer%images%expired%",
   "%API%429%response%from%/api/kie/upload-url%",
+  "%API%429%response%from%/api/media/prepare-upload%",
+  "%API%429%response%from%/api/media/finalize-upload%",
   "%reference%preparation%failed:%Too%many%requests%",
   "%too%many%active%generations%",
   "%max%active%generations%",
@@ -61,6 +65,9 @@ const asFilterValue = (value: unknown): string => {
   if (typeof value !== "string") return "";
   return value.trim().toLowerCase();
 };
+
+const resolveViewMode = (value: unknown): AdminErrorsViewMode =>
+  asFilterValue(value) === "history" ? "history" : "queue";
 
 const normalizeSearchTerm = (value: unknown): string => {
   const normalized = asFilterValue(value);
@@ -156,8 +163,13 @@ const applyAdminQueueVisibilityFilters = (query: IncidentQuery): IncidentQuery =
 
 const applyVisibleIncidentFilters = (
   query: IncidentQuery,
-  filters: { status: string; severity: string; source: string; scope: string; search: string }
-): IncidentQuery => applyIncidentFilters(applyAdminQueueVisibilityFilters(query), filters);
+  filters: { status: string; severity: string; source: string; scope: string; search: string },
+  options?: { includeHistoricalRows?: boolean }
+): IncidentQuery =>
+  applyIncidentFilters(
+    options?.includeHistoricalRows ? query : applyAdminQueueVisibilityFilters(query),
+    filters
+  );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -184,6 +196,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const page = asPositiveInt(req.query.page, 1);
     const limit = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
     const offset = (page - 1) * limit;
+    const viewMode = resolveViewMode(req.query.view);
+    const includeHistoricalRows = viewMode === "history";
 
     const filters = {
       status: asFilterValue(req.query.status),
@@ -191,6 +205,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: asFilterValue(req.query.source),
       scope: asFilterValue(req.query.scope),
       search: normalizeSearchTerm(req.query.search),
+    };
+    const buildSummaryCountQuery = (): IncidentQuery => {
+      const query = supabaseAdmin
+        .from("app_error_logs")
+        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery;
+      return includeHistoricalRows ? query : applyAdminQueueVisibilityFilters(query);
     };
 
     const logsQuery = applyVisibleIncidentFilters(
@@ -201,7 +221,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         )
         .order("last_seen_at", { ascending: false })
         .range(offset, offset + limit - 1) as unknown as IncidentQuery,
-      filters
+      filters,
+      { includeHistoricalRows }
     ) as unknown as Promise<ListQueryResult>;
 
     const filteredCountQuery = applyVisibleIncidentFilters(
@@ -209,41 +230,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         count: "exact",
         head: true,
       }) as unknown as IncidentQuery,
-      filters
+      filters,
+      { includeHistoricalRows }
     ) as unknown as Promise<CountQueryResult>;
 
     const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const openCountQuery = applyAdminQueueVisibilityFilters(
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
-    ).eq("status", "open") as unknown as Promise<CountQueryResult>;
-    const highSeverityOpenQuery = applyAdminQueueVisibilityFilters(
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
-    )
+    const openCountQuery = buildSummaryCountQuery().eq(
+      "status",
+      "open"
+    ) as unknown as Promise<CountQueryResult>;
+    const highSeverityOpenQuery = buildSummaryCountQuery()
       .eq("status", "open")
       .eq("severity", "high") as unknown as Promise<CountQueryResult>;
-    const appOpenCountQuery = applyAdminQueueVisibilityFilters(
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
-    )
+    const appOpenCountQuery = buildSummaryCountQuery()
       .eq("status", "open")
       .eq("scope", "app") as unknown as Promise<CountQueryResult>;
-    const generationOpenCountQuery = applyAdminQueueVisibilityFilters(
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
-    )
+    const generationOpenCountQuery = buildSummaryCountQuery()
       .eq("status", "open")
       .eq("scope", "generation") as unknown as Promise<CountQueryResult>;
-    const last24hQuery = applyAdminQueueVisibilityFilters(
-      supabaseAdmin
-        .from("app_error_logs")
-        .select("id", { count: "exact", head: true }) as unknown as IncidentQuery
-    ).gte("last_seen_at", sinceIso) as unknown as Promise<CountQueryResult>;
+    const last24hQuery = buildSummaryCountQuery().gte(
+      "last_seen_at",
+      sinceIso
+    ) as unknown as Promise<CountQueryResult>;
 
     const [
       logsResult,
@@ -309,7 +317,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           )
           .order("last_seen_at", { ascending: false })
           .range(fallbackOffset, fallbackOffset + limit - 1) as unknown as IncidentQuery,
-        filters
+        filters,
+        { includeHistoricalRows }
       )) as unknown as ListQueryResult;
       if (fallbackLogsResult.error) {
         await logApiRouteException({
@@ -359,6 +368,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     return res.status(200).json({
+      view: viewMode,
       errors: logs,
       summary: {
         openCount: countOrZero(openCountResult),

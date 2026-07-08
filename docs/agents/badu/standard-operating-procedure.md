@@ -19,6 +19,14 @@ This SOP covers bookkeeping intake, line-by-line provider billing review, spread
 
 It does not cover tax advice, legal advice, payments, subscription changes, provider dashboard mutations, ShortPulse product pricing changes, or spend-limit policy unless the user explicitly routes that work to the correct owner surface.
 
+## Monthly Cadence
+
+Run the standing monthly SOP on the first of each month for the previous completed month.
+
+Provider charge timing and Stripe payment timing may not line up perfectly. Use paid provider invoices/receipts and posted Stripe balance activity visible as of the run date, and record timing gaps or late-posting rows in `Source_Log`/`Audit_Status` instead of forcing accrual alignment.
+
+For monthly full SOP runs, load `docs/agents/badu/provider-account-map-and-monthly-checklist.md` after Badu memory and before opening provider pages.
+
 ## Source Hierarchy
 
 Use current sources in this order:

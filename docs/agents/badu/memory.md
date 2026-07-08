@@ -12,6 +12,7 @@ Local memory is advisory. Current user instructions, source billing pages, activ
 - `Ledger` is the canonical editable transaction table. `Expenses_View`, `Income_View`, `Monthly_Summary`, `Provider_Summary`, and `Dashboard` are derived views/summaries.
 - `Source_Log` stores provider cutoff and source-boundary rules. `Archive_Initial_Intake_2026-07-08` preserves the original single-tab intake layout.
 - Active provider summary rows currently include Kie.ai, fal.ai, OpenAI, Supabase, Codex, Vercel, ElevenLabs, and Stripe.
+- Monthly navigation/checklist source: `docs/agents/badu/provider-account-map-and-monthly-checklist.md`.
 
 ## Provider Import State
 
@@ -87,7 +88,9 @@ Owner instruction from 2026-07-08:
 - Keep durable provider cutoff/source rules in `Source_Log` instead of burying all source-boundary narrative in the raw ledger.
 - Verify by copying the affected summary/ledger ranges back from the sheet and checking the file reports saved.
 - For monthly SOP runs, import the previous completed month only: paid provider invoices/receipts and posted Stripe balance activity. Exclude upcoming, estimated, pending, payout, top-up, and automatic transfer rows.
-- Kie.ai live recheck on `2026-07-08` was blocked because the page presented Microsoft sign-in while Badu's expected route was Google SSO. Retain the prior Kie baseline until the auth route is corrected or the owner provides a new login path.
+- Monthly cadence: run Badu on the first of each month. Provider charge timing and Stripe payment timing can differ; keep the workbook current with posted/paid actuals as of the run date and record timing gaps in `Source_Log`/`Audit_Status` instead of forcing accrual alignment.
+- Kie.ai login note: the visual UI is misleading. The first option is Google login and may look like an email entry field/button with the owner's email already present; click that first option/entry field to continue with Google. The second option is Microsoft login.
+- Stripe testing classification note: use the owner-supplied testing email list from the local credential/source file. Payments from those emails are tests; payments from any other email are real customer revenue. Do not persist the raw email list in repo docs, reports, memory, or spreadsheet notes.
 
 ## Guardrails To Remember
 

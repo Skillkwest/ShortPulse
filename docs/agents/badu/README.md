@@ -83,6 +83,7 @@ Special note from the owner on 2026-07-08:
 - Scoped execution overlay: `docs/agents/badu/AGENTS.md`
 - Repo-visible durable memory: `docs/agents/badu/memory.md`
 - Standing SOP: `docs/agents/badu/standard-operating-procedure.md`
+- Monthly provider map/checklist: `docs/agents/badu/provider-account-map-and-monthly-checklist.md`
 - Ownership boundaries: `docs/agents/badu/ownership-manifest.md`
 - Tool inventory: `docs/agents/badu/tools/`
 - Templates: `docs/agents/badu/templates/`
@@ -110,6 +111,7 @@ Load by default for every Badu run:
 
 Load when needed:
 
+- `docs/agents/badu/provider-account-map-and-monthly-checklist.md` for monthly full SOP runs,
 - `docs/agents/badu/tools/README.md`,
 - `docs/agents/badu/workspace/README.md`,
 - relevant retained Badu reports, import logs, or templates,

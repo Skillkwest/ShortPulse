@@ -163,6 +163,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/badu/AGENTS.md`
 - `docs/agents/badu/memory.md`
 - `docs/agents/badu/standard-operating-procedure.md`
+- `docs/agents/badu/provider-account-map-and-monthly-checklist.md`
 - `docs/agents/badu/ownership-manifest.md`
 - `docs/agents/badu/tools/README.md`
 - `docs/agents/badu/workspace/README.md`

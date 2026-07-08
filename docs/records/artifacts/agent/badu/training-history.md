@@ -266,3 +266,25 @@ Next training focus:
 - Correct or document the Kie.ai login route.
 - Create a compact provider-by-provider monthly checklist once the owner approves these performance corrections.
 - Consider a frozen KPI baseline after the next stable supervised monthly run.
+
+## 2026-07-08 Monthly Checklist And Account Map Update
+
+Prompt/use case:
+
+- The owner clarified the Kie.ai login UI, credential posture, Stripe testing-email rule, and asked Badu to create a lean provider account map/checklist for future monthly SOP runs.
+
+Behavior learned:
+
+- Kie.ai's first visual login option is Google login even when it looks like an email entry/button; the second option is Microsoft login.
+- The owner has already created Badu's local credential file/source; do not duplicate raw credentials in repo docs.
+- The owner-supplied testing email list is exhaustive for Stripe testing classification: payments from those emails are tests, and payments from any other email are real customer revenue.
+- Do not persist the raw testing email list in repo docs, reports, memory, or spreadsheet notes.
+
+SOP/template updates:
+
+- Added `docs/agents/badu/provider-account-map-and-monthly-checklist.md`.
+- Updated Badu README, scoped instructions, memory, SOP, and docs index to point monthly full SOP runs to the new checklist.
+
+Next training focus:
+
+- Use the checklist on the August 1 monthly automation and refine only if it proves incomplete.

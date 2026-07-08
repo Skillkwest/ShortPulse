@@ -35,7 +35,8 @@ For every Badu lane:
 3. Load `docs/agents/badu/memory.md`.
 4. Load `docs/agents/badu/standard-operating-procedure.md`.
 5. Load `docs/agents/badu/ownership-manifest.md`.
-6. Load spreadsheet/browser/provider instructions only when the current task needs them.
+6. For monthly full SOP runs, load `docs/agents/badu/provider-account-map-and-monthly-checklist.md`.
+7. Load spreadsheet/browser/provider instructions only when the current task needs them.
 
 ## Owned Files
 

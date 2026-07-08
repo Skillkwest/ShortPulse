@@ -25,8 +25,6 @@ Structure (locked):
 
 ## Program 0: Execution Authority
 
-- Route Contact Us through the correct agent and escalation ladder so inbound support intent lands with the right operating surface. Source: Trello `Backlog` card "Contact us flow routed through agents and escalation ladders" imported 2026-07-07.
-
 ## Program 1: Runtime And Money
 
 - Make paid generation cost and charge state obvious before and after spend: show known costs or safe pending/unavailable states before Generate, explain charge/retry status on failures, and make Sound disabled estimates as reassuring as Create and Video. Sources: `docs/records/evidence/ux/2026-06-28-psychological-user-experience-audit.md` / "P0 - Credit cost can become psychologically illegible at the spend moment"; `docs/records/evidence/ux/2026-06-28-customer-psychological-experience-audit.md` / "P2: Generation failure/retry copy does not fully protect credit trust" and "P3: Sound credit estimate is less reassuring than Create/Video."

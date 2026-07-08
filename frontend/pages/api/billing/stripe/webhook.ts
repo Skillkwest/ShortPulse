@@ -1419,6 +1419,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (
         event.type === "customer.subscription.created" ||
+        event.type === "customer.subscription.pending_update_applied" ||
         event.type === "customer.subscription.updated" ||
         event.type === "customer.subscription.deleted"
       ) {

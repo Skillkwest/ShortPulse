@@ -1941,14 +1941,16 @@
 .adminSupportQueueSignalList {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  align-items: center;
+  gap: 2px;
+  min-height: 13px;
 }
 
 .adminSupportQueueSignalPill {
   min-width: 0;
-  padding: 1px 5px;
-  border-radius: 999px;
-  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 7px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -2050,11 +2052,15 @@
 
 .pill.adminSupportQueueSignalPill {
   min-width: 0;
-  min-height: 14px;
-  padding: 1px 4px;
-  font-size: 8px;
+  min-height: 0;
+  height: 13px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 7px;
   font-weight: 700;
   line-height: 1;
+  letter-spacing: 0;
   text-transform: none;
   white-space: nowrap;
 }

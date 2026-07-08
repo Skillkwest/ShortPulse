@@ -1017,6 +1017,111 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
+  it("grants target annual offer monthly credits for paid immediate subscription update invoices", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingOffers: [
+          {
+            id: "media__current",
+            plan_id: "media",
+            billing_interval: "month",
+            stripe_price_id: "price_media",
+            recurring_price_cents: 4900,
+            monthly_credits_cents: 1200,
+            storage_limit_bytes: 26843545600,
+            max_concurrent_generations: 2,
+          },
+          {
+            id: "business__year_current",
+            plan_id: "business",
+            billing_interval: "year",
+            stripe_price_id: "price_business_year",
+            recurring_price_cents: 274800,
+            monthly_credits_cents: 8000,
+            storage_limit_bytes: 536870912000,
+            max_concurrent_generations: 8,
+          },
+        ],
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_upgrade_annual_paid",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_upgrade_annual_paid",
+            customer: "cus_123",
+            billing_reason: "subscription_update",
+            status: "paid",
+            subscription_details: {
+              metadata: {
+                shortpulse_plan_change_kind: "immediate_paid_upgrade",
+                billing_plan_id: "business",
+                billing_offer_id: "business__year_current",
+                billing_interval: "year",
+              },
+            },
+            lines: {
+              data: [
+                {
+                  amount: -1200,
+                  price: {
+                    id: "price_media",
+                    unit_amount: 4900,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1780881600,
+                    end: 1783470000,
+                  },
+                },
+                {
+                  amount: 274800,
+                  price: {
+                    id: "price_business_year",
+                    unit_amount: 274800,
+                    metadata: {},
+                  },
+                  period: {
+                    start: 1783470000,
+                    end: 1815006000,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(grantAccountCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        amountCents: 8000,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_update_upgrade_annual_paid:monthly_allocation",
+        creditKind: "subscription_allocation",
+        metadata: expect.objectContaining({
+          invoice_id: "in_update_upgrade_annual_paid",
+          billing_reason: "subscription_update",
+          plan_id: "business",
+          offer_id: "business__year_current",
+          stripe_customer_id: "cus_123",
+          stripe_price_id: "price_business_year",
+        }),
+      })
+    );
+  });
+
   it("fails closed on monthly credit grants when a paid profile has no current contract", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     getSupabaseAdminMock.mockReturnValue(
@@ -1546,6 +1651,77 @@ describe("POST /api/billing/stripe/webhook", () => {
         current_period_start: "2024-01-01T00:00:00.000Z",
         current_period_end: "2025-01-01T00:00:00.000Z",
         next_credit_grant_at: "2024-02-01T00:00:00.000Z",
+      })
+    );
+  });
+
+  it("syncs annual contract cursors when Stripe applies a pending subscription update", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const contractInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingOffer: {
+          id: "business__year_current",
+          plan_id: "business",
+          billing_interval: "year",
+          stripe_price_id: "price_business_year",
+          recurring_price_cents: 274800,
+          monthly_credits_cents: 8000,
+          storage_limit_bytes: 536870912000,
+          max_concurrent_generations: 8,
+        },
+        billingContract: null,
+        onContractInsert: contractInsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_pending_update_applied_annual_1",
+        type: "customer.subscription.pending_update_applied",
+        data: {
+          object: {
+            id: "sub_business_year",
+            customer: "cus_123",
+            status: "active",
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  id: "si_plan_annual",
+                  quantity: 1,
+                  current_period_start: 1783472400,
+                  current_period_end: 1815008400,
+                  price: {
+                    id: "price_business_year",
+                    unit_amount: 274800,
+                    metadata: {
+                      monthly_credits_cents: "8000",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(contractInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "business",
+        offer_id: "business__year_current",
+        billing_interval: "year",
+        monthly_credits_cents: 8000,
+        current_period_start: "2026-07-08T01:00:00.000Z",
+        current_period_end: "2027-07-08T01:00:00.000Z",
+        next_credit_grant_at: "2026-08-08T01:00:00.000Z",
       })
     );
   });

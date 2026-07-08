@@ -211,6 +211,20 @@ const isHigherPlanUpgradeBySortOrder = (
   );
 };
 
+const isImmediatePaidHigherPlanUpgrade = ({
+  activeBillingInterval,
+  billingInterval,
+  isHigherPlanUpgrade,
+}: {
+  activeBillingInterval: "month" | "year";
+  billingInterval: "month" | "year";
+  isHigherPlanUpgrade: boolean;
+}): boolean => {
+  if (!isHigherPlanUpgrade) return false;
+  if (billingInterval === activeBillingInterval) return true;
+  return activeBillingInterval === "month" && billingInterval === "year";
+};
+
 const resolveHostedInvoiceUrl = (subscription: StripeSubscriptionUpdateResponse): string | null => {
   const latestInvoice = subscription.latest_invoice;
   if (!latestInvoice || typeof latestInvoice === "string") return null;
@@ -754,8 +768,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         activePlanSortOrder,
         normalizePlanSortOrder(targetPlan.sort_order)
       );
-      const isImmediatePaidUpgrade =
-        billingInterval === activeBillingInterval && isHigherPlanUpgrade;
+      const isImmediatePaidUpgrade = isImmediatePaidHigherPlanUpgrade({
+        activeBillingInterval,
+        billingInterval,
+        isHigherPlanUpgrade,
+      });
 
       if (baseItem.itemCount > 1) {
         if (billingInterval !== activeBillingInterval) {

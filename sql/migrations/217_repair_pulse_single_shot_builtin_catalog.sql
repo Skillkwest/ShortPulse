@@ -1,6 +1,6 @@
 -- Repair the Create Pulse single-shot built-in after the text-first catalog repair.
--- The image built-in remains image-gated by design, but it still needs current metadata,
--- workflow stage hints, and hidden instructions so all built-ins share the same contract shape.
+-- Only system-seeded catalog rows may be repaired here. Once an admin save records
+-- operator actor metadata on the singleton row, the admin-owned catalog is the authority.
 
 do $$
 begin
@@ -117,6 +117,8 @@ repaired as (
      cross join lateral jsonb_array_elements(runtime.pulse_definitions) with ordinality as definition(value, ordinality)
      cross join replacement
      where runtime.singleton = true
+       and runtime.updated_by_user_id is null
+       and coalesce(nullif(runtime.updated_by_email, ''), 'system_seed') = 'system_seed'
      group by runtime.singleton
 )
 update public.create_pulse_builtin_runtime runtime

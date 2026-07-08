@@ -219,6 +219,12 @@ carry mechanical metadata internally, such as artifact target and workflow
 session semantics, but they must not depend on a persisted starter message or
 stage-hint list to decide what the assistant says.
 
+After an admin saves the built-in catalog, that saved singleton row is
+operator-owned authority. SQL repair migrations may repair only untouched
+system-seeded rows and must not replace admin-saved labels, descriptions,
+system instructions, starter messages, or workflow hints by matching hidden
+seeded preset ids.
+
 Retired Pulse metadata such as `prompt_editor`, `activate_only`, and
 `apply_prompt` is not part of the active custom Pulse contract.
 

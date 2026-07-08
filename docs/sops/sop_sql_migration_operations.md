@@ -110,6 +110,13 @@ Use these for foundational setup or targeted one-off operations.
 
 Use these for durable schema evolution across environments.
 
+Create Pulse built-in catalog repair migrations must only mutate system-owned
+seed rows. Once `/api/admin/agent-instructions/pulse-builtins` saves the
+singleton `create_pulse_builtin_runtime` row with admin actor metadata, that
+operator-owned catalog is the authority; do not rewrite its Pulse definitions
+from seeded ids, hardcoded labels, hidden instructions, starter messages, or
+workflow hints.
+
 Current set:
 
 Migration number 134 is intentionally unused; the ordered sequence moves from `133_restore_model_pricing_policy_function_grants.sql` to `135_add_media_folder_count_rpcs.sql`.

@@ -63,8 +63,17 @@ export function SubscriptionPlanCard({
     {
       label: creditsLabel,
       included: true,
-      annotation: planView.bonusCreditsLabel,
+      annotation: null,
     },
+    ...(planView.bonusCreditsLabel
+      ? [
+          {
+            label: planView.bonusCreditsLabel,
+            included: true,
+            annotation: null,
+          },
+        ]
+      : []),
     {
       label: storageLabel,
       included: true,

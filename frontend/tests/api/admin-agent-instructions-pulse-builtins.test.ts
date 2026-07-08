@@ -154,6 +154,49 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
+  it("persists exact admin-authored instructions for an edited seeded-id Pulse", async () => {
+    const adminInstructions =
+      "ADMIN SAVED INSTRUCTIONS: ask for the user's footage goal, then produce one concise video prompt.";
+    const editedSeededDefinition: CreatePulseBuiltInPresetDefinition = {
+      ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+      presetId: "image",
+      label: "Brother's Saved Pulse",
+      description: "Admin-authored guided Pulse instructions.",
+      systemInstructions: adminInstructions,
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [editedSeededDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [editedSeededDefinition],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [editedSeededDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      builtInDefinitions: [editedSeededDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+      degraded: false,
+    });
+  });
+
   it("normalizes an admin-authored Prompt Modifier built-in without inferred starter metadata", async () => {
     const inferredPromptModifierDefinition: CreatePulseBuiltInPresetDefinition = {
       presetId: "prompt_modifier",

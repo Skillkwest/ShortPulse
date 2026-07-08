@@ -16,7 +16,10 @@ import {
   type BillingStorageAddonRecord,
   type CreditPackageRecord,
 } from "../features/billing/catalog";
-import { fetchBillingAccountSummary } from "../features/billing/accountSummary";
+import {
+  fetchBillingAccountSummary,
+  type PendingSubscriptionChange,
+} from "../features/billing/accountSummary";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
@@ -147,6 +150,8 @@ export default function ProfilePage() {
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
   const [billingContract, setBillingContract] = useState<BillingSubscriptionContract | null>(null);
+  const [pendingSubscriptionChange, setPendingSubscriptionChange] =
+    useState<PendingSubscriptionChange | null>(null);
   const [billingAccountStateStatus, setBillingAccountStateStatus] =
     useState<BillingAccountStateStatus>("idle");
   const [billingContractLoading, setBillingContractLoading] = useState(false);
@@ -274,6 +279,7 @@ export default function ProfilePage() {
         if (isBlockingLoad) {
           setBillingProfile(null);
           setBillingContract(null);
+          setPendingSubscriptionChange(null);
           setBillingActivity([]);
           setActiveStorageAddons([]);
           setBillingAccountStateStatus("unavailable");
@@ -282,6 +288,7 @@ export default function ProfilePage() {
       }
       setBillingProfile(profileState?.billingProfile ?? null);
       setBillingContract(profileState?.billingContract ?? null);
+      setPendingSubscriptionChange(profileState?.pendingSubscriptionChange ?? null);
       setBillingActivity(profileState?.billingActivity ?? []);
       setActiveStorageAddons(profileState?.activeStorageAddons ?? []);
       setBillingAccountStateStatus("ready");
@@ -289,6 +296,7 @@ export default function ProfilePage() {
       if (isBlockingLoad) {
         setBillingProfile(null);
         setBillingContract(null);
+        setPendingSubscriptionChange(null);
         setBillingActivity([]);
         setActiveStorageAddons([]);
         setBillingAccountStateStatus("unavailable");
@@ -574,6 +582,16 @@ export default function ProfilePage() {
       shallow: true,
     });
   }, [planChangeStatus, router]);
+
+  useEffect(() => {
+    if (!pendingSubscriptionChange) return;
+    setNotice({
+      tone: "success",
+      message: `${pendingSubscriptionChange.targetPlanLabel} is scheduled for ${formatLongDateLabel(
+        pendingSubscriptionChange.effectiveAt
+      )}. Your current plan stays active until then.`,
+    });
+  }, [pendingSubscriptionChange]);
 
   useEffect(() => {
     if (!router.isReady || billingPortalStatus !== "return") {
@@ -1080,6 +1098,7 @@ export default function ProfilePage() {
               subscriptionTransactions={subscriptionTransactions}
               subscriptionTransactionsLoading={subscriptionTransactionsLoading}
               subscriptionTransactionsError={subscriptionTransactionsError}
+              pendingSubscriptionChange={pendingSubscriptionChange}
               onRequestPlanChange={handleSubscriptionPlanChange}
               onRequestCancel={setPendingCancelPlanId}
             />

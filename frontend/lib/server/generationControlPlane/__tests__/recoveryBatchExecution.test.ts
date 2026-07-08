@@ -7,8 +7,17 @@ vi.mock("../../falIntegration/recoveryExecution", () => ({
   executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
 
-const createSupabaseAdmin = () => {
-  const updateEq2 = vi.fn(async () => ({ error: null }));
+const createSupabaseAdmin = ({
+  updateResponse = { error: null },
+  updateRejects = null,
+}: {
+  updateResponse?: { error: unknown };
+  updateRejects?: unknown;
+} = {}) => {
+  const updateEq2 = vi.fn(async () => {
+    if (updateRejects) throw updateRejects;
+    return updateResponse;
+  });
   const updateEq1 = vi.fn(() => ({ eq: updateEq2 }));
   const update = vi.fn(() => ({ eq: updateEq1 }));
   const from = vi.fn(() => ({ update }));
@@ -142,6 +151,133 @@ describe("generationControlPlane/recoveryBatchExecution", () => {
       error: expect.any(Error),
       metadata: {
         stage: "execute_generation_recovery",
+        generation_id: "gen-1",
+        request_id: "req-1",
+      },
+    });
+  });
+
+  it("keeps processing when abort-shaped recovery errors require a retry", async () => {
+    const supabaseAdmin = createSupabaseAdmin();
+    const logException = vi.fn(async () => undefined);
+    const abortError = Object.assign(new Error("This operation was aborted"), {
+      name: "AbortError",
+    });
+    executeGenerationRecoveryMock
+      .mockRejectedValueOnce(abortError)
+      .mockResolvedValueOnce({ processed: true, state: "recovered" });
+
+    const result = await executeClaimedRecoveryBatch({
+      supabaseAdmin: supabaseAdmin as never,
+      rows: [
+        {
+          id: "gen-abort",
+          user_id: "user-1",
+          request_id: "req-abort",
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          status: "running",
+          recovery_state: "recovering",
+          recovery_attempts: 2,
+        },
+        {
+          id: "gen-ok",
+          user_id: "user-1",
+          request_id: "req-ok",
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          status: "running",
+          recovery_state: "recovering",
+          recovery_attempts: 2,
+        },
+      ],
+      modelAllowlist: new Set(["*"]),
+      maxAttempts: 5,
+      routeLabel: "internal/generation-recovery/run",
+      logException,
+    });
+
+    expect(result).toEqual({
+      recovered: 1,
+      requeued: 0,
+      exhausted: 0,
+      skipped: 0,
+      duplicates: 0,
+      processed: 1,
+      errors: 1,
+    });
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(2);
+    expect(supabaseAdmin.updateEq2).toHaveBeenCalledTimes(1);
+    expect(logException).toHaveBeenCalledWith({
+      error: abortError,
+      metadata: {
+        stage: "execute_generation_recovery",
+        generation_id: "gen-abort",
+        request_id: "req-abort",
+      },
+    });
+  });
+
+  it("does not fail the whole batch when error requeue or logging fails", async () => {
+    const requeueError = Object.assign(new Error("This operation was aborted"), {
+      name: "AbortError",
+    });
+    const supabaseAdmin = createSupabaseAdmin({
+      updateRejects: requeueError,
+    });
+    const logException = vi.fn(async ({ metadata }: { metadata: Record<string, unknown> }) => {
+      if (metadata.stage === "execute_generation_recovery") {
+        throw new Error("logging unavailable");
+      }
+    });
+    executeGenerationRecoveryMock
+      .mockRejectedValueOnce(new Error("provider fetch failed"))
+      .mockResolvedValueOnce({ processed: true, state: "already_persisted" });
+
+    const result = await executeClaimedRecoveryBatch({
+      supabaseAdmin: supabaseAdmin as never,
+      rows: [
+        {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          status: "running",
+          recovery_state: "recovering",
+          recovery_attempts: 2,
+        },
+        {
+          id: "gen-2",
+          user_id: "user-1",
+          request_id: "req-2",
+          provider: "kie",
+          model_id: "kie-ai/veo-3.1-fast-i2v",
+          status: "running",
+          recovery_state: "recovering",
+          recovery_attempts: 2,
+        },
+      ],
+      modelAllowlist: new Set(["*"]),
+      maxAttempts: 5,
+      routeLabel: "internal/generation-recovery/run",
+      logException,
+    });
+
+    expect(result).toEqual({
+      recovered: 1,
+      requeued: 0,
+      exhausted: 0,
+      skipped: 0,
+      duplicates: 1,
+      processed: 1,
+      errors: 2,
+    });
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledTimes(2);
+    expect(logException).toHaveBeenCalledWith({
+      error: requeueError,
+      metadata: {
+        stage: "execute_generation_recovery_requeue",
         generation_id: "gen-1",
         request_id: "req-1",
       },

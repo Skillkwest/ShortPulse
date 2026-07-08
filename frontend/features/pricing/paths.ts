@@ -7,6 +7,7 @@ import { buildLoginPath, buildSignupPath } from "../../lib/authRedirects";
 
 export type PricingIntent = "create-project" | "open-projects" | "dashboard" | "tutorial";
 export type PricingBillingInterval = "month" | "year";
+export type PricingCheckoutStatus = "cancel";
 
 const DEFAULT_PRICING_INTENT: PricingIntent = "dashboard";
 const DEFAULT_PRICING_BILLING_INTERVAL: PricingBillingInterval = "year";
@@ -49,6 +50,17 @@ export const normalizePricingBillingInterval = (
 };
 
 /**
+ * Normalizes checkout return status markers used by hosted Stripe return URLs.
+ */
+export const normalizePricingCheckoutStatus = (
+  value: string | string[] | undefined
+): PricingCheckoutStatus | null => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const normalized = typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
+  return normalized === "cancel" ? "cancel" : null;
+};
+
+/**
  * Builds a stable pricing-route href with optional intent and plan query state.
  */
 export const buildPricingPath = (params?: {
@@ -71,6 +83,21 @@ export const buildPricingPath = (params?: {
   }
   const queryString = query.toString();
   return queryString ? `/pricing?${queryString}` : "/pricing";
+};
+
+/**
+ * Builds the vetted pricing cancel return path for hosted subscription Checkout.
+ */
+export const buildPricingCheckoutCancelPath = (params?: {
+  intent?: PricingIntent;
+  planId?: string | null;
+  billingInterval?: PricingBillingInterval;
+}): string => {
+  const path = buildPricingPath(params);
+  const [pathname, queryString = ""] = path.split("?");
+  const query = new URLSearchParams(queryString);
+  query.set("checkout", "cancel");
+  return `${pathname}?${query.toString()}`;
 };
 
 /**

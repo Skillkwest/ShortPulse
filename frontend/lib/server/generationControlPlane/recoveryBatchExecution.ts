@@ -16,6 +16,13 @@ export type RecoveryBatchExecutionMetrics = {
 };
 
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
+type SupabaseMutationResult = { error?: unknown };
+
+const throwIfMutationFailed = (result: SupabaseMutationResult | null | undefined): void => {
+  if (result?.error) {
+    throw result.error;
+  }
+};
 
 const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
   if (!allowlist.size) return true;
@@ -36,7 +43,7 @@ const requeueAllowlistSkippedGeneration = async ({
 }) => {
   const previousAttempts = Math.max((row.recovery_attempts ?? 1) - 1, 0);
   const retryAtIso = new Date(Date.now() + ALLOWLIST_SKIP_RETRY_DELAY_SECONDS * 1000).toISOString();
-  return supabaseAdmin
+  const result = await supabaseAdmin
     .from("ai_generations")
     .update({
       recovery_state: "queued",
@@ -45,6 +52,7 @@ const requeueAllowlistSkippedGeneration = async ({
     })
     .eq("id", row.id)
     .eq("user_id", row.user_id);
+  throwIfMutationFailed(result);
 };
 
 const requeueErroredGeneration = async ({
@@ -55,7 +63,7 @@ const requeueErroredGeneration = async ({
   row: ClaimedGeneration;
 }) => {
   const retryAt = new Date(Date.now() + EXECUTION_ERROR_RETRY_DELAY_SECONDS * 1000).toISOString();
-  return supabaseAdmin
+  const result = await supabaseAdmin
     .from("ai_generations")
     .update({
       recovery_state: "queued",
@@ -63,6 +71,7 @@ const requeueErroredGeneration = async ({
     })
     .eq("id", row.id)
     .eq("user_id", row.user_id);
+  throwIfMutationFailed(result);
 };
 
 export const executeClaimedRecoveryBatch = async ({
@@ -87,6 +96,16 @@ export const executeClaimedRecoveryBatch = async ({
   let duplicates = 0;
   let processed = 0;
   let errors = 0;
+  const safeLogException = async (args: {
+    error: unknown;
+    metadata: Record<string, unknown>;
+  }): Promise<void> => {
+    try {
+      await logException(args);
+    } catch {
+      // Best-effort logging must not abort the control-plane batch.
+    }
+  };
 
   for (const row of rows) {
     if (!isAllowedModel(row.model_id, modelAllowlist)) {
@@ -98,7 +117,7 @@ export const executeClaimedRecoveryBatch = async ({
         });
       } catch (error) {
         errors += 1;
-        await logException({
+        await safeLogException({
           error,
           metadata: {
             stage: "allowlist_skip_requeue",
@@ -141,7 +160,7 @@ export const executeClaimedRecoveryBatch = async ({
       }
     } catch (error) {
       errors += 1;
-      await logException({
+      await safeLogException({
         error,
         metadata: {
           stage: "execute_generation_recovery",
@@ -149,10 +168,22 @@ export const executeClaimedRecoveryBatch = async ({
           request_id: row.request_id,
         },
       });
-      await requeueErroredGeneration({
-        supabaseAdmin,
-        row,
-      });
+      try {
+        await requeueErroredGeneration({
+          supabaseAdmin,
+          row,
+        });
+      } catch (requeueError) {
+        errors += 1;
+        await safeLogException({
+          error: requeueError,
+          metadata: {
+            stage: "execute_generation_recovery_requeue",
+            generation_id: row.id,
+            request_id: row.request_id,
+          },
+        });
+      }
     }
   }
 

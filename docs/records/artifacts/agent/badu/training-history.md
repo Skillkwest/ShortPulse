@@ -93,3 +93,98 @@ Remaining friction:
 Next training focus:
 
 - Continue provider imports using provider-specific cutoff rules and capture invoice ids when available without interrupting the import flow.
+
+## 2026-07-08 Supabase Start-Date Import
+
+Prompt/use case:
+
+- The owner asked Badu to use the logged-in Supabase billing page in Chrome and import invoices starting January 2026.
+
+Behavior learned:
+
+- For Supabase, start future imports with January 2026 expenses.
+- The current start row is `Jan 10, 2026`, invoice `SKQOZF-00017`, paid, `$35.00`.
+- Include that row and every later Supabase invoice as current Supabase expenses.
+- Include paid zero-dollar invoices as zero-amount ledger rows when they are part of the in-scope invoice sequence.
+
+Rows imported:
+
+- 8 paid invoice rows from `2026-01-10` through `2026-06-25`.
+- Subtotal: `$262.42`.
+- Workbook after import: 91 transactions and `$3,315.93` expenses.
+
+SOP/template updates:
+
+- Added Supabase start-date rule to Badu contract, scoped instructions, memory, and SOP.
+
+Remaining friction:
+
+- Google Drive connector did not have permission for the existing workbook, so the import used Chrome UI bounded range paste and readback verification.
+
+Next training focus:
+
+- Continue with Vercel import using the same source-boundary and readback workflow.
+
+## 2026-07-08 Vercel Current-Invoice Import
+
+Prompt/use case:
+
+- The owner provided the Vercel All Invoices screenshot and said it showed all invoices for Vercel.
+
+Behavior learned:
+
+- Import paid Vercel invoice rows as expenses.
+- Retain paid zero-dollar invoices as zero-amount ledger rows for completeness.
+- Exclude upcoming estimated invoices until they become paid invoices.
+
+Rows imported:
+
+- 2 paid June 2026 invoice rows dated `2026-06-11`.
+- Subtotal: `$20.00`.
+- Workbook after import: 93 transactions and `$3,335.93` expenses.
+
+SOP/template updates:
+
+- Updated Badu memory and run log with Vercel import state.
+
+Remaining friction:
+
+- The Vercel invoice list did not expose invoice numbers in the visible row text; source details should preserve plan, date, status, and visible invoice page context.
+
+Next training focus:
+
+- Continue provider imports and keep unpaid estimated/upcoming rows out of paid expense totals unless the owner explicitly requests forecast tracking.
+
+## 2026-07-08 Stripe Income Import
+
+Prompt/use case:
+
+- The owner asked Badu to log into Stripe and add ShortPulse income correctly.
+
+Behavior learned:
+
+- Stripe Balance > All activity is the preferred source for income imports because it shows gross amount, fees, and net total.
+- Payment and charge rows should be imported as income rows with gross customer payments in `Income USD`, Stripe fees in `Expense USD`, and Stripe net total in `Net USD`.
+- Standalone Stripe billing-fee rows should be imported as expenses.
+- Payouts, top-ups, and automatic balance transfers should be excluded from revenue/expense totals as transfers.
+- Customer identifiers should be omitted from ledger rows unless the owner explicitly requests retention.
+
+Rows imported:
+
+- 22 succeeded payment/charge income rows and 4 standalone Stripe fee rows from `2026-05-25` through `2026-07-08`.
+- Gross income: `$2,550.27`.
+- Stripe fee expenses: `$92.95`.
+- Net income impact: `$2,457.32`.
+- Workbook after import: 119 transactions, `$3,428.88` expenses, `$2,550.27` income, and `-$878.61` net.
+
+SOP/template updates:
+
+- Added Stripe income handling rules to Badu memory and SOP.
+
+Remaining friction:
+
+- Stripe transaction tables expose customer emails by default; Badu should avoid copying those into the ledger unless the owner asks for customer-level bookkeeping.
+
+Next training focus:
+
+- If future income imports grow beyond a few pages, use a Stripe export only after confirming the exact export scope and safe retention path.

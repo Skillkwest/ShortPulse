@@ -38,6 +38,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-starter",
         monthlyCreditsCents: 500,
       },
+      pendingSubscriptionChange: null,
       quotaStatus: "unavailable",
       quotaSummary: null,
     });
@@ -67,6 +68,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-starter",
         monthlyCreditsCents: 1200,
       },
+      pendingSubscriptionChange: null,
       quotaStatus: "unavailable",
       quotaSummary: null,
     });
@@ -108,6 +110,7 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-business",
         monthlyCreditsCents: 0,
       },
+      pendingSubscriptionChange: null,
       quotaStatus: "unavailable",
       quotaSummary: null,
     });
@@ -121,6 +124,46 @@ describe("useResolvedAccountPlan", () => {
         className: "plan-business",
         monthlyCreditsCents: 0,
       });
+    });
+  });
+
+  it("returns pending subscription changes from the account summary route", async () => {
+    fetchBillingAccountSummaryMock.mockResolvedValue({
+      userId: "user-1",
+      resolvedPlan: {
+        id: "media",
+        label: "Media",
+        className: "plan-media",
+        monthlyCreditsCents: 1200,
+      },
+      pendingSubscriptionChange: {
+        kind: "scheduled_downgrade",
+        status: "active",
+        currentPlanId: "media",
+        currentOfferId: "media__monthly",
+        currentBillingInterval: "month",
+        currentStripePriceId: "price_media",
+        targetPlanId: "starter",
+        targetOfferId: "starter__monthly",
+        targetPlanLabel: "Starter",
+        targetBillingInterval: "month",
+        targetStripePriceId: "price_starter",
+        targetRecurringPriceCents: 1500,
+        targetMonthlyCreditsCents: 350,
+        targetStorageLimitBytes: 5368709120,
+        targetMaxConcurrentGenerations: 1,
+        effectiveAt: "2026-08-08T14:59:23.000Z",
+        currentBenefitsEndAt: "2026-08-08T14:59:23.000Z",
+      },
+      quotaStatus: "unavailable",
+      quotaSummary: null,
+    });
+
+    const { result } = renderHook(() => useResolvedAccountPlan());
+
+    await waitFor(() => {
+      expect(result.current.pendingSubscriptionChange?.targetPlanLabel).toBe("Starter");
+      expect(result.current.resolvedPlan?.id).toBe("media");
     });
   });
 });

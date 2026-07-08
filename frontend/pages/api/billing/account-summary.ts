@@ -33,6 +33,27 @@ type ProfileBillingState = {
   billingContract: ProfileBillingContractRow | null;
   billingActivity: ProfileBillingLedgerRow[];
   activeStorageAddons: ProfileBillingStorageAddon[];
+  pendingSubscriptionChange: PendingSubscriptionChange | null;
+};
+
+type PendingSubscriptionChange = {
+  kind: "scheduled_downgrade" | "scheduled_interval_change";
+  status: "active";
+  currentPlanId: string | null;
+  currentOfferId: string | null;
+  currentBillingInterval: "month" | "year" | null;
+  currentStripePriceId: string | null;
+  targetPlanId: string;
+  targetOfferId: string | null;
+  targetPlanLabel: string;
+  targetBillingInterval: "month" | "year";
+  targetStripePriceId: string;
+  targetRecurringPriceCents: number;
+  targetMonthlyCreditsCents: number;
+  targetStorageLimitBytes: number;
+  targetMaxConcurrentGenerations: number;
+  effectiveAt: string;
+  currentBenefitsEndAt: string | null;
 };
 
 type ProfileBillingProfileRow = {
@@ -84,6 +105,25 @@ type ProfileBillingStorageAddonRow = {
   status: string | null;
 };
 
+type PendingSubscriptionChangeRow = {
+  change_kind: string | null;
+  status: string | null;
+  current_plan_id: string | null;
+  current_offer_id: string | null;
+  current_billing_interval: string | null;
+  current_stripe_price_id: string | null;
+  target_plan_id: string | null;
+  target_offer_id: string | null;
+  target_billing_interval: string | null;
+  target_stripe_price_id: string | null;
+  target_recurring_price_cents: number | string | null;
+  target_monthly_credits_cents: number | string | null;
+  target_storage_limit_bytes: number | string | null;
+  target_max_concurrent_generations: number | string | null;
+  effective_at: string | null;
+  current_benefits_end_at: string | null;
+};
+
 type ProfileBillingStorageAddon = {
   id: string;
   storageAddonId: string;
@@ -110,6 +150,8 @@ const PROFILE_BILLING_PROFILE_COLUMNS =
 const CURRENT_SUBSCRIPTION_CONTRACT_SUMMARY_COLUMNS = "plan_id, monthly_credits_cents";
 const PROFILE_BILLING_CONTRACT_COLUMNS =
   "id, plan_id, offer_id, billing_interval, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, max_concurrent_generations, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at";
+const PENDING_SUBSCRIPTION_CHANGE_COLUMNS =
+  "change_kind, status, current_plan_id, current_offer_id, current_billing_interval, current_stripe_price_id, target_plan_id, target_offer_id, target_billing_interval, target_stripe_price_id, target_recurring_price_cents, target_monthly_credits_cents, target_storage_limit_bytes, target_max_concurrent_generations, effective_at, current_benefits_end_at";
 
 const toNumber = (value: number | string | null | undefined): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -150,6 +192,92 @@ const normalizeStorageAddonRow = (
   };
 };
 
+const normalizeBillingInterval = (value: string | null | undefined): "month" | "year" | null =>
+  value === "year" ? "year" : value === "month" ? "month" : null;
+
+const normalizePendingSubscriptionChangeRow = ({
+  row,
+  targetPlanLabel,
+}: {
+  row: PendingSubscriptionChangeRow | null;
+  targetPlanLabel: string | null;
+}): PendingSubscriptionChange | null => {
+  if (!row || row.status !== "active") return null;
+  if (
+    row.change_kind !== "scheduled_downgrade" &&
+    row.change_kind !== "scheduled_interval_change"
+  ) {
+    return null;
+  }
+  const targetPlanId = typeof row.target_plan_id === "string" ? row.target_plan_id : "";
+  const targetBillingInterval = normalizeBillingInterval(row.target_billing_interval);
+  const targetStripePriceId =
+    typeof row.target_stripe_price_id === "string" ? row.target_stripe_price_id : "";
+  const effectiveAt = typeof row.effective_at === "string" ? row.effective_at : "";
+  if (!targetPlanId || !targetBillingInterval || !targetStripePriceId || !effectiveAt) return null;
+
+  return {
+    kind: row.change_kind,
+    status: "active",
+    currentPlanId: typeof row.current_plan_id === "string" ? row.current_plan_id : null,
+    currentOfferId: typeof row.current_offer_id === "string" ? row.current_offer_id : null,
+    currentBillingInterval: normalizeBillingInterval(row.current_billing_interval),
+    currentStripePriceId:
+      typeof row.current_stripe_price_id === "string" ? row.current_stripe_price_id : null,
+    targetPlanId,
+    targetOfferId: typeof row.target_offer_id === "string" ? row.target_offer_id : null,
+    targetPlanLabel: targetPlanLabel ?? targetPlanId,
+    targetBillingInterval,
+    targetStripePriceId,
+    targetRecurringPriceCents: Math.max(0, toNumber(row.target_recurring_price_cents)),
+    targetMonthlyCreditsCents: Math.max(0, toNumber(row.target_monthly_credits_cents)),
+    targetStorageLimitBytes: Math.max(0, toNumber(row.target_storage_limit_bytes)),
+    targetMaxConcurrentGenerations: Math.max(0, toNumber(row.target_max_concurrent_generations)),
+    effectiveAt,
+    currentBenefitsEndAt:
+      typeof row.current_benefits_end_at === "string" ? row.current_benefits_end_at : null,
+  };
+};
+
+const loadPendingSubscriptionChange = async ({
+  req,
+  user,
+  supabaseAdmin,
+  plans,
+}: {
+  req: NextApiRequest;
+  user: AuthenticatedApiUser;
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  plans: Parameters<typeof buildPlanView>[0]["plans"];
+}): Promise<PendingSubscriptionChange | null> => {
+  const { data, error } = await supabaseAdmin
+    .from("billing_subscription_scheduled_changes")
+    .select(PENDING_SUBSCRIPTION_CHANGE_COLUMNS)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("effective_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isIgnorableScheduledChangeSchemaDrift(error)) return null;
+    await logProfileStateError({
+      req,
+      user,
+      routeLabel: "billing/account-summary.pending-subscription-change",
+      error,
+    });
+    return null;
+  }
+
+  const row = (data as PendingSubscriptionChangeRow | null) ?? null;
+  const targetPlanId = typeof row?.target_plan_id === "string" ? row.target_plan_id : null;
+  const targetPlanLabel = targetPlanId
+    ? buildPlanView({ planId: normalizePlanId(targetPlanId), plans }).displayName
+    : null;
+  return normalizePendingSubscriptionChangeRow({ row, targetPlanLabel });
+};
+
 const logProfileStateError = async ({
   req,
   user,
@@ -167,6 +295,15 @@ const logProfileStateError = async ({
     routeLabel,
     error,
   });
+};
+
+const isIgnorableScheduledChangeSchemaDrift = (
+  error: { message?: string; code?: string } | null
+): boolean => {
+  if (!error) return false;
+  if (error.code === "42P01" || error.code === "42703") return true;
+  const message = String(error.message ?? "");
+  return /does not exist|schema cache/i.test(message);
 };
 
 const createQuotaSummaryFromRow = (
@@ -224,12 +361,14 @@ const loadProfileBillingState = async ({
   supabaseAdmin,
   prefetchedBillingProfile,
   prefetchedBillingContract,
+  pendingSubscriptionChange,
 }: {
   req: NextApiRequest;
   user: AuthenticatedApiUser;
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
   prefetchedBillingProfile?: PrefetchedRow<ProfileBillingProfileRow>;
   prefetchedBillingContract?: PrefetchedRow<ProfileBillingContractRow>;
+  pendingSubscriptionChange: PendingSubscriptionChange | null;
 }): Promise<ProfileBillingState> => {
   const [
     billingProfileResponse,
@@ -330,6 +469,7 @@ const loadProfileBillingState = async ({
     billingContract,
     billingActivity,
     activeStorageAddons,
+    pendingSubscriptionChange,
   };
 };
 
@@ -423,6 +563,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
     }
+    const pendingSubscriptionChange = await loadPendingSubscriptionChange({
+      req,
+      user,
+      supabaseAdmin,
+      plans: billingCatalog.plans,
+    });
     const profileState = includeProfileState
       ? await loadProfileBillingState({
           req,
@@ -430,6 +576,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           supabaseAdmin,
           prefetchedBillingProfile: { data: profileRow as ProfileBillingProfileRow | null },
           prefetchedBillingContract: { data: contractRow as ProfileBillingContractRow | null },
+          pendingSubscriptionChange,
         })
       : null;
 
@@ -441,6 +588,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         className: planView.className,
         monthlyCreditsCents: contractMonthlyCreditsCents ?? planView.monthlyCreditsCents,
       },
+      pendingSubscriptionChange,
       quotaStatus: quotaSummary ? "available" : "unavailable",
       quotaSummary,
       profileState,

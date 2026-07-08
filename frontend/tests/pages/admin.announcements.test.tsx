@@ -1,6 +1,7 @@
 /**
  * Admin page tests for dashboard announcement management interactions.
  */
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -197,6 +198,11 @@ describe("Admin announcements tab", () => {
 
     await waitFor(() => expect(screen.getByDisplayValue("Studio maintenance")).toBeInTheDocument());
     expect(screen.getByDisplayValue("We are deploying updates at 2AM UTC.")).toBeInTheDocument();
+  });
+
+  it("keeps the admin live dashboard payload preview ready for multiline messages", () => {
+    const adminCss = readFileSync("styles/admin.module.css", "utf8");
+    expect(adminCss).toMatch(/\.announcementPreviewMessage\s*{[^}]*white-space:\s*pre-line;/);
   });
 
   it("publishes and clears announcement with deterministic feedback", async () => {

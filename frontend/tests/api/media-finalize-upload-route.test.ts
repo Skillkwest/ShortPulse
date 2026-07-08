@@ -228,6 +228,55 @@ describe("POST /api/media/finalize-upload", () => {
     });
   });
 
+  it("logs structured finalize diagnostics for upload service 500s", async () => {
+    const { MediaUploadServiceError } = await import("../../lib/server/mediaUploadService");
+    const serviceError = new MediaUploadServiceError(
+      500,
+      "Upload failed",
+      "storage move unavailable",
+      {
+        media_upload_stage: "prepared_upload_move",
+        media_upload_operation: "storage_move",
+        media_upload_destination_tab: "uploaded_videos",
+        media_upload_file_type: "video",
+      }
+    );
+    finalizePreparedMediaUploadForUserMock.mockRejectedValueOnce(serviceError);
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_videos",
+        sourceMimeType: "video/mp4",
+        sourceName: "clip.mp4",
+        sourceStoragePath: "user-1/upload-staging/uploaded_videos/clip.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        error: serviceError,
+        routeLabel: "media-finalize-upload",
+        metadata: expect.objectContaining({
+          media_upload_error_status: 500,
+          media_upload_error_message: "Upload failed",
+          media_upload_error_details: "storage move unavailable",
+          media_upload_stage: "prepared_upload_move",
+          media_upload_operation: "storage_move",
+          media_upload_destination_tab: "uploaded_videos",
+          media_upload_file_type: "video",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to finalize media upload",
+    });
+  });
+
   it("rate limits repeated upload finalization requests for the same authenticated user", async () => {
     const buildReq = () => ({
       method: "POST",

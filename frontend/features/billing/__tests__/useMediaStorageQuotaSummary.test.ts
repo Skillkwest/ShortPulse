@@ -39,6 +39,7 @@ describe("useMediaStorageQuotaSummary", () => {
         className: "plan-starter",
         monthlyCreditsCents: 0,
       },
+      pendingSubscriptionChange: null,
       quotaStatus: "available",
       quotaSummary: {
         usedBytes: 10,
@@ -93,6 +94,7 @@ describe("useMediaStorageQuotaSummary", () => {
         className: "plan-starter",
         monthlyCreditsCents: 0,
       },
+      pendingSubscriptionChange: null,
       quotaStatus: "unavailable",
       quotaSummary: null,
     });

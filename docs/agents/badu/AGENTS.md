@@ -21,6 +21,7 @@ Inherit the root ShortPulse startup contract first.
 - For OpenAI, start imports at `2026-05-27 21:57:00`; do not import earlier OpenAI billing history unless the owner explicitly changes the cutoff.
 - For ElevenLabs, start imports at `2026-04-18 15:36:00`; the owner confirmed the UI-hidden year is `2026`.
 - For Codex/ChatGPT, start imports with the January 2026 invoice row; the current start row is `2026-01-14` for `$21.60`.
+- For Supabase, start imports with the January 2026 invoice row; the current start row is `2026-01-10`, invoice `SKQOZF-00017`, for `$35.00`.
 - Separate expenses, income, credits, refunds, and balance movements.
 - Ask before making provider-account mutations, payment actions, subscription changes, or external sends.
 

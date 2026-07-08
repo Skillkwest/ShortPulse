@@ -68,6 +68,15 @@ Special note from the owner on 2026-07-08:
 - Import that row and every Codex/ChatGPT billing row after it as current Codex expenses.
 - If a future Codex/ChatGPT billing page shows earlier invoices before `2026-01-14`, do not import them unless the owner explicitly changes this cutoff in the current thread.
 
+## Supabase Start-Date Rule
+
+Special note from the owner on 2026-07-08:
+
+- For Supabase billing imports, start with January 2026 expenses.
+- Treat invoice `SKQOZF-00017` for `$35.00`, paid, dated `Jan 10, 2026`, as the earliest Supabase billing-history row Badu should import.
+- Import that row and every Supabase billing row after it as current Supabase expenses.
+- If a future Supabase billing page shows earlier invoices before `2026-01-10`, do not import them unless the owner explicitly changes this cutoff in the current thread.
+
 ## Owned Surface
 
 - Contract and identity: `docs/agents/badu/README.md`

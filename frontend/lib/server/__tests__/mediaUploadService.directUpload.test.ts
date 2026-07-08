@@ -488,6 +488,49 @@ describe("prepareMediaUploadForUser", () => {
     expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
   });
 
+  it("labels prepared upload move failures with finalize diagnostics", async () => {
+    downloadMock.mockResolvedValueOnce({
+      data: {
+        size: MINIMAL_MP3_BYTES.length,
+        type: "audio/mpeg",
+        arrayBuffer: async () =>
+          MINIMAL_MP3_BYTES.buffer.slice(
+            MINIMAL_MP3_BYTES.byteOffset,
+            MINIMAL_MP3_BYTES.byteOffset + MINIMAL_MP3_BYTES.byteLength
+          ),
+      },
+      error: null,
+    });
+    moveMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "storage move unavailable" },
+    });
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        destinationTab: "uploaded_images",
+        storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
+        filename: "track.mp3",
+        declaredMimeType: "audio/mpeg",
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      message: "Upload failed",
+      details: "storage move unavailable",
+      diagnostics: {
+        media_upload_stage: "prepared_upload_move",
+        media_upload_operation: "storage_move",
+        media_upload_destination_tab: "uploaded_images",
+        media_upload_file_type: "audio",
+        media_upload_mime_type: "audio/mpeg",
+      },
+    });
+
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
+  });
+
   it("removes a moved durable audio upload when media row persistence fails", async () => {
     downloadMock.mockResolvedValueOnce({
       data: {
@@ -526,6 +569,13 @@ describe("prepareMediaUploadForUser", () => {
       status: 500,
       message: "Failed to persist media record",
       details: "insert exploded",
+      diagnostics: {
+        media_upload_stage: "media_row_insert",
+        media_upload_operation: "database_insert",
+        media_upload_destination_tab: "uploaded_images",
+        media_upload_file_type: "audio",
+        media_upload_source: "upload",
+      },
     });
 
     expect(removeMock).toHaveBeenCalledWith([

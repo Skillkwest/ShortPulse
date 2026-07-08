@@ -4071,6 +4071,7 @@
   font-size: 14px;
   line-height: 1.42;
   color: var(--admin-text-muted);
+  white-space: pre-line;
 }
 
 .dashboardTutorialActions {

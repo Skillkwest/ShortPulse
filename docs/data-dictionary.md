@@ -1082,6 +1082,21 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` / `updated_at` (timestamptz)
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open contract row per user and per Stripe subscription.
 
+### billing_subscription_scheduled_changes
+
+- `id` (uuid, pk): Local projection row.
+- `user_id` (uuid, fk -> `auth.users(id)`): Owner.
+- `source_kind` (text): `stripe_subscription_schedule`.
+- `status` (text): `active`, `applied`, `canceled`, `released`, `completed`, or `aborted`.
+- `change_kind` (text): `scheduled_downgrade` or `scheduled_interval_change`.
+- Stripe references: `stripe_customer_id`, `stripe_subscription_id`, `stripe_schedule_id`.
+- Current plan snapshot: `current_plan_id`, `current_offer_id`, `current_billing_interval`, `current_stripe_price_id`.
+- Target plan snapshot: `target_plan_id`, `target_offer_id`, `target_billing_interval`, `target_stripe_price_id`, `target_recurring_price_cents`, `target_monthly_credits_cents`, `target_storage_limit_bytes`, `target_max_concurrent_generations`.
+- Timing: `effective_at`, `current_benefits_end_at`, `schedule_phase_start_at`, `schedule_phase_end_at`, plus lifecycle timestamps for applied/canceled/released/completed/aborted states.
+- `metadata` (jsonb): Limited webhook projection context.
+- Runtime role: customer-facing pending-change display and support context only. Current entitlements remain in `billing_subscription_contracts` until Stripe changes the active subscription item.
+- RLS: service-role-only read/write; customer sessions read this only through trusted app APIs such as `/api/billing/account-summary`.
+
 ### growth_attribution_identities
 
 - `anonymous_id` (text, pk): Browser-stable anonymous attribution key (`sp_growth_anonymous_id`).

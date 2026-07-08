@@ -1077,7 +1077,8 @@ describe("POST /api/billing/subscription/change", () => {
       method: "POST",
       body: {
         targetPlanId: "business",
-        checkoutCancelPath: "/pricing?intent=create-project&plan=business&interval=month",
+        checkoutCancelPath:
+          "/pricing?intent=create-project&plan=business&interval=month&checkout=cancel",
       },
       socket: { remoteAddress: "127.0.0.1" },
     };
@@ -1092,7 +1093,7 @@ describe("POST /api/billing/subscription/change", () => {
         success_url:
           "https://app.shortpulse.test/ai-studio?checkout=subscription_success&project=new&checkout_session_id={CHECKOUT_SESSION_ID}",
         cancel_url:
-          "https://app.shortpulse.test/pricing?intent=create-project&plan=business&interval=month",
+          "https://app.shortpulse.test/pricing?intent=create-project&plan=business&interval=month&checkout=cancel",
         "metadata[billing_interval]": "month",
         "subscription_data[metadata][billing_interval]": "month",
       })

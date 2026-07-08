@@ -84,6 +84,8 @@ const createSupabaseAdminForWebhook = (params?: {
   onStorageAddonInsert?: (payload: unknown) => void;
   onStorageAddonUpdate?: (payload: unknown) => void;
   onSubscriptionChangeIntentUpdate?: (payload: unknown) => void;
+  onScheduledChangeUpsert?: (payload: unknown) => void;
+  onScheduledChangeUpdate?: (payload: unknown) => void;
 }) => ({
   from: (table: string) => {
     if (table === "stripe_event_log") {
@@ -131,6 +133,23 @@ const createSupabaseAdminForWebhook = (params?: {
             }),
           }),
         }),
+      };
+    }
+
+    if (table === "billing_subscription_scheduled_changes") {
+      const updateChain: { eq: ReturnType<typeof vi.fn> } = {
+        eq: vi.fn(),
+      };
+      updateChain.eq.mockReturnValue(updateChain);
+      return {
+        upsert: async (payload: unknown) => {
+          params?.onScheduledChangeUpsert?.(payload);
+          return { data: null, error: null };
+        },
+        update: (payload: unknown) => {
+          params?.onScheduledChangeUpdate?.(payload);
+          return updateChain;
+        },
       };
     }
 
@@ -1730,6 +1749,142 @@ describe("POST /api/billing/stripe/webhook", () => {
         monthly_credits_cents: 3000,
         storage_limit_bytes: 107374182400,
         status: "active",
+      })
+    );
+  });
+
+  it("projects active Stripe subscription schedules as pending downgrades", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const scheduledChangeUpsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "media",
+        },
+        billingPlans: [
+          { id: "starter", sort_order: 1 },
+          { id: "media", sort_order: 2 },
+        ],
+        billingOffers: [
+          {
+            id: "media__monthly",
+            plan_id: "media",
+            billing_interval: "month",
+            stripe_price_id: "price_media",
+            recurring_price_cents: 4900,
+            monthly_credits_cents: 1200,
+            storage_limit_bytes: 26843545600,
+            max_concurrent_generations: 2,
+          },
+          {
+            id: "starter__monthly",
+            plan_id: "starter",
+            billing_interval: "month",
+            stripe_price_id: "price_starter",
+            recurring_price_cents: 1500,
+            monthly_credits_cents: 350,
+            storage_limit_bytes: 5368709120,
+            max_concurrent_generations: 1,
+          },
+        ],
+        billingContract: {
+          id: "contract_media_1",
+          plan_id: "media",
+          offer_id: "media__monthly",
+          billing_interval: "month",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_media",
+          recurring_price_cents: 4900,
+          monthly_credits_cents: 1200,
+          storage_limit_bytes: 26843545600,
+          max_concurrent_generations: 2,
+        },
+        onScheduledChangeUpsert: scheduledChangeUpsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_schedule_updated_1",
+        type: "subscription_schedule.updated",
+        data: {
+          object: {
+            id: "sub_sched_123",
+            customer: "cus_123",
+            subscription: "sub_123",
+            status: "active",
+            current_phase: {
+              start_date: 1783519163,
+              end_date: 1786201163,
+            },
+            phases: [
+              {
+                start_date: 1783519163,
+                end_date: 1786201163,
+                items: [{ price: "price_media", quantity: 1 }],
+              },
+              {
+                start_date: 1786201163,
+                end_date: 1786201164,
+                items: [{ price: "price_starter", quantity: 1 }],
+              },
+            ],
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(scheduledChangeUpsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user_123",
+        status: "active",
+        change_kind: "scheduled_downgrade",
+        stripe_customer_id: "cus_123",
+        stripe_subscription_id: "sub_123",
+        stripe_schedule_id: "sub_sched_123",
+        current_plan_id: "media",
+        current_stripe_price_id: "price_media",
+        target_plan_id: "starter",
+        target_offer_id: "starter__monthly",
+        target_stripe_price_id: "price_starter",
+        target_monthly_credits_cents: 350,
+        effective_at: "2026-08-08T14:59:23.000Z",
+        current_benefits_end_at: "2026-08-08T14:59:23.000Z",
+      })
+    );
+  });
+
+  it("clears pending schedule projections when Stripe releases a subscription schedule", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const scheduledChangeUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        onScheduledChangeUpdate: scheduledChangeUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_schedule_released_1",
+        type: "subscription_schedule.released",
+        data: {
+          object: {
+            id: "sub_sched_123",
+            status: "released",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(scheduledChangeUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "released",
+        released_at: expect.any(String),
       })
     );
   });

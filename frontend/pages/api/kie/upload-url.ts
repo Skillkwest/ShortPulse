@@ -105,6 +105,17 @@ type KieUploadDiagnosticsMetadata = {
   kie_upstream_has_mime_type: boolean;
 };
 
+type KieUploadRequestMetadata = {
+  kie_upload_request_format: "json" | "binary";
+  kie_upload_request_upload_path: string | null;
+  kie_upload_request_media_kind: KieUploadMediaKind | null;
+  kie_upload_request_admission_profile: KieUploadAdmissionProfile | null;
+  kie_upload_request_has_file_url: boolean;
+  kie_upload_request_has_storage_path: boolean;
+  kie_upload_request_has_file_name: boolean;
+  kie_upload_request_content_type: string | null;
+};
+
 class KieUploadRequestError extends Error {
   readonly statusCode: number;
 
@@ -857,10 +868,22 @@ export default async function handler(
     return;
   }
 
+  let requestMetadata: KieUploadRequestMetadata = {
+    kie_upload_request_format: isJsonRequest(req) ? "json" : "binary",
+    kie_upload_request_upload_path: null,
+    kie_upload_request_media_kind: null,
+    kie_upload_request_admission_profile: null,
+    kie_upload_request_has_file_url: false,
+    kie_upload_request_has_storage_path: false,
+    kie_upload_request_has_file_name: false,
+    kie_upload_request_content_type: asNonEmptyString(req.headers["content-type"]),
+  };
+
   try {
     const apiKey = readProviderApiKey("kie");
     const bodyBuffer = await readBinaryProviderRequestBody(req, MAX_RAW_UPLOAD_BYTES);
-    const { result, primaryResult, fallbackResult } = isJsonRequest(req)
+    const requestIsJson = isJsonRequest(req);
+    const { result, primaryResult, fallbackResult } = requestIsJson
       ? await (async () => {
           const payload = JSON.parse(bodyBuffer.toString("utf8")) as Record<string, unknown>;
           const fileUrl = asNonEmptyString(payload.fileUrl);
@@ -869,6 +892,16 @@ export default async function handler(
           const fileName = asNonEmptyString(payload.fileName);
           const mediaKind = resolveMediaKind(payload.mediaKind);
           const admissionProfile = resolveAdmissionProfile(payload.admissionProfile);
+          requestMetadata = {
+            kie_upload_request_format: "json",
+            kie_upload_request_upload_path: uploadPath,
+            kie_upload_request_media_kind: mediaKind,
+            kie_upload_request_admission_profile: admissionProfile,
+            kie_upload_request_has_file_url: Boolean(fileUrl),
+            kie_upload_request_has_storage_path: Boolean(storagePath),
+            kie_upload_request_has_file_name: Boolean(fileName),
+            kie_upload_request_content_type: asNonEmptyString(req.headers["content-type"]),
+          };
           if (!uploadPath) {
             throw new KieUploadRequestError("uploadPath is required.");
           }
@@ -915,6 +948,16 @@ export default async function handler(
           const admissionProfile = resolveAdmissionProfile(
             req.headers["x-shortpulse-admission-profile"]
           );
+          requestMetadata = {
+            kie_upload_request_format: "binary",
+            kie_upload_request_upload_path: uploadPath,
+            kie_upload_request_media_kind: null,
+            kie_upload_request_admission_profile: admissionProfile,
+            kie_upload_request_has_file_url: false,
+            kie_upload_request_has_storage_path: false,
+            kie_upload_request_has_file_name: Boolean(fileName),
+            kie_upload_request_content_type: mimeType,
+          };
           if (!uploadPath) {
             throw new KieUploadRequestError("uploadPath is required for binary uploads.");
           }
@@ -951,6 +994,7 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "upstream_non_ok",
+          ...requestMetadata,
           ...buildKieUploadFallbackMetadata({
             primaryResult,
             fallbackResult,
@@ -979,6 +1023,7 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "upstream_provider_failure",
+          ...requestMetadata,
           ...buildKieUploadFallbackMetadata({
             primaryResult,
             fallbackResult,
@@ -1004,6 +1049,7 @@ export default async function handler(
         user,
         metadata: {
           kie_upload_failure: "missing_uploaded_url",
+          ...requestMetadata,
           ...buildKieUploadFallbackMetadata({
             primaryResult,
             fallbackResult,
@@ -1054,6 +1100,7 @@ export default async function handler(
       error,
       routeLabel: "kie-upload-url",
       user,
+      metadata: requestMetadata,
     });
     return res.status(500).json({
       error: "Kie upload failed",

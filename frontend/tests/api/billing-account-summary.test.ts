@@ -25,12 +25,12 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../features/billing/catalog", () => ({
   normalizePlanId: (value: string | null | undefined) => value ?? "free",
-  buildPlanView: () => ({
-    id: "business",
-    displayName: "Business",
-    className: "plan-business",
-    monthlyCreditsCents: 60000,
-    storageLimitBytes: 500_000_000,
+  buildPlanView: ({ planId }: { planId: string }) => ({
+    id: planId === "starter" ? "starter" : "business",
+    displayName: planId === "starter" ? "Starter" : "Business",
+    className: planId === "starter" ? "plan-starter" : "plan-business",
+    monthlyCreditsCents: planId === "starter" ? 350 : 60000,
+    storageLimitBytes: planId === "starter" ? 5_000_000_000 : 500_000_000,
   }),
 }));
 
@@ -83,7 +83,9 @@ const createQueryBuilder = <T>(
   return query;
 };
 
-const createSupabaseAdminMock = () => {
+const createSupabaseAdminMock = (params?: {
+  pendingSubscriptionChange?: Record<string, unknown> | null;
+}) => {
   const queries: Record<string, QueryBuilder[]> = {};
   const from = vi.fn((table: string) => {
     const query =
@@ -150,7 +152,9 @@ const createSupabaseAdminMock = () => {
                   ]),
                   "in"
                 )
-              : createQueryBuilder(ok(null));
+              : table === "billing_subscription_scheduled_changes"
+                ? createQueryBuilder(ok(params?.pendingSubscriptionChange ?? null))
+                : createQueryBuilder(ok(null));
     queries[table] = [...(queries[table] ?? []), query];
     return query;
   });
@@ -184,7 +188,7 @@ describe("/api/billing/account-summary", () => {
     await handler(createRequest({ includeProfileState: "1" }), res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(supabase.from).toHaveBeenCalledTimes(4);
+    expect(supabase.from).toHaveBeenCalledTimes(5);
     expect(supabase.from).toHaveBeenCalledWith("billing_subscription_contracts");
     expect(supabase.from).toHaveBeenCalledWith("billing_profiles");
     expect(supabase.queries.billing_subscription_contracts).toHaveLength(1);
@@ -224,7 +228,7 @@ describe("/api/billing/account-summary", () => {
     await handler(createRequest({}), res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(supabase.from).toHaveBeenCalledTimes(2);
+    expect(supabase.from).toHaveBeenCalledTimes(3);
     expect(supabase.queries.billing_subscription_contracts).toHaveLength(1);
     expect(supabase.queries.billing_profiles).toHaveLength(1);
     expect(supabase.queries.billing_subscription_contracts[0]?.select).toHaveBeenCalledWith(
@@ -233,8 +237,55 @@ describe("/api/billing/account-summary", () => {
     expect(supabase.queries.billing_profiles[0]?.select).toHaveBeenCalledWith("plan_id");
     expect(res.body).toMatchObject({
       profileState: null,
+      pendingSubscriptionChange: null,
       resolvedPlan: {
         monthlyCreditsCents: 45000,
+      },
+    });
+  });
+
+  it("returns pending scheduled subscription changes without changing the active plan", async () => {
+    const supabase = createSupabaseAdminMock({
+      pendingSubscriptionChange: {
+        change_kind: "scheduled_downgrade",
+        status: "active",
+        current_plan_id: "media",
+        current_offer_id: "media__monthly",
+        current_billing_interval: "month",
+        current_stripe_price_id: "price_media",
+        target_plan_id: "starter",
+        target_offer_id: "starter__monthly",
+        target_billing_interval: "month",
+        target_stripe_price_id: "price_starter",
+        target_recurring_price_cents: 1500,
+        target_monthly_credits_cents: 350,
+        target_storage_limit_bytes: 5_000_000_000,
+        target_max_concurrent_generations: 1,
+        effective_at: "2026-08-08T14:59:23.000Z",
+        current_benefits_end_at: "2026-08-08T14:59:23.000Z",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+    const res = createMockResponse();
+
+    await handler(createRequest({ includeProfileState: "1" }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.body).toMatchObject({
+      resolvedPlan: {
+        id: "business",
+      },
+      pendingSubscriptionChange: {
+        kind: "scheduled_downgrade",
+        targetPlanId: "starter",
+        targetPlanLabel: "Starter",
+        effectiveAt: "2026-08-08T14:59:23.000Z",
+      },
+      profileState: {
+        pendingSubscriptionChange: {
+          targetPlanId: "starter",
+          targetPlanLabel: "Starter",
+        },
       },
     });
   });

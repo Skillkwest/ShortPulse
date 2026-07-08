@@ -5,6 +5,7 @@ import {
   type BillingInterval,
   type BillingPlanRecord,
 } from "../../../billing/catalog";
+import type { PendingSubscriptionChange } from "../../../billing/accountSummary";
 import { ProfileSubscriptionSection } from "../ProfileSubscriptionSection";
 
 const GIB = 1024 * 1024 * 1024;
@@ -87,6 +88,7 @@ const renderSubscriptionSection = ({
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes = activePlanId === "free" ? 0 : GIB,
   onRequestPlanChange = vi.fn<(planId: string, billingInterval: BillingInterval) => void>(),
+  pendingSubscriptionChange = null,
   planChangeLoadingPlanId = null,
   showLegacyPlanChangeNotice = false,
 }: {
@@ -98,6 +100,7 @@ const renderSubscriptionSection = ({
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes?: number;
   onRequestPlanChange?: (planId: string, billingInterval: BillingInterval) => void;
+  pendingSubscriptionChange?: PendingSubscriptionChange | null;
   planChangeLoadingPlanId?: string | null;
   showLegacyPlanChangeNotice?: boolean;
 }) => {
@@ -129,6 +132,7 @@ const renderSubscriptionSection = ({
       subscriptionTransactions={[]}
       subscriptionTransactionsLoading={false}
       subscriptionTransactionsError={null}
+      pendingSubscriptionChange={pendingSubscriptionChange}
       onRequestPlanChange={onRequestPlanChange}
       onRequestCancel={vi.fn()}
     />
@@ -187,6 +191,40 @@ describe("ProfileSubscriptionSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm upgrade" }));
 
     expect(onRequestPlanChange).toHaveBeenCalledWith("media", "month");
+  });
+
+  it("shows pending downgrade messaging without changing the current plan card", () => {
+    renderSubscriptionSection({
+      activePlanId: "media",
+      currentSubscriptionBillingInterval: "month",
+      currentSubscriptionCreditsCents: 1200,
+      currentSubscriptionPriceCents: 4900,
+      currentSubscriptionStorageLimitBytes: 25 * GIB,
+      currentSubscriptionMaxConcurrentGenerations: 2,
+      pendingSubscriptionChange: {
+        kind: "scheduled_downgrade",
+        status: "active",
+        currentPlanId: "media",
+        currentOfferId: "media__month",
+        currentBillingInterval: "month",
+        currentStripePriceId: "price_media_month",
+        targetPlanId: "starter",
+        targetOfferId: "starter__month",
+        targetPlanLabel: "Starter",
+        targetBillingInterval: "month",
+        targetStripePriceId: "price_starter_month",
+        targetRecurringPriceCents: 1500,
+        targetMonthlyCreditsCents: 350,
+        targetStorageLimitBytes: GIB,
+        targetMaxConcurrentGenerations: 1,
+        effectiveAt: "2026-08-08T14:59:23.000Z",
+        currentBenefitsEndAt: "2026-08-08T14:59:23.000Z",
+      },
+    });
+
+    expect(screen.getByText(/Starter is scheduled for August 8, 2026/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Scheduled for August 8, 2026/ })).toBeDisabled();
   });
 
   it("labels storage-carryover upgrade loading as an in-app plan update", () => {

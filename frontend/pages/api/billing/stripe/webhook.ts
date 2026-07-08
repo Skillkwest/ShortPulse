@@ -47,6 +47,23 @@ type ResolvedOffer = {
   maxConcurrentGenerations: number;
 };
 
+type ScheduledSubscriptionChangeProjection = {
+  userId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  stripeScheduleId: string;
+  changeKind: "scheduled_downgrade" | "scheduled_interval_change";
+  currentPlanId: string | null;
+  currentBillingInterval: "month" | "year" | null;
+  currentStripePriceId: string | null;
+  currentOffer: ResolvedOffer | null;
+  targetOffer: ResolvedOffer;
+  effectiveAt: string;
+  currentBenefitsEndAt: string | null;
+  schedulePhaseStartAt: string | null;
+  schedulePhaseEndAt: string | null;
+};
+
 type InvoicePlanLine = {
   line: JsonObject;
   amountCents: number;
@@ -367,6 +384,21 @@ const resolveOfferFromOfferId = async (
   };
 };
 
+const resolvePlanSortOrder = async (planId: string | null | undefined): Promise<number | null> => {
+  if (!planId) return null;
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("billing_plans")
+    .select("sort_order")
+    .eq("id", planId)
+    .maybeSingle();
+  if (error && !isIgnorableSchemaDriftError(error)) {
+    throw new Error(error.message || "Failed to load billing plan rank.");
+  }
+  const sortOrder = Number(data?.sort_order ?? NaN);
+  return Number.isFinite(sortOrder) ? sortOrder : null;
+};
+
 const resolveStorageAddonOfferFromPriceId = async (
   stripePriceId: string | undefined,
   fallback?: { recurringPriceCents?: number }
@@ -432,6 +464,121 @@ const normalizeBoolean = (value: unknown): boolean =>
 
 const isPaidPlanId = (value: string | null | undefined): boolean =>
   typeof value === "string" && value.trim().length > 0 && value !== "free";
+
+const resolveStripePriceId = (value: unknown): string | undefined => {
+  if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  const price = toRecord(value);
+  const id = normalizeString(price.id);
+  return id ?? undefined;
+};
+
+const resolveScheduleSubscriptionId = (schedule: JsonObject): string | null => {
+  const subscription = schedule.subscription;
+  if (typeof subscription === "string") return subscription;
+  return normalizeString(toRecord(subscription).id);
+};
+
+const resolveScheduleCustomerId = (schedule: JsonObject): string | null => {
+  const customer = schedule.customer;
+  if (typeof customer === "string") return customer;
+  return normalizeString(toRecord(customer).id);
+};
+
+const readSchedulePhases = (schedule: JsonObject): JsonObject[] => {
+  const phases = Array.isArray(schedule.phases) ? schedule.phases : [];
+  return phases.map(toRecord).filter((phase) => Object.keys(phase).length > 0);
+};
+
+const readSchedulePhaseItems = (phase: JsonObject): JsonObject[] => {
+  const directItems: unknown[] = Array.isArray(phase.items) ? phase.items : [];
+  const phaseItemsRecord = toRecord(phase.items);
+  const wrappedItems: unknown[] = Array.isArray(phaseItemsRecord.data) ? phaseItemsRecord.data : [];
+  return [...directItems, ...wrappedItems]
+    .map(toRecord)
+    .filter((item) => Object.keys(item).length > 0);
+};
+
+const resolveSchedulePhasePlanOffer = async (phase: JsonObject): Promise<ResolvedOffer | null> => {
+  const items = readSchedulePhaseItems(phase);
+  for (const item of items) {
+    const price = toRecord(item.price);
+    const priceId = resolveStripePriceId(item.price) ?? resolveStripePriceId(price);
+    if (!priceId) continue;
+    const fallbackRecurringPriceCents = Number(price.unit_amount ?? 0);
+    const priceMetadata = toRecord(price.metadata);
+    const fallbackMonthlyCreditsCents = Number(priceMetadata.monthly_credits_cents ?? 0);
+    const offer = await resolveOfferFromPriceId(priceId, {
+      recurringPriceCents: Number.isFinite(fallbackRecurringPriceCents)
+        ? fallbackRecurringPriceCents
+        : 0,
+      monthlyCreditsCents: Number.isFinite(fallbackMonthlyCreditsCents)
+        ? fallbackMonthlyCreditsCents
+        : 0,
+    });
+    if (offer?.planId) return offer;
+  }
+  return null;
+};
+
+const resolveCurrentSchedulePhase = (
+  schedule: JsonObject,
+  phases: JsonObject[]
+): JsonObject | null => {
+  const currentPhase = toRecord(schedule.current_phase);
+  const currentStart = typeof currentPhase.start_date === "number" ? currentPhase.start_date : null;
+  const currentEnd = typeof currentPhase.end_date === "number" ? currentPhase.end_date : null;
+  if (currentStart != null || currentEnd != null) {
+    const matched = phases.find((phase) => {
+      const start = typeof phase.start_date === "number" ? phase.start_date : null;
+      const end = typeof phase.end_date === "number" ? phase.end_date : null;
+      return (
+        (currentStart == null || start === currentStart) &&
+        (currentEnd == null || end === currentEnd)
+      );
+    });
+    if (matched) return matched;
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return (
+    phases.find((phase) => {
+      const start = typeof phase.start_date === "number" ? phase.start_date : null;
+      const end = typeof phase.end_date === "number" ? phase.end_date : null;
+      return (start == null || start <= nowSeconds) && (end == null || end > nowSeconds);
+    }) ?? null
+  );
+};
+
+const resolveNextSchedulePhase = (
+  phases: JsonObject[],
+  currentPhase: JsonObject | null
+): JsonObject | null => {
+  const sortedPhases = [...phases].sort((left, right) => {
+    const leftStart =
+      typeof left.start_date === "number" ? left.start_date : Number.MAX_SAFE_INTEGER;
+    const rightStart =
+      typeof right.start_date === "number" ? right.start_date : Number.MAX_SAFE_INTEGER;
+    return leftStart - rightStart;
+  });
+  const currentEnd =
+    currentPhase && typeof currentPhase.end_date === "number" ? currentPhase.end_date : null;
+  if (currentEnd != null) {
+    return (
+      sortedPhases.find((phase) => {
+        const start = typeof phase.start_date === "number" ? phase.start_date : null;
+        return start != null && start >= currentEnd;
+      }) ?? null
+    );
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return (
+    sortedPhases.find((phase) => {
+      const start = typeof phase.start_date === "number" ? phase.start_date : null;
+      return start != null && start > nowSeconds;
+    }) ?? null
+  );
+};
 
 const buildCheckoutGrantSourceRef = (session: JsonObject, fallbackEventId: string): string => {
   const sessionId = normalizeString(session.id);
@@ -938,6 +1085,206 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
   }
 
   return null;
+};
+
+const resolveScheduledSubscriptionChangeProjection = async (
+  schedule: JsonObject
+): Promise<ScheduledSubscriptionChangeProjection | null> => {
+  const stripeScheduleId = normalizeString(schedule.id);
+  const stripeCustomerId = resolveScheduleCustomerId(schedule);
+  const stripeSubscriptionId = resolveScheduleSubscriptionId(schedule);
+  if (!stripeScheduleId || !stripeCustomerId || !stripeSubscriptionId) return null;
+
+  const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
+  if (!profile?.user_id) return null;
+
+  const phases = readSchedulePhases(schedule);
+  const currentPhase = resolveCurrentSchedulePhase(schedule, phases);
+  const nextPhase = resolveNextSchedulePhase(phases, currentPhase);
+  if (!nextPhase) return null;
+
+  const targetOffer = await resolveSchedulePhasePlanOffer(nextPhase);
+  if (!targetOffer?.planId || !targetOffer.stripePriceId) return null;
+
+  const currentContract = await resolveCurrentContractForUser(profile.user_id);
+  const currentOffer =
+    (currentPhase ? await resolveSchedulePhasePlanOffer(currentPhase) : null) ??
+    (currentContract?.offer_id
+      ? await resolveOfferFromOfferId(currentContract.offer_id, currentContract.plan_id)
+      : currentContract?.stripe_price_id
+        ? await resolveOfferFromPriceId(currentContract.stripe_price_id)
+        : null);
+
+  const currentPlanId = currentOffer?.planId ?? currentContract?.plan_id ?? profile.plan_id ?? null;
+  const currentBillingInterval =
+    currentOffer?.billingInterval ??
+    (currentContract?.billing_interval === BILLING_INTERVAL_YEAR
+      ? BILLING_INTERVAL_YEAR
+      : BILLING_INTERVAL_MONTH);
+  const currentRank = await resolvePlanSortOrder(currentPlanId);
+  const targetRank = await resolvePlanSortOrder(targetOffer.planId);
+  const changeKind =
+    currentPlanId &&
+    currentPlanId !== targetOffer.planId &&
+    currentRank != null &&
+    targetRank != null &&
+    targetRank < currentRank
+      ? "scheduled_downgrade"
+      : currentPlanId === targetOffer.planId &&
+          currentBillingInterval !== targetOffer.billingInterval
+        ? "scheduled_interval_change"
+        : null;
+  if (!changeKind) return null;
+
+  const effectiveAt = asIsoDate(
+    typeof nextPhase.start_date === "number" ? nextPhase.start_date : null
+  );
+  if (!effectiveAt) return null;
+
+  return {
+    userId: profile.user_id,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    stripeScheduleId,
+    changeKind,
+    currentPlanId,
+    currentBillingInterval,
+    currentStripePriceId: currentOffer?.stripePriceId ?? currentContract?.stripe_price_id ?? null,
+    currentOffer,
+    targetOffer,
+    effectiveAt,
+    currentBenefitsEndAt:
+      asIsoDate(typeof currentPhase?.end_date === "number" ? currentPhase.end_date : null) ??
+      effectiveAt,
+    schedulePhaseStartAt: effectiveAt,
+    schedulePhaseEndAt: asIsoDate(
+      typeof nextPhase.end_date === "number" ? nextPhase.end_date : null
+    ),
+  };
+};
+
+const upsertScheduledSubscriptionChange = async (
+  projection: ScheduledSubscriptionChangeProjection
+) => {
+  const payload = {
+    user_id: projection.userId,
+    source_kind: "stripe_subscription_schedule",
+    status: "active",
+    change_kind: projection.changeKind,
+    stripe_customer_id: projection.stripeCustomerId,
+    stripe_subscription_id: projection.stripeSubscriptionId,
+    stripe_schedule_id: projection.stripeScheduleId,
+    current_plan_id: projection.currentPlanId,
+    current_offer_id: projection.currentOffer?.offerId ?? null,
+    current_billing_interval: projection.currentBillingInterval,
+    current_stripe_price_id: projection.currentStripePriceId,
+    target_plan_id: projection.targetOffer.planId,
+    target_offer_id: projection.targetOffer.offerId,
+    target_billing_interval: projection.targetOffer.billingInterval,
+    target_stripe_price_id: projection.targetOffer.stripePriceId,
+    target_recurring_price_cents: projection.targetOffer.recurringPriceCents,
+    target_monthly_credits_cents: projection.targetOffer.monthlyCreditsCents,
+    target_storage_limit_bytes: projection.targetOffer.storageLimitBytes,
+    target_max_concurrent_generations: projection.targetOffer.maxConcurrentGenerations,
+    effective_at: projection.effectiveAt,
+    current_benefits_end_at: projection.currentBenefitsEndAt,
+    schedule_phase_start_at: projection.schedulePhaseStartAt,
+    schedule_phase_end_at: projection.schedulePhaseEndAt,
+    applied_at: null,
+    canceled_at: null,
+    released_at: null,
+    completed_at: null,
+    aborted_at: null,
+    metadata: {
+      stripe_schedule_id: projection.stripeScheduleId,
+      projected_from: "stripe_subscription_schedule",
+    },
+  };
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_scheduled_changes")
+    .upsert(payload, { onConflict: "stripe_schedule_id" });
+  if (error) {
+    throw new Error(error.message || "Failed to upsert scheduled subscription change.");
+  }
+};
+
+const markScheduledSubscriptionChangeStatus = async ({
+  scheduleId,
+  status,
+}: {
+  scheduleId: string | null;
+  status: "canceled" | "released" | "completed" | "aborted";
+}) => {
+  if (!scheduleId) return;
+  const timestampColumn =
+    status === "canceled"
+      ? "canceled_at"
+      : status === "released"
+        ? "released_at"
+        : status === "completed"
+          ? "completed_at"
+          : "aborted_at";
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_scheduled_changes")
+    .update({
+      status,
+      [timestampColumn]: new Date().toISOString(),
+    })
+    .eq("stripe_schedule_id", scheduleId);
+  if (error) {
+    throw new Error(error.message || "Failed to update scheduled subscription change status.");
+  }
+};
+
+const markAppliedScheduledSubscriptionChange = async ({
+  stripeSubscriptionId,
+  targetPlanId,
+}: {
+  stripeSubscriptionId: string | null;
+  targetPlanId: string | null;
+}) => {
+  if (!stripeSubscriptionId || !targetPlanId) return;
+  const { error } = await getSupabaseAdmin()
+    .from("billing_subscription_scheduled_changes")
+    .update({
+      status: "applied",
+      applied_at: new Date().toISOString(),
+    })
+    .eq("stripe_subscription_id", stripeSubscriptionId)
+    .eq("target_plan_id", targetPlanId)
+    .eq("status", "active");
+  if (error && !isIgnorableSchemaDriftError(error)) {
+    throw new Error(error.message || "Failed to mark scheduled subscription change applied.");
+  }
+};
+
+const processSubscriptionScheduleUpdate = async (
+  schedule: JsonObject,
+  eventType: string
+): Promise<void> => {
+  const scheduleId = normalizeString(schedule.id);
+  const scheduleStatus = normalizeString(schedule.status);
+  if (eventType === "subscription_schedule.canceled" || scheduleStatus === "canceled") {
+    await markScheduledSubscriptionChangeStatus({ scheduleId, status: "canceled" });
+    return;
+  }
+  if (eventType === "subscription_schedule.released" || scheduleStatus === "released") {
+    await markScheduledSubscriptionChangeStatus({ scheduleId, status: "released" });
+    return;
+  }
+  if (eventType === "subscription_schedule.completed" || scheduleStatus === "completed") {
+    await markScheduledSubscriptionChangeStatus({ scheduleId, status: "completed" });
+    return;
+  }
+  if (eventType === "subscription_schedule.aborted" || scheduleStatus === "aborted") {
+    await markScheduledSubscriptionChangeStatus({ scheduleId, status: "aborted" });
+    return;
+  }
+
+  const projection = await resolveScheduledSubscriptionChangeProjection(schedule);
+  if (projection) {
+    await upsertScheduledSubscriptionChange(projection);
+  }
 };
 
 const resolveBillingContextFromInvoice = async (
@@ -1526,6 +1873,11 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     cancelAtPeriodEnd,
     resolvedAddons,
   });
+
+  await markAppliedScheduledSubscriptionChange({
+    stripeSubscriptionId: normalizeString(subscription.id),
+    targetPlanId: resolvedPlanId,
+  });
 };
 
 const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: string) => {
@@ -1689,6 +2041,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         event.type === "customer.subscription.deleted"
       ) {
         await processSubscriptionUpdate(object);
+      }
+      if (
+        event.type === "subscription_schedule.created" ||
+        event.type === "subscription_schedule.updated" ||
+        event.type === "subscription_schedule.released" ||
+        event.type === "subscription_schedule.completed" ||
+        event.type === "subscription_schedule.canceled" ||
+        event.type === "subscription_schedule.aborted"
+      ) {
+        await processSubscriptionScheduleUpdate(object, event.type);
       }
       if (event.type === "invoice.payment_succeeded") {
         await processInvoicePaymentSucceeded(object, event.id);

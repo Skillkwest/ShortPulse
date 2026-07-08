@@ -75,6 +75,16 @@ type CreateRuntimeRootSharedProps = {
 
 const WORKFLOW_PLAN_ACCESS_CTA_ARIA_LABEL = "View subscription plans";
 
+const formatAiStudioPendingSubscriptionDate = (value: string): string => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+};
+
 export const resolveWorkflowPlanAccessCta = (
   access: AiStudioWorkflowPlanAccess,
   options: { fromPath?: unknown } = {}
@@ -264,8 +274,28 @@ const AiStudioPageRuntimeBody = ({
   pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
-  const { resolvedPlan, status: resolvedPlanStatus } = useResolvedAccountPlan();
+  const {
+    pendingSubscriptionChange,
+    resolvedPlan,
+    status: resolvedPlanStatus,
+  } = useResolvedAccountPlan();
   const studioProfileReturnPath = base.router.asPath;
+  const [dismissedBillingPlanNoticeKey, setDismissedBillingPlanNoticeKey] = useState<string | null>(
+    null
+  );
+  const billingPlanNoticeKey = pendingSubscriptionChange
+    ? `${pendingSubscriptionChange.targetPlanId}:${pendingSubscriptionChange.effectiveAt}`
+    : null;
+  const billingPlanNoticeMessage =
+    pendingSubscriptionChange && billingPlanNoticeKey !== dismissedBillingPlanNoticeKey
+      ? `${pendingSubscriptionChange.targetPlanLabel} is scheduled for ${formatAiStudioPendingSubscriptionDate(
+          pendingSubscriptionChange.effectiveAt
+        )}. Your current plan stays active until then.`
+      : null;
+  const billingPlanNoticeHref = React.useMemo(
+    () => buildProfileSectionHref({ section: "subscription", fromPath: studioProfileReturnPath }),
+    [studioProfileReturnPath]
+  );
   const generationAccessCta = React.useMemo(
     () =>
       resolveGenerationAccessCta({
@@ -1177,6 +1207,9 @@ const AiStudioPageRuntimeBody = ({
     mediaPlanNoticeMessage: isMediaPlanNoticeVisible ? AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE : null,
     mediaPlanNoticeCta: generationAccessCta,
     onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
+    billingPlanNoticeMessage,
+    billingPlanNoticeHref,
+    onDismissBillingPlanNotice: () => setDismissedBillingPlanNoticeKey(billingPlanNoticeKey),
     workflowPlanNoticeMessage: isWorkflowPlanNoticeVisible
       ? AI_STUDIO_WORKFLOW_PLAN_REQUIRED_MESSAGE
       : null,

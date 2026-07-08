@@ -14,6 +14,9 @@ type UseAiStudioPageContentRuntimeParams = {
   mediaPlanNoticeMessage: AiStudioPageContentProps["mediaPlanNoticeMessage"];
   mediaPlanNoticeCta: AiStudioPageContentProps["mediaPlanNoticeCta"];
   onMediaPlanAccessAttempt: AiStudioPageContentProps["onMediaPlanAccessAttempt"];
+  billingPlanNoticeMessage: AiStudioPageContentProps["billingPlanNoticeMessage"];
+  billingPlanNoticeHref: AiStudioPageContentProps["billingPlanNoticeHref"];
+  onDismissBillingPlanNotice: AiStudioPageContentProps["onDismissBillingPlanNotice"];
   workflowPlanNoticeMessage: AiStudioPageContentProps["workflowPlanNoticeMessage"];
   workflowPlanAccessCta: AiStudioPageContentProps["workflowPlanAccessCta"];
   onWorkflowPlanAccessAttempt: AiStudioPageContentProps["onWorkflowPlanAccessAttempt"];
@@ -105,6 +108,9 @@ export const useAiStudioPageContentRuntime = ({
   mediaPlanNoticeMessage,
   mediaPlanNoticeCta,
   onMediaPlanAccessAttempt,
+  billingPlanNoticeMessage,
+  billingPlanNoticeHref,
+  onDismissBillingPlanNotice,
   workflowPlanNoticeMessage,
   workflowPlanAccessCta,
   onWorkflowPlanAccessAttempt,
@@ -193,6 +199,9 @@ export const useAiStudioPageContentRuntime = ({
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
       onMediaPlanAccessAttempt,
+      billingPlanNoticeMessage,
+      billingPlanNoticeHref,
+      onDismissBillingPlanNotice,
       workflowPlanNoticeMessage,
       workflowPlanAccessCta,
       onWorkflowPlanAccessAttempt,
@@ -280,6 +289,9 @@ export const useAiStudioPageContentRuntime = ({
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
       onMediaPlanAccessAttempt,
+      billingPlanNoticeMessage,
+      billingPlanNoticeHref,
+      onDismissBillingPlanNotice,
       workflowPlanNoticeMessage,
       workflowPlanAccessCta,
       onWorkflowPlanAccessAttempt,

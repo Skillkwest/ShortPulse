@@ -57,6 +57,63 @@ describe("buildStudioAgentOpenAiMessages", () => {
     expect(messages[1]?.content).toContain("workflow_stage_hints:");
     expect(messages[1]?.content).toContain("2. Hook");
     expect(messages[1]?.content).toContain('"currentStepLabel":"Hook"');
+    expect(messages[1]?.content).toContain("readable text, such as a screenshot or document");
+  });
+
+  it("frames attached screenshots as user source material instead of image-description instructions", () => {
+    const messages = buildStudioAgentOpenAiMessages({
+      messages: [{ role: "user", content: "this text is what i want" }],
+      context: {
+        mode: "text",
+        media: [{ id: "shot-1", kind: "image", url: "https://example.test/screenshot.png" }],
+        pulse: {
+          presetId: "story_builder",
+          label: "DFY Story Builder",
+          instructions: "Accept text story seeds and optional references.",
+          pulseKind: "guided_workflow",
+          source: "builtin",
+          workflowStageHints: ["Story Seed", "Plot Seed", "Runtime"],
+          workflowSession: {
+            presetId: "story_builder",
+            status: "awaiting_input",
+            currentStepIndex: 1,
+            currentStepLabel: "Story Seed",
+            currentStepPrompt: "Step 1 — Story seed.",
+            collectedInputs: [],
+            lastArtifact: null,
+          },
+        },
+      },
+      systemPrompt: "base-system",
+      orchestration: {
+        flow: "MIXED",
+        contextType: "prompt",
+        userInput: "this text is what i want",
+        textInput: "this text is what i want",
+        imageReferenceIds: ["shot-1"],
+        promptReferenceIds: [],
+        shouldRunTextExpansion: true,
+        shouldRunVisionDescription: true,
+        shouldRunFusion: true,
+      },
+    });
+
+    const mediaMessage = messages.find((message) => Array.isArray(message.content));
+    expect(mediaMessage).toBeDefined();
+    if (!mediaMessage || !Array.isArray(mediaMessage.content)) return;
+    expect(mediaMessage.content[0]).toEqual(
+      expect.objectContaining({
+        type: "text",
+        text: expect.stringContaining("screenshot or document with readable text"),
+      })
+    );
+    expect(mediaMessage.content[0]).toEqual(
+      expect.objectContaining({
+        text: expect.stringContaining(
+          "Do not refuse solely because useful source text arrived inside an image"
+        ),
+      })
+    );
   });
 
   it("does not prepend the latest assistant message twice when it already exists in history", () => {

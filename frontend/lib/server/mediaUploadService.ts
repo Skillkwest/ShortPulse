@@ -380,7 +380,13 @@ const uploadScopedStorageBuffer = async ({
     throw new MediaUploadServiceError(
       500,
       "Upload failed",
-      error instanceof Error ? error.message : "Unknown upload error"
+      error instanceof Error ? error.message : "Unknown upload error",
+      {
+        media_upload_stage: "storage_upload",
+        media_upload_operation: "upload",
+        media_upload_storage_folder: storageFolder,
+        media_upload_mime_type: mimeType,
+      }
     );
   }
 
@@ -392,7 +398,13 @@ const uploadScopedStorageBuffer = async ({
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
-      error instanceof Error ? error.message : "Missing signed preview URL"
+      error instanceof Error ? error.message : "Missing signed preview URL",
+      {
+        media_upload_stage: "preview_url_sign",
+        media_upload_operation: "create_signed_url",
+        media_upload_storage_folder: storageFolder,
+        media_upload_mime_type: mimeType,
+      }
     );
   }
 
@@ -433,7 +445,14 @@ const movePreparedUploadToDurableStorage = async ({
     throw new MediaUploadServiceError(
       500,
       "Upload failed",
-      moveError.message || "Unable to move prepared upload into durable storage."
+      moveError.message || "Unable to move prepared upload into durable storage.",
+      {
+        media_upload_stage: "prepared_upload_move",
+        media_upload_operation: "storage_move",
+        media_upload_destination_tab: parsedUpload.destinationTab,
+        media_upload_file_type: fileType,
+        media_upload_mime_type: mimeType,
+      }
     );
   }
 
@@ -445,7 +464,14 @@ const movePreparedUploadToDurableStorage = async ({
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
-      error instanceof Error ? error.message : "Missing signed preview URL"
+      error instanceof Error ? error.message : "Missing signed preview URL",
+      {
+        media_upload_stage: "preview_url_sign",
+        media_upload_operation: "create_signed_url",
+        media_upload_destination_tab: parsedUpload.destinationTab,
+        media_upload_file_type: fileType,
+        media_upload_mime_type: mimeType,
+      }
     );
   }
 
@@ -1139,7 +1165,17 @@ export const finalizePreparedMediaUploadForUser = async ({
       if (error instanceof MediaAudioExtractionInputError && error.statusCode === 413) {
         throw new MediaUploadServiceError(413, "Upload failed: file too large");
       }
-      throw error;
+      throw new MediaUploadServiceError(
+        500,
+        "Upload failed",
+        error instanceof Error ? error.message : "Unable to download prepared upload.",
+        {
+          media_upload_stage: "prepared_upload_read",
+          media_upload_operation: "storage_download",
+          media_upload_destination_tab: destinationTab,
+          media_upload_declared_mime_type: declaredMimeType,
+        }
+      );
     }
     const parsedUpload: ParsedUpload = {
       buffer: stored.buffer,
@@ -1452,7 +1488,14 @@ const insertUploadedMediaRow = async ({
     throw new MediaUploadServiceError(
       500,
       "Failed to persist media record",
-      insertError?.message ?? "Missing inserted media row"
+      insertError?.message ?? "Missing inserted media row",
+      {
+        media_upload_stage: "media_row_insert",
+        media_upload_operation: "database_insert",
+        media_upload_destination_tab: parsedUpload.destinationTab,
+        media_upload_file_type: fileType,
+        media_upload_source: resolveUploadSource(parsedUpload.destinationTab),
+      }
     );
   }
 
@@ -1538,7 +1581,13 @@ const resolveUploadedMediaPreviewUrl = async ({
     throw new MediaUploadServiceError(
       500,
       "Failed to generate signed preview URL",
-      error instanceof Error ? error.message : "Missing signed preview URL"
+      error instanceof Error ? error.message : "Missing signed preview URL",
+      {
+        media_upload_stage: "preview_url_sign",
+        media_upload_operation: "create_signed_url",
+        media_upload_file_type: row.file_type,
+        media_upload_source: row.source,
+      }
     );
   }
 

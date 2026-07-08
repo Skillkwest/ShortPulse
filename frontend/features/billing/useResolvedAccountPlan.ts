@@ -3,6 +3,7 @@ import { buildPlanView, normalizePlanId } from "./catalog";
 import { primeSupabaseSession } from "../../lib/supabaseClient";
 import { useResolvedProtectedSessionState } from "../../lib/protectedRouteSessionContext";
 import { fetchBillingAccountSummary } from "./accountSummary";
+import type { PendingSubscriptionChange } from "./accountSummary";
 
 type ResolvedPlanMeta = {
   id: string;
@@ -26,11 +27,14 @@ export const useResolvedAccountPlan = ({
     enabled,
   });
   const [resolvedPlan, setResolvedPlan] = useState<ResolvedPlanMeta | null>(null);
+  const [pendingSubscriptionChange, setPendingSubscriptionChange] =
+    useState<PendingSubscriptionChange | null>(null);
   const [status, setStatus] = useState<ResolvedAccountPlanStatus>("idle");
 
   useEffect(() => {
     if (!enabled) {
       setResolvedPlan(null);
+      setPendingSubscriptionChange(null);
       setStatus("idle");
       return;
     }
@@ -40,6 +44,7 @@ export const useResolvedAccountPlan = ({
       if (!user) {
         if (!active) return;
         setResolvedPlan(null);
+        setPendingSubscriptionChange(null);
         setStatus("idle");
         return;
       }
@@ -55,6 +60,7 @@ export const useResolvedAccountPlan = ({
         }
         if (!active) return;
         setResolvedPlan(summary.resolvedPlan);
+        setPendingSubscriptionChange(summary.pendingSubscriptionChange ?? null);
         setStatus("ready");
       } catch {
         if (!active) return;
@@ -69,6 +75,7 @@ export const useResolvedAccountPlan = ({
           className: fallbackPlanView.className,
           monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
         });
+        setPendingSubscriptionChange(null);
         setStatus("unavailable");
       }
     };
@@ -82,6 +89,7 @@ export const useResolvedAccountPlan = ({
   return {
     user,
     resolvedPlan,
+    pendingSubscriptionChange,
     status,
   };
 };

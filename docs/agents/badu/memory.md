@@ -8,7 +8,7 @@ Local memory is advisory. Current user instructions, source billing pages, activ
 
 - Active accounting workbook: `ShortPulse Provider Expenses`
 - URL: `https://docs.google.com/spreadsheets/d/1QchjaYKjY-hzUXKnenHgPI1Zx-LTDk6CkXt58vaFcXo/edit?pli=1&gid=0#gid=0`
-- Active provider summary rows currently include Kie.ai, fal.ai, OpenAI, Supabase, Codex, Vercel, and ElevenLabs.
+- Active provider summary rows currently include Kie.ai, fal.ai, OpenAI, Supabase, Codex, Vercel, ElevenLabs, and Stripe.
 
 ## Provider Import State
 
@@ -17,9 +17,12 @@ As of the supervised 2026-07-08 import run:
 - Kie.ai imported: 58 transactions, `$995.00` expenses, `199000` credits, first date `2026-01-24`, latest date `2026-07-07`.
 - fal.ai imported: 8 receipt/payment rows, `$720.00` expenses, first date `2026-02-19`, latest date `2026-06-23`; 13 invoice rows were reviewed without double-counting invoice/receipt duplicates.
 - OpenAI imported: 2 paid invoices, `$108.01` expenses, both created `2026-05-27 21:57:00`.
+- Supabase imported: 8 paid invoice rows, `$262.42` expenses, first date `2026-01-10`, latest date `2026-06-25`; includes one zero-dollar paid invoice retained for completeness.
 - Codex imported: 7 paid invoice rows, `$1,141.94` expenses, first date `2026-01-14`, latest date `2026-06-10`.
+- Vercel imported: 2 paid June 2026 invoice rows, `$20.00` expenses, date `2026-06-11`; includes one zero-dollar paid invoice retained for completeness; unpaid upcoming estimated invoice excluded.
 - ElevenLabs imported: 8 paid invoice rows, `$88.56` expenses, first date `2026-04-18`, latest date `2026-07-08`.
-- Workbook total after the Codex import: 83 transactions and `$3,053.51` expenses.
+- Stripe imported: 26 balance-activity rows, `$2,550.27` gross income, `$92.95` Stripe fee expenses, `$2,457.32` net income impact, first date `2026-05-25`, latest date `2026-07-08`; includes 22 succeeded payment/charge rows and 4 standalone Stripe billing-fee rows; payouts and top-ups excluded as transfers.
+- Workbook total after the Stripe import: 119 transactions, `$3,428.88` expenses, `$2,550.27` income, and `-$878.61` net.
 
 ## OpenAI Start-Date Rule
 
@@ -47,6 +50,25 @@ Owner instruction from 2026-07-08:
 - Earliest Codex row to import: `Jan 14, 2026`, paid, `$21.60`, from ChatGPT Settings > Billing invoices.
 - Import that row and every later Codex/ChatGPT invoice as current Codex expenses.
 - Ignore earlier Codex/ChatGPT billing rows unless the owner explicitly changes the rule in the current thread.
+
+## Supabase Start-Date Rule
+
+Owner instruction from 2026-07-08:
+
+- For future Supabase billing-history reviews, start with January 2026 expenses.
+- Earliest Supabase row to import: invoice `SKQOZF-00017`, paid, `$35.00`, dated `Jan 10, 2026`.
+- Import that row and every later Supabase invoice as current Supabase expenses.
+- Ignore earlier Supabase billing rows unless the owner explicitly changes the rule in the current thread.
+
+## Stripe Income Import Rule
+
+Owner instruction from 2026-07-08:
+
+- Use Stripe Balance > All activity as the preferred income source when available because it exposes gross amount, fees, and net total.
+- Import payment and charge rows as income, with Stripe processing fees captured in `Expense USD` and gross customer payments captured in `Income USD`.
+- Import standalone Stripe billing-fee rows as expenses.
+- Exclude payouts, top-ups, and automatic balance transfers from income/expense totals because they are transfers, not revenue.
+- Omit customer identifiers from ledger rows unless the owner explicitly asks to retain them.
 
 ## Working Lessons
 

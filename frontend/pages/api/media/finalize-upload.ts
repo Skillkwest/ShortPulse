@@ -48,6 +48,15 @@ const FINALIZE_MEDIA_UPLOAD_RATE_LIMIT = {
   windowMs: 10 * 60 * 1000,
 } as const;
 
+const buildMediaUploadErrorLogMetadata = (
+  error: MediaUploadServiceError
+): Record<string, unknown> => ({
+  media_upload_error_status: error.status,
+  media_upload_error_message: error.message,
+  media_upload_error_details: error.details ?? null,
+  ...(error.diagnostics ?? {}),
+});
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<FinalizeMediaUploadSuccessResponse | FinalizeMediaUploadErrorResponse>
@@ -134,6 +143,7 @@ export default async function handler(
           req,
           error,
           routeLabel: "media-finalize-upload",
+          metadata: buildMediaUploadErrorLogMetadata(error),
           user,
         });
 

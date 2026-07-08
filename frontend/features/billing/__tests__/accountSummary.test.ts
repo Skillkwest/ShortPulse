@@ -19,6 +19,7 @@ const createAccountSummaryPayload = (userId: string) => ({
     className: "plan-starter",
     monthlyCreditsCents: 0,
   },
+  pendingSubscriptionChange: null,
   quotaStatus: "available",
   quotaSummary: {
     usedBytes: 10,
@@ -153,6 +154,25 @@ describe("fetchBillingAccountSummary", () => {
                 status: "active",
               },
             ],
+            pendingSubscriptionChange: {
+              kind: "scheduled_downgrade",
+              status: "active",
+              currentPlanId: "media",
+              currentOfferId: "media__monthly",
+              currentBillingInterval: "month",
+              currentStripePriceId: "price_media",
+              targetPlanId: "starter",
+              targetOfferId: "starter__monthly",
+              targetPlanLabel: "Starter",
+              targetBillingInterval: "month",
+              targetStripePriceId: "price_starter",
+              targetRecurringPriceCents: 1500,
+              targetMonthlyCreditsCents: 350,
+              targetStorageLimitBytes: 5368709120,
+              targetMaxConcurrentGenerations: 1,
+              effectiveAt: "2026-08-08T14:59:23.000Z",
+              currentBenefitsEndAt: "2026-08-08T14:59:23.000Z",
+            },
           },
         }),
         {
@@ -180,6 +200,8 @@ describe("fetchBillingAccountSummary", () => {
     expect(summary?.profileState?.billingContract?.monthly_credits_cents).toBe(350);
     expect(summary?.profileState?.billingActivity[0]?.source).toBe("stripe_checkout");
     expect(summary?.profileState?.activeStorageAddons[0]?.storageAddonId).toBe("storage_10gb");
+    expect(summary?.profileState?.pendingSubscriptionChange?.targetPlanLabel).toBe("Starter");
+    expect(summary?.pendingSubscriptionChange).toBeNull();
   });
 
   it("returns null instead of hanging when the account summary request times out", async () => {

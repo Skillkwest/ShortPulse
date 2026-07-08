@@ -2149,6 +2149,7 @@ body.dashboard-body:has(.public-dashboard-page) {
   line-height: 1.45;
   font-weight: var(--font-semibold);
   text-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  white-space: pre-line;
   text-wrap: balance;
 }
 

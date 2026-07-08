@@ -185,6 +185,51 @@ describe("POST /api/admin/errors-status", () => {
     });
   });
 
+  it("passes watch metadata when promoting an event to a resolved watch incident", async () => {
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: {
+        incident_id: "inc-promoted-watch",
+        status: "resolved",
+        updated_at: "2026-02-17T04:25:00.000Z",
+        event_id: "evt-watch",
+      },
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock, from: createEventLookupMock() });
+
+    const req = {
+      method: "POST",
+      body: {
+        eventId: "evt-watch",
+        status: "resolved",
+        note: "Promoted from stream; monitor recurrence.",
+        watch: true,
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(rpcMock).toHaveBeenCalledWith("admin_update_app_error_status", {
+      p_error_id: null,
+      p_event_id: "evt-watch",
+      p_status: "resolved",
+      p_note: "Promoted from stream; monitor recurrence.",
+      p_admin_user_id: "admin-1",
+      p_admin_user_email: "admin@example.com",
+      p_watch_item: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      ok: true,
+      incident: {
+        id: "inc-promoted-watch",
+        status: "resolved",
+        updated_at: "2026-02-17T04:25:00.000Z",
+      },
+      eventId: "evt-watch",
+    });
+  });
+
   it("does not promote routine telemetry-only events to incidents", async () => {
     const rpcMock = vi.fn();
     getSupabaseAdminMock.mockReturnValue({

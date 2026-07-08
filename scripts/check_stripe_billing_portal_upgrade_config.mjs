@@ -91,7 +91,7 @@ const main = async () => {
   }
 
   const config = await stripeGet(
-    `/billing_portal/configurations/${configId}`,
+    `/billing_portal/configurations/${configId}?expand[]=features.subscription_update.products`,
     stripeSecretKey,
   );
   const subscriptionUpdate = config?.features?.subscription_update ?? {};
@@ -107,6 +107,9 @@ const main = async () => {
     const prices = Array.isArray(product?.prices) ? product.prices : [];
     return count + prices.length;
   }, 0);
+  const adjustableQuantityEnabledCount = products.filter(
+    (product) => product?.adjustable_quantity?.enabled === true,
+  ).length;
 
   const checks = [
     {
@@ -144,6 +147,12 @@ const main = async () => {
       pass: exposedPriceCount > 0,
       expected: "at least one Portal-updatable price",
       actual: exposedPriceCount,
+    },
+    {
+      name: "quantity_adjustment_disabled",
+      pass: adjustableQuantityEnabledCount === 0,
+      expected: 0,
+      actual: adjustableQuantityEnabledCount,
     },
   ];
   const failures = checks.filter((check) => !check.pass);

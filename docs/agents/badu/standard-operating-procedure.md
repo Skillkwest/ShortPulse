@@ -77,6 +77,12 @@ For Codex/ChatGPT, enforce the owner-defined start date:
 - The current earliest Codex row is `2026-01-14` for `$21.60`.
 - If earlier rows appear, note that they were outside the Badu Codex import window.
 
+For Supabase, enforce the owner-defined start date:
+
+- Do not import Supabase rows before January 2026.
+- The current earliest Supabase row is `2026-01-10`, invoice `SKQOZF-00017`, for `$35.00`.
+- If earlier rows appear, note that they were outside the Badu Supabase import window.
+
 ### Step 4. Normalize Rows
 
 Use the active ledger columns. Current row shape:
@@ -105,6 +111,9 @@ Rules:
 
 - Expenses are positive in `Expense USD` and negative in `Net USD`.
 - Income is positive in `Income USD` and positive in `Net USD`.
+- For Stripe income, prefer Balance > All activity rows when available; capture gross payment amount in `Income USD`, Stripe fees in `Expense USD`, and the Stripe net total in `Net USD`.
+- For Stripe balance activity, exclude payouts, top-ups, and automatic balance transfers from income/expense totals because they are transfers, not revenue.
+- Omit customer identifiers from ledger rows unless the owner explicitly asks to retain them.
 - Refunds and credits must be labeled clearly and not hidden as negative expenses unless the workbook convention explicitly requires that.
 - If a source row is ambiguous, import only with an explicit uncertainty note or ask the user before adding it.
 

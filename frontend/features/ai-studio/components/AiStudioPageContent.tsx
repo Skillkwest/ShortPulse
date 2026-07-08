@@ -285,10 +285,15 @@ type AiStudioAlertsStackProps = {
     message: string;
     action: AppMessageAction;
   } | null;
+  billingPlanNotice: {
+    message: string;
+    action: AppMessageAction;
+  } | null;
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
   onDismissMediaPlanNotice: () => void;
   onDismissWorkflowPlanNotice: () => void;
+  onDismissBillingPlanNotice: () => void;
   onDismissFailure: (id: string) => void;
 };
 
@@ -383,10 +388,12 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   visibleFailures,
   mediaPlanNotice,
   workflowPlanNotice,
+  billingPlanNotice,
   onDismissUiError,
   onDismissUiNotice,
   onDismissMediaPlanNotice,
   onDismissWorkflowPlanNotice,
+  onDismissBillingPlanNotice,
   onDismissFailure,
 }: AiStudioAlertsStackProps) {
   const normalizedUiError = normalizeAlertText(uiError);
@@ -455,6 +462,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   const hasVisibleAlerts = Boolean(
     mediaPlanNotice ||
     workflowPlanNotice ||
+    billingPlanNotice ||
     effectiveUiError ||
     uiNotice ||
     admissionLimitWarnings.length ||
@@ -535,6 +543,16 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           live="polite"
           action={workflowPlanNotice.action}
           onDismiss={onDismissWorkflowPlanNotice}
+        />
+      ) : null}
+      {billingPlanNotice ? (
+        <AiStudioAlertBanner
+          message={billingPlanNotice.message}
+          variant="plan-access"
+          role="status"
+          live="polite"
+          action={billingPlanNotice.action}
+          onDismiss={onDismissBillingPlanNotice}
         />
       ) : null}
       {effectiveUiError ? (
@@ -623,6 +641,9 @@ export type AiStudioPageContentProps = {
   mediaPlanNoticeMessage?: string | null;
   mediaPlanNoticeCta?: GenerationAccessCta | null;
   onMediaPlanAccessAttempt?: () => void;
+  billingPlanNoticeMessage?: string | null;
+  billingPlanNoticeHref?: string | null;
+  onDismissBillingPlanNotice?: () => void;
   workflowPlanNoticeMessage?: string | null;
   workflowPlanAccessCta?: GenerationAccessCta | null;
   onWorkflowPlanAccessAttempt?: () => void;
@@ -735,6 +756,9 @@ export function AiStudioPageContent({
   mediaPlanNoticeMessage = null,
   mediaPlanNoticeCta = null,
   onMediaPlanAccessAttempt,
+  billingPlanNoticeMessage = null,
+  billingPlanNoticeHref = null,
+  onDismissBillingPlanNotice,
   workflowPlanNoticeMessage = null,
   workflowPlanAccessCta = null,
   onWorkflowPlanAccessAttempt,
@@ -838,12 +862,28 @@ export function AiStudioPageContent({
         : null,
     [workflowPlanAccessCta, workflowPlanNoticeMessage]
   );
+  const billingPlanNotice = React.useMemo(
+    () =>
+      billingPlanNoticeMessage && billingPlanNoticeHref
+        ? {
+            message: billingPlanNoticeMessage,
+            action: {
+              label: "View plans",
+              href: billingPlanNoticeHref,
+            },
+          }
+        : null,
+    [billingPlanNoticeHref, billingPlanNoticeMessage]
+  );
   const handleDismissMediaPlanNotice = React.useCallback(() => {
     onDismissMediaPlanNotice?.();
   }, [onDismissMediaPlanNotice]);
   const handleDismissWorkflowPlanNotice = React.useCallback(() => {
     onDismissWorkflowPlanNotice?.();
   }, [onDismissWorkflowPlanNotice]);
+  const handleDismissBillingPlanNotice = React.useCallback(() => {
+    onDismissBillingPlanNotice?.();
+  }, [onDismissBillingPlanNotice]);
   useAiStudioStabilityLifecycleTelemetry({
     projectId,
     projectRouteRequested,
@@ -1983,10 +2023,12 @@ export function AiStudioPageContent({
           visibleFailures={visibleFailures}
           mediaPlanNotice={mediaPlanNotice}
           workflowPlanNotice={workflowPlanNotice}
+          billingPlanNotice={billingPlanNotice}
           onDismissUiError={onDismissUiError}
           onDismissUiNotice={onDismissUiNotice}
           onDismissMediaPlanNotice={handleDismissMediaPlanNotice}
           onDismissWorkflowPlanNotice={handleDismissWorkflowPlanNotice}
+          onDismissBillingPlanNotice={handleDismissBillingPlanNotice}
           onDismissFailure={onDismissFailure}
         />
 

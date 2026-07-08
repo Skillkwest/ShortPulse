@@ -17,9 +17,11 @@ import {
   type BillingPlanRecord,
 } from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
+import type { PendingSubscriptionChange } from "../../billing/accountSummary";
 import {
   formatCurrencyAmount,
   formatDateTimeLabel,
+  formatLongDateLabel,
   formatStatusLabel,
   type SubscriptionTransaction,
 } from "../profilePageModel";
@@ -63,6 +65,7 @@ type ProfileSubscriptionSectionProps = {
   subscriptionTransactions: SubscriptionTransaction[];
   subscriptionTransactionsLoading: boolean;
   subscriptionTransactionsError: string | null;
+  pendingSubscriptionChange?: PendingSubscriptionChange | null;
   onRequestPlanChange: (planId: string, billingInterval: BillingInterval) => void;
   onRequestCancel: (planId: string) => void;
 };
@@ -91,6 +94,7 @@ export function ProfileSubscriptionSection({
   subscriptionTransactions,
   subscriptionTransactionsLoading,
   subscriptionTransactionsError,
+  pendingSubscriptionChange = null,
   onRequestPlanChange,
   onRequestCancel,
 }: ProfileSubscriptionSectionProps) {
@@ -218,6 +222,17 @@ export function ProfileSubscriptionSection({
         </aside>
       ) : null}
 
+      {pendingSubscriptionChange ? (
+        <aside className={profileClass("profile-callout")}>
+          <WarningCircle size={18} />
+          <p className="tiny">
+            {pendingSubscriptionChange.targetPlanLabel} is scheduled for{" "}
+            {formatLongDateLabel(pendingSubscriptionChange.effectiveAt)}. You can keep using{" "}
+            {activePlanDisplayName} benefits until then.
+          </p>
+        </aside>
+      ) : null}
+
       {showBaselinePlanCta ? null : (
         <ProfilePanel
           eyebrow="All plans"
@@ -250,6 +265,9 @@ export function ProfileSubscriptionSection({
                   isCurrentPlan && selectedBillingInterval === currentSubscriptionBillingInterval;
                 const isPlanIntervalChange =
                   isCurrentPlan && selectedBillingInterval !== currentSubscriptionBillingInterval;
+                const isScheduledTargetPlan =
+                  pendingSubscriptionChange?.targetPlanId === plan.id &&
+                  pendingSubscriptionChange.targetBillingInterval === selectedBillingInterval;
                 const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
                 const isHigherTier = candidatePlanRank > activePlanRank;
                 const isLowerTier = candidatePlanRank < activePlanRank;
@@ -292,6 +310,14 @@ export function ProfileSubscriptionSection({
                     disabled
                   >
                     Current Plan
+                  </button>
+                ) : isScheduledTargetPlan ? (
+                  <button
+                    type="button"
+                    className={profileClass("profile-button", "ghost-btn")}
+                    disabled
+                  >
+                    Scheduled for {formatLongDateLabel(pendingSubscriptionChange.effectiveAt)}
                   </button>
                 ) : intervalUnavailable ? (
                   <button
@@ -358,7 +384,9 @@ export function ProfileSubscriptionSection({
                     plans={visibleBillingPlans}
                     billingInterval={selectedBillingInterval}
                     isCurrent={isCurrentPlan}
-                    stateBadgeLabel={isCurrentPlan ? "Current Plan" : null}
+                    stateBadgeLabel={
+                      isCurrentPlan ? "Current Plan" : isScheduledTargetPlan ? "Scheduled" : null
+                    }
                     className={profileClass("profile-subscription-plan-card")}
                     actionSlot={
                       actionButton ? (

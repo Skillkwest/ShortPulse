@@ -1,6 +1,7 @@
 /**
  * Dashboard page tests for announcement rendering and fail-soft fallback behavior.
  */
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -237,6 +238,7 @@ describe("Dashboard announcement rendering", () => {
     });
 
     render(<DashboardPage />);
+    await vi.dynamicImportSettled();
 
     await waitFor(() => expect(screen.getByText("Maintenance window")).toBeInTheDocument());
     expect(
@@ -245,6 +247,34 @@ describe("Dashboard announcement rendering", () => {
     expect(screen.getByText("Maintenance window").closest(".hero-announcement")).not.toHaveClass(
       "app-message"
     );
+    await vi.dynamicImportSettled();
+  });
+
+  it("preserves multiline announcement messages on the signed-in dashboard", async () => {
+    const multilineMessage = "Line one stays on top.\n\nThanks,\nKirk.";
+    mockAuthenticatedDashboardFetch(async () => {
+      return {
+        ok: true,
+        json: async () => ({
+          announcement: {
+            id: "ann-1",
+            title: "Heads up",
+            message: multilineMessage,
+            publishedAt: "2026-03-10T00:00:00.000Z",
+            updatedAt: "2026-03-10T00:00:00.000Z",
+          },
+        }),
+      };
+    });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("Heads up")).toBeInTheDocument());
+    const announcementMessage = document.querySelector(".hero-announcement-message");
+    expect(announcementMessage?.textContent).toBe(multilineMessage);
+
+    const dashboardCss = readFileSync("styles/workspace-dashboard.css", "utf8");
+    expect(dashboardCss).toMatch(/\.hero-announcement-message\s*{[^}]*white-space:\s*pre-line;/);
     await vi.dynamicImportSettled();
   });
 
@@ -343,7 +373,7 @@ describe("Dashboard announcement rendering", () => {
       "src",
       "https://www.youtube-nocookie.com/embed/abc123?rel=0&modestbranding=1&playsinline=1"
     );
-    expect(screen.getByRole("link", { name: /launch ai studio/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /open ai studio/i })).toHaveAttribute(
       "href",
       "/ai-studio"
     );

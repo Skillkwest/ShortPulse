@@ -58,7 +58,6 @@ type UseAdminUsersCreditsControllerResult = {
   adjustment: string;
   adjustSubmitting: boolean;
   adjustResult: string | null;
-  allowStripeTakeover: boolean;
   billingOverrideSubmitting: boolean;
   billingOverrideResult: string | null;
   billingPortalSubmitting: boolean;
@@ -85,7 +84,6 @@ type UseAdminUsersCreditsControllerResult = {
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
-  handleAllowStripeTakeoverChange: (value: boolean) => void;
   applyAdjustmentPreset: (delta: number) => void;
   handleCreditAdjust: () => Promise<void>;
   handleGrantInternalComp: () => Promise<boolean>;
@@ -126,7 +124,6 @@ export const useAdminUsersCreditsController = ({
   const [adjustSubmitting, setAdjustSubmitting] = React.useState(false);
   const [adjustResult, setAdjustResult] = React.useState<string | null>(null);
   const [internalCompPlan, setInternalCompPlan] = React.useState<string>("business");
-  const [allowStripeTakeover, setAllowStripeTakeover] = React.useState(false);
   const [billingOverrideSubmitting, setBillingOverrideSubmitting] = React.useState(false);
   const [billingOverrideResult, setBillingOverrideResult] = React.useState<string | null>(null);
   const [billingPortalSubmitting, setBillingPortalSubmitting] = React.useState(false);
@@ -340,7 +337,6 @@ export const useAdminUsersCreditsController = ({
     setBillingOverrideResult(null);
     setBillingPortalResult(null);
     setBillingCustomerSyncResult(null);
-    setAllowStripeTakeover(false);
     setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
   }, [selectedUserId]);
 
@@ -418,6 +414,12 @@ export const useAdminUsersCreditsController = ({
 
     setBillingOverrideSubmitting(true);
     setBillingOverrideResult(null);
+    const selectedUser = users.find((user) => user.id === selectedUserId) ?? null;
+    const shouldClearSavedStripeLink = Boolean(
+      billingDiagnostics?.stripeSubscription?.subscriptionId ||
+      billingDiagnostics?.billingProfile?.stripeSubscriptionId ||
+      selectedUser?.contractSource === "stripe"
+    );
     try {
       const response = await fetchWithAuth("/api/admin/billing/contracts/update", {
         method: "POST",
@@ -426,7 +428,7 @@ export const useAdminUsersCreditsController = ({
           userId: selectedUserId,
           action: "grant_internal_comp",
           planId: internalCompPlan,
-          allowStripeTakeover,
+          allowStripeTakeover: shouldClearSavedStripeLink,
         }),
       });
       const data = (await response.json().catch(() => ({}))) as {
@@ -453,12 +455,14 @@ export const useAdminUsersCreditsController = ({
       setBillingOverrideSubmitting(false);
     }
   }, [
-    allowStripeTakeover,
+    billingDiagnostics?.billingProfile?.stripeSubscriptionId,
+    billingDiagnostics?.stripeSubscription?.subscriptionId,
     internalCompPlan,
     loadBillingDiagnostics,
     loadCreditLedger,
     loadUsers,
     selectedUserId,
+    users,
   ]);
 
   const handleRevokeInternalComp = React.useCallback(async () => {
@@ -670,10 +674,6 @@ export const useAdminUsersCreditsController = ({
     setAdjustResult(null);
   }, []);
 
-  const handleAllowStripeTakeoverChange = React.useCallback((value: boolean) => {
-    setAllowStripeTakeover(value);
-  }, []);
-
   const usersResultStart =
     usersPagination.totalCount === 0 ? 0 : (usersPagination.page - 1) * usersPagination.perPage + 1;
   const usersResultEnd = Math.min(
@@ -692,7 +692,6 @@ export const useAdminUsersCreditsController = ({
     adjustment,
     adjustSubmitting,
     adjustResult,
-    allowStripeTakeover,
     billingOverrideSubmitting,
     billingOverrideResult,
     billingPortalSubmitting,
@@ -719,7 +718,6 @@ export const useAdminUsersCreditsController = ({
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,
-    handleAllowStripeTakeoverChange,
     applyAdjustmentPreset,
     handleCreditAdjust,
     handleGrantInternalComp,

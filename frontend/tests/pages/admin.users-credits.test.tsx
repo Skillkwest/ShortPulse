@@ -817,10 +817,11 @@ describe("Admin users and credits overview", () => {
           userId: USER_2_ID,
           action: "grant_internal_comp",
           planId: "business",
-          allowStripeTakeover: false,
+          allowStripeTakeover: true,
         }),
       })
     );
+    expect(screen.queryByText("Stripe takeover")).not.toBeInTheDocument();
   });
 
   it("opens Stripe billing for the selected user", async () => {

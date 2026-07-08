@@ -63,6 +63,33 @@ vi.mock("../../lib/growthTelemetry", () => ({
 describe("Pricing route behavior", () => {
   const routerPushMock = vi.fn();
   const routerReplaceMock = vi.fn();
+  const studioOnlyBillingCatalog = () => ({
+    plans: [
+      {
+        id: "studio",
+        display_name: "Studio",
+        sort_order: 20,
+        monthly_price_cents: 3900,
+        monthly_credits_cents: 3000,
+        storage_limit_bytes: 107374182400,
+        is_active: true,
+        offers: {
+          year: {
+            id: "studio_year",
+            billing_interval: "year" as const,
+            recurring_price_cents: 39000,
+            monthly_credits_cents: 3000,
+            storage_limit_bytes: 107374182400,
+            stripe_price_id: "price_studio_year",
+            acquisition_enabled: true,
+            is_active: true,
+          },
+        },
+      },
+    ],
+    packages: [],
+    storageAddons: [],
+  });
 
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -72,6 +99,7 @@ describe("Pricing route behavior", () => {
     vi.clearAllMocks();
     routerPushMock.mockReset();
     routerReplaceMock.mockReset();
+    window.sessionStorage.clear();
     readSupabaseSessionBootstrapHintMock.mockReturnValue(false);
     useRouterMock.mockReturnValue({
       query: {
@@ -185,37 +213,7 @@ describe("Pricing route behavior", () => {
       user: null,
     });
 
-    render(
-      <PricingPage
-        billingCatalog={{
-          plans: [
-            {
-              id: "studio",
-              display_name: "Studio",
-              sort_order: 20,
-              monthly_price_cents: 3900,
-              monthly_credits_cents: 3000,
-              storage_limit_bytes: 107374182400,
-              is_active: true,
-              offers: {
-                year: {
-                  id: "studio_year",
-                  billing_interval: "year",
-                  recurring_price_cents: 39000,
-                  monthly_credits_cents: 3000,
-                  storage_limit_bytes: 107374182400,
-                  stripe_price_id: "price_studio_year",
-                  acquisition_enabled: true,
-                  is_active: true,
-                },
-              },
-            },
-          ],
-          packages: [],
-          storageAddons: [],
-        }}
-      />
-    );
+    render(<PricingPage billingCatalog={studioOnlyBillingCatalog()} />);
 
     expect(
       screen.getByText(
@@ -348,6 +346,103 @@ describe("Pricing route behavior", () => {
     expect(screen.queryByRole("button", { name: "Log in to continue" })).not.toBeInTheDocument();
   });
 
+  it("keeps selected plan context for ordinary pricing handoffs", () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    render(<PricingPage billingCatalog={studioOnlyBillingCatalog()} />);
+
+    expect(screen.getByText("Selected plan")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Studio" }).closest("article")).toHaveClass(
+      "is-selected"
+    );
+  });
+
+  it("shows canceled checkout state instead of selected plan confirmation on Stripe cancel returns", () => {
+    useRouterMock.mockReturnValue({
+      query: {
+        intent: "create-project",
+        plan: "studio",
+        checkout: "cancel",
+      },
+      push: routerPushMock,
+      replace: routerReplaceMock,
+    });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1", email: "user@example.com" },
+    });
+
+    render(<PricingPage billingCatalog={studioOnlyBillingCatalog()} />);
+
+    expect(
+      screen.getByText("Checkout was canceled. No plan changes were made.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Selected plan")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Studio" }).closest("article")).not.toHaveClass(
+      "is-selected"
+    );
+  });
+
+  it("suppresses stale selected plan UI after browser back from pending Checkout", async () => {
+    window.sessionStorage.setItem(
+      "shortpulse.pricing.checkout.pending",
+      JSON.stringify({
+        planId: "studio",
+        billingInterval: "year",
+        intent: "create-project",
+        createdAt: Date.now(),
+      })
+    );
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1", email: "user@example.com" },
+    });
+
+    render(<PricingPage billingCatalog={studioOnlyBillingCatalog()} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("Selected plan")).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText("Checkout was canceled. No plan changes were made.")
+    ).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("shortpulse.pricing.checkout.pending")).toBeNull();
+  });
+
+  it("suppresses stale selected plan UI when browser back restores the pricing page from cache", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: { user: { id: "user-1" } },
+      user: { id: "user-1", email: "user@example.com" },
+    });
+
+    render(<PricingPage billingCatalog={studioOnlyBillingCatalog()} />);
+
+    expect(screen.getByText("Selected plan")).toBeInTheDocument();
+
+    window.sessionStorage.setItem(
+      "shortpulse.pricing.checkout.pending",
+      JSON.stringify({
+        planId: "studio",
+        billingInterval: "year",
+        intent: "create-project",
+        createdAt: Date.now(),
+      })
+    );
+
+    await waitFor(() => {
+      window.dispatchEvent(new Event("pageshow"));
+      expect(screen.queryByText("Selected plan")).not.toBeInTheDocument();
+    });
+    expect(window.sessionStorage.getItem("shortpulse.pricing.checkout.pending")).toBeNull();
+  });
+
   it("starts the authenticated paid-plan flow through the existing subscription endpoint", async () => {
     const assignMock = vi.fn();
     readSupabaseSessionBootstrapHintMock.mockReturnValue(true);
@@ -422,12 +517,21 @@ describe("Pricing route behavior", () => {
           body: JSON.stringify({
             targetPlanId: "studio",
             billingInterval: "year",
-            checkoutCancelPath: "/pricing?intent=create-project&plan=studio",
+            checkoutCancelPath: "/pricing?intent=create-project&plan=studio&checkout=cancel",
           }),
         })
       );
       expect(assignMock).toHaveBeenCalledWith("https://checkout.stripe.com/test-session");
     });
+    expect(
+      JSON.parse(window.sessionStorage.getItem("shortpulse.pricing.checkout.pending") ?? "{}")
+    ).toEqual(
+      expect.objectContaining({
+        planId: "studio",
+        billingInterval: "year",
+        intent: "create-project",
+      })
+    );
     expect(trackBillingUpgradeClickedMock).toHaveBeenCalledWith(
       expect.objectContaining({
         upgrade_surface: "pricing_page",

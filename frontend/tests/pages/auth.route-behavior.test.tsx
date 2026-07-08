@@ -280,7 +280,16 @@ describe("Auth route behavior", () => {
     expect(showcaseMedia[4]).toHaveAttribute("preload", "none");
     showcaseMedia
       .filter((media) => media.hasAttribute("src"))
-      .forEach((media) => expect(media).toHaveAttribute("preload", "metadata"));
+      .forEach((media) => {
+        expect(media).toHaveAttribute("autoplay");
+        expect(media).toHaveAttribute("preload", "metadata");
+      });
+    showcaseMedia
+      .filter((media) => !media.hasAttribute("src"))
+      .forEach((media) => {
+        expect(media).not.toHaveAttribute("autoplay");
+        expect(media).toHaveAttribute("preload", "none");
+      });
   });
 
   it("falls back to /dashboard when sign-in receives an unsafe redirect target", async () => {

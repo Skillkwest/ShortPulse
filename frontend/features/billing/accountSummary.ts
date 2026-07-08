@@ -21,9 +21,30 @@ export type ResolvedAccountPlanSummary = {
 export type BillingAccountSummary = {
   userId: string;
   resolvedPlan: ResolvedAccountPlanSummary;
+  pendingSubscriptionChange: PendingSubscriptionChange | null;
   quotaStatus: "available" | "unavailable";
   quotaSummary: MediaStorageQuotaSummary | null;
   profileState?: BillingAccountProfileState | null;
+};
+
+export type PendingSubscriptionChange = {
+  kind: "scheduled_downgrade" | "scheduled_interval_change";
+  status: "active";
+  currentPlanId: string | null;
+  currentOfferId: string | null;
+  currentBillingInterval: "month" | "year" | null;
+  currentStripePriceId: string | null;
+  targetPlanId: string;
+  targetOfferId: string | null;
+  targetPlanLabel: string;
+  targetBillingInterval: "month" | "year";
+  targetStripePriceId: string;
+  targetRecurringPriceCents: number;
+  targetMonthlyCreditsCents: number;
+  targetStorageLimitBytes: number;
+  targetMaxConcurrentGenerations: number;
+  effectiveAt: string;
+  currentBenefitsEndAt: string | null;
 };
 
 export type BillingAccountProfileState = {
@@ -31,6 +52,7 @@ export type BillingAccountProfileState = {
   billingContract: BillingSubscriptionContract | null;
   billingActivity: BillingLedgerEvent[];
   activeStorageAddons: BillingSubscriptionStorageAddon[];
+  pendingSubscriptionChange: PendingSubscriptionChange | null;
 };
 
 const BILLING_ACCOUNT_SUMMARY_RETRY_BACKOFF_MS = 10_000;
@@ -215,6 +237,57 @@ const parseStorageAddon = (value: unknown): BillingSubscriptionStorageAddon | nu
   };
 };
 
+const parseBillingInterval = (value: unknown): "month" | "year" | null =>
+  value === "year" ? "year" : value === "month" ? "month" : null;
+
+const parsePendingSubscriptionChange = (value: unknown): PendingSubscriptionChange | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const targetRecurringPriceCents = asInteger(row.targetRecurringPriceCents);
+  const targetMonthlyCreditsCents = asInteger(row.targetMonthlyCreditsCents);
+  const targetStorageLimitBytes = asInteger(row.targetStorageLimitBytes);
+  const targetMaxConcurrentGenerations = asInteger(row.targetMaxConcurrentGenerations);
+  const kind =
+    row.kind === "scheduled_downgrade" || row.kind === "scheduled_interval_change"
+      ? row.kind
+      : null;
+  const targetBillingInterval = parseBillingInterval(row.targetBillingInterval);
+  if (
+    !kind ||
+    row.status !== "active" ||
+    typeof row.targetPlanId !== "string" ||
+    typeof row.targetPlanLabel !== "string" ||
+    !targetBillingInterval ||
+    typeof row.targetStripePriceId !== "string" ||
+    typeof row.effectiveAt !== "string" ||
+    targetRecurringPriceCents == null ||
+    targetMonthlyCreditsCents == null ||
+    targetStorageLimitBytes == null ||
+    targetMaxConcurrentGenerations == null
+  ) {
+    return null;
+  }
+  return {
+    kind,
+    status: "active",
+    currentPlanId: asNullableString(row.currentPlanId),
+    currentOfferId: asNullableString(row.currentOfferId),
+    currentBillingInterval: parseBillingInterval(row.currentBillingInterval),
+    currentStripePriceId: asNullableString(row.currentStripePriceId),
+    targetPlanId: row.targetPlanId,
+    targetOfferId: asNullableString(row.targetOfferId),
+    targetPlanLabel: row.targetPlanLabel,
+    targetBillingInterval,
+    targetStripePriceId: row.targetStripePriceId,
+    targetRecurringPriceCents: Math.max(0, targetRecurringPriceCents),
+    targetMonthlyCreditsCents: Math.max(0, targetMonthlyCreditsCents),
+    targetStorageLimitBytes: Math.max(0, targetStorageLimitBytes),
+    targetMaxConcurrentGenerations: Math.max(0, targetMaxConcurrentGenerations),
+    effectiveAt: row.effectiveAt,
+    currentBenefitsEndAt: asNullableString(row.currentBenefitsEndAt),
+  };
+};
+
 const parseProfileState = (value: unknown): BillingAccountProfileState | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -231,6 +304,7 @@ const parseProfileState = (value: unknown): BillingAccountProfileState | null =>
           .map(parseStorageAddon)
           .filter((addon): addon is BillingSubscriptionStorageAddon => Boolean(addon))
       : [],
+    pendingSubscriptionChange: parsePendingSubscriptionChange(row.pendingSubscriptionChange),
   };
 };
 
@@ -242,6 +316,7 @@ const parseBillingAccountSummary = (payload: unknown): BillingAccountSummary | n
   return {
     userId: row.userId,
     resolvedPlan,
+    pendingSubscriptionChange: parsePendingSubscriptionChange(row.pendingSubscriptionChange),
     quotaStatus: row.quotaStatus === "available" ? "available" : "unavailable",
     quotaSummary: parseQuotaSummary(row.quotaSummary),
     profileState: parseProfileState(row.profileState),

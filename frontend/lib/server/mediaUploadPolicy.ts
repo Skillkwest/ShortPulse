@@ -79,6 +79,7 @@ const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
 export type VoiceChangerSourceKind = "audio" | "video";
 
 export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
+export type MediaUploadServiceErrorDiagnostics = Record<string, unknown>;
 
 /**
  * Typed service error returned by Media Library upload parsing/validation logic.
@@ -86,11 +87,18 @@ export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | 
 export class MediaUploadServiceError extends Error {
   readonly status: number;
   readonly details?: string;
+  readonly diagnostics?: MediaUploadServiceErrorDiagnostics;
 
-  constructor(status: number, message: string, details?: string) {
+  constructor(
+    status: number,
+    message: string,
+    details?: string,
+    diagnostics?: MediaUploadServiceErrorDiagnostics
+  ) {
     super(message);
     this.status = status;
     this.details = details;
+    this.diagnostics = diagnostics;
   }
 }
 

@@ -33,7 +33,6 @@ type AdminSupportQueueSectionProps = {
   adjustment: string;
   adjustSubmitting: boolean;
   adjustResult: string | null;
-  allowStripeTakeover: boolean;
   billingOverrideSubmitting: boolean;
   billingOverrideResult: string | null;
   billingPortalSubmitting: boolean;
@@ -57,7 +56,6 @@ type AdminSupportQueueSectionProps = {
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
-  handleAllowStripeTakeoverChange: (value: boolean) => void;
   applyAdjustmentPreset: (delta: number) => void;
   handleCreditAdjust: () => Promise<void>;
   handleGrantInternalComp: () => Promise<boolean>;
@@ -145,7 +143,6 @@ export function AdminSupportQueueSection({
   adjustment,
   adjustSubmitting,
   adjustResult,
-  allowStripeTakeover,
   billingOverrideSubmitting,
   billingOverrideResult,
   billingPortalSubmitting,
@@ -169,7 +166,6 @@ export function AdminSupportQueueSection({
   handlePreviousUsersPage,
   handleNextUsersPage,
   handleAdjustmentChange,
-  handleAllowStripeTakeoverChange,
   applyAdjustmentPreset,
   handleCreditAdjust,
   handleGrantInternalComp,
@@ -776,25 +772,6 @@ export function AdminSupportQueueSection({
                       </div>
 
                       <p className={styles.controlNote}>{paymentExemptNote}</p>
-
-                      {hasLinkedStripeSubscription ? (
-                        <label
-                          className={`${styles.controlToggleCard} ${styles.controlToggleCompact}`}
-                        >
-                          <span className={styles.controlToggleTitle}>Stripe takeover</span>
-                          <span className={styles.controlToggleInput}>
-                            <input
-                              type="checkbox"
-                              checked={allowStripeTakeover}
-                              onChange={(event) =>
-                                handleAllowStripeTakeoverChange(event.target.checked)
-                              }
-                              disabled={!selectedUserId || billingOverrideSubmitting}
-                            />{" "}
-                            Clear the saved Stripe link after external Stripe handling.
-                          </span>
-                        </label>
-                      ) : null}
                     </div>
                   </div>
                 </div>

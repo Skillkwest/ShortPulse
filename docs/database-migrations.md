@@ -345,6 +345,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 211.  `sql/migrations/212_add_issue_report_screenshots.sql`
 212.  `sql/migrations/213_add_billing_subscription_change_intents.sql`
 213.  `sql/migrations/214_add_admin_error_watch_items.sql`
+214.  `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`
+215.  `sql/migrations/216_repair_pulse_text_first_builtin_catalog.sql`
+216.  `sql/migrations/217_repair_pulse_single_shot_builtin_catalog.sql`
       Rollback files:
 
 
@@ -433,6 +436,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/212_add_issue_report_screenshots_rollback.sql`
     - `sql/migrations/rollback/213_add_billing_subscription_change_intents_rollback.sql`
     - `sql/migrations/rollback/214_add_admin_error_watch_items_rollback.sql`
+    - `sql/migrations/rollback/215_add_billing_subscription_scheduled_changes_rollback.sql`
     - `sql/migrations/rollback/143_add_project_workspace_snapshot_freshness_guard_rollback.sql`
     - `sql/migrations/rollback/152_add_audio_generation_display_title_rollback.sql`
     - `sql/migrations/rollback/153_add_dashboard_tutorials_rollback.sql`
@@ -610,6 +614,9 @@ Billing safety note:
 - Migration `212_add_issue_report_screenshots.sql` adds the private `issue_report_screenshots` bucket, service-role-only `user_issue_report_screenshots` metadata table, and `create_user_issue_report_with_screenshots()` helper used by signed-in issue reports and admin review.
 - Migration `213_add_billing_subscription_change_intents.sql` adds the service-role-only `billing_subscription_change_intents` table used to prove route-initiated full-price Stripe Billing Portal upgrades before the paid invoice webhook grants target-plan credits.
 - Migration `214_add_admin_error_watch_items.sql` extends the admin incident status RPC with resolved-watch metadata and status-history notes for `/admin/errors`.
+- Migration `215_add_billing_subscription_scheduled_changes.sql` adds the service-role-only Stripe subscription schedule projection used to show pending period-end downgrades without changing current entitlements before Stripe changes the active subscription item.
+- Migration `216_repair_pulse_text_first_builtin_catalog.sql` repairs the service-role-only Create Pulse built-in control-plane row so DFY Story Builder and Multi Sequence Video Prompt use the current text-first, optional-reference guided workflow contracts instead of the legacy image-upload starters.
+- Migration `217_repair_pulse_single_shot_builtin_catalog.sql` repairs the image-gated single-shot built-in metadata, stage hints, and hidden instructions so it matches the current Video Prompt Magic contract while remaining image-first by design.
 - Read-write hosted-Supabase maintenance script `sql/configure_cron_job_run_details_retention_supabase.sql` prunes old `cron.job_run_details` rows, compacts the pruned table, and schedules daily retention; the active-status index is documented as an owner-only follow-up if retention alone does not reduce pg_cron status-update scan I/O enough.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions as aggregate buckets only, without row ids, user ids, or storage paths in hosted artifacts.

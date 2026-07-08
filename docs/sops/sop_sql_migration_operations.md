@@ -80,6 +80,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/211_add_admin_first_value_funnel_stats.sql`: add the service-role-only first-value funnel helper used by `/admin/stats` Marketing to track signup through first retained generation value.
 - `sql/migrations/212_add_issue_report_screenshots.sql`: add private screenshot storage, metadata, and the service-role-only atomic issue-report insert helper for `/report-issue` and `/admin/reports`.
 - `sql/migrations/213_add_billing_subscription_change_intents.sql`: add the service-role-only full-price subscription-upgrade intent proof table used by the Stripe paid-invoice webhook.
+- `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`: add the service-role-only Stripe subscription schedule projection used by Profile and AI Studio to show pending period-end downgrades while current contracts remain active.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -326,6 +327,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `212_add_issue_report_screenshots.sql`
 - `213_add_billing_subscription_change_intents.sql`
 - `214_add_admin_error_watch_items.sql`
+- `215_add_billing_subscription_scheduled_changes.sql`
+- `216_repair_pulse_text_first_builtin_catalog.sql`
+- `217_repair_pulse_single_shot_builtin_catalog.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

@@ -4,7 +4,7 @@
  */
 import { type CSSProperties, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CopySimple } from "phosphor-react";
+import { CaretDown, Check, CopySimple } from "phosphor-react";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
   ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
@@ -140,8 +140,6 @@ export function AdminSupportQueueSection({
   users,
   usersLoading,
   usersError,
-  currentAdminUserId,
-  currentAdminEmail,
   selectedUserId,
   selectedUser,
   adjustment,
@@ -202,10 +200,7 @@ export function AdminSupportQueueSection({
     userId: string;
     value: boolean;
   } | null>(null);
-  const prioritizedUsers = [
-    ...users.filter((row) => row.id === currentAdminUserId),
-    ...users.filter((row) => row.id !== currentAdminUserId),
-  ];
+  const [stripeBillingExpanded, setStripeBillingExpanded] = useState(false);
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
   const selectedUserPriceLabel = formatRecurringPriceLabel(
     selectedUser?.recurringPriceCents,
@@ -213,11 +208,6 @@ export function AdminSupportQueueSection({
     formatUsd
   );
   const billingFindings = billingDiagnostics?.findings ?? [];
-  const adminIdentityEmail =
-    currentAdminEmail.trim() ||
-    prioritizedUsers.find((row) => row.id === currentAdminUserId)?.email ||
-    "";
-  const adminUserPresent = prioritizedUsers.some((row) => row.id === currentAdminUserId);
   const snapshotStatus = billingDiagnostics?.stripeSubscription?.subscriptionId
     ? billingDiagnostics.stripeSubscription.status
     : selectedUser?.subscriptionStatus;
@@ -358,8 +348,7 @@ export function AdminSupportQueueSection({
         },
       ].filter((card): card is SnapshotCard => Boolean(card))
     : [];
-  const hasLoadedUsers = prioritizedUsers.length > 0;
-  const pinnedAdminLabel = adminIdentityEmail || "The current admin account";
+  const hasLoadedUsers = users.length > 0;
   const selectedAccountState = !selectedUserId
     ? usersError
       ? {
@@ -373,8 +362,7 @@ export function AdminSupportQueueSection({
         ? {
             eyebrow: "Loading accounts",
             title: "Preparing the selected account workspace",
-            description:
-              "We’re loading the current support queue and will auto-select the active operator account when it appears.",
+            description: "We’re loading the current support queue in user index order.",
             helper:
               "You can start scanning the queue as soon as rows load. Credits, access controls, and Stripe actions stay hidden until a real account is selected.",
           }
@@ -400,9 +388,7 @@ export function AdminSupportQueueSection({
                 title: "Pick an account from the queue below",
                 description:
                   "Select a user to open credits, billing access, Stripe controls, and recent support context.",
-                helper: adminUserPresent
-                  ? `${pinnedAdminLabel} stays pinned to the top of the loaded user list for quick access.`
-                  : `${pinnedAdminLabel} will pin to the top when it appears in the loaded user list.`,
+                helper: "Rows follow the natural user index order for the current page and search.",
               }
     : null;
   const snapshotNote = !selectedUserId
@@ -490,6 +476,7 @@ export function AdminSupportQueueSection({
   };
 
   const handleSelectUserRow = (userId: string) => {
+    setStripeBillingExpanded(false);
     setSelectedUserId(userId);
     scrollSelectedAccountIntoView();
   };
@@ -809,65 +796,96 @@ export function AdminSupportQueueSection({
                 </div>
 
                 <div className={styles.manualAdjustPanel}>
-                  <div className={styles.panelHeaderRow}>
-                    <h3 className={styles.panelTitle}>Stripe billing</h3>
-                    <div className={styles.tabRow}>
-                      <button
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                        onClick={() => {
-                          void handleSyncSelectedUserBillingCustomer();
-                        }}
-                        disabled={!selectedUserId || billingCustomerSyncSubmitting}
-                      >
-                        {billingCustomerSyncSubmitting
-                          ? "Syncing customer…"
-                          : "Resync Stripe customer"}
-                      </button>
-                      <button
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                        onClick={() => {
-                          void handleOpenSelectedUserBilling();
-                        }}
-                        disabled={!selectedUserId || billingPortalSubmitting}
-                      >
-                        {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
-                      </button>
-                    </div>
-                  </div>
-                  <p className={styles.controlNote}>
-                    {hasLinkedStripeSubscription
-                      ? "Use this for billed subscriptions and invoices."
-                      : "Use this to inspect Stripe-linked accounts, customer identity, and saved payment methods."}
-                  </p>
-                  {selectedUserId ? (
-                    <div className={styles.adminBillingFindingList}>
-                      <article className={styles.adminBillingFindingCard}>
-                        <p className={styles.healthFindingSummary}>Billing identity state</p>
-                        <p className={styles.controlNote}>{billingIdentityStateLabel}</p>
+                  <button
+                    type="button"
+                    className={styles.adminStripeBillingToggle}
+                    onClick={() => setStripeBillingExpanded((current) => !current)}
+                    aria-expanded={stripeBillingExpanded}
+                    aria-controls="admin-stripe-billing-details"
+                  >
+                    <span>
+                      <span className={styles.panelTitle}>Stripe billing</span>
+                      <span className={styles.adminStripeBillingToggleHint}>
+                        {stripeBillingExpanded
+                          ? "Collapse Stripe details"
+                          : "Expand Stripe details"}
+                      </span>
+                    </span>
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={`${styles.adminStripeBillingToggleIcon} ${
+                        stripeBillingExpanded ? styles.adminStripeBillingToggleIconExpanded : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {stripeBillingExpanded ? (
+                    <div
+                      id="admin-stripe-billing-details"
+                      className={styles.adminStripeBillingBody}
+                    >
+                      <div className={styles.panelHeaderRow}>
                         <p className={styles.controlNote}>
-                          Auth name: {authIdentityDisplayName ?? "—"} · Stripe name:{" "}
-                          {stripeCustomerName ?? "—"}
+                          {hasLinkedStripeSubscription
+                            ? "Use this for billed subscriptions and invoices."
+                            : "Use this to inspect Stripe-linked accounts, customer identity, and saved payment methods."}
                         </p>
-                        <p className={styles.controlNote}>
-                          Auth email: {billingDiagnostics?.authIdentity?.email ?? "—"} · Stripe
-                          email: {stripeCustomerEmail ?? "—"}
-                        </p>
-                        <p className={styles.controlNote}>
-                          Stripe customer id: {snapshotStripeCustomerId ?? "—"}
-                        </p>
-                        <p className={styles.controlNote}>
-                          Stripe subscription id: {snapshotStripeSubscriptionId ?? "—"}
-                        </p>
-                        <p className={styles.controlNote}>
-                          Contract offer id: {billingDiagnostics?.currentContract?.offerId ?? "—"}
-                        </p>
-                        <p className={styles.controlNote}>
-                          Contract price id:{" "}
-                          {billingDiagnostics?.currentContract?.stripePriceId ?? "—"}
-                        </p>
-                      </article>
+                        <div className={styles.tabRow}>
+                          <button
+                            type="button"
+                            className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                            onClick={() => {
+                              void handleSyncSelectedUserBillingCustomer();
+                            }}
+                            disabled={!selectedUserId || billingCustomerSyncSubmitting}
+                          >
+                            {billingCustomerSyncSubmitting
+                              ? "Syncing customer…"
+                              : "Resync Stripe customer"}
+                          </button>
+                          <button
+                            type="button"
+                            className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                            onClick={() => {
+                              void handleOpenSelectedUserBilling();
+                            }}
+                            disabled={!selectedUserId || billingPortalSubmitting}
+                          >
+                            {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
+                          </button>
+                        </div>
+                      </div>
+                      {selectedUserId ? (
+                        <div className={styles.adminBillingFindingList}>
+                          <article className={styles.adminBillingFindingCard}>
+                            <p className={styles.healthFindingSummary}>Billing identity state</p>
+                            <p className={styles.controlNote}>{billingIdentityStateLabel}</p>
+                            <p className={styles.controlNote}>
+                              Auth name: {authIdentityDisplayName ?? "—"} · Stripe name:{" "}
+                              {stripeCustomerName ?? "—"}
+                            </p>
+                            <p className={styles.controlNote}>
+                              Auth email: {billingDiagnostics?.authIdentity?.email ?? "—"} · Stripe
+                              email: {stripeCustomerEmail ?? "—"}
+                            </p>
+                            <p className={styles.controlNote}>
+                              Stripe customer id: {snapshotStripeCustomerId ?? "—"}
+                            </p>
+                            <p className={styles.controlNote}>
+                              Stripe subscription id: {snapshotStripeSubscriptionId ?? "—"}
+                            </p>
+                            <p className={styles.controlNote}>
+                              Contract offer id:{" "}
+                              {billingDiagnostics?.currentContract?.offerId ?? "—"}
+                            </p>
+                            <p className={styles.controlNote}>
+                              Contract price id:{" "}
+                              {billingDiagnostics?.currentContract?.stripePriceId ?? "—"}
+                            </p>
+                          </article>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1082,7 +1100,7 @@ export function AdminSupportQueueSection({
                 <span className="subdued">—</span>
               </div>
             ) : (
-              prioritizedUsers.map((row) => {
+              users.map((row) => {
                 const rowLabel = row.email ?? row.id;
                 const queueSignals: QueueSignal[] = [];
                 if (row.spendableCredits <= 0) {

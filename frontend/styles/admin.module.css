@@ -3632,6 +3632,43 @@
   background: rgba(17, 20, 23, 0.88);
 }
 
+.adminStripeBillingToggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adminStripeBillingToggleHint {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.adminStripeBillingToggleIcon {
+  flex: 0 0 auto;
+  color: var(--admin-text-muted);
+  transition: transform 0.14s ease;
+}
+
+.adminStripeBillingToggleIconExpanded {
+  transform: rotate(180deg);
+}
+
+.adminStripeBillingBody {
+  display: grid;
+  gap: 12px;
+}
+
 .panelHeaderRow {
   display: flex;
   align-items: center;

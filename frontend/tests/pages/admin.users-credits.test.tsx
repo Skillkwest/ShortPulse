@@ -658,7 +658,11 @@ describe("Admin users and credits overview", () => {
     expect(alphaRow).toHaveTextContent("$5.00/mo");
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
-    expect(selectButtons[0]).toHaveAttribute("aria-label", "Select admin@example.com");
+    expect(selectButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Select alpha@example.com",
+      "Select beta@example.com",
+      "Select admin@example.com",
+    ]);
     await waitFor(() => expect(screen.getByTestId("snapshot-card-storage")).toBeInTheDocument());
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
@@ -826,6 +830,19 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    const stripeBillingToggle = screen.getByRole("button", { name: /Stripe billing/ });
+    expect(stripeBillingToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Billing identity state")).not.toBeInTheDocument();
+
+    fireEvent.click(stripeBillingToggle);
+    expect(stripeBillingToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Billing identity state")).toBeInTheDocument();
+
+    fireEvent.click(stripeBillingToggle);
+    expect(stripeBillingToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Billing identity state")).not.toBeInTheDocument();
+
+    fireEvent.click(stripeBillingToggle);
     fireEvent.click(screen.getByRole("button", { name: "Open Stripe billing" }));
 
     await waitFor(() =>

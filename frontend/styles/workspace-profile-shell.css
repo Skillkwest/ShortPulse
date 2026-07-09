@@ -242,6 +242,22 @@
   color: #ff9f9f;
 }
 
+.profile-notice-banner .ai-panel-plan-access-cta,
+.profile-callout .ai-panel-plan-access-cta {
+  border-color: rgba(255, 162, 92, 0.66);
+  background: linear-gradient(135deg, #ff9a4a 0%, #ff5357 48%, #ff2f7a 100%);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255, 74, 96, 0.28);
+}
+
+.profile-notice-banner .ai-panel-plan-access-cta:hover,
+.profile-notice-banner .ai-panel-plan-access-cta:focus-visible,
+.profile-callout .ai-panel-plan-access-cta:hover,
+.profile-callout .ai-panel-plan-access-cta:focus-visible {
+  border-color: rgba(255, 205, 130, 0.9);
+  background: linear-gradient(135deg, #ffad55 0%, #ff5d5a 44%, #ff347d 100%);
+}
+
 .profile-detail-panel {
   padding-bottom: 12px;
   background: var(--profile-wrapper-surface);

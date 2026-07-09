@@ -344,6 +344,72 @@ describe("Profile credits actions", () => {
     expect(await screen.findByText("+3,000")).toBeInTheDocument();
   });
 
+  it("shows a View plans action when baseline access tries to buy credit top-ups", async () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: { plan: "free" },
+      },
+    });
+    billingProfileState.plan_id = "free";
+    billingProfileState.subscription_status = "inactive";
+    billingProfileState.stripe_customer_id = null;
+    billingProfileState.stripe_subscription_id = null;
+    fetchWithAuthMock.mockImplementation(async (url: string) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [],
+            packages: [
+              {
+                id: "credits_100",
+                display_name: "100 credits",
+                credit_amount_cents: 100,
+                price_cents: 500,
+                sort_order: 10,
+              },
+            ],
+            storageAddons: [],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/checkout") {
+        return {
+          ok: false,
+          json: async () => ({
+            error: "Choose a paid subscription plan before buying credit top-ups.",
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({}),
+      };
+    });
+
+    render(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Buy 100 credits for $5.00" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId: "credits_100" }),
+      });
+    });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Choose a paid subscription plan before buying credit top-ups."
+    );
+    const planLink = within(alert).getByRole("link", { name: "View plans" });
+    expect(planLink).toHaveAttribute("href", "/profile?section=subscription");
+    expect(planLink).toHaveClass("app-message__action", "ai-panel-plan-access-cta");
+  });
+
   it("maps the legacy billing section alias to account settings", () => {
     routerState.query = { section: "billing", from: "/ai-studio?projectId=project-1" };
 

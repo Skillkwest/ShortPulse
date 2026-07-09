@@ -544,6 +544,31 @@
   margin-top: 18px;
 }
 
+.agentInstructionSubtabNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 132, 146, 0.18);
+  background: var(--agent-instructions-surface-1);
+}
+
+.agentInstructionSubtabButton {
+  min-width: 92px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.agentInstructionSectionGroup {
+  display: grid;
+  gap: 16px;
+  scroll-margin-top: 18px;
+}
+
 .agentInstructionStandardCard {
   border-style: solid;
   border-color: rgba(216, 168, 74, 0.22);
@@ -1365,6 +1390,20 @@
   background: var(--agent-instructions-surface-3);
 }
 
+.adminAgentInstructionsPage :global(.ghost-btn).dangerMiniButton,
+.adminAgentInstructionsPage :global(.ghost-btn.mini).dangerMiniButton {
+  border-color: rgba(248, 78, 78, 0.42);
+  background: rgba(74, 20, 24, 0.62);
+  color: #ffb0b0;
+}
+
+.adminAgentInstructionsPage :global(.ghost-btn).dangerMiniButton:hover,
+.adminAgentInstructionsPage :global(.ghost-btn.mini).dangerMiniButton:hover {
+  border-color: rgba(255, 118, 118, 0.72);
+  background: rgba(112, 28, 34, 0.78);
+  color: #ffe5e5;
+}
+
 .adminSectionEyebrow {
   margin: 0 0 4px;
   font-size: 11px;
@@ -2053,6 +2092,18 @@
   background: rgba(248, 78, 78, 0.26);
   color: #fff0f0;
   border: 1px solid rgba(248, 78, 78, 0.65);
+}
+
+.pulseLivePill {
+  background: rgba(50, 186, 112, 0.18);
+  color: #a9f0c2;
+  border: 1px solid rgba(82, 214, 139, 0.52);
+}
+
+.pulseDraftPill {
+  background: rgba(235, 176, 58, 0.2);
+  color: #ffe19a;
+  border: 1px solid rgba(245, 196, 92, 0.58);
 }
 
 .pill.adminSupportQueueSignalPill {

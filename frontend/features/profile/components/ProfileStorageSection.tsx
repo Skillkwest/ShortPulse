@@ -34,6 +34,7 @@ type ProfileStorageSectionProps = {
   storageTransactions: SubscriptionTransaction[];
   storageTransactionsError: string | null;
   storageTransactionsLoading: boolean;
+  subscriptionHref?: string;
   totalStorageLimitBytes: number;
   usedStorageBytes: number;
   onStorageAddonChange: (params: { storageAddonId: string; action: "add" | "remove" }) => void;
@@ -70,6 +71,7 @@ export function ProfileStorageSection({
   storageTransactions = [],
   storageTransactionsError,
   storageTransactionsLoading,
+  subscriptionHref = "/profile?section=subscription",
   totalStorageLimitBytes,
   usedStorageBytes,
   onStorageAddonChange,
@@ -165,6 +167,11 @@ export function ProfileStorageSection({
       {storageCalloutMessage ? (
         <aside className={profileClass("profile-callout")}>
           <p className="tiny">{storageCalloutMessage}</p>
+          {storageAddonManagementState === "requires_paid_plan" ? (
+            <a className="app-message__action ai-panel-plan-access-cta" href={subscriptionHref}>
+              View plans
+            </a>
+          ) : null}
         </aside>
       ) : null}
 

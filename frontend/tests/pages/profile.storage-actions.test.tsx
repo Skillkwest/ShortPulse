@@ -1,7 +1,7 @@
 /**
  * Profile storage-section tests for recurring storage add-on presentation.
  */
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
@@ -457,6 +457,62 @@ describe("Profile storage actions", () => {
     expect(screen.getByText("Extra 1 TB")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Requires Studio plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Requires Business plan" })).toBeDisabled();
+  });
+
+  it("shows a View plans action when baseline access cannot add recurring storage", async () => {
+    routerState.query = { section: "storage", from: "/ai-studio" };
+    billingProfileState.plan_id = "free";
+    billingProfileState.subscription_status = "inactive";
+    billingProfileState.stripe_customer_id = null;
+    billingProfileState.stripe_subscription_id = null;
+    billingContractState.value = null;
+    activeStorageAddonsQueryMock.mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 0,
+        baseLimitBytes: 0,
+        addonLimitBytes: 0,
+        totalLimitBytes: 0,
+        remainingBytes: 0,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: refreshQuotaSummaryMock,
+    });
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [],
+            packages: [],
+            storageAddons: [],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions?kind=storage") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+
+    render(<ProfilePage />);
+
+    const callout = await screen.findByText(
+      "Choose a paid subscription plan before adding recurring storage capacity."
+    );
+    const calloutRow = callout.closest(".profile-callout");
+    expect(calloutRow).not.toBeNull();
+    const planLink = within(calloutRow as HTMLElement).getByRole("link", { name: "View plans" });
+    expect(planLink).toHaveAttribute("href", "/profile?section=subscription&from=%2Fai-studio");
+    expect(planLink).toHaveClass("app-message__action", "ai-panel-plan-access-cta");
+    expect(screen.getAllByRole("button", { name: "Choose paid plan first" })).toHaveLength(4);
   });
 
   it("adds eligible recurring storage from the storage page without leaving the section", async () => {

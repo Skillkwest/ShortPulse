@@ -14,7 +14,7 @@ const createParams = (
     onFileBrowserSelection: vi.fn(),
     uiError: null,
     uiNotice: null,
-    experimentalNoPlanLanding: false,
+    experimentalNoPlanLandingState: undefined,
     onDismissUiError: vi.fn(),
     onDismissUiNotice: vi.fn(),
     balanceCredits: null,
@@ -110,11 +110,11 @@ describe("useAiStudioPageContentRuntime", () => {
     expect(result.current.detailNavigation).toBe(detailNavigation);
   });
 
-  it("passes through the experimental no-plan landing flag", () => {
+  it("passes through the experimental no-plan landing state", () => {
     const { result } = renderHook(() =>
-      useAiStudioPageContentRuntime(createParams({ experimentalNoPlanLanding: true }))
+      useAiStudioPageContentRuntime(createParams({ experimentalNoPlanLandingState: "active" }))
     );
 
-    expect(result.current.experimentalNoPlanLanding).toBe(true);
+    expect(result.current.experimentalNoPlanLandingState).toBe("active");
   });
 });

@@ -13,6 +13,26 @@ const buildThread = (index: number): PulseChatThreadListItem => ({
 });
 
 describe("PulseChatHistoryPanel", () => {
+  it("renders the Chats card empty state before the first saved thread exists", () => {
+    render(
+      <PulseChatHistoryPanel
+        threads={[]}
+        activeThreadId={null}
+        loading={false}
+        error={null}
+        openingThreadId={null}
+        onOpenThread={vi.fn()}
+        onRenameThread={vi.fn()}
+        onDeleteThread={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Chats")).toBeInTheDocument();
+    expect(
+      screen.getByText("Start a Pulse in this project to build your first saved chat.")
+    ).toBeInTheDocument();
+  });
+
   it("renders saved chats and highlights the active thread", () => {
     render(
       <PulseChatHistoryPanel

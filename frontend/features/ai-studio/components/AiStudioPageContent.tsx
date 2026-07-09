@@ -640,7 +640,7 @@ export type AiStudioPageContentProps = {
   uiNotice: string | null;
   mediaPlanNoticeMessage?: string | null;
   mediaPlanNoticeCta?: GenerationAccessCta | null;
-  experimentalNoPlanLanding?: boolean;
+  experimentalNoPlanLandingState?: "resolving" | "active";
   onMediaPlanAccessAttempt?: () => void;
   billingPlanNoticeMessage?: string | null;
   billingPlanNoticeHref?: string | null;
@@ -756,7 +756,7 @@ export function AiStudioPageContent({
   uiNotice,
   mediaPlanNoticeMessage = null,
   mediaPlanNoticeCta = null,
-  experimentalNoPlanLanding = false,
+  experimentalNoPlanLandingState,
   onMediaPlanAccessAttempt,
   billingPlanNoticeMessage = null,
   billingPlanNoticeHref = null,
@@ -1911,7 +1911,7 @@ export function AiStudioPageContent({
       ) : null}
       <main
         className="page page-wide ai-studio-page"
-        data-experimental-no-plan-landing={experimentalNoPlanLanding ? "true" : undefined}
+        data-experimental-no-plan-landing={experimentalNoPlanLandingState}
         data-shell-boundary-split={FLAG_SHELL_BOUNDARY_SPLIT ? "on" : "off"}
         data-selected-tool={selectedTool ?? undefined}
       >

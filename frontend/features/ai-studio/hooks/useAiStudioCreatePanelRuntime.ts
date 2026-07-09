@@ -16,6 +16,7 @@ import type {
 } from "../createRuntime/contracts";
 import { usePulseChatThreads } from "./usePulseChatThreads";
 import { useStandardCreatePrimarySubmit } from "./standardCreateRuntime/useStandardCreatePrimarySubmit";
+import { shouldShowProjectPulseChatHistory } from "../logic/projectPulseChatRuntime";
 import {
   buildPulseChatHydrationPayload,
   type PulseChatProjectState,
@@ -368,6 +369,11 @@ export const useAiStudioCreatePanelRuntime = ({
     openThreadSnapshot: openPulseChatSnapshot,
     setUiNotice: base.setUiNotice,
   });
+  const shouldShowPulseChatHistory = shouldShowProjectPulseChatHistory({
+    projectRouteRequested: base.projectRouteRequested,
+    projectId: base.projectId,
+    threadCount: projectPulseChatState.threads.length,
+  });
 
   return useMemo<CreatePanelProps>(() => {
     if (expertCreateMode === "pulse") {
@@ -383,7 +389,7 @@ export const useAiStudioCreatePanelRuntime = ({
           onPulsePromptChange: handlePulseCreatePromptChange,
           onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
           pulsePreferenceRuntime,
-          pulseChatHistory: base.projectRouteRequested
+          pulseChatHistory: shouldShowPulseChatHistory
             ? {
                 threads: pulseChatHistory.threads,
                 activeThreadId: pulseChatHistory.activeThreadId,
@@ -576,6 +582,7 @@ export const useAiStudioCreatePanelRuntime = ({
     handlePulseCreatePromptChange,
     handlePulsePresetRestart,
     handleRemoveAgentAttachment,
+    shouldShowPulseChatHistory,
     handleStandardCreatePromptChange,
     handleStandardCreatePrimarySubmit,
     hasActivePulseSession,

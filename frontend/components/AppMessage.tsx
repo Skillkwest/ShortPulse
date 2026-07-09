@@ -13,6 +13,7 @@ export type AppMessageAction = {
   label: string;
   onClick?: () => void;
   href?: string;
+  className?: string;
 };
 
 export type AppMessageState = {
@@ -111,12 +112,20 @@ export function AppMessage({
       {action || onDismiss ? (
         <div className="app-message__actions">
           {action?.href ? (
-            <a className="app-message__action" href={action.href} onClick={action.onClick}>
+            <a
+              className={["app-message__action", action.className].filter(Boolean).join(" ")}
+              href={action.href}
+              onClick={action.onClick}
+            >
               {action.label}
             </a>
           ) : null}
           {action && !action.href ? (
-            <button type="button" className="app-message__action" onClick={action.onClick}>
+            <button
+              type="button"
+              className={["app-message__action", action.className].filter(Boolean).join(" ")}
+              onClick={action.onClick}
+            >
               {action.label}
             </button>
           ) : null}

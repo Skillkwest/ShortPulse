@@ -599,6 +599,7 @@
 .profile-callout {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--profile-radius);
@@ -606,6 +607,10 @@
   background: rgba(20, 60, 72, 0.38);
   color: var(--color-teal);
   font-weight: 600;
+}
+
+.profile-callout p {
+  margin: 0;
 }
 
 .profile-metric-grid {

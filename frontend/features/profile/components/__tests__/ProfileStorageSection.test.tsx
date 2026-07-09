@@ -111,4 +111,43 @@ describe("ProfileStorageSection", () => {
     expect(requiresMediaButton).toBeDisabled();
     expect(requiresMediaButton).toHaveClass("ghost-btn");
   });
+
+  it("shows a View plans action when recurring storage requires a paid plan", () => {
+    render(
+      <ProfileStorageSection
+        activeAddonStorageBytes={0}
+        activePlanId="free"
+        activePlanClassName="plan-free"
+        activeStorageAddons={[]}
+        billingContractLoading={false}
+        billingPlansLoading={false}
+        currentSubscriptionStorageLimitBytes={0}
+        storageAddonChangeLoadingId={null}
+        storageAddonManagementState="requires_paid_plan"
+        storageAddons={[
+          {
+            id: "storage_50gb",
+            display_name: "Extra 50 GB",
+            storage_limit_bytes: 50 * 1024 * 1024 * 1024,
+            monthly_price_cents: 1000,
+            sort_order: 1,
+          },
+        ]}
+        storageTransactions={[]}
+        storageTransactionsError={null}
+        storageTransactionsLoading={false}
+        subscriptionHref="/profile?section=subscription&from=%2Fai-studio"
+        totalStorageLimitBytes={0}
+        usedStorageBytes={0}
+        onStorageAddonChange={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("Choose a paid subscription plan before adding recurring storage capacity.")
+    ).toBeInTheDocument();
+    const planLink = screen.getByRole("link", { name: "View plans" });
+    expect(planLink).toHaveAttribute("href", "/profile?section=subscription&from=%2Fai-studio");
+    expect(planLink).toHaveClass("app-message__action", "ai-panel-plan-access-cta");
+  });
 });

@@ -394,6 +394,23 @@ describe("AiStudioPageContent header project name", () => {
     expect(coin.getAttribute("style")).toContain("--credit-spent-degrees: 9.07deg");
   });
 
+  it("marks the page with the experimental no-plan landing state", () => {
+    const { rerender } = render(
+      <AiStudioPageContent {...createProps({ experimentalNoPlanLandingState: "resolving" })} />
+    );
+
+    expect(screen.getByRole("main")).toHaveAttribute(
+      "data-experimental-no-plan-landing",
+      "resolving"
+    );
+
+    rerender(
+      <AiStudioPageContent {...createProps({ experimentalNoPlanLandingState: "active" })} />
+    );
+
+    expect(screen.getByRole("main")).toHaveAttribute("data-experimental-no-plan-landing", "active");
+  });
+
   it("marks surplus AI Studio header credits with the blue surplus class", () => {
     render(
       <AiStudioPageContent

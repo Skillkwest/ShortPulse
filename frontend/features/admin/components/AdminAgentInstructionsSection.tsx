@@ -83,6 +83,7 @@ type PendingEditSystemPresetState = {
   label: string;
   prompt: string;
 };
+type AgentInstructionSectionId = "standard" | "styles" | "presets" | "pulses";
 type StandardPromptDraft = {
   promptBody: string;
   source: "control_plane" | "seed";
@@ -124,6 +125,15 @@ const SEEDED_STANDARD_SYSTEM_PROMPT = agentPrompts.STUDIO_AGENT_SYSTEM;
 const SEEDED_STYLE_EXTRACT_PROMPT = agentPrompts.OPENAI_PROMPT_STYLE_EXTRACT;
 const BUILT_IN_STYLE_REORDER_TRANSFER_TYPE = "application/x-shortpulse-admin-built-in-style";
 const BUILT_IN_STYLE_DROP_END_ID = "__built_in_style_drop_end__";
+const AGENT_INSTRUCTION_SECTION_TABS: Array<{
+  id: AgentInstructionSectionId;
+  label: string;
+}> = [
+  { id: "standard", label: "Standard" },
+  { id: "styles", label: "Styles" },
+  { id: "presets", label: "Presets" },
+  { id: "pulses", label: "Pulses" },
+];
 const buildPulseDraftFromDefinition = (
   definition: CreatePulseBuiltInPresetDefinition,
   index: number,
@@ -489,6 +499,12 @@ const loadBuiltInStyleCatalog = async (): Promise<BuiltInStyleCatalogDraft> => {
  * Renders the admin draft-edit surface for Standard and built-in Pulse agent instructions.
  */
 export function AdminAgentInstructionsSection() {
+  const [activeInstructionSection, setActiveInstructionSection] =
+    React.useState<AgentInstructionSectionId>("standard");
+  const standardSectionRef = React.useRef<HTMLDivElement>(null);
+  const stylesSectionRef = React.useRef<HTMLDivElement>(null);
+  const presetsSectionRef = React.useRef<HTMLDivElement>(null);
+  const pulsesSectionRef = React.useRef<HTMLDivElement>(null);
   const [standardInstructions, setStandardInstructions] = React.useState<string>(
     SEEDED_STANDARD_SYSTEM_PROMPT
   );
@@ -931,6 +947,44 @@ export function AdminAgentInstructionsSection() {
       setBuiltInStyleSaveIssue(null);
     },
     []
+  );
+
+  const resolveInstructionSectionElement = React.useCallback(
+    (sectionId: AgentInstructionSectionId) => {
+      switch (sectionId) {
+        case "standard":
+          return standardSectionRef.current;
+        case "styles":
+          return stylesSectionRef.current;
+        case "presets":
+          return presetsSectionRef.current;
+        case "pulses":
+          return pulsesSectionRef.current;
+      }
+    },
+    []
+  );
+
+  const handleNavigateInstructionSection = React.useCallback(
+    (sectionId: AgentInstructionSectionId) => {
+      setActiveInstructionSection(sectionId);
+
+      const target = resolveInstructionSectionElement(sectionId);
+      const scrollIntoView = target?.scrollIntoView;
+      if (!target || typeof scrollIntoView !== "function") return;
+
+      window.setTimeout(() => {
+        const prefersReducedMotion =
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        scrollIntoView.call(target, {
+          behavior: prefersReducedMotion ? "auto" : "smooth",
+          block: "start",
+          inline: "nearest",
+        });
+      }, 0);
+    },
+    [resolveInstructionSectionElement]
   );
 
   const handleBuiltInStylePreviewUpload = React.useCallback(
@@ -1613,845 +1667,882 @@ export function AdminAgentInstructionsSection() {
 
   return (
     <>
-      <div className={styles.agentInstructionWorkspace}>
-        <article
-          className={`${styles.agentInstructionCard} ${styles.agentInstructionStandardCard}`}
-        >
-          <div className={styles.agentInstructionHeader}>
-            <div>
-              <div className={styles.agentInstructionTitleRow}>
-                <button
-                  type="button"
-                  className={styles.agentInstructionCollapseToggle}
-                  onClick={() => setStandardCardCollapsed((current) => !current)}
-                  aria-expanded={!standardCardCollapsed}
-                  aria-controls="admin-standard-agent-card-body"
-                >
-                  <CaretDown
-                    size={16}
-                    weight="bold"
-                    className={`${styles.agentInstructionCollapseIcon} ${standardCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
-                  />
-                  <span>{standardCardCollapsed ? "Expand" : "Collapse"}</span>
-                </button>
-                <h3 className={styles.agentInstructionTitle}>Standard Create Agent</h3>
-                <span
-                  className={`${styles.pill} ${hasStandardPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
-                >
-                  {standardPromptLoadIssue
-                    ? "Runtime blocked"
-                    : hasStandardPromptUnsavedChanges
-                      ? "Unsaved edits"
-                      : standardPromptSource === "control_plane"
-                        ? "Live runtime"
-                        : "Local code copy"}
-                </span>
-              </div>
-              <p className={styles.agentInstructionDescription}>
-                Controls the Standard Create agent system prompt used by
-                <code> /api/ai/studio-agent-standard</code> for all users.
-              </p>
-            </div>
-            <div className={styles.agentInstructionActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void handleCopy(STANDARD_AGENT_ENTRY_ID, standardInstructions)}
-                disabled={standardInstructions.trim().length === 0}
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setStandardInstructions(storedStandardInstructions)}
-                disabled={!hasStandardPromptUnsavedChanges || standardPromptLoading}
-              >
-                Reset to stored
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void handleSaveStandardPrompt()}
-                disabled={
-                  standardPromptLoading ||
-                  standardPromptSaveState === "saving" ||
-                  standardInstructions.trim().length === 0 ||
-                  !hasStandardPromptUnsavedChanges
-                }
-              >
-                {standardPromptSaveState === "saving" ? "Saving..." : "Save prompt"}
-              </button>
-            </div>
-          </div>
-
-          <div
-            id="admin-standard-agent-card-body"
-            className={styles.agentInstructionCollapsibleBody}
-            hidden={standardCardCollapsed}
-          >
-            <label
-              className={styles.agentInstructionLabel}
-              htmlFor="admin-standard-agent-instructions"
+      <nav className={styles.agentInstructionSubtabNav} aria-label="Agent instruction sections">
+        {AGENT_INSTRUCTION_SECTION_TABS.map((tab) => {
+          const active = activeInstructionSection === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`${styles.tabButton} ${styles.agentInstructionSubtabButton} ${
+                active ? styles.tabActive : ""
+              }`}
+              aria-current={active ? "true" : undefined}
+              onClick={() => handleNavigateInstructionSection(tab.id)}
             >
-              Runtime system prompt
-            </label>
-            <textarea
-              id="admin-standard-agent-instructions"
-              className={styles.agentInstructionTextarea}
-              value={standardInstructions}
-              onChange={(event) => {
-                setStandardInstructions(event.target.value);
-                setStandardPromptSaveState("idle");
-              }}
-              placeholder="Paste the runtime Standard Create system prompt here."
-              spellCheck={false}
-              rows={14}
-            />
-            <p className={styles.agentInstructionNote}>
-              {copyFeedback[STANDARD_AGENT_ENTRY_ID] ??
-                (standardPromptLoadIssue
-                  ? standardPromptLoadIssue
-                  : standardPromptSaveState === "error"
-                    ? "Unable to save the live Standard system prompt."
-                    : standardPromptSource === "control_plane"
-                      ? `Live Standard runtime prompt${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
-                      : "Showing the local code copy. Standard runtime remains blocked until the live control-plane prompt exists.")}
-            </p>
-          </div>
-          {standardCardCollapsed ? (
-            <p className={styles.agentInstructionCollapsedSummary}>
-              {standardPromptSource === "control_plane"
-                ? "Live Standard runtime prompt is active."
-                : "Standard runtime prompt is missing; local code copy shown for reference."}
-            </p>
-          ) : null}
-        </article>
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
 
-        <article className={styles.agentInstructionCard}>
-          <div className={styles.agentInstructionHeader}>
-            <div>
-              <div className={styles.agentInstructionTitleRow}>
+      <div className={styles.agentInstructionWorkspace}>
+        <div
+          id="admin-agent-instructions-standard"
+          ref={standardSectionRef}
+          className={styles.agentInstructionSectionGroup}
+        >
+          <article
+            className={`${styles.agentInstructionCard} ${styles.agentInstructionStandardCard}`}
+          >
+            <div className={styles.agentInstructionHeader}>
+              <div>
+                <div className={styles.agentInstructionTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.agentInstructionCollapseToggle}
+                    onClick={() => setStandardCardCollapsed((current) => !current)}
+                    aria-expanded={!standardCardCollapsed}
+                    aria-controls="admin-standard-agent-card-body"
+                  >
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={`${styles.agentInstructionCollapseIcon} ${standardCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                    />
+                    <span>{standardCardCollapsed ? "Expand" : "Collapse"}</span>
+                  </button>
+                  <h3 className={styles.agentInstructionTitle}>Standard Create Agent</h3>
+                  <span
+                    className={`${styles.pill} ${hasStandardPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
+                  >
+                    {standardPromptLoadIssue
+                      ? "Runtime blocked"
+                      : hasStandardPromptUnsavedChanges
+                        ? "Unsaved edits"
+                        : standardPromptSource === "control_plane"
+                          ? "Live runtime"
+                          : "Local code copy"}
+                  </span>
+                </div>
+                <p className={styles.agentInstructionDescription}>
+                  Controls the Standard Create agent system prompt used by
+                  <code> /api/ai/studio-agent-standard</code> for all users.
+                </p>
+              </div>
+              <div className={styles.agentInstructionActions}>
                 <button
                   type="button"
-                  className={styles.agentInstructionCollapseToggle}
-                  onClick={() => setStyleExtractPromptCardCollapsed((current) => !current)}
-                  aria-expanded={!styleExtractPromptCardCollapsed}
-                  aria-controls="admin-style-extract-prompt-card-body"
+                  className="ghost-btn mini"
+                  onClick={() => void handleCopy(STANDARD_AGENT_ENTRY_ID, standardInstructions)}
+                  disabled={standardInstructions.trim().length === 0}
                 >
-                  <CaretDown
-                    size={16}
-                    weight="bold"
-                    className={`${styles.agentInstructionCollapseIcon} ${styleExtractPromptCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
-                  />
-                  <span>{styleExtractPromptCardCollapsed ? "Expand" : "Collapse"}</span>
+                  Copy
                 </button>
-                <h3 className={styles.agentInstructionTitle}>Style Extraction System Prompt</h3>
-                <span
-                  className={`${styles.pill} ${hasStyleExtractPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => setStandardInstructions(storedStandardInstructions)}
+                  disabled={!hasStandardPromptUnsavedChanges || standardPromptLoading}
                 >
-                  {styleExtractPromptLoadIssue
-                    ? "Seeded local copy"
-                    : hasStyleExtractPromptUnsavedChanges
-                      ? "Unsaved edits"
-                      : styleExtractPromptSource === "control_plane"
-                        ? "Live override"
-                        : "Seed fallback"}
-                </span>
+                  Reset to stored
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => void handleSaveStandardPrompt()}
+                  disabled={
+                    standardPromptLoading ||
+                    standardPromptSaveState === "saving" ||
+                    standardInstructions.trim().length === 0 ||
+                    !hasStandardPromptUnsavedChanges
+                  }
+                >
+                  {standardPromptSaveState === "saving" ? "Saving..." : "Save prompt"}
+                </button>
               </div>
-              <p className={styles.agentInstructionDescription}>
-                Controls how Styles Library extraction interprets uploaded reference images and
-                outputs reusable style add-on prompts for <code>/api/ai/extract-style</code>.
+            </div>
+
+            <div
+              id="admin-standard-agent-card-body"
+              className={styles.agentInstructionCollapsibleBody}
+              hidden={standardCardCollapsed}
+            >
+              <label
+                className={styles.agentInstructionLabel}
+                htmlFor="admin-standard-agent-instructions"
+              >
+                Runtime system prompt
+              </label>
+              <textarea
+                id="admin-standard-agent-instructions"
+                className={styles.agentInstructionTextarea}
+                value={standardInstructions}
+                onChange={(event) => {
+                  setStandardInstructions(event.target.value);
+                  setStandardPromptSaveState("idle");
+                }}
+                placeholder="Paste the runtime Standard Create system prompt here."
+                spellCheck={false}
+                rows={14}
+              />
+              <p className={styles.agentInstructionNote}>
+                {copyFeedback[STANDARD_AGENT_ENTRY_ID] ??
+                  (standardPromptLoadIssue
+                    ? standardPromptLoadIssue
+                    : standardPromptSaveState === "error"
+                      ? "Unable to save the live Standard system prompt."
+                      : standardPromptSource === "control_plane"
+                        ? `Live Standard runtime prompt${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
+                        : "Showing the local code copy. Standard runtime remains blocked until the live control-plane prompt exists.")}
               </p>
             </div>
-            <div className={styles.agentInstructionActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void handleCopy("style-extract-prompt", styleExtractPrompt)}
-                disabled={styleExtractPrompt.trim().length === 0}
-              >
-                Copy
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setStyleExtractPrompt(storedStyleExtractPrompt)}
-                disabled={!hasStyleExtractPromptUnsavedChanges || styleExtractPromptLoading}
-              >
-                Reset to stored
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void handleSaveStyleExtractPrompt()}
-                disabled={
-                  styleExtractPromptLoading ||
-                  styleExtractPromptSaveState === "saving" ||
-                  styleExtractPrompt.trim().length === 0 ||
-                  !hasStyleExtractPromptUnsavedChanges
-                }
-              >
-                {styleExtractPromptSaveState === "saving" ? "Saving..." : "Save prompt"}
-              </button>
-            </div>
-          </div>
+            {standardCardCollapsed ? (
+              <p className={styles.agentInstructionCollapsedSummary}>
+                {standardPromptSource === "control_plane"
+                  ? "Live Standard runtime prompt is active."
+                  : "Standard runtime prompt is missing; local code copy shown for reference."}
+              </p>
+            ) : null}
+          </article>
+        </div>
 
-          <div
-            id="admin-style-extract-prompt-card-body"
-            className={styles.agentInstructionCollapsibleBody}
-            hidden={styleExtractPromptCardCollapsed}
-          >
-            <label className={styles.agentInstructionLabel} htmlFor="admin-style-extract-prompt">
-              Runtime system prompt
-            </label>
-            <textarea
-              id="admin-style-extract-prompt"
-              className={styles.agentInstructionTextarea}
-              value={styleExtractPrompt}
-              onChange={(event) => {
-                setStyleExtractPrompt(event.target.value);
-                setStyleExtractPromptSaveState("idle");
-              }}
-              placeholder="Paste the runtime style extraction system prompt here."
-              spellCheck={false}
-              rows={20}
-            />
-            <p className={styles.agentInstructionNote}>
-              {copyFeedback["style-extract-prompt"] ??
-                (styleExtractPromptLoadIssue
-                  ? styleExtractPromptLoadIssue
-                  : styleExtractPromptSaveState === "error"
-                    ? "Unable to save the live style extraction prompt."
-                    : styleExtractPromptSource === "control_plane"
-                      ? `Live runtime override${styleExtractPromptUpdatedByEmail ? ` last updated by ${styleExtractPromptUpdatedByEmail}` : ""}${styleExtractPromptUpdatedLabel ? ` on ${styleExtractPromptUpdatedLabel}` : ""}.`
-                      : "No runtime override yet. The extractor is currently using the seeded code prompt fallback.")}
-            </p>
-          </div>
-          {styleExtractPromptCardCollapsed ? (
-            <p className={styles.agentInstructionCollapsedSummary}>
-              {styleExtractPromptSource === "control_plane"
-                ? "Live override active for the Styles Library extraction system prompt."
-                : "Seed fallback active for the Styles Library extraction system prompt."}
-            </p>
-          ) : null}
-        </article>
-
-        <article className={styles.agentInstructionCard}>
-          <div className={styles.agentInstructionHeader}>
-            <div>
-              <div className={styles.agentInstructionTitleRow}>
+        <div
+          id="admin-agent-instructions-styles"
+          ref={stylesSectionRef}
+          className={styles.agentInstructionSectionGroup}
+        >
+          <article className={styles.agentInstructionCard}>
+            <div className={styles.agentInstructionHeader}>
+              <div>
+                <div className={styles.agentInstructionTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.agentInstructionCollapseToggle}
+                    onClick={() => setStyleExtractPromptCardCollapsed((current) => !current)}
+                    aria-expanded={!styleExtractPromptCardCollapsed}
+                    aria-controls="admin-style-extract-prompt-card-body"
+                  >
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={`${styles.agentInstructionCollapseIcon} ${styleExtractPromptCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                    />
+                    <span>{styleExtractPromptCardCollapsed ? "Expand" : "Collapse"}</span>
+                  </button>
+                  <h3 className={styles.agentInstructionTitle}>Style Extraction System Prompt</h3>
+                  <span
+                    className={`${styles.pill} ${hasStyleExtractPromptUnsavedChanges ? styles.pillWarn : styles.pillOk}`}
+                  >
+                    {styleExtractPromptLoadIssue
+                      ? "Seeded local copy"
+                      : hasStyleExtractPromptUnsavedChanges
+                        ? "Unsaved edits"
+                        : styleExtractPromptSource === "control_plane"
+                          ? "Live override"
+                          : "Seed fallback"}
+                  </span>
+                </div>
+                <p className={styles.agentInstructionDescription}>
+                  Controls how Styles Library extraction interprets uploaded reference images and
+                  outputs reusable style add-on prompts for <code>/api/ai/extract-style</code>.
+                </p>
+              </div>
+              <div className={styles.agentInstructionActions}>
                 <button
                   type="button"
-                  className={styles.agentInstructionCollapseToggle}
-                  onClick={() => setBuiltInStyleCardCollapsed((current) => !current)}
-                  aria-expanded={!builtInStyleCardCollapsed}
-                  aria-controls="admin-built-in-styles-card-body"
+                  className="ghost-btn mini"
+                  onClick={() => void handleCopy("style-extract-prompt", styleExtractPrompt)}
+                  disabled={styleExtractPrompt.trim().length === 0}
                 >
-                  <CaretDown
-                    size={16}
-                    weight="bold"
-                    className={`${styles.agentInstructionCollapseIcon} ${builtInStyleCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
-                  />
-                  <span>{builtInStyleCardCollapsed ? "Expand" : "Collapse"}</span>
+                  Copy
                 </button>
-                <h3 className={styles.agentInstructionTitle}>Global built-in Styles</h3>
-                <span
-                  className={`${styles.pill} ${
-                    builtInStyleSaveIssue ||
-                    builtInStyleCatalogLoadIssue ||
-                    hasBuiltInStyleUnsavedChanges
-                      ? styles.pillWarn
-                      : styles.pillOk
-                  }`}
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => setStyleExtractPrompt(storedStyleExtractPrompt)}
+                  disabled={!hasStyleExtractPromptUnsavedChanges || styleExtractPromptLoading}
                 >
-                  {builtInStyleCatalogLoadIssue
-                    ? "Fallback catalog"
-                    : hasBuiltInStyleUnsavedChanges
-                      ? "Unsaved edits"
+                  Reset to stored
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => void handleSaveStyleExtractPrompt()}
+                  disabled={
+                    styleExtractPromptLoading ||
+                    styleExtractPromptSaveState === "saving" ||
+                    styleExtractPrompt.trim().length === 0 ||
+                    !hasStyleExtractPromptUnsavedChanges
+                  }
+                >
+                  {styleExtractPromptSaveState === "saving" ? "Saving..." : "Save prompt"}
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="admin-style-extract-prompt-card-body"
+              className={styles.agentInstructionCollapsibleBody}
+              hidden={styleExtractPromptCardCollapsed}
+            >
+              <label className={styles.agentInstructionLabel} htmlFor="admin-style-extract-prompt">
+                Runtime system prompt
+              </label>
+              <textarea
+                id="admin-style-extract-prompt"
+                className={styles.agentInstructionTextarea}
+                value={styleExtractPrompt}
+                onChange={(event) => {
+                  setStyleExtractPrompt(event.target.value);
+                  setStyleExtractPromptSaveState("idle");
+                }}
+                placeholder="Paste the runtime style extraction system prompt here."
+                spellCheck={false}
+                rows={20}
+              />
+              <p className={styles.agentInstructionNote}>
+                {copyFeedback["style-extract-prompt"] ??
+                  (styleExtractPromptLoadIssue
+                    ? styleExtractPromptLoadIssue
+                    : styleExtractPromptSaveState === "error"
+                      ? "Unable to save the live style extraction prompt."
+                      : styleExtractPromptSource === "control_plane"
+                        ? `Live runtime override${styleExtractPromptUpdatedByEmail ? ` last updated by ${styleExtractPromptUpdatedByEmail}` : ""}${styleExtractPromptUpdatedLabel ? ` on ${styleExtractPromptUpdatedLabel}` : ""}.`
+                        : "No runtime override yet. The extractor is currently using the seeded code prompt fallback.")}
+              </p>
+            </div>
+            {styleExtractPromptCardCollapsed ? (
+              <p className={styles.agentInstructionCollapsedSummary}>
+                {styleExtractPromptSource === "control_plane"
+                  ? "Live override active for the Styles Library extraction system prompt."
+                  : "Seed fallback active for the Styles Library extraction system prompt."}
+              </p>
+            ) : null}
+          </article>
+
+          <article className={styles.agentInstructionCard}>
+            <div className={styles.agentInstructionHeader}>
+              <div>
+                <div className={styles.agentInstructionTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.agentInstructionCollapseToggle}
+                    onClick={() => setBuiltInStyleCardCollapsed((current) => !current)}
+                    aria-expanded={!builtInStyleCardCollapsed}
+                    aria-controls="admin-built-in-styles-card-body"
+                  >
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={`${styles.agentInstructionCollapseIcon} ${builtInStyleCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                    />
+                    <span>{builtInStyleCardCollapsed ? "Expand" : "Collapse"}</span>
+                  </button>
+                  <h3 className={styles.agentInstructionTitle}>Global built-in Styles</h3>
+                  <span
+                    className={`${styles.pill} ${
+                      builtInStyleSaveIssue ||
+                      builtInStyleCatalogLoadIssue ||
+                      hasBuiltInStyleUnsavedChanges
+                        ? styles.pillWarn
+                        : styles.pillOk
+                    }`}
+                  >
+                    {builtInStyleCatalogLoadIssue
+                      ? "Fallback catalog"
+                      : hasBuiltInStyleUnsavedChanges
+                        ? "Unsaved edits"
+                        : builtInStyleCatalogSource === "control_plane"
+                          ? "Live catalog"
+                          : "Seed fallback"}
+                  </span>
+                </div>
+                <p className={styles.agentInstructionDescription}>
+                  Controls the shared built-in Styles catalog shown in AI Studio for all users.
+                  Users can delete these from their own library, but only admins can change the
+                  global built-in definitions here.
+                </p>
+                <p className={styles.agentInstructionNote}>
+                  {builtInStyleSaveIssue
+                    ? builtInStyleSaveIssue
+                    : builtInStyleCatalogLoadIssue
+                      ? builtInStyleCatalogLoadIssue
                       : builtInStyleCatalogSource === "control_plane"
+                        ? `Live global Styles catalog${builtInStyleCatalogUpdatedByEmail ? ` last updated by ${builtInStyleCatalogUpdatedByEmail}` : ""}${builtInStyleCatalogUpdatedLabel ? ` on ${builtInStyleCatalogUpdatedLabel}` : ""}.`
+                        : "Showing the seeded Styles catalog. Saving here creates or replaces the shared built-in set for all users."}
+                </p>
+              </div>
+              <div className={styles.agentInstructionActions}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={handleResetBuiltInStyleDrafts}
+                  disabled={!hasBuiltInStyleUnsavedChanges || builtInStyleLoading}
+                >
+                  Reset to stored
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => void handleSaveBuiltInStyleDrafts()}
+                  disabled={
+                    builtInStyleLoading ||
+                    builtInStyleSaveState === "saving" ||
+                    builtInStyleCatalogDegraded ||
+                    hasUnpublishableBuiltInStyleDrafts ||
+                    !hasBuiltInStyleUnsavedChanges
+                  }
+                >
+                  {builtInStyleSaveState === "saving" ? "Saving..." : "Save Styles set"}
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="admin-built-in-styles-card-body"
+              className={styles.agentInstructionCollapsibleBody}
+              hidden={builtInStyleCardCollapsed}
+            >
+              <div
+                className={`${styles.agentEditPresetGrid} ${styles.agentBuiltInStyleGrid}`}
+                role="list"
+                aria-label="Built-in Styles"
+              >
+                {builtInStyleDrafts.map((draft, index) => {
+                  const cardTitle =
+                    draft.title.trim().length > 0 ? draft.title : `Style ${index + 1}`;
+
+                  return (
+                    <article
+                      key={draft.localId}
+                      role="listitem"
+                      className={`${styles.agentEditPresetTile} ${styles.agentBuiltInStyleTile} ${
+                        draggedBuiltInStyleDraftId === draft.localId
+                          ? styles.agentBuiltInStyleTileDragging
+                          : ""
+                      } ${
+                        builtInStyleDragOverId === draft.localId
+                          ? styles.agentBuiltInStyleTileDropTarget
+                          : ""
+                      }`}
+                      onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, draft.localId)}
+                      onDrop={handleBuiltInStyleDraftDrop}
+                    >
+                      <button
+                        type="button"
+                        className={styles.agentEditPresetTileDelete}
+                        onClick={() => handleRemoveBuiltInStyleDraft(draft.localId)}
+                        aria-label={`Delete ${cardTitle} built-in style`}
+                        disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                      >
+                        Delete
+                      </button>
+                      <div
+                        className={`${styles.agentEditPresetTileButton} ${styles.agentBuiltInStyleTileHeader}`}
+                      >
+                        <button
+                          type="button"
+                          className={styles.agentBuiltInStyleDragHandle}
+                          aria-label={`Drag ${cardTitle} built-in Style to reorder`}
+                          title="Drag to reorder"
+                          draggable={!builtInStyleLoading && builtInStyleSaveState !== "saving"}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onDragStart={(event) =>
+                            handleBuiltInStyleDraftDragStart(event, draft.localId)
+                          }
+                          onDragEnd={handleBuiltInStyleDraftDragEnd}
+                        >
+                          <DotsSixVertical size={17} weight="bold" aria-hidden="true" />
+                        </button>
+                        <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
+                      </div>
+                      <div
+                        id={`admin-built-in-style-card-body-${draft.localId}`}
+                        className={styles.agentInstructionCollapsibleBody}
+                      >
+                        <div className={styles.agentInstructionFormGrid}>
+                          <label className={styles.agentInstructionField}>
+                            <span className={styles.agentInstructionLabel}>Style name</span>
+                            <input
+                              className={styles.agentInstructionInput}
+                              type="text"
+                              value={draft.title}
+                              onChange={(event) =>
+                                updateBuiltInStyleDraft(draft.localId, "title", event.target.value)
+                              }
+                              placeholder="Photorealistic"
+                            />
+                          </label>
+                        </div>
+                        <label
+                          className={`${styles.agentInstructionField} ${styles.agentBuiltInStylePreviewUpload}`}
+                        >
+                          <span className={styles.agentInstructionLabel}>Preview image</span>
+                          {draft.previewImageUrl.trim().length > 0 ? (
+                            <span className={styles.agentBuiltInStylePreviewFrame}>
+                              {/* Data-URL preview upload is operator-only and not part of app image optimization lanes. */}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                className={styles.agentBuiltInStylePreviewImage}
+                                src={draft.previewImageUrl}
+                                alt={`${cardTitle} preview`}
+                              />
+                            </span>
+                          ) : (
+                            <span className={styles.agentBuiltInStylePreviewFrame}>
+                              <span className={styles.agentBuiltInStylePreviewPlaceholder}>
+                                <span className={styles.agentBuiltInStylePreviewPlaceholderIcon}>
+                                  +
+                                </span>
+                                <span>Add image</span>
+                              </span>
+                            </span>
+                          )}
+                          <input
+                            className={styles.agentBuiltInStylePreviewInput}
+                            type="file"
+                            accept="image/*"
+                            aria-label="Preview image"
+                            onChange={(event) => {
+                              const [file] = Array.from(event.target.files ?? []);
+                              event.target.value = "";
+                              void handleBuiltInStylePreviewUpload(draft.localId, file ?? null);
+                            }}
+                          />
+                          {builtInStylePreviewUploadIssueById[draft.localId] ? (
+                            <span className={styles.agentInstructionNote}>
+                              {builtInStylePreviewUploadIssueById[draft.localId]}
+                            </span>
+                          ) : null}
+                        </label>
+                        <label
+                          className={styles.agentInstructionLabel}
+                          htmlFor={`admin-built-in-style-prompt-${draft.localId}`}
+                        >
+                          Style Prompt
+                        </label>
+                        <textarea
+                          id={`admin-built-in-style-prompt-${draft.localId}`}
+                          className={styles.agentInstructionTextarea}
+                          value={draft.stylePrompt}
+                          maxLength={STYLE_PROMPT_MAX_CHARACTERS}
+                          onChange={(event) =>
+                            updateBuiltInStyleDraft(
+                              draft.localId,
+                              "stylePrompt",
+                              event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS)
+                            )
+                          }
+                          placeholder="Describe the style add-on prompt."
+                          spellCheck={false}
+                          rows={7}
+                        />
+                        <span className={styles.agentInstructionNote}>
+                          {draft.stylePrompt.length} / {STYLE_PROMPT_MAX_CHARACTERS}
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+                <button
+                  type="button"
+                  className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd} ${
+                    builtInStyleDragOverId === BUILT_IN_STYLE_DROP_END_ID
+                      ? styles.agentBuiltInStyleTileDropTarget
+                      : ""
+                  }`}
+                  onClick={handleAddBuiltInStyleDraft}
+                  disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                  onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, null)}
+                  onDrop={handleBuiltInStyleDraftDrop}
+                >
+                  <span className={styles.agentEditPresetTileAddIcon}>+</span>
+                  <span className={styles.agentEditPresetTileTitle}>Add built-in Style</span>
+                  <span className={styles.agentEditPresetTilePrompt}>
+                    Create another shared built-in Style for AI Studio.
+                  </span>
+                </button>
+              </div>
+            </div>
+            {builtInStyleCardCollapsed ? (
+              <p className={styles.agentInstructionCollapsedSummary}>
+                {builtInStyleDrafts.length} built-in Style
+                {builtInStyleDrafts.length === 1 ? "" : "s"} available for AI Studio.
+              </p>
+            ) : null}
+          </article>
+        </div>
+
+        <div
+          id="admin-agent-instructions-presets"
+          ref={presetsSectionRef}
+          className={styles.agentInstructionSectionGroup}
+        >
+          <article
+            className={`${styles.agentInstructionCard} ${styles.agentInstructionEditPresetCard}`}
+          >
+            <div className={styles.agentInstructionHeader}>
+              <div>
+                <div className={styles.agentInstructionTitleRow}>
+                  <button
+                    type="button"
+                    className={styles.agentInstructionCollapseToggle}
+                    onClick={() => setEditSystemPresetCardCollapsed((current) => !current)}
+                    aria-expanded={!editSystemPresetCardCollapsed}
+                    aria-controls="admin-edit-system-presets-card-body"
+                  >
+                    <CaretDown
+                      size={16}
+                      weight="bold"
+                      className={`${styles.agentInstructionCollapseIcon} ${editSystemPresetCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                    />
+                    <span>{editSystemPresetCardCollapsed ? "Expand" : "Collapse"}</span>
+                  </button>
+                  <h3 className={styles.agentInstructionTitle}>Edit Mode System Presets</h3>
+                  <span
+                    className={`${styles.pill} ${editSystemPresetSaveState === "error" || editSystemPresetLoadIssue ? styles.pillWarn : styles.pillOk}`}
+                  >
+                    {editSystemPresetLoadIssue
+                      ? "Seeded fallback"
+                      : editSystemPresetSource === "control_plane"
                         ? "Live catalog"
                         : "Seed fallback"}
-                </span>
+                  </span>
+                </div>
+                <p className={styles.agentInstructionDescription}>
+                  Controls the shared Expert Edit system preset catalog shown in AI Studio for all
+                  users.
+                </p>
+                <p className={styles.agentInstructionNote}>
+                  {editSystemPresetLoadIssue
+                    ? editSystemPresetLoadIssue
+                    : editSystemPresetSaveState === "error"
+                      ? "Unable to save the live Edit preset catalog."
+                      : editSystemPresetSource === "control_plane"
+                        ? `Live global Edit preset catalog${editSystemPresetUpdatedByEmail ? ` last updated by ${editSystemPresetUpdatedByEmail}` : ""}${editSystemPresetUpdatedLabel ? ` on ${editSystemPresetUpdatedLabel}` : ""}.`
+                        : "Showing the seeded Edit preset catalog. Saving here creates or replaces the shared preset set for all users."}
+                </p>
               </div>
-              <p className={styles.agentInstructionDescription}>
-                Controls the shared built-in Styles catalog shown in AI Studio for all users. Users
-                can delete these from their own library, but only admins can change the global
-                built-in definitions here.
-              </p>
-              <p className={styles.agentInstructionNote}>
-                {builtInStyleSaveIssue
-                  ? builtInStyleSaveIssue
-                  : builtInStyleCatalogLoadIssue
-                    ? builtInStyleCatalogLoadIssue
-                    : builtInStyleCatalogSource === "control_plane"
-                      ? `Live global Styles catalog${builtInStyleCatalogUpdatedByEmail ? ` last updated by ${builtInStyleCatalogUpdatedByEmail}` : ""}${builtInStyleCatalogUpdatedLabel ? ` on ${builtInStyleCatalogUpdatedLabel}` : ""}.`
-                      : "Showing the seeded Styles catalog. Saving here creates or replaces the shared built-in set for all users."}
-              </p>
             </div>
-            <div className={styles.agentInstructionActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={handleResetBuiltInStyleDrafts}
-                disabled={!hasBuiltInStyleUnsavedChanges || builtInStyleLoading}
-              >
-                Reset to stored
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void handleSaveBuiltInStyleDrafts()}
-                disabled={
-                  builtInStyleLoading ||
-                  builtInStyleSaveState === "saving" ||
-                  builtInStyleCatalogDegraded ||
-                  hasUnpublishableBuiltInStyleDrafts ||
-                  !hasBuiltInStyleUnsavedChanges
-                }
-              >
-                {builtInStyleSaveState === "saving" ? "Saving..." : "Save Styles set"}
-              </button>
-            </div>
-          </div>
 
-          <div
-            id="admin-built-in-styles-card-body"
-            className={styles.agentInstructionCollapsibleBody}
-            hidden={builtInStyleCardCollapsed}
-          >
             <div
-              className={`${styles.agentEditPresetGrid} ${styles.agentBuiltInStyleGrid}`}
-              role="list"
-              aria-label="Built-in Styles"
+              id="admin-edit-system-presets-card-body"
+              className={styles.agentInstructionCollapsibleBody}
+              hidden={editSystemPresetCardCollapsed}
             >
-              {builtInStyleDrafts.map((draft, index) => {
-                const cardTitle =
-                  draft.title.trim().length > 0 ? draft.title : `Style ${index + 1}`;
-
-                return (
+              <div
+                className={styles.agentEditPresetGrid}
+                role="list"
+                aria-label="Edit mode system presets"
+              >
+                {editSystemPresetDrafts.map((preset) => (
                   <article
-                    key={draft.localId}
+                    key={preset.presetId}
                     role="listitem"
-                    className={`${styles.agentEditPresetTile} ${styles.agentBuiltInStyleTile} ${
-                      draggedBuiltInStyleDraftId === draft.localId
-                        ? styles.agentBuiltInStyleTileDragging
-                        : ""
-                    } ${
-                      builtInStyleDragOverId === draft.localId
-                        ? styles.agentBuiltInStyleTileDropTarget
-                        : ""
-                    }`}
-                    onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, draft.localId)}
-                    onDrop={handleBuiltInStyleDraftDrop}
+                    className={styles.agentEditPresetTile}
                   >
                     <button
                       type="button"
                       className={styles.agentEditPresetTileDelete}
-                      onClick={() => handleRemoveBuiltInStyleDraft(draft.localId)}
-                      aria-label={`Delete ${cardTitle} built-in style`}
-                      disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
+                      onClick={() => handleDeleteEditSystemPreset(preset.presetId)}
+                      aria-label={`Delete ${preset.label} preset`}
+                      disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
                     >
                       Delete
                     </button>
-                    <div
-                      className={`${styles.agentEditPresetTileButton} ${styles.agentBuiltInStyleTileHeader}`}
+                    <button
+                      type="button"
+                      className={styles.agentEditPresetTileButton}
+                      onClick={() =>
+                        setPendingEditSystemPreset({
+                          presetId: preset.presetId,
+                          originalLabel: preset.label,
+                          label: preset.label,
+                          prompt: preset.prompt,
+                        })
+                      }
+                      disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
                     >
-                      <button
-                        type="button"
-                        className={styles.agentBuiltInStyleDragHandle}
-                        aria-label={`Drag ${cardTitle} built-in Style to reorder`}
-                        title="Drag to reorder"
-                        draggable={!builtInStyleLoading && builtInStyleSaveState !== "saving"}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                        }}
-                        onDragStart={(event) =>
-                          handleBuiltInStyleDraftDragStart(event, draft.localId)
-                        }
-                        onDragEnd={handleBuiltInStyleDraftDragEnd}
-                      >
-                        <DotsSixVertical size={17} weight="bold" aria-hidden="true" />
-                      </button>
-                      <span className={styles.agentEditPresetTileTitle}>{cardTitle}</span>
-                    </div>
-                    <div
-                      id={`admin-built-in-style-card-body-${draft.localId}`}
-                      className={styles.agentInstructionCollapsibleBody}
-                    >
-                      <div className={styles.agentInstructionFormGrid}>
-                        <label className={styles.agentInstructionField}>
-                          <span className={styles.agentInstructionLabel}>Style name</span>
-                          <input
-                            className={styles.agentInstructionInput}
-                            type="text"
-                            value={draft.title}
-                            onChange={(event) =>
-                              updateBuiltInStyleDraft(draft.localId, "title", event.target.value)
-                            }
-                            placeholder="Photorealistic"
-                          />
-                        </label>
-                      </div>
-                      <label
-                        className={`${styles.agentInstructionField} ${styles.agentBuiltInStylePreviewUpload}`}
-                      >
-                        <span className={styles.agentInstructionLabel}>Preview image</span>
-                        {draft.previewImageUrl.trim().length > 0 ? (
-                          <span className={styles.agentBuiltInStylePreviewFrame}>
-                            {/* Data-URL preview upload is operator-only and not part of app image optimization lanes. */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              className={styles.agentBuiltInStylePreviewImage}
-                              src={draft.previewImageUrl}
-                              alt={`${cardTitle} preview`}
-                            />
-                          </span>
-                        ) : (
-                          <span className={styles.agentBuiltInStylePreviewFrame}>
-                            <span className={styles.agentBuiltInStylePreviewPlaceholder}>
-                              <span className={styles.agentBuiltInStylePreviewPlaceholderIcon}>
-                                +
-                              </span>
-                              <span>Add image</span>
-                            </span>
-                          </span>
-                        )}
-                        <input
-                          className={styles.agentBuiltInStylePreviewInput}
-                          type="file"
-                          accept="image/*"
-                          aria-label="Preview image"
-                          onChange={(event) => {
-                            const [file] = Array.from(event.target.files ?? []);
-                            event.target.value = "";
-                            void handleBuiltInStylePreviewUpload(draft.localId, file ?? null);
-                          }}
-                        />
-                        {builtInStylePreviewUploadIssueById[draft.localId] ? (
-                          <span className={styles.agentInstructionNote}>
-                            {builtInStylePreviewUploadIssueById[draft.localId]}
-                          </span>
-                        ) : null}
-                      </label>
-                      <label
-                        className={styles.agentInstructionLabel}
-                        htmlFor={`admin-built-in-style-prompt-${draft.localId}`}
-                      >
-                        Style Prompt
-                      </label>
-                      <textarea
-                        id={`admin-built-in-style-prompt-${draft.localId}`}
-                        className={styles.agentInstructionTextarea}
-                        value={draft.stylePrompt}
-                        maxLength={STYLE_PROMPT_MAX_CHARACTERS}
-                        onChange={(event) =>
-                          updateBuiltInStyleDraft(
-                            draft.localId,
-                            "stylePrompt",
-                            event.target.value.slice(0, STYLE_PROMPT_MAX_CHARACTERS)
-                          )
-                        }
-                        placeholder="Describe the style add-on prompt."
-                        spellCheck={false}
-                        rows={7}
-                      />
-                      <span className={styles.agentInstructionNote}>
-                        {draft.stylePrompt.length} / {STYLE_PROMPT_MAX_CHARACTERS}
-                      </span>
-                    </div>
+                      <span className={styles.agentEditPresetTileTitle}>{preset.label}</span>
+                      <span className={styles.agentEditPresetTilePrompt}>{preset.prompt}</span>
+                    </button>
                   </article>
-                );
-              })}
-              <button
-                type="button"
-                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd} ${
-                  builtInStyleDragOverId === BUILT_IN_STYLE_DROP_END_ID
-                    ? styles.agentBuiltInStyleTileDropTarget
-                    : ""
-                }`}
-                onClick={handleAddBuiltInStyleDraft}
-                disabled={builtInStyleLoading || builtInStyleSaveState === "saving"}
-                onDragOver={(event) => handleBuiltInStyleDraftDragOver(event, null)}
-                onDrop={handleBuiltInStyleDraftDrop}
-              >
-                <span className={styles.agentEditPresetTileAddIcon}>+</span>
-                <span className={styles.agentEditPresetTileTitle}>Add built-in Style</span>
-                <span className={styles.agentEditPresetTilePrompt}>
-                  Create another shared built-in Style for AI Studio.
-                </span>
-              </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
+                  onClick={handleAddEditSystemPreset}
+                  disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
+                >
+                  <span className={styles.agentEditPresetTileAddIcon}>+</span>
+                  <span className={styles.agentEditPresetTileTitle}>Add preset</span>
+                  <span className={styles.agentEditPresetTilePrompt}>
+                    Create another global system preset for Edit mode.
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
-          {builtInStyleCardCollapsed ? (
-            <p className={styles.agentInstructionCollapsedSummary}>
-              {builtInStyleDrafts.length} built-in Style
-              {builtInStyleDrafts.length === 1 ? "" : "s"} available for AI Studio.
-            </p>
-          ) : null}
-        </article>
+            {editSystemPresetCardCollapsed ? (
+              <p className={styles.agentInstructionCollapsedSummary}>
+                {editSystemPresetDrafts.length} system presets available for Edit mode. Expand this
+                card to browse and edit the shared global set.
+              </p>
+            ) : null}
+          </article>
+        </div>
 
-        <article
-          className={`${styles.agentInstructionCard} ${styles.agentInstructionEditPresetCard}`}
+        <div
+          id="admin-agent-instructions-pulses"
+          ref={pulsesSectionRef}
+          className={styles.agentInstructionSectionGroup}
         >
-          <div className={styles.agentInstructionHeader}>
-            <div>
-              <div className={styles.agentInstructionTitleRow}>
+          <div
+            className={`${styles.agentInstructionModeSection} ${styles.agentInstructionPulseSection}`}
+          >
+            <div className={styles.agentInstructionModeHeader}>
+              <div className={styles.agentInstructionModeHeaderTop}>
+                <div>
+                  <p className={styles.agentInstructionModeEyebrow}>Pulse mode</p>
+                  <h3 className={styles.agentInstructionModeTitle}>Global built-in Pulse set</h3>
+                </div>
+              </div>
+              <p className={styles.agentInstructionModeDescription}>
+                These entries are the shared built-in Pulse catalog. Seeded content is just a
+                starting point. Save applies the current set for all Create users.
+              </p>
+              <p className={styles.agentInstructionNote}>
+                {pulseSaveIssue
+                  ? pulseSaveIssue
+                  : pulseCatalogLoadIssue
+                    ? pulseCatalogLoadIssue
+                    : pulseCatalogSource === "control_plane"
+                      ? `Live global Pulse catalog${pulseCatalogUpdatedByEmail ? ` last updated by ${pulseCatalogUpdatedByEmail}` : ""}${pulseCatalogUpdatedLabel ? ` on ${pulseCatalogUpdatedLabel}` : ""}.`
+                      : "Showing the seeded Pulse catalog. Saving here creates or replaces the shared built-in set for all users."}
+              </p>
+              <div className={styles.agentInstructionModeMetaRow}>
                 <button
                   type="button"
                   className={styles.agentInstructionCollapseToggle}
-                  onClick={() => setEditSystemPresetCardCollapsed((current) => !current)}
-                  aria-expanded={!editSystemPresetCardCollapsed}
-                  aria-controls="admin-edit-system-presets-card-body"
+                  onClick={() => setPulseSectionCollapsed((current) => !current)}
+                  aria-expanded={!pulseSectionCollapsed}
+                  aria-controls="admin-pulse-mode-card-list"
                 >
                   <CaretDown
                     size={16}
                     weight="bold"
-                    className={`${styles.agentInstructionCollapseIcon} ${editSystemPresetCardCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                    className={`${styles.agentInstructionCollapseIcon} ${pulseSectionCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
                   />
-                  <span>{editSystemPresetCardCollapsed ? "Expand" : "Collapse"}</span>
+                  <span>{pulseSectionCollapsed ? "Expand section" : "Collapse section"}</span>
                 </button>
-                <h3 className={styles.agentInstructionTitle}>Edit Mode System Presets</h3>
-                <span
-                  className={`${styles.pill} ${editSystemPresetSaveState === "error" || editSystemPresetLoadIssue ? styles.pillWarn : styles.pillOk}`}
-                >
-                  {editSystemPresetLoadIssue
-                    ? "Seeded fallback"
-                    : editSystemPresetSource === "control_plane"
-                      ? "Live catalog"
-                      : "Seed fallback"}
-                </span>
               </div>
-              <p className={styles.agentInstructionDescription}>
-                Controls the shared Expert Edit system preset catalog shown in AI Studio for all
-                users.
-              </p>
-              <p className={styles.agentInstructionNote}>
-                {editSystemPresetLoadIssue
-                  ? editSystemPresetLoadIssue
-                  : editSystemPresetSaveState === "error"
-                    ? "Unable to save the live Edit preset catalog."
-                    : editSystemPresetSource === "control_plane"
-                      ? `Live global Edit preset catalog${editSystemPresetUpdatedByEmail ? ` last updated by ${editSystemPresetUpdatedByEmail}` : ""}${editSystemPresetUpdatedLabel ? ` on ${editSystemPresetUpdatedLabel}` : ""}.`
-                      : "Showing the seeded Edit preset catalog. Saving here creates or replaces the shared preset set for all users."}
-              </p>
             </div>
-          </div>
 
-          <div
-            id="admin-edit-system-presets-card-body"
-            className={styles.agentInstructionCollapsibleBody}
-            hidden={editSystemPresetCardCollapsed}
-          >
             <div
-              className={styles.agentEditPresetGrid}
-              role="list"
-              aria-label="Edit mode system presets"
+              id="admin-pulse-mode-card-list"
+              className={styles.agentInstructionCardList}
+              hidden={pulseSectionCollapsed}
             >
-              {editSystemPresetDrafts.map((preset) => (
-                <article
-                  key={preset.presetId}
-                  role="listitem"
-                  className={styles.agentEditPresetTile}
-                >
-                  <button
-                    type="button"
-                    className={styles.agentEditPresetTileDelete}
-                    onClick={() => handleDeleteEditSystemPreset(preset.presetId)}
-                    aria-label={`Delete ${preset.label} preset`}
-                    disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.agentEditPresetTileButton}
-                    onClick={() =>
-                      setPendingEditSystemPreset({
-                        presetId: preset.presetId,
-                        originalLabel: preset.label,
-                        label: preset.label,
-                        prompt: preset.prompt,
-                      })
-                    }
-                    disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
-                  >
-                    <span className={styles.agentEditPresetTileTitle}>{preset.label}</span>
-                    <span className={styles.agentEditPresetTilePrompt}>{preset.prompt}</span>
-                  </button>
-                </article>
-              ))}
-              <button
-                type="button"
-                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
-                onClick={handleAddEditSystemPreset}
-                disabled={editSystemPresetLoading || editSystemPresetSaveState === "saving"}
-              >
-                <span className={styles.agentEditPresetTileAddIcon}>+</span>
-                <span className={styles.agentEditPresetTileTitle}>Add preset</span>
-                <span className={styles.agentEditPresetTilePrompt}>
-                  Create another global system preset for Edit mode.
-                </span>
-              </button>
-            </div>
-          </div>
-          {editSystemPresetCardCollapsed ? (
-            <p className={styles.agentInstructionCollapsedSummary}>
-              {editSystemPresetDrafts.length} system presets available for Edit mode. Expand this
-              card to browse and edit the shared global set.
-            </p>
-          ) : null}
-        </article>
+              {pulseDrafts.map((draft, index) => {
+                const stored = storedPulseDraftsById[draft.localId];
+                const isCollapsed = pulseCardCollapsed[draft.localId] ?? true;
+                const isDirty = stored
+                  ? !arePulseDraftsEqual(draft, stored)
+                  : !isPulseDraftBlank(draft);
+                const cardTitle =
+                  draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
+                const statusLabel = stored ? (isDirty ? "Unsaved edits" : null) : "New slot";
+                const publicationLabel = draft.publicationStatus === "draft" ? "Draft" : "Live";
+                const validationIssue = resolvePulseDraftValidationIssue(draft);
+                const canSaveCard =
+                  !pulseLoading &&
+                  pulseSaveState !== "saving" &&
+                  !isPulseSaveBlockedByDegradedCatalog &&
+                  isDirty &&
+                  isPulseDraftPersistable(draft);
+                const isSavingThisCard =
+                  pulseSaveState === "saving" && pendingPulseDraftSaveId === draft.localId;
 
-        <div
-          className={`${styles.agentInstructionModeSection} ${styles.agentInstructionPulseSection}`}
-        >
-          <div className={styles.agentInstructionModeHeader}>
-            <div className={styles.agentInstructionModeHeaderTop}>
-              <div>
-                <p className={styles.agentInstructionModeEyebrow}>Pulse mode</p>
-                <h3 className={styles.agentInstructionModeTitle}>Global built-in Pulse set</h3>
-              </div>
-            </div>
-            <p className={styles.agentInstructionModeDescription}>
-              These entries are the shared built-in Pulse catalog. Seeded content is just a starting
-              point. Save applies the current set for all Create users.
-            </p>
-            <p className={styles.agentInstructionNote}>
-              {pulseSaveIssue
-                ? pulseSaveIssue
-                : pulseCatalogLoadIssue
-                  ? pulseCatalogLoadIssue
-                  : pulseCatalogSource === "control_plane"
-                    ? `Live global Pulse catalog${pulseCatalogUpdatedByEmail ? ` last updated by ${pulseCatalogUpdatedByEmail}` : ""}${pulseCatalogUpdatedLabel ? ` on ${pulseCatalogUpdatedLabel}` : ""}.`
-                    : "Showing the seeded Pulse catalog. Saving here creates or replaces the shared built-in set for all users."}
-            </p>
-            <div className={styles.agentInstructionModeMetaRow}>
-              <button
-                type="button"
-                className={styles.agentInstructionCollapseToggle}
-                onClick={() => setPulseSectionCollapsed((current) => !current)}
-                aria-expanded={!pulseSectionCollapsed}
-                aria-controls="admin-pulse-mode-card-list"
-              >
-                <CaretDown
-                  size={16}
-                  weight="bold"
-                  className={`${styles.agentInstructionCollapseIcon} ${pulseSectionCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
-                />
-                <span>{pulseSectionCollapsed ? "Expand section" : "Collapse section"}</span>
-              </button>
-            </div>
-          </div>
-
-          <div
-            id="admin-pulse-mode-card-list"
-            className={styles.agentInstructionCardList}
-            hidden={pulseSectionCollapsed}
-          >
-            {pulseDrafts.map((draft, index) => {
-              const stored = storedPulseDraftsById[draft.localId];
-              const isCollapsed = pulseCardCollapsed[draft.localId] ?? true;
-              const isDirty = stored
-                ? !arePulseDraftsEqual(draft, stored)
-                : !isPulseDraftBlank(draft);
-              const cardTitle =
-                draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
-              const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
-              const publicationLabel =
-                draft.publicationStatus === "draft" ? "Admin draft" : "Live app";
-              const validationIssue = resolvePulseDraftValidationIssue(draft);
-              const note = stored
-                ? isDirty
-                  ? "This slot differs from the stored global Pulse set."
-                  : draft.publicationStatus === "draft"
-                    ? "Stored as an admin draft and excluded from the live Pulse catalog."
-                    : "Matches the stored global Pulse set."
-                : "New slot. Save applies it to the shared built-in Pulse catalog.";
-              const canSaveCard =
-                !pulseLoading &&
-                pulseSaveState !== "saving" &&
-                !isPulseSaveBlockedByDegradedCatalog &&
-                isDirty &&
-                isPulseDraftPersistable(draft);
-              const isSavingThisCard =
-                pulseSaveState === "saving" && pendingPulseDraftSaveId === draft.localId;
-
-              return (
-                <article key={draft.localId} className={styles.agentInstructionCard}>
-                  <div className={styles.agentInstructionHeader}>
-                    <div>
-                      <div className={styles.agentInstructionTitleRow}>
+                return (
+                  <article key={draft.localId} className={styles.agentInstructionCard}>
+                    <div className={styles.agentInstructionHeader}>
+                      <div>
+                        <div className={styles.agentInstructionTitleRow}>
+                          <button
+                            type="button"
+                            className={styles.agentInstructionCollapseToggle}
+                            onClick={() =>
+                              setPulseCardCollapsed((current) => ({
+                                ...current,
+                                [draft.localId]: !isCollapsed,
+                              }))
+                            }
+                            aria-expanded={!isCollapsed}
+                            aria-controls={`admin-pulse-card-body-${draft.localId}`}
+                          >
+                            <CaretDown
+                              size={16}
+                              weight="bold"
+                              className={`${styles.agentInstructionCollapseIcon} ${isCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
+                            />
+                            <span>{isCollapsed ? "Expand" : "Collapse"}</span>
+                          </button>
+                          <h4 className={styles.agentInstructionTitle}>{cardTitle}</h4>
+                          {statusLabel ? (
+                            <span className={`${styles.pill} ${styles.pillWarn}`}>
+                              {statusLabel}
+                            </span>
+                          ) : null}
+                          <span
+                            className={`${styles.pill} ${
+                              draft.publicationStatus === "draft"
+                                ? styles.pulseDraftPill
+                                : styles.pulseLivePill
+                            }`}
+                          >
+                            {publicationLabel}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={styles.agentInstructionActions}>
+                        <label className={styles.agentInstructionPublicationToggle}>
+                          <span>Draft</span>
+                          <input
+                            type="checkbox"
+                            checked={draft.publicationStatus === "draft"}
+                            onChange={(event) =>
+                              updatePulseDraft(
+                                draft.localId,
+                                "publicationStatus",
+                                event.target.checked ? "draft" : "published"
+                              )
+                            }
+                            aria-label={`Keep ${cardTitle} in admin as a draft`}
+                          />
+                        </label>
                         <button
                           type="button"
-                          className={styles.agentInstructionCollapseToggle}
-                          onClick={() =>
-                            setPulseCardCollapsed((current) => ({
-                              ...current,
-                              [draft.localId]: !isCollapsed,
-                            }))
-                          }
-                          aria-expanded={!isCollapsed}
-                          aria-controls={`admin-pulse-card-body-${draft.localId}`}
+                          className="ghost-btn mini"
+                          onClick={() => void handleSavePulseDraft(draft.localId)}
+                          disabled={!canSaveCard}
                         >
-                          <CaretDown
-                            size={16}
-                            weight="bold"
-                            className={`${styles.agentInstructionCollapseIcon} ${isCollapsed ? styles.agentInstructionCollapseIconCollapsed : ""}`}
-                          />
-                          <span>{isCollapsed ? "Expand" : "Collapse"}</span>
+                          {isSavingThisCard ? "Saving..." : "Save"}
                         </button>
-                        <h4 className={styles.agentInstructionTitle}>{cardTitle}</h4>
-                        <span
-                          className={`${styles.pill} ${isDirty ? styles.pillWarn : styles.pillOk}`}
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.dangerMiniButton}`}
+                          onClick={() => void handleRemovePulseDraft(draft.localId)}
                         >
-                          {statusLabel}
-                        </span>
-                        <span
-                          className={`${styles.pill} ${
-                            draft.publicationStatus === "draft" ? styles.pillWarn : styles.pillOk
-                          }`}
-                        >
-                          {publicationLabel}
-                        </span>
+                          Delete
+                        </button>
                       </div>
-                      <p className={styles.agentInstructionDescription}>
-                        Create the built-in Pulse title and system instructions. The first assistant
-                        step should live inside the prompt, not in a separate starter field.
-                      </p>
                     </div>
-                    <div className={styles.agentInstructionActions}>
-                      <label className={styles.agentInstructionPublicationToggle}>
-                        <span>Draft</span>
+
+                    <div
+                      id={`admin-pulse-card-body-${draft.localId}`}
+                      className={styles.agentInstructionCollapsibleBody}
+                      hidden={isCollapsed}
+                    >
+                      <label className={styles.agentInstructionField}>
+                        <span className={styles.agentInstructionLabel}>Title</span>
                         <input
-                          type="checkbox"
-                          checked={draft.publicationStatus === "draft"}
+                          className={styles.agentInstructionInput}
+                          type="text"
+                          value={draft.label}
                           onChange={(event) =>
-                            updatePulseDraft(
-                              draft.localId,
-                              "publicationStatus",
-                              event.target.checked ? "draft" : "published"
-                            )
+                            updatePulseDraft(draft.localId, "label", event.target.value)
                           }
-                          aria-label={`Keep ${cardTitle} in admin as a draft`}
+                          placeholder="Prompt Modifier"
                         />
                       </label>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => void handleSavePulseDraft(draft.localId)}
-                        disabled={!canSaveCard}
-                      >
-                        {isSavingThisCard ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => void handleRemovePulseDraft(draft.localId)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
 
-                  <div
-                    id={`admin-pulse-card-body-${draft.localId}`}
-                    className={styles.agentInstructionCollapsibleBody}
-                    hidden={isCollapsed}
-                  >
-                    <label className={styles.agentInstructionField}>
-                      <span className={styles.agentInstructionLabel}>Title</span>
-                      <input
-                        className={styles.agentInstructionInput}
-                        type="text"
-                        value={draft.label}
+                      <label
+                        className={styles.agentInstructionLabel}
+                        htmlFor={`admin-pulse-agent-instructions-${draft.localId}`}
+                      >
+                        Prompt
+                      </label>
+                      <textarea
+                        id={`admin-pulse-agent-instructions-${draft.localId}`}
+                        className={styles.agentInstructionTextarea}
+                        value={draft.systemInstructions}
                         onChange={(event) =>
-                          updatePulseDraft(draft.localId, "label", event.target.value)
+                          updatePulseDraft(draft.localId, "systemInstructions", event.target.value)
                         }
-                        placeholder="Prompt Modifier"
+                        placeholder="Paste the full built-in Pulse prompt here."
+                        spellCheck={false}
+                        rows={18}
                       />
-                    </label>
+                      {validationIssue ? (
+                        <p
+                          id={`admin-pulse-card-note-${draft.localId}`}
+                          className={styles.agentInstructionNote}
+                        >
+                          {validationIssue}
+                        </p>
+                      ) : null}
+                    </div>
+                    {isCollapsed ? (
+                      <p className={styles.agentInstructionCollapsedSummary}>
+                        {draft.systemInstructions.trim().length > 0
+                          ? draft.systemInstructions.trim().slice(0, 180)
+                          : "Expand this Pulse card to review or edit its full configuration."}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })}
 
-                    <label
-                      className={styles.agentInstructionLabel}
-                      htmlFor={`admin-pulse-agent-instructions-${draft.localId}`}
-                    >
-                      Prompt
-                    </label>
-                    <textarea
-                      id={`admin-pulse-agent-instructions-${draft.localId}`}
-                      className={styles.agentInstructionTextarea}
-                      value={draft.systemInstructions}
-                      onChange={(event) =>
-                        updatePulseDraft(draft.localId, "systemInstructions", event.target.value)
-                      }
-                      placeholder="Paste the full built-in Pulse prompt here."
-                      spellCheck={false}
-                      rows={18}
-                    />
-                    <p
-                      id={`admin-pulse-card-note-${draft.localId}`}
-                      className={styles.agentInstructionNote}
-                    >
-                      {validationIssue ?? note}
-                    </p>
-                  </div>
-                  {isCollapsed ? (
-                    <p className={styles.agentInstructionCollapsedSummary}>
-                      {draft.systemInstructions.trim().length > 0
-                        ? draft.systemInstructions.trim().slice(0, 180)
-                        : "Expand this Pulse card to review or edit its full configuration."}
-                    </p>
-                  ) : null}
-                </article>
-              );
-            })}
-
-            <article className={`${styles.agentInstructionCard} ${styles.agentInstructionAddCard}`}>
-              <button
-                type="button"
-                className={styles.agentInstructionAddTile}
-                onClick={handleAddPulseDraft}
+              <article
+                className={`${styles.agentInstructionCard} ${styles.agentInstructionAddCard}`}
               >
-                <span className={styles.agentInstructionAddIcon}>+</span>
-                <span className={styles.agentInstructionAddTitle}>Add built-in Pulse</span>
-                <span className={styles.agentInstructionAddDescription}>
-                  Create another shared Pulse slot at the bottom of this catalog.
-                </span>
-              </button>
-              <div className={styles.agentInstructionFooterActions}>
                 <button
                   type="button"
-                  className="ghost-btn mini"
-                  onClick={handleResetAllPulseDrafts}
-                  disabled={!hasPulseUnsavedChanges || pulseLoading}
+                  className={styles.agentInstructionAddTile}
+                  onClick={handleAddPulseDraft}
                 >
-                  Reset to stored set
+                  <span className={styles.agentInstructionAddIcon}>+</span>
+                  <span className={styles.agentInstructionAddTitle}>Add built-in Pulse</span>
+                  <span className={styles.agentInstructionAddDescription}>
+                    Create another shared Pulse slot at the bottom of this catalog.
+                  </span>
                 </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => void handleSavePulseDrafts()}
-                  disabled={
-                    pulseLoading ||
-                    pulseSaveState === "saving" ||
-                    isPulseSaveBlockedByDegradedCatalog ||
-                    hasUnpublishablePulseDrafts ||
-                    !hasPulseUnsavedChanges
-                  }
-                >
-                  {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
-                </button>
-              </div>
-            </article>
+                <div className={styles.agentInstructionFooterActions}>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={handleResetAllPulseDrafts}
+                    disabled={!hasPulseUnsavedChanges || pulseLoading}
+                  >
+                    Reset to stored set
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn mini"
+                    onClick={() => void handleSavePulseDrafts()}
+                    disabled={
+                      pulseLoading ||
+                      pulseSaveState === "saving" ||
+                      isPulseSaveBlockedByDegradedCatalog ||
+                      hasUnpublishablePulseDrafts ||
+                      !hasPulseUnsavedChanges
+                    }
+                  >
+                    {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
+                  </button>
+                </div>
+              </article>
+            </div>
+            {pulseSectionCollapsed ? (
+              <p className={styles.agentInstructionCollapsedSummary}>
+                {pulseDrafts.length} built-in Pulse slot{pulseDrafts.length === 1 ? "" : "s"} ready
+                to expand and edit.
+              </p>
+            ) : null}
           </div>
-          {pulseSectionCollapsed ? (
-            <p className={styles.agentInstructionCollapsedSummary}>
-              {pulseDrafts.length} built-in Pulse slot{pulseDrafts.length === 1 ? "" : "s"} ready to
-              expand and edit.
-            </p>
-          ) : null}
         </div>
       </div>
 

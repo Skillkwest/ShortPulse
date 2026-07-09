@@ -11,6 +11,7 @@ import { buildDefaultPricingParams } from "../logic/pricing";
 import { captureVideoFrameSnapshotFile } from "../logic/videoFrameSnapshot";
 import { resolveAiStudioMediaAutosaveRouteEnabled } from "../logic/mediaAutosaveRouteReadiness";
 import { resolveAiStudioRuntimeScopeKey } from "../logic/aiStudioRuntimeScopeKey";
+import { shouldPatchProjectPulseChats } from "../logic/projectPulseChatRuntime";
 import {
   AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE,
   resolveGenerationAccessCta,
@@ -294,10 +295,25 @@ const AiStudioPageRuntimeBody = ({
   pulseCreateAgentRuntime: ReturnType<typeof usePulseCreateAgentRuntime>;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
+  const projectPulseChatsHydratedProjectRef = React.useRef<string | null>(null);
+  const projectPulseChatsAuthorityKey = base.projectId ?? base.requestedProjectId ?? null;
+  React.useEffect(() => {
+    projectPulseChatsHydratedProjectRef.current = null;
+  }, [projectPulseChatsAuthorityKey]);
+  const setHydratedProjectPulseChatState = useCallback<
+    React.Dispatch<React.SetStateAction<PulseChatProjectState>>
+  >(
+    (nextState) => {
+      projectPulseChatsHydratedProjectRef.current = projectPulseChatsAuthorityKey;
+      setProjectPulseChatState(nextState);
+    },
+    [projectPulseChatsAuthorityKey, setProjectPulseChatState]
+  );
   const {
     pendingSubscriptionChange,
     resolvedPlan,
     status: resolvedPlanStatus,
+    user: resolvedPlanUser,
   } = useResolvedAccountPlan();
   const studioProfileReturnPath = base.router.asPath;
   const [dismissedBillingPlanNoticeKey, setDismissedBillingPlanNoticeKey] = useState<string | null>(
@@ -325,9 +341,13 @@ const AiStudioPageRuntimeBody = ({
     [resolvedPlan, resolvedPlanStatus]
   );
   const generationAccessResolving =
-    resolvedPlanStatus === "idle" || resolvedPlanStatus === "loading";
-  const experimentalNoPlanLanding =
-    resolvedPlanStatus === "ready" && normalizePlanId(resolvedPlan?.id) === "free";
+    resolvedPlanStatus === "loading" ||
+    (resolvedPlanStatus === "idle" && Boolean(resolvedPlanUser));
+  const experimentalNoPlanLandingState = generationAccessResolving
+    ? "resolving"
+    : resolvedPlanStatus === "ready" && normalizePlanId(resolvedPlan?.id) === "free"
+      ? "active"
+      : undefined;
   const workflowGenerateAccessCta = React.useMemo(() => {
     if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
     const access = resolveAiStudioWorkflowPlanAccess({
@@ -669,12 +689,21 @@ const AiStudioPageRuntimeBody = ({
         snapshot as AiStudioSessionSnapshotV2,
         { rightRailLayout: sanitizeRightRailLayoutSnapshot(rightRailLayout) }
       );
+      if (
+        !shouldPatchProjectPulseChats({
+          projectAuthorityKey: projectPulseChatsAuthorityKey,
+          hydratedProjectAuthorityKey: projectPulseChatsHydratedProjectRef.current,
+          threadCount: projectPulseChatState.threads.length,
+        })
+      ) {
+        return snapshotWithRightRailLayout;
+      }
       return patchAiStudioSessionSnapshotPulseChats(
         snapshotWithRightRailLayout,
         projectPulseChatState.threads.length > 0 ? projectPulseChatState : null
       );
     },
-    [projectPulseChatState, rightRailLayout]
+    [projectPulseChatState, projectPulseChatsAuthorityKey, rightRailLayout]
   );
   const {
     sessionRestoreCandidate,
@@ -715,7 +744,7 @@ const AiStudioPageRuntimeBody = ({
     persistedStandardAgentRuntime: standardCreateAgentRuntime.persistedAgentRuntime,
     projectId,
     projectRouteRequested,
-    setProjectPulseChatState,
+    setProjectPulseChatState: setHydratedProjectPulseChatState,
     pulseSessionInstanceId: base.pulseSessionInstanceId,
     pulseWorkflowSession,
     resetActiveProjectAgentConversation,
@@ -1231,7 +1260,7 @@ const AiStudioPageRuntimeBody = ({
     uiNotice: effectiveUiNotice,
     mediaPlanNoticeMessage: isMediaPlanNoticeVisible ? AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE : null,
     mediaPlanNoticeCta: generationAccessCta,
-    experimentalNoPlanLanding,
+    experimentalNoPlanLandingState,
     onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
     billingPlanNoticeMessage,
     billingPlanNoticeHref,

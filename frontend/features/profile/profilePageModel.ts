@@ -82,9 +82,17 @@ export const CUSTOMER_CREDIT_ACTIVITY_SOURCES = ["stripe_checkout"] as const;
 
 export type NoticeTone = "info" | "success" | "error";
 
+export type NoticeAction = {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  className?: string;
+};
+
 export type NoticeState = {
   tone: NoticeTone;
   message: string;
+  action?: NoticeAction;
 };
 
 export type ProfileSectionItem = {

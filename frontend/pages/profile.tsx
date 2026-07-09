@@ -79,6 +79,9 @@ const sections: readonly ProfileSectionItem[] = [
   { key: "transactions", label: "Transactions", icon: Receipt },
 ];
 
+const CREDIT_TOP_UP_REQUIRES_PAID_PLAN_MESSAGE =
+  "Choose a paid subscription plan before buying credit top-ups.";
+
 const PROFILE_SUCCESS_NOTICE_AUTO_DISMISS_MS = 6000;
 const STORAGE_TRANSACTIONS_REQUEST_TIMEOUT_MS = 15_000;
 
@@ -858,9 +861,18 @@ export default function ProfilePage() {
         message: "Checkout session created, but no redirect URL was returned.",
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to start checkout.";
       setNotice({
         tone: "error",
-        message: error instanceof Error ? error.message : "Unable to start checkout.",
+        message,
+        action:
+          message === CREDIT_TOP_UP_REQUIRES_PAID_PLAN_MESSAGE
+            ? {
+                label: "View plans",
+                href: profileSubscriptionHref,
+                className: "ai-panel-plan-access-cta",
+              }
+            : undefined,
       });
     } finally {
       setCheckoutLoadingId(null);
@@ -1140,6 +1152,7 @@ export default function ProfilePage() {
               storageTransactions={storageTransactions}
               storageTransactionsError={storageTransactionsError}
               storageTransactionsLoading={storageTransactionsLoading}
+              subscriptionHref={profileSubscriptionHref}
               totalStorageLimitBytes={totalStorageLimitBytes}
               usedStorageBytes={usedStorageBytes}
               onStorageAddonChange={handleStorageAddonChange}

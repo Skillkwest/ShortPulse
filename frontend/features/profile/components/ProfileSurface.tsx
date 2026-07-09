@@ -104,6 +104,7 @@ export function ProfileNoticeBanner({ notice }: ProfileNoticeBannerProps) {
       tone={notice.tone}
       mode="banner"
       message={notice.message}
+      action={notice.action}
     />
   );
 }

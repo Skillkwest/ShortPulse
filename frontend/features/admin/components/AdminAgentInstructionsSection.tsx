@@ -160,20 +160,8 @@ const buildPulseDraftsFromDefinitions = (
 
 const buildPulseDefinitionFromDraft = (draft: AdminPulseDraft): Record<string, unknown> => ({
   ...(draft.presetId.trim() ? { presetId: draft.presetId.trim() } : {}),
-  label: draft.label.trim(),
   title: draft.label.trim(),
-  description: draft.description.trim(),
-  starterAssistantMessage: null,
-  workflowStageHints: null,
-  artifactTarget: draft.artifactTarget,
   systemInstructions: draft.systemInstructions.trim(),
-  prompt: draft.systemInstructions.trim(),
-  pulseKind: draft.pulseKind,
-  runtimeMode: draft.runtimeMode,
-  activationMode: draft.activationMode,
-  outputMode: draft.outputMode,
-  memoryPolicy: draft.memoryPolicy,
-  schemaVersion: draft.schemaVersion,
   publicationStatus: draft.publicationStatus,
 });
 
@@ -1330,16 +1318,110 @@ export function AdminAgentInstructionsSection() {
     [editSystemPresetDrafts, editSystemPresetUpdatedAt, hydrateEditSystemPresetCatalog]
   );
 
-  const handleRemovePulseDraft = React.useCallback((localId: string) => {
-    setPulseDrafts((current) => current.filter((draft) => draft.localId !== localId));
-    setPulseCardCollapsed((current) => {
-      const next = { ...current };
-      delete next[localId];
-      return next;
-    });
-    setPulseSaveState("idle");
-    setPulseSaveIssue(null);
-  }, []);
+  const handleRemovePulseDraft = React.useCallback(
+    async (localId: string) => {
+      if (!storedPulseDraftsById[localId]) {
+        setPulseDrafts((current) => current.filter((draft) => draft.localId !== localId));
+        setPulseCardCollapsed((current) => {
+          const next = { ...current };
+          delete next[localId];
+          return next;
+        });
+        setPulseSaveState("idle");
+        setPulseSaveIssue(null);
+        return;
+      }
+      if (isPulseSaveBlockedByDegradedCatalog) {
+        setPulseSaveState("error");
+        setPulseSaveIssue(
+          "Reload the live Pulse catalog before saving. Fallback content cannot be published as the global built-in set."
+        );
+        return;
+      }
+
+      const payloadDrafts = storedPulseDrafts.filter((draft) => draft.localId !== localId);
+      setPulseSaveState("saving");
+      setPulseSaveIssue(null);
+      try {
+        const response = await fetchWithAuth("/api/admin/agent-instructions/pulse-builtins", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            builtInDefinitions: payloadDrafts.map(buildPulseDefinitionFromDraft),
+            expectedUpdatedAt: pulseSaveExpectedUpdatedAt,
+          }),
+        });
+        const payload = (await response.json()) as {
+          builtInDefinitions?: unknown;
+          updatedAt?: string | null;
+          updatedByEmail?: string | null;
+          source?: "control_plane" | "seed";
+          degraded?: boolean;
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(payload.error || "Unable to delete this Pulse card.");
+        }
+
+        const nextStoredDrafts = buildPulseDraftsFromDefinitions(
+          normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions),
+          { templateDrafts: payloadDrafts }
+        );
+        const storedDraftsById = Object.fromEntries(
+          storedPulseDrafts.map((draft) => [draft.localId, draft])
+        ) satisfies Record<string, AdminPulseDraft>;
+        const payloadDraftIds = new Set(payloadDrafts.map((draft) => draft.localId));
+
+        setStoredPulseDrafts(nextStoredDrafts);
+        setPulseDrafts((current) => {
+          const unsavedExtras = current.filter(
+            (draft) => draft.localId !== localId && !payloadDraftIds.has(draft.localId)
+          );
+          const nextVisibleDrafts = nextStoredDrafts.map((savedDraft) => {
+            const currentDraft = current.find((draft) => draft.localId === savedDraft.localId);
+            const previousStoredDraft = storedDraftsById[savedDraft.localId];
+            if (
+              currentDraft &&
+              previousStoredDraft &&
+              !arePulseDraftsEqual(currentDraft, previousStoredDraft)
+            ) {
+              return currentDraft;
+            }
+            return savedDraft;
+          });
+          return [...nextVisibleDrafts, ...unsavedExtras];
+        });
+        setPulseCardCollapsed((current) => {
+          const next = { ...current };
+          delete next[localId];
+          return next;
+        });
+        setNextPulseDraftIndex((current) => Math.max(current, nextStoredDrafts.length + 1));
+        setPulseCatalogSource(payload.source === "control_plane" ? "control_plane" : "seed");
+        setPulseCatalogUpdatedAt(typeof payload.updatedAt === "string" ? payload.updatedAt : null);
+        setPulseCatalogUpdatedByEmail(
+          typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null
+        );
+        setPulseCatalogDegraded(payload.degraded === true);
+        setPulseCatalogLoadIssue(null);
+        setPulseSaveState("saved");
+      } catch (error) {
+        setPulseSaveState("error");
+        setPulseSaveIssue(
+          error instanceof Error ? error.message : "Unable to delete this Pulse card."
+        );
+      }
+    },
+    [
+      isPulseSaveBlockedByDegradedCatalog,
+      pulseSaveExpectedUpdatedAt,
+      storedPulseDrafts,
+      storedPulseDraftsById,
+    ]
+  );
 
   const handleAddPulseDraft = React.useCallback(() => {
     const nextDraft = buildEmptyPulseDraft(nextPulseDraftIndex);
@@ -2256,7 +2338,7 @@ export function AdminAgentInstructionsSection() {
                       <button
                         type="button"
                         className="ghost-btn mini"
-                        onClick={() => handleRemovePulseDraft(draft.localId)}
+                        onClick={() => void handleRemovePulseDraft(draft.localId)}
                       >
                         Delete
                       </button>

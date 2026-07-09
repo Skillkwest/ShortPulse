@@ -8,19 +8,14 @@ import {
 } from "../../../../lib/server/api/createPulseBuiltInControlPlane";
 import {
   CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT,
+  CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
   isValidCreatePulseBuiltInPresetId,
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseArtifactTarget,
+  type CreatePulseBuiltInPresetDefinition,
   type CreatePulsePublicationStatus,
 } from "../../../../lib/model-runtime/createPulseBuiltIns";
-
-const VALID_ARTIFACT_TARGETS: ReadonlySet<string> = new Set([
-  "image_prompt",
-  "video_prompt",
-  "storyboard",
-  "text_artifact",
-]);
 
 const readTrimmedString = (record: Record<string, unknown>, key: string): string => {
   const value = record[key];
@@ -41,36 +36,20 @@ const createSafePulsePresetId = (label: string): string =>
     .slice(0, 64)
     .replace(/^[-_]+|[-_]+$/g, "");
 
-const resolveUniquePresetId = (basePresetId: string, seenPresetIds: Set<string>): string => {
-  const base = basePresetId || "built_in_pulse";
-  let candidate = base.slice(0, 64).replace(/^[-_]+|[-_]+$/g, "") || "built_in_pulse";
-  let suffix = 2;
-  while (seenPresetIds.has(candidate)) {
-    const suffixText = `_${suffix}`;
-    candidate = `${base.slice(0, Math.max(1, 64 - suffixText.length))}${suffixText}`.replace(
-      /^[-_]+|[-_]+$/g,
-      ""
-    );
-    suffix += 1;
-  }
-  return candidate;
-};
+const resolvePresetId = (basePresetId: string): string =>
+  (basePresetId || "built_in_pulse").slice(0, 64).replace(/^[-_]+|[-_]+$/g, "") || "built_in_pulse";
 
-const inferArtifactTarget = (label: string, prompt: string): CreatePulseArtifactTarget => {
-  const searchable = `${label} ${prompt}`.toLowerCase();
-  if (/\bimage\s+prompts?\b|\bimages?\s+only\b/.test(searchable)) return "image_prompt";
-  if (/\bvideo\b|\bshot\b|\bmotion\b|\bcamera\b|\bscene\b/.test(searchable)) return "video_prompt";
-  if (/\bimage\b|\bphoto\b|\bvisual\b|\billustration\b/.test(searchable)) return "image_prompt";
-  if (/\bstoryboard\b|\bstory board\b/.test(searchable)) return "storyboard";
-  return "text_artifact";
-};
+const normalizeLabelKey = (label: string): string =>
+  label.trim().toLowerCase().replace(/\s+/g, " ");
 
 const buildDefaultDescription = (label: string): string => `Built-in guided Pulse for ${label}.`;
 
 const normalizeAdminBuiltInDefinitionRecord = (
   value: unknown,
   index: number,
-  seenPresetIds: Set<string>
+  seenPresetIds: Set<string>,
+  seenLabelKeys: Set<string>,
+  existingDefinitionsById: ReadonlyMap<string, CreatePulseBuiltInPresetDefinition>
 ): { ok: true; value: Record<string, unknown> } | { ok: false; message: string } => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ok: false, message: `Pulse slot ${index + 1} must be an object.` };
@@ -87,6 +66,11 @@ const normalizeAdminBuiltInDefinitionRecord = (
   if (!systemInstructions) {
     return { ok: false, message: `Pulse "${label}" needs a prompt.` };
   }
+  const labelKey = normalizeLabelKey(label);
+  if (seenLabelKeys.has(labelKey)) {
+    return { ok: false, message: `Pulse title "${label}" is duplicated.` };
+  }
+  seenLabelKeys.add(labelKey);
 
   const suppliedPresetId = readTrimmedString(record, "presetId");
   if (suppliedPresetId && !isValidCreatePulseBuiltInPresetId(suppliedPresetId)) {
@@ -106,32 +90,18 @@ const normalizeAdminBuiltInDefinitionRecord = (
   }
   const presetId = suppliedPresetId
     ? suppliedPresetId
-    : resolveUniquePresetId(createSafePulsePresetId(label), seenPresetIds);
-  seenPresetIds.add(presetId);
-
-  if (record.pulseKind !== undefined && record.pulseKind !== "guided_workflow") {
-    return { ok: false, message: `Pulse "${presetId}" must use pulseKind "guided_workflow".` };
+    : resolvePresetId(createSafePulsePresetId(label));
+  if (seenPresetIds.has(presetId)) {
+    return { ok: false, message: `Pulse preset id "${presetId}" is duplicated.` };
   }
-  if (record.runtimeMode !== undefined && record.runtimeMode !== "workflow_gpt") {
-    return { ok: false, message: `Pulse "${presetId}" must use runtimeMode "workflow_gpt".` };
-  }
-  if (record.activationMode !== undefined && record.activationMode !== "activate_and_start") {
+  if (isCreatePulseRetiredPresetId(presetId)) {
     return {
       ok: false,
-      message: `Pulse "${presetId}" must use activationMode "activate_and_start".`,
+      message: `Pulse preset id "${presetId}" is retired. Choose a new safe preset id for this built-in Pulse.`,
     };
   }
-  if (record.outputMode !== undefined && record.outputMode !== "chat_reply") {
-    return { ok: false, message: `Pulse "${presetId}" must use outputMode "chat_reply".` };
-  }
-  if (record.memoryPolicy !== undefined && record.memoryPolicy !== "session") {
-    return { ok: false, message: `Pulse "${presetId}" must use memoryPolicy "session".` };
-  }
-
-  const suppliedArtifactTarget = readTrimmedString(record, "artifactTarget");
-  if (suppliedArtifactTarget && !VALID_ARTIFACT_TARGETS.has(suppliedArtifactTarget)) {
-    return { ok: false, message: `Pulse "${presetId}" needs a valid artifact target.` };
-  }
+  seenPresetIds.add(presetId);
+  const existingDefinition = existingDefinitionsById.get(presetId);
   const suppliedPublicationStatus = readTrimmedString(record, "publicationStatus");
   if (suppliedPublicationStatus && !isCreatePulsePublicationStatus(suppliedPublicationStatus)) {
     return {
@@ -140,16 +110,19 @@ const normalizeAdminBuiltInDefinitionRecord = (
     };
   }
   const publicationStatus = suppliedPublicationStatus || "published";
-  const artifactTarget = (suppliedArtifactTarget ||
-    inferArtifactTarget(label, systemInstructions)) as CreatePulseArtifactTarget;
+  const artifactTarget = (existingDefinition?.artifactTarget ??
+    "text_artifact") as CreatePulseArtifactTarget;
+  const description =
+    readTrimmedString(record, "description") ||
+    existingDefinition?.description?.trim() ||
+    buildDefaultDescription(label);
 
   return {
     ok: true,
     value: {
-      ...record,
       presetId,
       label,
-      description: readTrimmedString(record, "description") || buildDefaultDescription(label),
+      description,
       starterAssistantMessage: null,
       workflowStageHints: null,
       artifactTarget,
@@ -159,13 +132,15 @@ const normalizeAdminBuiltInDefinitionRecord = (
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
       publicationStatus,
     },
   };
 };
 
 const validateBuiltInDefinitionsPayload = (
-  value: unknown
+  value: unknown,
+  existingDefinitions: readonly CreatePulseBuiltInPresetDefinition[]
 ):
   | {
       ok: true;
@@ -176,9 +151,19 @@ const validateBuiltInDefinitionsPayload = (
     return { ok: false, message: "builtInDefinitions must be an array." };
   }
   const seenPresetIds = new Set<string>();
+  const seenLabelKeys = new Set<string>();
+  const existingDefinitionsById = new Map(
+    existingDefinitions.map((definition) => [definition.presetId, definition])
+  );
   const hydratedDefinitions: Record<string, unknown>[] = [];
   for (let index = 0; index < value.length; index += 1) {
-    const hydrated = normalizeAdminBuiltInDefinitionRecord(value[index], index, seenPresetIds);
+    const hydrated = normalizeAdminBuiltInDefinitionRecord(
+      value[index],
+      index,
+      seenPresetIds,
+      seenLabelKeys,
+      existingDefinitionsById
+    );
     if (!hydrated.ok) return { ok: false, message: hydrated.message };
     hydratedDefinitions.push(hydrated.value);
   }
@@ -250,16 +235,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "PUT") {
-    const parsed = validateBuiltInDefinitionsPayload(req.body?.builtInDefinitions);
-    if (!parsed.ok) {
-      return res.status(400).json({ error: parsed.message });
-    }
     const expectedUpdatedAt = validateExpectedUpdatedAt(req.body?.expectedUpdatedAt);
     if (!expectedUpdatedAt.ok) {
       return res.status(400).json({ error: expectedUpdatedAt.message });
     }
 
     try {
+      const activeCatalog = await resolveCreatePulseBuiltInCatalogForAdmin();
+      const parsed = validateBuiltInDefinitionsPayload(
+        req.body?.builtInDefinitions,
+        activeCatalog.builtInDefinitions
+      );
+      if (!parsed.ok) {
+        return res.status(400).json({ error: parsed.message });
+      }
       const savedCatalog = await saveCreatePulseBuiltInCatalog({
         builtInDefinitions: parsed.builtInDefinitions,
         expectedUpdatedAt: expectedUpdatedAt.expectedUpdatedAt,

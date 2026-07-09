@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminStatsPage from "../../pages/admin/stats";
@@ -44,6 +44,46 @@ const buildEmptyCountWindow = () => ({
   last7d: 0,
 });
 
+const buildEmptyGenerationBreakdown = () => ({
+  summary: {
+    acceptedGenerations: buildEmptyCountWindow(),
+    successfulGenerations: buildEmptyCountWindow(),
+    failedGenerations: buildEmptyCountWindow(),
+    imageGenerations: buildEmptyCountWindow(),
+    videoGenerations: buildEmptyCountWindow(),
+    audioGenerations: buildEmptyCountWindow(),
+    unknownGenerations: buildEmptyCountWindow(),
+    uniqueUsers: 0,
+    uniqueModels: 0,
+    lastGenerationAt: null,
+  },
+  users: [],
+  modelMediaTypes: [],
+});
+
+const buildEmptyGrowthCohorts = () => ({
+  summary: {
+    signedUp: 0,
+    currentlySubscribed: 0,
+    signedUpNotSubscribed: 0,
+    neverSubscribed: 0,
+    lapsedOrCanceled: 0,
+    notSubscribedNoGeneration: 0,
+    notSubscribedWithGeneration: 0,
+    notSubscribedWithSuccess: 0,
+    notSubscribedWithSavedOutput: 0,
+    everPaidConverted: 0,
+    boughtCredits: 0,
+    activeStorageAddons: 0,
+    subscribedAndGenerated: 0,
+    subscribedNoGeneration: 0,
+    subscribedBoughtCredits: 0,
+    subscribedBoughtStorageAddons: 0,
+    subscribedBoughtCreditsAndAddons: 0,
+  },
+  conversionTargetRows: [],
+});
+
 describe("Admin stats page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,6 +116,7 @@ describe("Admin stats page", () => {
         lastGenerateClickAt: null,
       },
       models: [],
+      generationBreakdown: buildEmptyGenerationBreakdown(),
       workflows: {
         highlights: {
           styleAppliedGenerations: buildEmptyCountWindow(),
@@ -127,6 +168,10 @@ describe("Admin stats page", () => {
               generateToActivation: null,
             },
           },
+          firstValueFunnel: {
+            steps: [],
+            gaps: [],
+          },
           retention: {
             activated: {
               cohortSize: 0,
@@ -157,6 +202,7 @@ describe("Admin stats page", () => {
             sources: [],
             campaigns: [],
           },
+          cohorts: buildEmptyGrowthCohorts(),
         },
         sales: {
           summary: {
@@ -176,6 +222,7 @@ describe("Admin stats page", () => {
           reason: null,
           marketingSource: "unavailable",
           salesSource: "unavailable",
+          cohortsSource: "unavailable",
         },
       },
       generatedAt: null,
@@ -205,6 +252,7 @@ describe("Admin stats page", () => {
         lastGenerateClickAt: null,
       },
       models: [],
+      generationBreakdown: buildEmptyGenerationBreakdown(),
       workflows: {
         highlights: {
           styleAppliedGenerations: buildEmptyCountWindow(),
@@ -256,6 +304,10 @@ describe("Admin stats page", () => {
               generateToActivation: null,
             },
           },
+          firstValueFunnel: {
+            steps: [],
+            gaps: [],
+          },
           retention: {
             activated: {
               cohortSize: 0,
@@ -286,6 +338,7 @@ describe("Admin stats page", () => {
             sources: [],
             campaigns: [],
           },
+          cohorts: buildEmptyGrowthCohorts(),
         },
         sales: {
           summary: {
@@ -305,6 +358,7 @@ describe("Admin stats page", () => {
           reason: null,
           marketingSource: "unavailable",
           salesSource: "unavailable",
+          cohortsSource: "unavailable",
         },
       },
       generatedAt: null,
@@ -332,5 +386,18 @@ describe("Admin stats page", () => {
     expect(screen.getByRole("button", { name: "Sales" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Storage" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute("href", "/admin/storage");
+  });
+
+  it("renders conversion target cohorts in the Marketing lens", () => {
+    render(<AdminStatsPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Marketing" }));
+
+    expect(screen.getByText("Signed up, not subscribed")).toBeInTheDocument();
+    expect(screen.getByText("Not Subscribed")).toBeInTheDocument();
+    expect(screen.getByText("No Generation Yet")).toBeInTheDocument();
+    expect(
+      screen.getByText("No signed-up non-subscriber targets are available yet.")
+    ).toBeInTheDocument();
   });
 });

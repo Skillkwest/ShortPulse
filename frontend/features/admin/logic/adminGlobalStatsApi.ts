@@ -10,6 +10,9 @@ import type {
   AdminGenerationBreakdownModelMediaTypeRow,
   AdminGenerationBreakdownSummary,
   AdminGenerationBreakdownUserRow,
+  AdminGrowthCohorts,
+  AdminGrowthCohortSummary,
+  AdminGrowthConversionTargetRow,
   AdminGrowthAttributionCampaignRow,
   AdminGrowthAttributionSourceRow,
   AdminGrowthDurationSummary,
@@ -153,6 +156,31 @@ export const DEFAULT_ADMIN_FIRST_VALUE_FUNNEL: AdminFirstValueFunnel = {
   gaps: [],
 };
 
+export const DEFAULT_ADMIN_GROWTH_COHORT_SUMMARY: AdminGrowthCohortSummary = {
+  signedUp: 0,
+  currentlySubscribed: 0,
+  signedUpNotSubscribed: 0,
+  neverSubscribed: 0,
+  lapsedOrCanceled: 0,
+  notSubscribedNoGeneration: 0,
+  notSubscribedWithGeneration: 0,
+  notSubscribedWithSuccess: 0,
+  notSubscribedWithSavedOutput: 0,
+  everPaidConverted: 0,
+  boughtCredits: 0,
+  activeStorageAddons: 0,
+  subscribedAndGenerated: 0,
+  subscribedNoGeneration: 0,
+  subscribedBoughtCredits: 0,
+  subscribedBoughtStorageAddons: 0,
+  subscribedBoughtCreditsAndAddons: 0,
+};
+
+export const DEFAULT_ADMIN_GROWTH_COHORTS: AdminGrowthCohorts = {
+  summary: DEFAULT_ADMIN_GROWTH_COHORT_SUMMARY,
+  conversionTargetRows: [],
+};
+
 export const DEFAULT_ADMIN_MARKETING_STATS: AdminMarketingStats = {
   summary: {
     signups: { ...DEFAULT_ADMIN_STATS_COUNT_WINDOW },
@@ -169,6 +197,7 @@ export const DEFAULT_ADMIN_MARKETING_STATS: AdminMarketingStats = {
     sources: [],
     campaigns: [],
   },
+  cohorts: DEFAULT_ADMIN_GROWTH_COHORTS,
 };
 
 export const DEFAULT_ADMIN_SALES_STATS: AdminSalesStats = {
@@ -190,6 +219,7 @@ export const DEFAULT_ADMIN_GROWTH_STATS_HEALTH: AdminGrowthStatsHealth = {
   reason: null,
   marketingSource: "unavailable",
   salesSource: "unavailable",
+  cohortsSource: "unavailable",
 };
 
 export const DEFAULT_ADMIN_GROWTH_STATS_RESPONSE: AdminGrowthStatsResponse = {
@@ -567,6 +597,108 @@ const normalizeFirstValueFunnel = (value: unknown): AdminFirstValueFunnel => {
   };
 };
 
+const normalizeSubscriptionBucket = (
+  value: unknown
+): AdminGrowthConversionTargetRow["subscriptionBucket"] => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (
+    normalized === "never_subscribed" ||
+    normalized === "lapsed_or_canceled" ||
+    normalized === "currently_subscribed"
+  ) {
+    return normalized;
+  }
+  return "never_subscribed";
+};
+
+const normalizeGenerationBucket = (
+  value: unknown
+): AdminGrowthConversionTargetRow["generationBucket"] => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (
+    normalized === "no_generation" ||
+    normalized === "generated_no_success" ||
+    normalized === "successful_no_save" ||
+    normalized === "saved_output"
+  ) {
+    return normalized;
+  }
+  return "no_generation";
+};
+
+const normalizeRecommendedCampaignBucket = (
+  value: unknown
+): AdminGrowthConversionTargetRow["recommendedCampaignBucket"] => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (
+    normalized === "activate_first_generation" ||
+    normalized === "recover_generation_value" ||
+    normalized === "convert_successful_trial" ||
+    normalized === "convert_engaged_non_subscriber" ||
+    normalized === "win_back"
+  ) {
+    return normalized;
+  }
+  return "activate_first_generation";
+};
+
+const normalizeGrowthCohortSummary = (value: unknown): AdminGrowthCohortSummary => {
+  const row = toObject(value);
+  return {
+    signedUp: toCount(row.signedUp),
+    currentlySubscribed: toCount(row.currentlySubscribed),
+    signedUpNotSubscribed: toCount(row.signedUpNotSubscribed),
+    neverSubscribed: toCount(row.neverSubscribed),
+    lapsedOrCanceled: toCount(row.lapsedOrCanceled),
+    notSubscribedNoGeneration: toCount(row.notSubscribedNoGeneration),
+    notSubscribedWithGeneration: toCount(row.notSubscribedWithGeneration),
+    notSubscribedWithSuccess: toCount(row.notSubscribedWithSuccess),
+    notSubscribedWithSavedOutput: toCount(row.notSubscribedWithSavedOutput),
+    everPaidConverted: toCount(row.everPaidConverted),
+    boughtCredits: toCount(row.boughtCredits),
+    activeStorageAddons: toCount(row.activeStorageAddons),
+    subscribedAndGenerated: toCount(row.subscribedAndGenerated),
+    subscribedNoGeneration: toCount(row.subscribedNoGeneration),
+    subscribedBoughtCredits: toCount(row.subscribedBoughtCredits),
+    subscribedBoughtStorageAddons: toCount(row.subscribedBoughtStorageAddons),
+    subscribedBoughtCreditsAndAddons: toCount(row.subscribedBoughtCreditsAndAddons),
+  };
+};
+
+const normalizeGrowthConversionTargetRows = (value: unknown): AdminGrowthConversionTargetRow[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    return {
+      userId: String(row.userId ?? "unknown"),
+      email: String(row.email ?? "Unknown user"),
+      signedUpAt: toTextOrNull(row.signedUpAt),
+      sourceKey: String(row.sourceKey ?? "direct"),
+      campaignKey: String(row.campaignKey ?? "none"),
+      subscriptionBucket: normalizeSubscriptionBucket(row.subscriptionBucket),
+      generationBucket: normalizeGenerationBucket(row.generationBucket),
+      firstGenerationAt: toTextOrNull(row.firstGenerationAt),
+      lastGenerationAt: toTextOrNull(row.lastGenerationAt),
+      successfulGenerations: toCount(row.successfulGenerations),
+      savedOutputs: toCount(row.savedOutputs),
+      topUpPurchaseCount: toCount(row.topUpPurchaseCount),
+      topUpCreditsPurchased: toCount(row.topUpCreditsPurchased),
+      activeStorageAddonBytes: toCount(row.activeStorageAddonBytes),
+      activeStorageAddonPriceCents: toCount(row.activeStorageAddonPriceCents),
+      lastActivityAt: toTextOrNull(row.lastActivityAt),
+      recommendedCampaignBucket: normalizeRecommendedCampaignBucket(row.recommendedCampaignBucket),
+    };
+  });
+};
+
+const normalizeGrowthCohorts = (value: unknown): AdminGrowthCohorts => {
+  const row = toObject(value);
+  return {
+    summary: normalizeGrowthCohortSummary(row.summary),
+    conversionTargetRows: normalizeGrowthConversionTargetRows(row.conversionTargetRows),
+  };
+};
+
 const normalizeMarketingStats = (value: unknown): AdminMarketingStats => {
   const row = toObject(value);
   const summary = toObject(row.summary);
@@ -588,6 +720,7 @@ const normalizeMarketingStats = (value: unknown): AdminMarketingStats => {
       sources: normalizeGrowthAttributionSources(attribution.sources),
       campaigns: normalizeGrowthAttributionCampaigns(attribution.campaigns),
     },
+    cohorts: normalizeGrowthCohorts(row.cohorts),
   };
 };
 
@@ -647,6 +780,7 @@ const normalizeGrowth = (value: unknown): AdminGrowthStatsResponse => {
       reason: toTextOrNull(health.reason),
       marketingSource: health.marketingSource === "rpc" ? "rpc" : "unavailable",
       salesSource: health.salesSource === "rpc" ? "rpc" : "unavailable",
+      cohortsSource: health.cohortsSource === "rpc" ? "rpc" : "unavailable",
     },
   };
 };

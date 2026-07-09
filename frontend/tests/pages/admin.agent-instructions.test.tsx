@@ -300,22 +300,10 @@ describe("Admin agent instructions page", () => {
     const payload = JSON.parse(String(saveRequest?.[1]?.body)) as {
       builtInDefinitions: Array<Record<string, unknown>>;
     };
-    expect(payload.builtInDefinitions[0]).toMatchObject({
+    expect(payload.builtInDefinitions[0]).toEqual({
       presetId: "image",
-      label: "Global Prompt Director",
       title: "Global Prompt Director",
-      description: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].description,
-      starterAssistantMessage: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].starterAssistantMessage,
-      workflowStageHints: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].workflowStageHints,
-      artifactTarget: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].artifactTarget,
       systemInstructions: "Draft pulse instructions.",
-      prompt: "Draft pulse instructions.",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      outputMode: "chat_reply",
-      memoryPolicy: "session",
-      schemaVersion: 2,
       publicationStatus: "published",
     });
 
@@ -382,23 +370,67 @@ describe("Admin agent instructions page", () => {
     const payload = JSON.parse(String(saveRequest?.[1]?.body)) as {
       builtInDefinitions: Array<Record<string, unknown>>;
     };
-    expect(payload.builtInDefinitions[3]).toMatchObject({
-      label: "Prompt Modifier",
+    expect(payload.builtInDefinitions[3]).toEqual({
       title: "Prompt Modifier",
-      description: "",
-      starterAssistantMessage: null,
-      workflowStageHints: null,
-      artifactTarget: "text_artifact",
       systemInstructions: "Ask for the source prompt, then return a cleaner version.",
-      prompt: "Ask for the source prompt, then return a cleaner version.",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      outputMode: "chat_reply",
-      memoryPolicy: "session",
-      schemaVersion: 2,
       publicationStatus: "published",
     });
+  }, 10_000);
+
+  it("persists deletion of a stored built-in Pulse", async () => {
+    fetchWithAuthMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          if (init?.method === "PUT") {
+            return buildCatalogResponse(CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS.slice(1));
+          }
+          return buildCatalogResponse();
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
+    if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Video Prompt Magic")).not.toBeInTheDocument();
+    });
+
+    const deleteRequest = fetchWithAuthMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/pulse-builtins" && init?.method === "PUT"
+    );
+    const payload = JSON.parse(String(deleteRequest?.[1]?.body)) as {
+      builtInDefinitions: Array<Record<string, unknown>>;
+      expectedUpdatedAt: string;
+    };
+
+    expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
+    expect(payload.builtInDefinitions).toHaveLength(2);
+    expect(payload.builtInDefinitions[0]).toEqual({
+      presetId: "multi_shot",
+      title: "Multi Sequence Video Prompt",
+      systemInstructions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1].systemInstructions,
+      publicationStatus: "published",
+    });
+    expect(screen.getAllByText("Stored").length).toBeGreaterThan(0);
   }, 10_000);
 
   it("edits, adds, removes, resets, and saves built-in Styles", async () => {
@@ -659,14 +691,18 @@ describe("Admin agent instructions page", () => {
     };
 
     expect(payload.expectedUpdatedAt).toBe("2026-05-05T18:00:00.000Z");
-    expect(payload.builtInDefinitions[0]?.label).toBe("Global Prompt Director");
     expect(payload.builtInDefinitions[0]?.title).toBe("Global Prompt Director");
-    expect(payload.builtInDefinitions[0]?.workflowStageHints).toBeNull();
-    expect(payload.builtInDefinitions[1]?.label).toBe("Multi Sequence Video Prompt");
     expect(payload.builtInDefinitions[1]?.title).toBe("Multi Sequence Video Prompt");
-    expect(payload.builtInDefinitions[1]?.workflowStageHints).toBeNull();
+    expect(payload.builtInDefinitions[0]?.systemInstructions).toBe(
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].systemInstructions
+    );
+    expect(payload.builtInDefinitions[1]?.systemInstructions).toBe(
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1].systemInstructions
+    );
     expect(payload.builtInDefinitions[0]?.publicationStatus).toBe("published");
     expect(payload.builtInDefinitions[1]?.publicationStatus).toBe("published");
+    expect(payload.builtInDefinitions[0]).not.toHaveProperty("workflowStageHints");
+    expect(payload.builtInDefinitions[0]).not.toHaveProperty("artifactTarget");
 
     expect(within(firstCard).getByText("Stored")).toBeInTheDocument();
     expect(within(secondCard).getByText("Unsaved edits")).toBeInTheDocument();
@@ -737,11 +773,10 @@ describe("Admin agent instructions page", () => {
       builtInDefinitions: Array<Record<string, unknown>>;
     };
 
-    expect(payload.builtInDefinitions[0]).toMatchObject({
+    expect(payload.builtInDefinitions[0]).toEqual({
       presetId: "image",
-      label: "Video Prompt Magic",
       title: "Video Prompt Magic",
-      workflowStageHints: null,
+      systemInstructions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0].systemInstructions,
       publicationStatus: "draft",
     });
   });

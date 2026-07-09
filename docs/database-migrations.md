@@ -348,6 +348,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 214.  `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`
 215.  `sql/migrations/216_repair_pulse_text_first_builtin_catalog.sql`
 216.  `sql/migrations/217_repair_pulse_single_shot_builtin_catalog.sql`
+217.  `sql/migrations/218_add_admin_growth_cohorts_stats.sql`
       Rollback files:
 
 
@@ -472,6 +473,7 @@ Hosted SQL lint note:
 - Apply `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql` when linked-hosted lint surfaces the legacy admin stats `model_id` ambiguity or the `rollback_model_pricing_policy()` `%rowtype` warning.
 - Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
 - Apply `sql/migrations/211_add_admin_first_value_funnel_stats.sql` to enable the `/admin/stats` Marketing first-value funnel; before it is applied the funnel degrades to an empty safe state.
+- Apply `sql/migrations/218_add_admin_growth_cohorts_stats.sql` to enable the `/admin/stats` Marketing conversion target cohorts; before it is applied the cohort cards and signed-up-not-subscribed table degrade to safe empty values.
 - Apply `sql/migrations/104_add_user_media_compliance_acceptances.sql` before enforcing the protected-route media agreement gate so acceptance records can be stored and replayed by version.
 - Apply `sql/migrations/112_repair_model_pricing_control_plane_seed.sql` if `/admin/pricing` can load the model-pricing workspace but credit conversion or markup changes do not persist because `model_pricing_policy_runtime` is missing its singleton row. Verify with `sql/check_model_pricing_control_plane.sql`.
 - Apply `sql/migrations/142_add_model_pricing_custom_row_manifests.sql` before expecting `/admin/pricing` custom variant rows to persist through the model-pricing control plane alongside policy saves/rollbacks.
@@ -611,6 +613,7 @@ Billing safety note:
 - Migration `209_update_storage_addon_ladder_20260707.sql` repairs the recurring storage add-on ladder to `50 GB / $10`, `100 GB / $20`, `250 GB / $30`, and `1 TB / $89` self-serve with live Stripe monthly Price ids, retires `10 GB` from active self-serve metadata, and keeps `500 GB` inactive for non-self-serve handling.
 - Migration `210_add_admin_generation_breakdown_stats.sql` adds the service-role-only `get_admin_generation_breakdown_v1()` helper that powers `/admin/stats` per-user and model/media-type generation analytics without exposing generation rows directly to browser roles.
 - Migration `211_add_admin_first_value_funnel_stats.sql` adds the service-role-only `get_admin_first_value_funnel_v1()` helper for the Marketing first-value funnel from signup to first generation value, while exposing current route/reopen instrumentation gaps explicitly.
+- Migration `218_add_admin_growth_cohorts_stats.sql` adds the service-role-only `get_admin_growth_cohorts_v1()` helper for signed-up-not-subscribed conversion targets and subscription/generation/credit/storage cohort summaries on `/admin/stats`.
 - Migration `212_add_issue_report_screenshots.sql` adds the private `issue_report_screenshots` bucket, service-role-only `user_issue_report_screenshots` metadata table, and `create_user_issue_report_with_screenshots()` helper used by signed-in issue reports and admin review.
 - Migration `213_add_billing_subscription_change_intents.sql` adds the service-role-only `billing_subscription_change_intents` table used to prove route-initiated full-price Stripe Billing Portal upgrades before the paid invoice webhook grants target-plan credits.
 - Migration `214_add_admin_error_watch_items.sql` extends the admin incident status RPC with resolved-watch metadata and status-history notes for `/admin/errors`.

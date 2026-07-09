@@ -53,6 +53,10 @@ const HIGH_INTENT_TABLE_STYLE: React.CSSProperties = {
   minWidth: 1250,
 };
 
+const CONVERSION_TARGET_TABLE_STYLE: React.CSSProperties = {
+  minWidth: 1320,
+};
+
 const LENS_OPTIONS: Array<{
   key: StatsLens;
   label: string;
@@ -94,6 +98,26 @@ const formatDurationHours = (value: number | null): string => {
   if (value === null || !Number.isFinite(value)) return "—";
   if (value < 1) return `${Math.round(value * 60)}m`;
   return `${value.toFixed(1)}h`;
+};
+const formatStorageBytes = (value: number): string => {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  return `${(value / 1024 ** 3).toFixed(0)} GB`;
+};
+const formatCampaignBucket = (value: string): string =>
+  value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+const formatSubscriptionBucket = (value: string): string => {
+  if (value === "lapsed_or_canceled") return "Lapsed";
+  if (value === "currently_subscribed") return "Current";
+  return "Never paid";
+};
+const formatGenerationBucket = (value: string): string => {
+  if (value === "saved_output") return "Saved output";
+  if (value === "successful_no_save") return "Success, no save";
+  if (value === "generated_no_success") return "Generated, no success";
+  return "No generation";
 };
 const formatCountWindowValue = (window: AdminStatsCountWindow, selectedWindow: CountWindowKey) =>
   formatCount(window[selectedWindow]);
@@ -311,6 +335,113 @@ const MarketingPanel = ({
             meta={`Generate ${formatDurationHours(marketing.summary.medianHours.signupToGenerate)} • Success ${formatDurationHours(marketing.summary.medianHours.signupToSuccess)}`}
           />
         </div>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className={styles.adminSectionEyebrow}>Conversion targets</p>
+            <h2 className={styles.adminSectionTitle}>Signed up, not subscribed</h2>
+            <p className="tiny subdued">
+              Prioritize account-first signups that have not reached a current paid subscription.
+            </p>
+          </div>
+        </div>
+        <div className={styles.adminGrid}>
+          <MetricCard
+            label="Not Subscribed"
+            value={formatCount(marketing.cohorts.summary.signedUpNotSubscribed)}
+            meta={`${formatCount(marketing.cohorts.summary.neverSubscribed)} never paid • ${formatCount(marketing.cohorts.summary.lapsedOrCanceled)} lapsed`}
+          />
+          <MetricCard
+            label="No Generation Yet"
+            value={formatCount(marketing.cohorts.summary.notSubscribedNoGeneration)}
+            meta="Best fit for first-generation onboarding campaigns"
+          />
+          <MetricCard
+            label="Generated, Not Paid"
+            value={formatCount(marketing.cohorts.summary.notSubscribedWithGeneration)}
+            meta={`${formatCount(marketing.cohorts.summary.notSubscribedWithSuccess)} with success • ${formatCount(marketing.cohorts.summary.notSubscribedWithSavedOutput)} saved`}
+          />
+          <MetricCard
+            label="Current Subscribers"
+            value={formatCount(marketing.cohorts.summary.currentlySubscribed)}
+            meta={`${formatCount(marketing.cohorts.summary.subscribedAndGenerated)} generated • ${formatCount(marketing.cohorts.summary.subscribedNoGeneration)} no generation`}
+          />
+          <MetricCard
+            label="Bought Credits"
+            value={formatCount(marketing.cohorts.summary.boughtCredits)}
+            meta={`${formatCount(marketing.cohorts.summary.subscribedBoughtCredits)} also currently subscribed`}
+          />
+          <MetricCard
+            label="Storage Add-ons"
+            value={formatCount(marketing.cohorts.summary.activeStorageAddons)}
+            meta={`${formatCount(marketing.cohorts.summary.subscribedBoughtCreditsAndAddons)} bought credits and add-ons`}
+          />
+        </div>
+        <TableShell>
+          <div className={styles.adminTable} style={CONVERSION_TARGET_TABLE_STYLE}>
+            <div
+              className={styles.adminTableHead}
+              style={{
+                gridTemplateColumns:
+                  "minmax(0, 1.45fr) 0.95fr 0.9fr 0.95fr 0.9fr 0.75fr 0.75fr 0.85fr 1.2fr",
+              }}
+            >
+              <span>User</span>
+              <span>Source</span>
+              <span>Subscription</span>
+              <span>Generation</span>
+              <span>Last Activity</span>
+              <span>Success</span>
+              <span>Saved</span>
+              <span>Add-ons</span>
+              <span>Campaign</span>
+            </div>
+            {marketing.cohorts.conversionTargetRows.length ? (
+              marketing.cohorts.conversionTargetRows.map((row) => (
+                <div
+                  key={row.userId}
+                  className={styles.adminTableRow}
+                  style={{
+                    gridTemplateColumns:
+                      "minmax(0, 1.45fr) 0.95fr 0.9fr 0.95fr 0.9fr 0.75fr 0.75fr 0.85fr 1.2fr",
+                  }}
+                >
+                  <span className={styles.adminMonoCell}>
+                    {row.email}
+                    <small className={styles.adminInlineMeta}>
+                      signed up {formatDateTime(row.signedUpAt)}
+                    </small>
+                  </span>
+                  <span className={styles.adminMonoCell}>
+                    {row.sourceKey}
+                    <small className={styles.adminInlineMeta}>{row.campaignKey}</small>
+                  </span>
+                  <span>{formatSubscriptionBucket(row.subscriptionBucket)}</span>
+                  <span>
+                    {formatGenerationBucket(row.generationBucket)}
+                    <small className={styles.adminInlineMeta}>
+                      first {formatDateTime(row.firstGenerationAt)}
+                    </small>
+                  </span>
+                  <span>{formatDateTime(row.lastActivityAt ?? row.lastGenerationAt)}</span>
+                  <span>{formatCount(row.successfulGenerations)}</span>
+                  <span>{formatCount(row.savedOutputs)}</span>
+                  <span>
+                    {formatStorageBytes(row.activeStorageAddonBytes)}
+                    <small className={styles.adminInlineMeta}>
+                      top-ups {formatCount(row.topUpPurchaseCount)}
+                    </small>
+                  </span>
+                  <span>{formatCampaignBucket(row.recommendedCampaignBucket)}</span>
+                </div>
+              ))
+            ) : (
+              <EmptyTableRow message="No signed-up non-subscriber targets are available yet." />
+            )}
+          </div>
+        </TableShell>
       </section>
 
       <section className={styles.adminSection}>

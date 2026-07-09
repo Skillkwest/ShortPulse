@@ -86,6 +86,29 @@ const buildEmptyFirstValueFunnel = () => ({
   gaps: [],
 });
 
+const buildEmptyGrowthCohorts = () => ({
+  summary: {
+    signedUp: 0,
+    currentlySubscribed: 0,
+    signedUpNotSubscribed: 0,
+    neverSubscribed: 0,
+    lapsedOrCanceled: 0,
+    notSubscribedNoGeneration: 0,
+    notSubscribedWithGeneration: 0,
+    notSubscribedWithSuccess: 0,
+    notSubscribedWithSavedOutput: 0,
+    everPaidConverted: 0,
+    boughtCredits: 0,
+    activeStorageAddons: 0,
+    subscribedAndGenerated: 0,
+    subscribedNoGeneration: 0,
+    subscribedBoughtCredits: 0,
+    subscribedBoughtStorageAddons: 0,
+    subscribedBoughtCreditsAndAddons: 0,
+  },
+  conversionTargetRows: [],
+});
+
 const normalizeLegacyOverview = (
   row: LegacySummaryRow | null | undefined,
   extras?: {
@@ -320,6 +343,7 @@ const buildLegacyFallbackPayload = async () => {
           sources: [],
           campaigns: [],
         },
+        cohorts: buildEmptyGrowthCohorts(),
       },
       sales: {
         summary: {
@@ -340,6 +364,7 @@ const buildLegacyFallbackPayload = async () => {
           "Admin growth stats RPC is unavailable. Apply SQL migration 102_add_admin_growth_stats_v1.sql to enable marketing and sales analytics.",
         marketingSource: "unavailable",
         salesSource: "unavailable",
+        cohortsSource: "unavailable",
       },
     },
     generatedAt: new Date().toISOString(),
@@ -366,13 +391,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const [statsResult, growthResult, generationBreakdownResult, firstValueFunnelResult] =
-      await Promise.all([
-        supabaseAdmin.rpc("get_admin_global_stats_v1"),
-        supabaseAdmin.rpc("get_admin_growth_stats_v1"),
-        supabaseAdmin.rpc("get_admin_generation_breakdown_v1"),
-        supabaseAdmin.rpc("get_admin_first_value_funnel_v1"),
-      ]);
+    const [
+      statsResult,
+      growthResult,
+      generationBreakdownResult,
+      firstValueFunnelResult,
+      growthCohortsResult,
+    ] = await Promise.all([
+      supabaseAdmin.rpc("get_admin_global_stats_v1"),
+      supabaseAdmin.rpc("get_admin_growth_stats_v1"),
+      supabaseAdmin.rpc("get_admin_generation_breakdown_v1"),
+      supabaseAdmin.rpc("get_admin_first_value_funnel_v1"),
+      supabaseAdmin.rpc("get_admin_growth_cohorts_v1"),
+    ]);
     const hasRpcGap = isMissingRpcError(statsResult.error, ["get_admin_global_stats_v1"]);
     const hasGrowthRpcGap = isMissingRpcError(growthResult.error, ["get_admin_growth_stats_v1"]);
     const hasGenerationBreakdownRpcGap = isMissingRpcError(generationBreakdownResult.error, [
@@ -380,6 +411,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
     const hasFirstValueFunnelRpcGap = isMissingRpcError(firstValueFunnelResult.error, [
       "get_admin_first_value_funnel_v1",
+    ]);
+    const hasGrowthCohortsRpcGap = isMissingRpcError(growthCohortsResult.error, [
+      "get_admin_growth_cohorts_v1",
     ]);
 
     if (statsResult.error && !hasRpcGap) {
@@ -405,6 +439,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           firstValueFunnelResult.error.message || "Unable to load admin first-value funnel stats.",
       });
     }
+    if (growthCohortsResult.error && !hasGrowthCohortsRpcGap) {
+      return res.status(500).json({
+        error: growthCohortsResult.error.message || "Unable to load admin growth cohorts.",
+      });
+    }
 
     if (hasRpcGap) {
       const fallbackPayload = await buildLegacyFallbackPayload();
@@ -416,6 +455,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : firstValueFunnelResult.data && typeof firstValueFunnelResult.data === "object"
         ? firstValueFunnelResult.data
         : buildEmptyFirstValueFunnel();
+    const growthCohorts = hasGrowthCohortsRpcGap
+      ? buildEmptyGrowthCohorts()
+      : growthCohortsResult.data && typeof growthCohortsResult.data === "object"
+        ? growthCohortsResult.data
+        : buildEmptyGrowthCohorts();
     const growthData =
       growthResult.data && typeof growthResult.data === "object"
         ? (growthResult.data as Record<string, unknown>)
@@ -486,6 +530,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 sources: [],
                 campaigns: [],
               },
+              cohorts: growthCohorts,
             },
             sales: {
               summary: {
@@ -506,6 +551,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 "Admin growth stats RPC is unavailable. Apply SQL migration 102_add_admin_growth_stats_v1.sql to enable marketing and sales analytics.",
               marketingSource: "unavailable",
               salesSource: "unavailable",
+              cohortsSource: hasGrowthCohortsRpcGap ? "unavailable" : "rpc",
             },
           }
         : {
@@ -513,12 +559,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             marketing: {
               ...growthMarketing,
               firstValueFunnel,
+              cohorts: growthCohorts,
             },
             health: {
-              degraded: false,
-              reason: null,
+              degraded: hasGrowthCohortsRpcGap,
+              reason: hasGrowthCohortsRpcGap
+                ? "Admin growth cohorts RPC is unavailable. Apply SQL migration 218_add_admin_growth_cohorts_stats.sql to enable conversion target cohorts."
+                : null,
               marketingSource: "rpc",
               salesSource: "rpc",
+              cohortsSource: hasGrowthCohortsRpcGap ? "unavailable" : "rpc",
             },
           },
       generatedAt: new Date().toISOString(),

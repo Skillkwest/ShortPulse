@@ -716,6 +716,60 @@ export type AdminFirstValueFunnel = {
   gaps: string[];
 };
 
+export type AdminGrowthCohortSummary = {
+  signedUp: number;
+  currentlySubscribed: number;
+  signedUpNotSubscribed: number;
+  neverSubscribed: number;
+  lapsedOrCanceled: number;
+  notSubscribedNoGeneration: number;
+  notSubscribedWithGeneration: number;
+  notSubscribedWithSuccess: number;
+  notSubscribedWithSavedOutput: number;
+  everPaidConverted: number;
+  boughtCredits: number;
+  activeStorageAddons: number;
+  subscribedAndGenerated: number;
+  subscribedNoGeneration: number;
+  subscribedBoughtCredits: number;
+  subscribedBoughtStorageAddons: number;
+  subscribedBoughtCreditsAndAddons: number;
+};
+
+export type AdminGrowthConversionTargetRow = {
+  userId: string;
+  email: string;
+  signedUpAt: string | null;
+  sourceKey: string;
+  campaignKey: string;
+  subscriptionBucket: "never_subscribed" | "lapsed_or_canceled" | "currently_subscribed";
+  generationBucket:
+    | "no_generation"
+    | "generated_no_success"
+    | "successful_no_save"
+    | "saved_output";
+  firstGenerationAt: string | null;
+  lastGenerationAt: string | null;
+  successfulGenerations: number;
+  savedOutputs: number;
+  topUpPurchaseCount: number;
+  topUpCreditsPurchased: number;
+  activeStorageAddonBytes: number;
+  activeStorageAddonPriceCents: number;
+  lastActivityAt: string | null;
+  recommendedCampaignBucket:
+    | "activate_first_generation"
+    | "recover_generation_value"
+    | "convert_successful_trial"
+    | "convert_engaged_non_subscriber"
+    | "win_back";
+};
+
+export type AdminGrowthCohorts = {
+  summary: AdminGrowthCohortSummary;
+  conversionTargetRows: AdminGrowthConversionTargetRow[];
+};
+
 export type AdminMarketingStats = {
   summary: {
     signups: AdminStatsCountWindow;
@@ -732,6 +786,7 @@ export type AdminMarketingStats = {
     sources: AdminGrowthAttributionSourceRow[];
     campaigns: AdminGrowthAttributionCampaignRow[];
   };
+  cohorts: AdminGrowthCohorts;
 };
 
 export type AdminSalesHighIntentUserRow = {
@@ -774,6 +829,7 @@ export type AdminGrowthStatsHealth = {
   reason: string | null;
   marketingSource: "rpc" | "unavailable";
   salesSource: "rpc" | "unavailable";
+  cohortsSource: "rpc" | "unavailable";
 };
 
 export type AdminGrowthStatsResponse = {

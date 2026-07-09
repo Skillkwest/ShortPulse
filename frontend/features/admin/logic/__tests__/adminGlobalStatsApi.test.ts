@@ -213,6 +213,48 @@ describe("adminGlobalStatsApi", () => {
               },
             ],
           },
+          cohorts: {
+            summary: {
+              signedUp: 10,
+              currentlySubscribed: 3,
+              signedUpNotSubscribed: 7,
+              neverSubscribed: 6,
+              lapsedOrCanceled: 1,
+              notSubscribedNoGeneration: 4,
+              notSubscribedWithGeneration: 3,
+              notSubscribedWithSuccess: 2,
+              notSubscribedWithSavedOutput: 1,
+              everPaidConverted: 4,
+              boughtCredits: 2,
+              activeStorageAddons: 1,
+              subscribedAndGenerated: 2,
+              subscribedNoGeneration: 1,
+              subscribedBoughtCredits: 1,
+              subscribedBoughtStorageAddons: 1,
+              subscribedBoughtCreditsAndAddons: 1,
+            },
+            conversionTargetRows: [
+              {
+                userId: "prospect-1",
+                email: "prospect@example.com",
+                signedUpAt: "2026-04-20T00:00:00.000Z",
+                sourceKey: "google",
+                campaignKey: "spring_launch",
+                subscriptionBucket: "never_subscribed",
+                generationBucket: "no_generation",
+                firstGenerationAt: null,
+                lastGenerationAt: null,
+                successfulGenerations: 0,
+                savedOutputs: 0,
+                topUpPurchaseCount: 0,
+                topUpCreditsPurchased: 0,
+                activeStorageAddonBytes: 0,
+                activeStorageAddonPriceCents: 0,
+                lastActivityAt: "2026-04-21T00:00:00.000Z",
+                recommendedCampaignBucket: "activate_first_generation",
+              },
+            ],
+          },
         },
         sales: {
           summary: {
@@ -253,6 +295,7 @@ describe("adminGlobalStatsApi", () => {
           reason: "growth migration missing",
           marketingSource: "unavailable",
           salesSource: "unavailable",
+          cohortsSource: "rpc",
         },
       },
       health: {
@@ -308,6 +351,15 @@ describe("adminGlobalStatsApi", () => {
     );
     expect(normalized.growth.marketing.firstValueFunnel.gaps[0]).toContain("Output reopen");
     expect(normalized.growth.marketing.attribution.sources[0]?.sourceKey).toBe("google");
+    expect(normalized.growth.marketing.cohorts.summary.signedUpNotSubscribed).toBe(7);
+    expect(normalized.growth.marketing.cohorts.conversionTargetRows[0]).toEqual(
+      expect.objectContaining({
+        email: "prospect@example.com",
+        subscriptionBucket: "never_subscribed",
+        generationBucket: "no_generation",
+        recommendedCampaignBucket: "activate_first_generation",
+      })
+    );
     expect(normalized.growth.sales.summary.checkoutStartedUsers.total).toBe(3);
     expect(normalized.growth.sales.highIntentUsers[0]?.email).toBe("user@example.com");
     expect(normalized.growth.health.reason).toBe("growth migration missing");
@@ -336,8 +388,11 @@ describe("adminGlobalStatsApi", () => {
     expect(normalized.projects.leaderboard).toEqual([]);
     expect(normalized.growth.marketing.summary.signups.total).toBe(0);
     expect(normalized.growth.marketing.firstValueFunnel.steps).toEqual([]);
+    expect(normalized.growth.marketing.cohorts.summary.signedUpNotSubscribed).toBe(0);
+    expect(normalized.growth.marketing.cohorts.conversionTargetRows).toEqual([]);
     expect(normalized.growth.sales.highIntentUsers).toEqual([]);
     expect(normalized.growth.health.marketingSource).toBe("unavailable");
+    expect(normalized.growth.health.cohortsSource).toBe("unavailable");
     expect(normalized.health.degraded).toBe(false);
     expect(normalized.health.overviewSource).toBe("legacy_fallback");
     expect(normalized.health.modelsSource).toBe("unavailable");

@@ -78,6 +78,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/209_update_storage_addon_ladder_20260707.sql`: repair the recurring storage add-on ladder to the July 7 `50/100/250 GB/1 TB` self-serve set, retire `10 GB` from active self-serve metadata, and keep `500 GB` inactive for non-self-serve handling.
 - `sql/migrations/210_add_admin_generation_breakdown_stats.sql`: add the service-role-only generation breakdown helper used by `/admin/stats` for per-user and model/media-type generation analytics.
 - `sql/migrations/211_add_admin_first_value_funnel_stats.sql`: add the service-role-only first-value funnel helper used by `/admin/stats` Marketing to track signup through first retained generation value.
+- `sql/migrations/218_add_admin_growth_cohorts_stats.sql`: add the service-role-only growth cohort helper used by `/admin/stats` Marketing to track signed-up accounts by subscription, generation, credit top-up, and storage add-on state.
 - `sql/migrations/212_add_issue_report_screenshots.sql`: add private screenshot storage, metadata, and the service-role-only atomic issue-report insert helper for `/report-issue` and `/admin/reports`.
 - `sql/migrations/213_add_billing_subscription_change_intents.sql`: add the service-role-only full-price subscription-upgrade intent proof table used by the Stripe paid-invoice webhook.
 - `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`: add the service-role-only Stripe subscription schedule projection used by Profile and AI Studio to show pending period-end downgrades while current contracts remain active.
@@ -337,6 +338,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `215_add_billing_subscription_scheduled_changes.sql`
 - `216_repair_pulse_text_first_builtin_catalog.sql`
 - `217_repair_pulse_single_shot_builtin_catalog.sql`
+- `218_add_admin_growth_cohorts_stats.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

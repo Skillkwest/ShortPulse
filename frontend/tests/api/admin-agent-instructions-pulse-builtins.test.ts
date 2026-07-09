@@ -44,6 +44,13 @@ describe("admin pulse built-ins API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
+    resolveCreatePulseBuiltInCatalogForAdminMock.mockResolvedValue({
+      builtInDefinitions: CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
+      updatedAt: "2026-05-08T17:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+      degraded: false,
+    });
   });
 
   it("logs admin auth verifier exceptions before catalog access", async () => {
@@ -245,6 +252,55 @@ describe("admin pulse built-ins API", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("does not infer artifact targets from new Pulse instruction text", async () => {
+    const videoWordedDefinition: CreatePulseBuiltInPresetDefinition = {
+      presetId: "prompt_modifier",
+      label: "Prompt Modifier",
+      description: "Built-in guided Pulse for Prompt Modifier.",
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      artifactTarget: "text_artifact",
+      systemInstructions: "Ask for a video prompt with shots and scenes, then improve it.",
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      schemaVersion: 2,
+      publicationStatus: "published",
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [videoWordedDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            title: "Prompt Modifier",
+            systemInstructions: "Ask for a video prompt with shots and scenes, then improve it.",
+            artifactTarget: "video_prompt",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [videoWordedDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("rejects saves that omit the expected updatedAt token", async () => {
     const req = {
       method: "PUT",
@@ -286,6 +342,59 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
+  it("rejects duplicate admin-authored Pulse titles instead of suffixing a second built-in", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            title: "Prompt Modifier",
+            systemInstructions: "Ask for a prompt, then improve it.",
+          },
+          {
+            title: " prompt   modifier ",
+            systemInstructions: "A duplicate title should not create prompt_modifier_2.",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Pulse title "prompt   modifier" is duplicated.',
+    });
+  });
+
+  it("rejects generated preset ids that collide with another built-in", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+          },
+          {
+            title: "Image",
+            systemInstructions: "This would generate the existing image preset id.",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Pulse preset id "image" is duplicated.',
+    });
+  });
+
   it("rejects retired built-in Pulse ids before normalization can drop them", async () => {
     const req = {
       method: "PUT",
@@ -294,6 +403,30 @@ describe("admin pulse built-ins API", () => {
           {
             ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
             presetId: "legacy_prompt_modifier",
+          },
+        ],
+        expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        'Pulse preset id "legacy_prompt_modifier" is retired. Choose a new safe preset id for this built-in Pulse.',
+    });
+  });
+
+  it("rejects generated built-in Pulse ids that land on retired namespaces", async () => {
+    const req = {
+      method: "PUT",
+      body: {
+        builtInDefinitions: [
+          {
+            title: "Legacy Prompt Modifier",
+            systemInstructions: "This title would generate a retired preset id.",
           },
         ],
         expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
@@ -403,7 +536,6 @@ describe("admin pulse built-ins API", () => {
   it("uses Story Builder system instructions without inferring workflow metadata", async () => {
     const inferredStoryBuilderDefinition: CreatePulseBuiltInPresetDefinition = {
       ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[2],
-      description: "Built-in guided Pulse for DFY Story Builder.",
       starterAssistantMessage: null,
       workflowStageHints: null,
       artifactTarget: "image_prompt",
@@ -494,7 +626,25 @@ describe("admin pulse built-ins API", () => {
     });
   });
 
-  it("rejects non-guided built-in Pulse runtime contracts", async () => {
+  it("overwrites client-supplied Pulse runtime metadata with the guided built-in contract", async () => {
+    const normalizedDefinition: CreatePulseBuiltInPresetDefinition = {
+      ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      pulseKind: "guided_workflow",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      publicationStatus: "published",
+    };
+    saveCreatePulseBuiltInCatalogMock.mockResolvedValue({
+      builtInDefinitions: [normalizedDefinition],
+      updatedAt: "2026-05-08T17:05:00.000Z",
+      updatedByUserId: "admin-1",
+      updatedByEmail: "admin@example.com",
+    });
+
     const req = {
       method: "PUT",
       body: {
@@ -502,6 +652,12 @@ describe("admin pulse built-ins API", () => {
           {
             ...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
             pulseKind: "custom_gpt",
+            runtimeMode: "custom_gpt",
+            activationMode: "activate_only",
+            outputMode: "apply_prompt",
+            memoryPolicy: "session",
+            starterAssistantMessage: "Do not use this.",
+            workflowStageHints: ["Do not use this."],
           },
         ],
         expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
@@ -510,11 +666,13 @@ describe("admin pulse built-ins API", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(saveCreatePulseBuiltInCatalogMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'Pulse "image" must use pulseKind "guided_workflow".',
+    expect(saveCreatePulseBuiltInCatalogMock).toHaveBeenCalledWith({
+      builtInDefinitions: [normalizedDefinition],
+      expectedUpdatedAt: "2026-05-08T17:00:00.000Z",
+      actorUserId: "admin-1",
+      actorEmail: "admin@example.com",
     });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("returns 409 when the stored catalog changed before save", async () => {

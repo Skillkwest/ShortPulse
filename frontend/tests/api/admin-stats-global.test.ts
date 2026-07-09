@@ -57,4 +57,91 @@ describe("GET /api/admin/stats/global", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Unable to load admin stats." });
   });
+
+  it("merges growth cohorts into the admin stats response", async () => {
+    const rpcMock = vi.fn((name: string) => {
+      if (name === "get_admin_global_stats_v1") {
+        return Promise.resolve({
+          data: {
+            overview: {},
+            models: [],
+            workflows: {},
+            assets: {},
+            projects: {},
+          },
+          error: null,
+        });
+      }
+      if (name === "get_admin_growth_stats_v1") {
+        return Promise.resolve({
+          data: {
+            marketing: {
+              summary: {},
+              retention: {},
+              attribution: {},
+            },
+            sales: {
+              summary: {},
+              highIntentUsers: [],
+            },
+          },
+          error: null,
+        });
+      }
+      if (name === "get_admin_generation_breakdown_v1") {
+        return Promise.resolve({
+          data: { summary: {}, users: [], modelMediaTypes: [] },
+          error: null,
+        });
+      }
+      if (name === "get_admin_first_value_funnel_v1") {
+        return Promise.resolve({ data: { steps: [], gaps: [] }, error: null });
+      }
+      if (name === "get_admin_growth_cohorts_v1") {
+        return Promise.resolve({
+          data: {
+            summary: {
+              signedUpNotSubscribed: 2,
+              notSubscribedNoGeneration: 1,
+            },
+            conversionTargetRows: [
+              {
+                userId: "user-1",
+                email: "prospect@example.com",
+                subscriptionBucket: "never_subscribed",
+                generationBucket: "no_generation",
+                recommendedCampaignBucket: "activate_first_generation",
+              },
+            ],
+          },
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: new Error(`Unexpected RPC ${name}`) });
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = { method: "GET", query: {} };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(rpcMock).toHaveBeenCalledWith("get_admin_growth_cohorts_v1");
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        growth: expect.objectContaining({
+          marketing: expect.objectContaining({
+            cohorts: expect.objectContaining({
+              summary: expect.objectContaining({ signedUpNotSubscribed: 2 }),
+              conversionTargetRows: [expect.objectContaining({ email: "prospect@example.com" })],
+            }),
+          }),
+          health: expect.objectContaining({
+            cohortsSource: "rpc",
+          }),
+        }),
+      })
+    );
+  });
 });

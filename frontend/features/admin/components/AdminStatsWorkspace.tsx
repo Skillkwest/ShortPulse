@@ -342,20 +342,20 @@ const MarketingPanel = ({
           <div>
             <p className={styles.adminSectionEyebrow}>Conversion targets</p>
             <h2 className={styles.adminSectionTitle}>
-              {formatCount(marketing.cohorts.summary.signedUpNotSubscribed)} accounts signed up with
-              no subscription purchase
+              {formatCount(marketing.cohorts.summary.neverSubscribed)} accounts created with no
+              subscription purchase
             </h2>
             <p className="tiny subdued">
-              Primary email campaign target: account-first signups without a current paid
-              subscription.
+              Primary email campaign target: account-first signups that have never purchased a paid
+              Stripe subscription.
             </p>
           </div>
         </div>
         <div className={styles.adminGrid}>
           <MetricCard
-            label="Signed Up, No Subscription"
-            value={formatCount(marketing.cohorts.summary.signedUpNotSubscribed)}
-            meta={`${formatCount(marketing.cohorts.summary.neverSubscribed)} never purchased • ${formatCount(marketing.cohorts.summary.lapsedOrCanceled)} lapsed or canceled`}
+            label="Created, Never Purchased"
+            value={formatCount(marketing.cohorts.summary.neverSubscribed)}
+            meta={`${formatCount(marketing.cohorts.summary.signedUpNotSubscribed)} no current paid subscription • ${formatCount(marketing.cohorts.summary.lapsedOrCanceled)} lapsed or canceled`}
           />
           <MetricCard
             label="No Generation Yet"

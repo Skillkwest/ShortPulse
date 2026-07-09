@@ -38,7 +38,6 @@ export default function AdminDashboardPage() {
   const {
     userSearch,
     usersPagination,
-    usersSummary,
     userSearchLimited,
     users,
     usersLoading,
@@ -104,7 +103,6 @@ export default function AdminDashboardPage() {
       <AdminSupportQueueSection
         userSearch={userSearch}
         usersPagination={usersPagination}
-        usersSummary={usersSummary}
         userSearchLimited={userSearchLimited}
         users={users}
         usersLoading={usersLoading}

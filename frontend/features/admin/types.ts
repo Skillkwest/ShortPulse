@@ -33,14 +33,6 @@ export type AdminUserRow = {
   createdAt: string | null;
 };
 
-export type AdminUsersSummary = {
-  signedUp: number;
-  currentlySubscribed: number;
-  signedUpNotSubscribed: number;
-  neverSubscribed: number;
-  lapsedOrCanceled: number;
-};
-
 export type AdminDeleteUserRequest = {
   confirmationText: string;
 };

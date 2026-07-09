@@ -16,14 +16,12 @@ import type {
   AdminCreditLedgerRow,
   AdminPagination,
   AdminUserRow,
-  AdminUsersSummary,
 } from "../types";
 import styles from "../../../styles/admin.module.css";
 
 type AdminSupportQueueSectionProps = {
   userSearch: string;
   usersPagination: AdminPagination;
-  usersSummary: AdminUsersSummary | null;
   userSearchLimited: boolean;
   users: AdminUserRow[];
   usersLoading: boolean;
@@ -144,7 +142,6 @@ function findingToneClassName(
 export function AdminSupportQueueSection({
   userSearch,
   usersPagination,
-  usersSummary,
   userSearchLimited,
   users,
   usersLoading,
@@ -374,9 +371,6 @@ export function AdminSupportQueueSection({
     (count, row) => count + (row.spendableCredits <= 0 ? 1 : 0),
     0
   );
-  const formatSummaryCount = (value: number | null | undefined): string =>
-    usersSummary ? (value ?? 0).toLocaleString() : "—";
-  const summaryUnavailableCopy = "Subscription summary unavailable.";
   const selectedAccountState = !selectedUserId
     ? usersError
       ? {
@@ -1052,44 +1046,6 @@ export function AdminSupportQueueSection({
               onChange={(event) => handleUserSearchChange(event.target.value)}
               placeholder="Search by email"
             />
-          </div>
-
-          <div className={styles.adminGrid} aria-label="User subscription summary">
-            <article className={styles.adminCard}>
-              <span className={styles.adminLabel}>No subscription purchase yet</span>
-              <p className={styles.adminMetric}>
-                {formatSummaryCount(usersSummary?.neverSubscribed)}
-              </p>
-              <p className={styles.adminSubtext}>
-                {usersSummary
-                  ? "Created accounts with no Stripe paid subscription history."
-                  : summaryUnavailableCopy}
-              </p>
-            </article>
-            <article className={styles.adminCard}>
-              <span className={styles.adminLabel}>No current paid subscription</span>
-              <p className={styles.adminMetric}>
-                {formatSummaryCount(usersSummary?.signedUpNotSubscribed)}
-              </p>
-              <p className={styles.adminSubtext}>
-                {usersSummary
-                  ? `Includes ${formatSummaryCount(
-                      usersSummary.lapsedOrCanceled
-                    )} lapsed or canceled accounts.`
-                  : summaryUnavailableCopy}
-              </p>
-            </article>
-            <article className={styles.adminCard}>
-              <span className={styles.adminLabel}>Current paid subscriptions</span>
-              <p className={styles.adminMetric}>
-                {formatSummaryCount(usersSummary?.currentlySubscribed)}
-              </p>
-              <p className={styles.adminSubtext}>
-                {usersSummary
-                  ? `Out of ${formatSummaryCount(usersSummary.signedUp)} created accounts.`
-                  : summaryUnavailableCopy}
-              </p>
-            </article>
           </div>
 
           <div className={styles.adminTable}>

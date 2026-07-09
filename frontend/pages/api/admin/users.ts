@@ -7,7 +7,6 @@ import { fetchAdminUserCycleSpend } from "../../../lib/server/api/adminUserCycle
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { fetchCreditGrantSummaries } from "../../../lib/server/api/creditGrantSummary";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
-import type { AdminUsersSummary } from "../../../features/admin/types";
 
 const DEFAULT_PER_PAGE = 100;
 const MAX_PER_PAGE = 200;
@@ -85,10 +84,6 @@ type AuthUser = {
   created_at?: string | null;
 };
 
-type AdminGrowthCohortsRpcPayload = {
-  summary?: Partial<Record<keyof AdminUsersSummary, unknown>>;
-};
-
 const asPositiveInt = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
@@ -120,11 +115,6 @@ const toFiniteCents = (value: unknown): number => {
   return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 };
 
-const toFiniteCount = (value: unknown): number => {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? Math.max(0, Math.trunc(numeric)) : 0;
-};
-
 const listUsersPage = async (
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
   page: number,
@@ -146,32 +136,6 @@ const listUsersPage = async (
   const total = Number(data?.total ?? 0);
   const nextPage = typeof data?.nextPage === "number" ? data.nextPage : null;
   return { users, total, nextPage };
-};
-
-const fetchAdminUsersSummary = async (
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>
-): Promise<AdminUsersSummary | null> => {
-  const { data, error } = await supabaseAdmin.rpc("get_admin_growth_cohorts_v1");
-  if (error) {
-    return null;
-  }
-
-  const payload =
-    data && typeof data === "object" && !Array.isArray(data)
-      ? (data as AdminGrowthCohortsRpcPayload)
-      : null;
-  const summary = payload?.summary;
-  if (!summary) {
-    return null;
-  }
-
-  return {
-    signedUp: toFiniteCount(summary.signedUp),
-    currentlySubscribed: toFiniteCount(summary.currentlySubscribed),
-    signedUpNotSubscribed: toFiniteCount(summary.signedUpNotSubscribed),
-    neverSubscribed: toFiniteCount(summary.neverSubscribed),
-    lapsedOrCanceled: toFiniteCount(summary.lapsedOrCanceled),
-  };
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -199,7 +163,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const requestedPage = asPositiveInt(req.query.page, 1);
     const perPage = Math.min(MAX_PER_PAGE, asPositiveInt(req.query.perPage, DEFAULT_PER_PAGE));
     const search = normalizeSearchQuery(req.query.search);
-    const usersSummary = await fetchAdminUsersSummary(supabaseAdmin);
 
     let pagedUsers: AuthUser[] = [];
     let totalCount = 0;
@@ -258,7 +221,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!userIds.length) {
       return res.status(200).json({
         users: [],
-        summary: usersSummary,
         pagination: {
           page,
           perPage,
@@ -446,7 +408,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       users: rows,
-      summary: usersSummary,
       pagination: {
         page,
         perPage,

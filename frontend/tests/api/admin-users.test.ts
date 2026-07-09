@@ -47,16 +47,6 @@ const createChainableQuery = (rows: unknown[]) => {
   return query;
 };
 
-const adminGrowthCohortsPayload = {
-  summary: {
-    signedUp: 3,
-    currentlySubscribed: 1,
-    signedUpNotSubscribed: 2,
-    neverSubscribed: 1,
-    lapsedOrCanceled: 1,
-  },
-};
-
 describe("GET /api/admin/users", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -80,10 +70,6 @@ describe("GET /api/admin/users", () => {
           }),
         },
       },
-      rpc: vi.fn().mockResolvedValue({
-        data: adminGrowthCohortsPayload,
-        error: null,
-      }),
     });
 
     const req = { method: "GET", query: {} };
@@ -94,10 +80,6 @@ describe("GET /api/admin/users", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         users: [],
-        summary: expect.objectContaining({
-          neverSubscribed: 1,
-          signedUpNotSubscribed: 2,
-        }),
         pagination: expect.objectContaining({
           totalCount: 0,
         }),
@@ -203,23 +185,18 @@ describe("GET /api/admin/users", () => {
     ]);
     let ledgerQueryCount = 0;
 
-    const rpc = vi.fn((name: string) => {
-      if (name === "get_admin_growth_cohorts_v1") {
-        return Promise.resolve({ data: adminGrowthCohortsPayload, error: null });
-      }
-      return Promise.resolve({
-        data: [
-          {
-            spendable_cents: 75,
-            reserved_cents: 25,
-            expiring_cents: 75,
-            non_expiring_cents: 0,
-            next_expiring_cents: 75,
-            next_expires_at: "2026-08-01T00:00:00.000Z",
-          },
-        ],
-        error: null,
-      });
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          spendable_cents: 75,
+          reserved_cents: 25,
+          expiring_cents: 75,
+          non_expiring_cents: 0,
+          next_expiring_cents: 75,
+          next_expires_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
     });
 
     getSupabaseAdminMock.mockReturnValue({
@@ -310,11 +287,6 @@ describe("GET /api/admin/users", () => {
             recurringStorageAddonPriceCents: 500,
           }),
         ],
-        summary: expect.objectContaining({
-          currentlySubscribed: 1,
-          neverSubscribed: 1,
-          signedUpNotSubscribed: 2,
-        }),
         reservationsSupported: true,
       })
     );
@@ -338,17 +310,12 @@ describe("GET /api/admin/users", () => {
     const createInQuery = (rows: unknown[]) => ({
       in: vi.fn().mockResolvedValue({ data: rows, error: null }),
     });
-    const rpc = vi.fn((name: string) => {
-      if (name === "get_admin_growth_cohorts_v1") {
-        return Promise.resolve({ data: adminGrowthCohortsPayload, error: null });
-      }
-      return Promise.resolve({
-        data: [
-          { user_id: "user-1", spendable_cents: 75, reserved_cents: 25 },
-          { user_id: "user-2", spendable_cents: 120, reserved_cents: 0 },
-        ],
-        error: null,
-      });
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        { user_id: "user-1", spendable_cents: 75, reserved_cents: 25 },
+        { user_id: "user-2", spendable_cents: 120, reserved_cents: 0 },
+      ],
+      error: null,
     });
     const topUpsQuery = createChainableQuery([
       { user_id: "user-1", change_cents: 1000 },
@@ -488,8 +455,7 @@ describe("GET /api/admin/users", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(rpc).toHaveBeenCalledTimes(2);
-    expect(rpc).toHaveBeenCalledWith("get_admin_growth_cohorts_v1");
+    expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("get_credit_grant_summaries", {
       p_user_ids: ["user-1", "user-2"],
     });

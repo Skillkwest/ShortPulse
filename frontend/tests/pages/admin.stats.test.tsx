@@ -389,14 +389,40 @@ describe("Admin stats page", () => {
   });
 
   it("renders conversion target cohorts in the Marketing lens", () => {
+    const baseState = useAdminGlobalStatsControllerMock();
+    useAdminGlobalStatsControllerMock.mockClear();
+    useAdminGlobalStatsControllerMock.mockReturnValue({
+      ...baseState,
+      growth: {
+        ...baseState.growth,
+        marketing: {
+          ...baseState.growth.marketing,
+          cohorts: {
+            ...baseState.growth.marketing.cohorts,
+            summary: {
+              ...baseState.growth.marketing.cohorts.summary,
+              signedUp: 27,
+              currentlySubscribed: 4,
+              signedUpNotSubscribed: 23,
+              neverSubscribed: 21,
+              lapsedOrCanceled: 2,
+            },
+          },
+        },
+      },
+    });
+
     render(<AdminStatsPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Marketing" }));
 
     expect(
-      screen.getByText("0 accounts signed up with no subscription purchase")
+      screen.getByText("21 accounts created with no subscription purchase")
     ).toBeInTheDocument();
-    expect(screen.getByText("Signed Up, No Subscription")).toBeInTheDocument();
+    expect(screen.getByText("Created, Never Purchased")).toBeInTheDocument();
+    expect(
+      screen.getByText("23 no current paid subscription • 2 lapsed or canceled")
+    ).toBeInTheDocument();
     expect(screen.getByText("No Generation Yet")).toBeInTheDocument();
     expect(
       screen.getByText("No signed-up non-subscriber targets are available yet.")

@@ -175,13 +175,6 @@ describe("Admin users and credits overview", () => {
               createdAt: "2026-03-02T12:00:00.000Z",
             },
           ],
-          summary: {
-            signedUp: 27,
-            currentlySubscribed: 4,
-            signedUpNotSubscribed: 23,
-            neverSubscribed: 21,
-            lapsedOrCanceled: 2,
-          },
           pagination: {
             page: 1,
             perPage: 50,
@@ -632,13 +625,6 @@ describe("Admin users and credits overview", () => {
             createdAt: "2026-03-02T12:00:00.000Z",
           },
         ],
-        summary: {
-          signedUp: 27,
-          currentlySubscribed: 4,
-          signedUpNotSubscribed: 23,
-          neverSubscribed: 21,
-          lapsedOrCanceled: 2,
-        },
         pagination: {
           page: 1,
           perPage: 50,
@@ -664,11 +650,6 @@ describe("Admin users and credits overview", () => {
     );
 
     expect(screen.getAllByText("Plan").length).toBeGreaterThan(0);
-    expect(screen.getByText("No subscription purchase yet")).toBeInTheDocument();
-    expect(screen.getByText("21")).toBeInTheDocument();
-    expect(screen.getByText("No current paid subscription")).toBeInTheDocument();
-    expect(screen.getByText("23")).toBeInTheDocument();
-    expect(screen.getByText("Includes 2 lapsed or canceled accounts.")).toBeInTheDocument();
     expect(screen.getByText("Credit flags (1)")).toBeInTheDocument();
     expect(screen.getByText("Cycle spent")).toBeInTheDocument();
     expect(screen.getByText("Top-ups")).toBeInTheDocument();

@@ -13,6 +13,7 @@ type UseAiStudioPageContentRuntimeParams = {
   uiNotice: AiStudioPageContentProps["uiNotice"];
   mediaPlanNoticeMessage: AiStudioPageContentProps["mediaPlanNoticeMessage"];
   mediaPlanNoticeCta: AiStudioPageContentProps["mediaPlanNoticeCta"];
+  experimentalNoPlanLanding: AiStudioPageContentProps["experimentalNoPlanLanding"];
   onMediaPlanAccessAttempt: AiStudioPageContentProps["onMediaPlanAccessAttempt"];
   billingPlanNoticeMessage: AiStudioPageContentProps["billingPlanNoticeMessage"];
   billingPlanNoticeHref: AiStudioPageContentProps["billingPlanNoticeHref"];
@@ -107,6 +108,7 @@ export const useAiStudioPageContentRuntime = ({
   uiNotice,
   mediaPlanNoticeMessage,
   mediaPlanNoticeCta,
+  experimentalNoPlanLanding,
   onMediaPlanAccessAttempt,
   billingPlanNoticeMessage,
   billingPlanNoticeHref,
@@ -198,6 +200,7 @@ export const useAiStudioPageContentRuntime = ({
       uiNotice,
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
+      experimentalNoPlanLanding,
       onMediaPlanAccessAttempt,
       billingPlanNoticeMessage,
       billingPlanNoticeHref,
@@ -288,6 +291,7 @@ export const useAiStudioPageContentRuntime = ({
       uiNotice,
       mediaPlanNoticeMessage,
       mediaPlanNoticeCta,
+      experimentalNoPlanLanding,
       onMediaPlanAccessAttempt,
       billingPlanNoticeMessage,
       billingPlanNoticeHref,

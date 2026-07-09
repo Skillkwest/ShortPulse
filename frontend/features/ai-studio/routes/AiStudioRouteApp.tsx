@@ -4,6 +4,7 @@
  */
 import React, { useCallback, useState } from "react";
 import { AiStudioPageShell } from "../components/AiStudioPageShell";
+import { normalizePlanId } from "../../billing/catalog";
 import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { buildDefaultPricingParams } from "../logic/pricing";
@@ -323,6 +324,10 @@ const AiStudioPageRuntimeBody = ({
       }),
     [resolvedPlan, resolvedPlanStatus]
   );
+  const generationAccessResolving =
+    resolvedPlanStatus === "idle" || resolvedPlanStatus === "loading";
+  const experimentalNoPlanLanding =
+    resolvedPlanStatus === "ready" && normalizePlanId(resolvedPlan?.id) === "free";
   const workflowGenerateAccessCta = React.useMemo(() => {
     if (resolvedPlanStatus !== "ready" || !resolvedPlan) return null;
     const access = resolveAiStudioWorkflowPlanAccess({
@@ -1129,6 +1134,7 @@ const AiStudioPageRuntimeBody = ({
     hasSufficientCreditsForPromptReferenceGenerate,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
+    generationAccessResolving,
     generationAccessCta,
     handleStandardCreatePromptChange,
     handlePulseCreatePromptChange,
@@ -1225,6 +1231,7 @@ const AiStudioPageRuntimeBody = ({
     uiNotice: effectiveUiNotice,
     mediaPlanNoticeMessage: isMediaPlanNoticeVisible ? AI_STUDIO_MEDIA_PLAN_REQUIRED_MESSAGE : null,
     mediaPlanNoticeCta: generationAccessCta,
+    experimentalNoPlanLanding,
     onMediaPlanAccessAttempt: handleMediaPlanAccessAttempt,
     billingPlanNoticeMessage,
     billingPlanNoticeHref,

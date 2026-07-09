@@ -233,6 +233,34 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
+  it("reserves the generate slot without showing pending cost copy while generation access resolves", () => {
+    const onGenerate = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        onGenerate={onGenerate}
+        costCredits={null}
+        generationAccessResolving
+      />
+    );
+
+    const leadingContent = screen.getByTestId("composer-leading-content");
+    expect(
+      within(leadingContent).queryByRole("button", {
+        name: "Generate",
+      })
+    ).toBeNull();
+    expect(
+      within(leadingContent).queryByRole("link", {
+        name: "View subscription plans",
+      })
+    ).toBeNull();
+    expect(within(leadingContent).queryByText("Cost pending")).toBeNull();
+    expect(leadingContent.querySelector(".ai-generation-access-cta-placeholder")).not.toBeNull();
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
   it("hides the create control set and inline actions while chat mode is enabled", () => {
     render(
       <StandardCreatePropertiesPanel

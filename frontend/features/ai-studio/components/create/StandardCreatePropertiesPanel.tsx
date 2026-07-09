@@ -69,6 +69,7 @@ export type StandardCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  generationAccessResolving?: boolean;
   generationAccessCta?: GenerationAccessCta | null;
   guardrailReason?: string | null;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
@@ -155,6 +156,7 @@ export function StandardCreatePropertiesPanel({
   onAssistantMessageEdit,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  generationAccessResolving = false,
   generationAccessCta = null,
   guardrailReason = null,
   onClearAgentChat,
@@ -400,6 +402,8 @@ export function StandardCreatePropertiesPanel({
         <div className="create-composer-inline-generate">
           {generationAccessCta ? (
             <GenerationAccessCtaButton cta={generationAccessCta} />
+          ) : generationAccessResolving ? (
+            <span className="ai-generation-access-cta-placeholder" aria-hidden="true" />
           ) : (
             <AgentResponseInlineGenerateButton
               onClick={onGenerate}

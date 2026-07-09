@@ -10,6 +10,7 @@ import {
   CREATE_PULSE_BUILT_IN_PRESET_ID_REQUIREMENT,
   CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
+  isCreatePulseSeededBuiltInPresetId,
   isValidCreatePulseBuiltInPresetId,
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseArtifactTarget,
@@ -42,7 +43,7 @@ const resolvePresetId = (basePresetId: string): string =>
 const normalizeLabelKey = (label: string): string =>
   label.trim().toLowerCase().replace(/\s+/g, " ");
 
-const buildDefaultDescription = (label: string): string => `Built-in guided Pulse for ${label}.`;
+const buildDefaultDescription = (label: string): string => `Built-in Pulse for ${label}.`;
 
 const normalizeAdminBuiltInDefinitionRecord = (
   value: unknown,
@@ -116,6 +117,7 @@ const normalizeAdminBuiltInDefinitionRecord = (
     readTrimmedString(record, "description") ||
     existingDefinition?.description?.trim() ||
     buildDefaultDescription(label);
+  const isSeededBuiltIn = isCreatePulseSeededBuiltInPresetId(presetId);
 
   return {
     ok: true,
@@ -127,8 +129,8 @@ const normalizeAdminBuiltInDefinitionRecord = (
       workflowStageHints: null,
       artifactTarget,
       systemInstructions,
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
+      pulseKind: isSeededBuiltIn ? "guided_workflow" : "custom_gpt",
+      runtimeMode: isSeededBuiltIn ? "workflow_gpt" : "custom_gpt",
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
@@ -172,7 +174,7 @@ const validateBuiltInDefinitionsPayload = (
     return {
       ok: false,
       message:
-        "Each built-in guided workflow must have a unique safe preset id, label, description, artifact target, and system instructions.",
+        "Each built-in Pulse must have a unique safe preset id, label, description, artifact target, and system instructions.",
     };
   }
   return { ok: true, builtInDefinitions: normalized };
@@ -208,7 +210,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error,
       routeLabel: "api/admin/agent-instructions/pulse-builtins.auth",
     });
-    return res.status(500).json({ error: "Failed to load built-in guided workflows." });
+    return res.status(500).json({ error: "Failed to load built-in Pulses." });
   }
   if (!adminUser) return;
   res.setHeader("Cache-Control", "no-store, max-age=0");
@@ -230,7 +232,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         routeLabel: "api/admin/agent-instructions/pulse-builtins",
         user: adminUser,
       });
-      return res.status(500).json({ error: "Failed to load built-in guided workflows." });
+      return res.status(500).json({ error: "Failed to load built-in Pulses." });
     }
   }
 
@@ -275,7 +277,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         routeLabel: "api/admin/agent-instructions/pulse-builtins",
         user: adminUser,
       });
-      return res.status(500).json({ error: "Failed to save built-in guided workflows." });
+      return res.status(500).json({ error: "Failed to save built-in Pulses." });
     }
   }
 

@@ -15,8 +15,8 @@ const publicPromptModifierDefinition: PublicBuiltInDefinition = {
   label: "Prompt Modifier",
   description: "Modify prompts.",
   systemInstructions: "",
-  pulseKind: "guided_workflow",
-  runtimeMode: "workflow_gpt",
+  pulseKind: "custom_gpt",
+  runtimeMode: "custom_gpt",
   activationMode: "activate_and_start",
   outputMode: "chat_reply",
   memoryPolicy: "session",
@@ -67,6 +67,28 @@ describe("Create Pulse built-in catalog normalization", () => {
         serverPromptModifierDefinition,
       ])
     ).toEqual([retiredServerMetadataDefinition]);
+  });
+
+  it("normalizes stale non-seeded built-ins away from guided workflow metadata", () => {
+    const staleGuidedPromptModifier = {
+      ...serverPromptModifierDefinition,
+      pulseKind: "guided_workflow" as const,
+      runtimeMode: "workflow_gpt" as const,
+      starterAssistantMessage: "Paste the prompt you want to modify.",
+      workflowStageHints: ["Paste prompt"],
+    };
+    const normalizedPromptModifier = {
+      ...retiredServerMetadataDefinition,
+      pulseKind: "custom_gpt" as const,
+      runtimeMode: "custom_gpt" as const,
+    };
+
+    expect(normalizeServerBuiltInDefinitions([staleGuidedPromptModifier])).toEqual([
+      normalizedPromptModifier,
+    ]);
+    expect(normalizePublicBuiltInDefinitions([staleGuidedPromptModifier])).toEqual([
+      normalizedPromptModifier,
+    ]);
   });
 
   it("defaults missing publication status to published", () => {

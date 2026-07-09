@@ -203,6 +203,9 @@ export type CreatePulsePresetDragPayload = {
 };
 
 const CREATE_PULSE_RETIRED_PRESET_ID_SET = new Set<string>(CREATE_PULSE_RETIRED_PRESET_IDS);
+const CREATE_PULSE_SEEDED_BUILT_IN_PRESET_ID_SET = new Set<string>(
+  CREATE_PULSE_SEEDED_BUILT_IN_METADATA.map((definition) => definition.presetId)
+);
 
 let createPulseCustomPresetFallbackCounter = 0;
 
@@ -241,12 +244,6 @@ const isCreatePulseArtifactTarget = (value: string): value is CreatePulseArtifac
   value === "storyboard" ||
   value === "text_artifact";
 
-const isCreatePulsePresetKind = (value: string): value is CreatePulsePresetKind =>
-  value === "guided_workflow" || value === "custom_gpt";
-
-const isCreatePulseRuntimeMode = (value: string): value is CreatePulseRuntimeMode =>
-  value === "workflow_gpt" || value === "custom_gpt";
-
 const isCreatePulseActivationMode = (value: string): value is CreatePulseActivationMode =>
   value === "activate_and_start" || value === "activate_only";
 
@@ -266,6 +263,9 @@ const buildCreatePulseBuiltInPresetById = (
 
 export const isCreatePulseRetiredPresetId = (value: string): value is CreatePulseRetiredPresetId =>
   CREATE_PULSE_RETIRED_PRESET_ID_SET.has(value);
+
+export const isCreatePulseSeededBuiltInPresetId = (value: string): boolean =>
+  CREATE_PULSE_SEEDED_BUILT_IN_PRESET_ID_SET.has(value.trim());
 
 const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
   value: unknown
@@ -291,14 +291,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
       ? (value as { artifactTarget: string }).artifactTarget.trim()
       : "";
-  const pulseKindRaw =
-    typeof (value as { pulseKind?: unknown }).pulseKind === "string"
-      ? (value as { pulseKind: string }).pulseKind.trim()
-      : "";
-  const runtimeModeRaw =
-    typeof (value as { runtimeMode?: unknown }).runtimeMode === "string"
-      ? (value as { runtimeMode: string }).runtimeMode.trim()
-      : "";
   const activationModeRaw =
     typeof (value as { activationMode?: unknown }).activationMode === "string"
       ? (value as { activationMode: string }).activationMode.trim()
@@ -311,21 +303,19 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { publicationStatus?: unknown }).publicationStatus === "string"
       ? (value as { publicationStatus: string }).publicationStatus.trim()
       : "";
-  const pulseKind = isCreatePulsePresetKind(pulseKindRaw)
-    ? pulseKindRaw
-    : CREATE_PULSE_BUILT_IN_KIND;
-  const runtimeMode = isCreatePulseRuntimeMode(runtimeModeRaw)
-    ? runtimeModeRaw
-    : pulseKind === "guided_workflow"
-      ? "workflow_gpt"
-      : "custom_gpt";
-
   if (!presetId || !label || !description) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {
     return null;
   }
+  const pulseKind = isCreatePulseSeededBuiltInPresetId(presetId)
+    ? CREATE_PULSE_BUILT_IN_KIND
+    : CREATE_PULSE_CUSTOM_AUTHORING_KIND;
+  const runtimeMode =
+    pulseKind === "guided_workflow"
+      ? CREATE_PULSE_BUILT_IN_RUNTIME_MODE
+      : CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE;
 
   return createBuiltInPulseDefinition({
     presetId,

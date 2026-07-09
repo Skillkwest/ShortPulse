@@ -14,6 +14,7 @@ const createParams = (
     onFileBrowserSelection: vi.fn(),
     uiError: null,
     uiNotice: null,
+    experimentalNoPlanLanding: false,
     onDismissUiError: vi.fn(),
     onDismissUiNotice: vi.fn(),
     balanceCredits: null,
@@ -107,5 +108,13 @@ describe("useAiStudioPageContentRuntime", () => {
     );
 
     expect(result.current.detailNavigation).toBe(detailNavigation);
+  });
+
+  it("passes through the experimental no-plan landing flag", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageContentRuntime(createParams({ experimentalNoPlanLanding: true }))
+    );
+
+    expect(result.current.experimentalNoPlanLanding).toBe(true);
   });
 });

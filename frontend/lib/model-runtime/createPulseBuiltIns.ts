@@ -16,6 +16,7 @@ import {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
+  isCreatePulseSeededBuiltInPresetId,
   type CreatePulseActivationMode,
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetId,
@@ -42,12 +43,6 @@ const CREATE_PULSE_BUILT_IN_PRESET_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
 export const isValidCreatePulseBuiltInPresetId = (value: string): boolean =>
   CREATE_PULSE_BUILT_IN_PRESET_ID_PATTERN.test(value.trim());
-
-const isCreatePulsePresetKind = (value: string): value is CreatePulsePresetKind =>
-  value === "guided_workflow" || value === "custom_gpt";
-
-const isCreatePulseRuntimeMode = (value: string): value is CreatePulseRuntimeMode =>
-  value === "workflow_gpt" || value === "custom_gpt";
 
 const isCreatePulseActivationMode = (value: string): value is CreatePulseActivationMode =>
   value === "activate_and_start" || value === "activate_only";
@@ -142,14 +137,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
       ? (value as { artifactTarget: string }).artifactTarget.trim()
       : "";
-  const pulseKindRaw =
-    typeof (value as { pulseKind?: unknown }).pulseKind === "string"
-      ? (value as { pulseKind: string }).pulseKind.trim()
-      : "";
-  const runtimeModeRaw =
-    typeof (value as { runtimeMode?: unknown }).runtimeMode === "string"
-      ? (value as { runtimeMode: string }).runtimeMode.trim()
-      : "";
   const activationModeRaw =
     typeof (value as { activationMode?: unknown }).activationMode === "string"
       ? (value as { activationMode: string }).activationMode.trim()
@@ -162,15 +149,6 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { publicationStatus?: unknown }).publicationStatus === "string"
       ? (value as { publicationStatus: string }).publicationStatus.trim()
       : "";
-  const pulseKind = isCreatePulsePresetKind(pulseKindRaw)
-    ? pulseKindRaw
-    : CREATE_PULSE_GUIDED_AUTHORING_KIND;
-  const runtimeMode = isCreatePulseRuntimeMode(runtimeModeRaw)
-    ? runtimeModeRaw
-    : pulseKind === "guided_workflow"
-      ? "workflow_gpt"
-      : "custom_gpt";
-
   if (
     !presetId ||
     !isValidCreatePulseBuiltInPresetId(presetId) ||
@@ -183,6 +161,11 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
   if (isCreatePulseRetiredPresetId(presetId)) {
     return null;
   }
+  const pulseKind = isCreatePulseSeededBuiltInPresetId(presetId)
+    ? CREATE_PULSE_GUIDED_AUTHORING_KIND
+    : CREATE_PULSE_CUSTOM_AUTHORING_KIND;
+  const runtimeMode =
+    pulseKind === "guided_workflow" ? "workflow_gpt" : CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE;
 
   return createBuiltInPulseDefinition({
     presetId,
@@ -241,6 +224,7 @@ export {
   CREATE_PULSE_GUIDED_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   isCreatePulseRetiredPresetId,
+  isCreatePulseSeededBuiltInPresetId,
 };
 
 export type {

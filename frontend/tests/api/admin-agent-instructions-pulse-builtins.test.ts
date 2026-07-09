@@ -70,7 +70,7 @@ describe("admin pulse built-ins API", () => {
     });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Failed to load built-in guided workflows.",
+      error: "Failed to load built-in Pulses.",
     });
   });
 
@@ -208,13 +208,13 @@ describe("admin pulse built-ins API", () => {
     const inferredPromptModifierDefinition: CreatePulseBuiltInPresetDefinition = {
       presetId: "prompt_modifier",
       label: "Prompt Modifier",
-      description: "Built-in guided Pulse for Prompt Modifier.",
+      description: "Built-in Pulse for Prompt Modifier.",
       starterAssistantMessage: null,
       workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: "Ask for a source prompt, then return a cleaner version.",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
+      pulseKind: "custom_gpt",
+      runtimeMode: "custom_gpt",
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
@@ -256,13 +256,13 @@ describe("admin pulse built-ins API", () => {
     const videoWordedDefinition: CreatePulseBuiltInPresetDefinition = {
       presetId: "prompt_modifier",
       label: "Prompt Modifier",
-      description: "Built-in guided Pulse for Prompt Modifier.",
+      description: "Built-in Pulse for Prompt Modifier.",
       starterAssistantMessage: null,
       workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: "Ask for a video prompt with shots and scenes, then improve it.",
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
+      pulseKind: "custom_gpt",
+      runtimeMode: "custom_gpt",
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",
@@ -453,13 +453,13 @@ describe("admin pulse built-ins API", () => {
     const inferredDefinition: CreatePulseBuiltInPresetDefinition = {
       presetId: "prompt_helper",
       label: "Prompt Helper",
-      description: "Built-in guided Pulse for Prompt Helper.",
+      description: "Built-in Pulse for Prompt Helper.",
       starterAssistantMessage: null,
       workflowStageHints: null,
       artifactTarget: "text_artifact",
       systemInstructions: promptWithStarter,
-      pulseKind: "guided_workflow",
-      runtimeMode: "workflow_gpt",
+      pulseKind: "custom_gpt",
+      runtimeMode: "custom_gpt",
       activationMode: "activate_and_start",
       outputMode: "chat_reply",
       memoryPolicy: "session",

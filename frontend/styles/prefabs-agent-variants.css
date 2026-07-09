@@ -237,6 +237,15 @@
     transform 0.12s ease;
 }
 
+.ai-generation-access-cta-placeholder {
+  display: inline-flex;
+  width: 100%;
+  min-width: 112px;
+  min-height: 68px;
+  pointer-events: none;
+  opacity: 0;
+}
+
 .ai-generation-access-cta:hover {
   color: #fff;
   border-color: rgba(255, 205, 130, 0.92);

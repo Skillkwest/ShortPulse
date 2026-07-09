@@ -93,6 +93,7 @@ export type StandardCreateRuntimeProps = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationAccessResolving?: boolean;
   generationAccessCta?: GenerationAccessCta | null;
   generationGuardrail: string | null;
   useReferenceImageIndicator: boolean;

@@ -62,6 +62,7 @@ type UseAiStudioCreatePanelRuntimeParams = {
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   effectiveGenerationGuardrail: string | null;
   effectiveIsGenerateDisabled: boolean;
+  generationAccessResolving?: boolean;
   generationAccessCta?: GenerationAccessCta | null;
   handleStandardCreatePromptChange: (value: string) => void;
   handlePulseCreatePromptChange: (value: string) => void;
@@ -115,6 +116,7 @@ export const useAiStudioCreatePanelRuntime = ({
   hasSufficientCreditsForPromptReferenceGenerate,
   effectiveGenerationGuardrail,
   effectiveIsGenerateDisabled,
+  generationAccessResolving = false,
   generationAccessCta = null,
   handleStandardCreatePromptChange,
   handlePulseCreatePromptChange,
@@ -457,6 +459,7 @@ export const useAiStudioCreatePanelRuntime = ({
         describeInFlightCount,
         createGenerateCostCredits,
         isGenerateDisabled: effectiveIsGenerateDisabled,
+        generationAccessResolving,
         generationAccessCta,
         generationGuardrail: effectiveGenerationGuardrail,
         useReferenceImageIndicator,
@@ -551,6 +554,7 @@ export const useAiStudioCreatePanelRuntime = ({
     describeInFlightCount,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
+    generationAccessResolving,
     generationAccessCta,
     expertCreateMode,
     handleActiveCreatePulsePresetIdChangeForPage,

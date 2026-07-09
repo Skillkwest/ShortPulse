@@ -10,12 +10,21 @@ import type {
   AdminDeleteUserResponse,
   AdminPagination,
   AdminUserRow,
+  AdminUsersSummary,
 } from "../types";
 
 export const ADMIN_DASHBOARD_USERS_PER_PAGE = 50;
 export const ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT = 20;
 export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [100, 500, 1000, -100, -500, -1000] as const;
 const SEARCH_DEBOUNCE_MS = 250;
+
+const DEFAULT_ADMIN_USERS_SUMMARY: AdminUsersSummary = {
+  signedUp: 0,
+  currentlySubscribed: 0,
+  signedUpNotSubscribed: 0,
+  neverSubscribed: 0,
+  lapsedOrCanceled: 0,
+};
 
 const createCreditAdjustmentIntentKey = (): string => {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -42,6 +51,25 @@ const parseAdjustmentInput = (rawValue: string): number | null => {
   return whole;
 };
 
+const toSummaryCount = (value: unknown): number => {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Math.max(0, Math.trunc(numeric)) : 0;
+};
+
+const normalizeUsersSummary = (
+  summary: Partial<AdminUsersSummary> | null | undefined
+): AdminUsersSummary | null => {
+  if (!summary) return null;
+  const source = { ...DEFAULT_ADMIN_USERS_SUMMARY, ...summary };
+  return {
+    signedUp: toSummaryCount(source.signedUp),
+    currentlySubscribed: toSummaryCount(source.currentlySubscribed),
+    signedUpNotSubscribed: toSummaryCount(source.signedUpNotSubscribed),
+    neverSubscribed: toSummaryCount(source.neverSubscribed),
+    lapsedOrCanceled: toSummaryCount(source.lapsedOrCanceled),
+  };
+};
+
 type UseAdminUsersCreditsControllerParams = {
   enabled: boolean;
   currentAdminUserId: string;
@@ -50,6 +78,7 @@ type UseAdminUsersCreditsControllerParams = {
 type UseAdminUsersCreditsControllerResult = {
   userSearch: string;
   usersPagination: AdminPagination;
+  usersSummary: AdminUsersSummary | null;
   userSearchLimited: boolean;
   users: AdminUserRow[];
   usersLoading: boolean;
@@ -112,6 +141,7 @@ export const useAdminUsersCreditsController = ({
     hasNextPage: false,
     hasPrevPage: false,
   });
+  const [usersSummary, setUsersSummary] = React.useState<AdminUsersSummary | null>(null);
   const [userSearchLimited, setUserSearchLimited] = React.useState(false);
   const [users, setUsers] = React.useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = React.useState(false);
@@ -164,11 +194,13 @@ export const useAdminUsersCreditsController = ({
       }
       const data = (await response.json()) as {
         users?: AdminUserRow[];
+        summary?: Partial<AdminUsersSummary> | null;
         pagination?: Partial<AdminPagination>;
         search?: { limited?: boolean };
       };
       const resolvedPage = Number(data.pagination?.page ?? usersPage);
       setUsers(data.users ?? []);
+      setUsersSummary(normalizeUsersSummary(data.summary));
       setUsersPagination({
         page: resolvedPage,
         perPage: Number(data.pagination?.perPage ?? ADMIN_DASHBOARD_USERS_PER_PAGE),
@@ -684,6 +716,7 @@ export const useAdminUsersCreditsController = ({
   return {
     userSearch,
     usersPagination,
+    usersSummary,
     userSearchLimited,
     users,
     usersLoading,

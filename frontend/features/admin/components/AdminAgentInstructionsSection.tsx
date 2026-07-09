@@ -19,7 +19,7 @@ import {
 } from "../../../lib/model-runtime/builtInStyles";
 import { STYLE_PROMPT_MAX_CHARACTERS } from "../../../lib/model-runtime/styleCreatorLimits";
 import {
-  CREATE_PULSE_GUIDED_AUTHORING_KIND,
+  CREATE_PULSE_CUSTOM_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
   normalizeCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulseBuiltInPresetDefinitions,
@@ -172,8 +172,8 @@ const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
   description: "",
   artifactTarget: "text_artifact",
   systemInstructions: "",
-  pulseKind: CREATE_PULSE_GUIDED_AUTHORING_KIND,
-  runtimeMode: "workflow_gpt",
+  pulseKind: CREATE_PULSE_CUSTOM_AUTHORING_KIND,
+  runtimeMode: "custom_gpt",
   activationMode: "activate_and_start",
   outputMode: "chat_reply",
   memoryPolicy: "session",
@@ -589,6 +589,7 @@ export function AdminAgentInstructionsSection() {
   const [nextPulseDraftIndex, setNextPulseDraftIndex] = React.useState(1);
   const [pulseLoading, setPulseLoading] = React.useState(true);
   const [pulseSaveState, setPulseSaveState] = React.useState<SaveState>("idle");
+  const [pendingPulseDraftSaveId, setPendingPulseDraftSaveId] = React.useState<string | null>(null);
   const [pulseCatalogSource, setPulseCatalogSource] = React.useState<"control_plane" | "seed">(
     "seed"
   );
@@ -1340,6 +1341,7 @@ export function AdminAgentInstructionsSection() {
       }
 
       const payloadDrafts = storedPulseDrafts.filter((draft) => draft.localId !== localId);
+      setPendingPulseDraftSaveId(null);
       setPulseSaveState("saving");
       setPulseSaveIssue(null);
       try {
@@ -1430,6 +1432,7 @@ export function AdminAgentInstructionsSection() {
     setPulseSectionCollapsed(false);
     setNextPulseDraftIndex((current) => current + 1);
     setPulseSaveState("idle");
+    setPendingPulseDraftSaveId(null);
     setPulseSaveIssue(null);
   }, [nextPulseDraftIndex]);
 
@@ -1437,6 +1440,7 @@ export function AdminAgentInstructionsSection() {
     setPulseDrafts(storedPulseDrafts);
     setNextPulseDraftIndex(storedPulseDrafts.length + 1);
     setPulseSaveState("idle");
+    setPendingPulseDraftSaveId(null);
     setPulseSaveIssue(null);
   }, [storedPulseDrafts]);
 
@@ -1455,6 +1459,7 @@ export function AdminAgentInstructionsSection() {
       );
       return;
     }
+    setPendingPulseDraftSaveId(null);
     setPulseSaveState("saving");
     setPulseSaveIssue(null);
     try {
@@ -1525,6 +1530,7 @@ export function AdminAgentInstructionsSection() {
         ? storedPulseDrafts.map((draft) => (draft.localId === localId ? targetDraft : draft))
         : [...storedPulseDrafts, targetDraft];
 
+      setPendingPulseDraftSaveId(localId);
       setPulseSaveState("saving");
       setPulseSaveIssue(null);
       try {
@@ -1592,6 +1598,8 @@ export function AdminAgentInstructionsSection() {
         setPulseSaveIssue(
           error instanceof Error ? error.message : "Unable to save this Pulse card."
         );
+      } finally {
+        setPendingPulseDraftSaveId(null);
       }
     },
     [
@@ -2267,6 +2275,8 @@ export function AdminAgentInstructionsSection() {
                 !isPulseSaveBlockedByDegradedCatalog &&
                 isDirty &&
                 isPulseDraftPersistable(draft);
+              const isSavingThisCard =
+                pulseSaveState === "saving" && pendingPulseDraftSaveId === draft.localId;
 
               return (
                 <article key={draft.localId} className={styles.agentInstructionCard}>
@@ -2333,7 +2343,7 @@ export function AdminAgentInstructionsSection() {
                         onClick={() => void handleSavePulseDraft(draft.localId)}
                         disabled={!canSaveCard}
                       >
-                        {pulseSaveState === "saving" ? "Saving..." : "Save"}
+                        {isSavingThisCard ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"

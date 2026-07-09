@@ -711,6 +711,79 @@ describe("Admin agent instructions page", () => {
     );
   });
 
+  it("shows saving state only on the Pulse card being saved", async () => {
+    const storedDefinitions = [
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0],
+      CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[1],
+    ];
+    const savedDefinitions = [
+      {
+        ...storedDefinitions[0],
+        label: "Global Prompt Director",
+      },
+      storedDefinitions[1],
+    ];
+    let resolveSaveRequest!: (response: ReturnType<typeof buildCatalogResponse>) => void;
+    const pendingSaveRequest = new Promise<ReturnType<typeof buildCatalogResponse>>((resolve) => {
+      resolveSaveRequest = resolve;
+    });
+
+    fetchWithAuthMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/standard-system-prompt") {
+          return buildStandardPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/edit-system-presets") {
+          return buildEditSystemPresetResponse();
+        }
+        if (input === "/api/admin/agent-instructions/built-in-styles") {
+          return buildBuiltInStyleResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          if (init?.method === "PUT") {
+            return pendingSaveRequest;
+          }
+          return buildCatalogResponse(storedDefinitions);
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Video Prompt Magic");
+
+    const firstCard = screen.getByText("Video Prompt Magic").closest("article");
+    const secondCard = screen.getByText("Multi Sequence Video Prompt").closest("article");
+    if (!firstCard || !secondCard) throw new Error("Expected Pulse cards.");
+
+    fireEvent.click(within(firstCard).getByRole("button", { name: "Expand" }));
+    fireEvent.click(within(secondCard).getByRole("button", { name: "Expand" }));
+
+    fireEvent.change(within(firstCard).getByRole("textbox", { name: "Title" }), {
+      target: { value: "Global Prompt Director" },
+    });
+    fireEvent.change(within(secondCard).getByRole("textbox", { name: "Title" }), {
+      target: { value: "Do Not Publish Yet" },
+    });
+
+    fireEvent.click(within(firstCard).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(within(firstCard).getByRole("button", { name: "Saving..." })).toBeDisabled();
+    });
+    expect(within(secondCard).queryByRole("button", { name: "Saving..." })).not.toBeInTheDocument();
+    expect(within(secondCard).getByRole("button", { name: "Save" })).toBeDisabled();
+
+    resolveSaveRequest(buildCatalogResponse(savedDefinitions));
+
+    await waitFor(() => {
+      expect(within(firstCard).getByText("Stored")).toBeInTheDocument();
+    });
+  });
+
   it("marks a stored built-in Pulse as an admin draft before saving", async () => {
     fetchWithAuthMock.mockImplementation(
       async (input: string, init?: { method?: string; body?: string }) => {

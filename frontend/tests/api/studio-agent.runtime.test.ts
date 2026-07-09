@@ -1894,15 +1894,15 @@ describe("AI Studio Create agent runtime boundaries", () => {
           presetId: "prompt_modifier",
           label: "Prompt Modifier",
           description: "Modify prompts",
-          starterAssistantMessage: "paste the prompt you want to modify",
-          workflowStageHints: ["paste the prompt you want to modify"],
-          artifactTarget: "video_prompt",
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+          artifactTarget: "text_artifact",
           systemInstructions: "SERVER PROMPT MODIFIER INSTRUCTIONS",
-          runtimeMode: "workflow_gpt",
+          runtimeMode: "custom_gpt",
           activationMode: "activate_and_start",
           outputMode: "chat_reply",
           memoryPolicy: "session",
-          pulseKind: "guided_workflow",
+          pulseKind: "custom_gpt",
         }),
       ],
       source: "control_plane",
@@ -1920,7 +1920,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
           {
             role: "user",
             content:
-              'Pulse "Prompt Modifier" was just activated.\n\nStart the workflow according to the active Pulse instructions.\n\nReply with only the first required assistant step or question. Do not explain the activation event.',
+              'Pulse "Prompt Modifier" was just activated.\n\nReply according to the active Pulse instructions.\n\nIf the instructions define startup behavior, run it only on the first assistant turn of this session.',
           },
         ],
         context: {
@@ -1928,7 +1928,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
             presetId: "prompt_modifier",
             label: "Prompt Modifier",
             instructions: "CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN",
-            runtimeMode: "workflow_gpt",
+            runtimeMode: "custom_gpt",
             activationMode: "activate_and_start",
             outputMode: "chat_reply",
             memoryPolicy: "session",
@@ -1959,10 +1959,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
         message: expect.any(String),
         outcome_class: "success_message",
         reason_code: "SUCCESS_MESSAGE",
-        workflowSession: expect.objectContaining({
-          presetId: "prompt_modifier",
-          status: "awaiting_input",
-        }),
+        workflowSession: null,
       })
     );
   });
@@ -1990,15 +1987,15 @@ describe("AI Studio Create agent runtime boundaries", () => {
           presetId: "prompt_modifier",
           label: "Prompt Modifier",
           description: "Modify prompts",
-          starterAssistantMessage: "paste the prompt you want to modify",
-          workflowStageHints: ["paste the prompt you want to modify"],
-          artifactTarget: "video_prompt",
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+          artifactTarget: "text_artifact",
           systemInstructions: "SERVER PROMPT MODIFIER INSTRUCTIONS",
-          runtimeMode: "workflow_gpt",
+          runtimeMode: "custom_gpt",
           activationMode: "activate_and_start",
           outputMode: "chat_reply",
           memoryPolicy: "session",
-          pulseKind: "guided_workflow",
+          pulseKind: "custom_gpt",
         }),
       ],
       source: "control_plane",
@@ -2027,21 +2024,11 @@ describe("AI Studio Create agent runtime boundaries", () => {
             presetId: "prompt_modifier",
             label: "Prompt Modifier",
             instructions: "CLIENT PROMPT MODIFIER INSTRUCTIONS SHOULD NOT WIN",
-            runtimeMode: "workflow_gpt",
+            runtimeMode: "custom_gpt",
             activationMode: "activate_and_start",
             outputMode: "chat_reply",
             memoryPolicy: "session",
             source: "builtin",
-            workflowSession: {
-              presetId: "prompt_modifier",
-              status: "awaiting_input",
-              currentStepIndex: 1,
-              currentStepLabel: "paste the prompt you want to modify",
-              currentStepPrompt: "paste the prompt you want to modify",
-              collectedInputs: [],
-              lastArtifact: null,
-              finalArtifactSource: null,
-            },
           },
         },
       },
@@ -2061,12 +2048,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(res.json.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         message: "Modified prompt: cinematic sunrise over chrome towers.",
-        workflowSession: expect.objectContaining({
-          presetId: "prompt_modifier",
-          status: "completed",
-          lastArtifact: "Modified prompt: cinematic sunrise over chrome towers.",
-          finalArtifactSource: "chat_reply",
-        }),
+        workflowSession: null,
       })
     );
   });

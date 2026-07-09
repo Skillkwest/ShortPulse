@@ -68,6 +68,7 @@ export const buildStandardCreateRuntimeResult = ({
     describeInFlightCount: props.describeInFlightCount,
     createGenerateCostCredits: props.createGenerateCostCredits,
     isGenerateDisabled: props.isGenerateDisabled,
+    generationAccessResolving: props.generationAccessResolving,
     generationAccessCta: props.generationAccessCta,
     generationGuardrail: props.generationGuardrail,
     handleClearAgentChat: actions.onClearAgentChat,

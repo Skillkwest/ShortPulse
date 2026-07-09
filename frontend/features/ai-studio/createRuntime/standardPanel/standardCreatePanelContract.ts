@@ -71,6 +71,7 @@ export type BuildStandardCreatePanelPropsParams = {
   describeInFlightCount: number;
   createGenerateCostCredits: number | null;
   isGenerateDisabled: boolean;
+  generationAccessResolving?: boolean;
   generationAccessCta?: GenerationAccessCta | null;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
@@ -144,6 +145,7 @@ export const buildStandardCreatePanelProps = ({
   describeInFlightCount,
   createGenerateCostCredits,
   isGenerateDisabled,
+  generationAccessResolving = false,
   generationAccessCta,
   generationGuardrail,
   handleClearAgentChat,
@@ -240,6 +242,7 @@ export const buildStandardCreatePanelProps = ({
     isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
     costCredits: createGenerateCostCredits,
     isGenerateDisabled: isPrimaryGenerateDisabled,
+    generationAccessResolving,
     generationAccessCta,
     guardrailReason,
     onClearAgentChat: handleClearAgentChat,

@@ -1,6 +1,6 @@
 # Admin Errors Cleanup: Recent Packets - 2026-07-08
 
-Status: production Admin Errors queue cleanup completed for noise/resolved rows; Kie upload retry fix is implemented locally and awaiting deployment/current-runtime proof before panel cleanup.
+Status: completed production Admin Errors queue cleanup for the two recent copied triage batches.
 
 ## Packet Sources
 
@@ -17,10 +17,10 @@ Total reviewed incidents: `28`.
 
 ## Status Cleanup Performed
 
-Production status count for the reviewed IDs after Badearsai follow-up:
+Final production status count for the reviewed IDs:
 
-- `open`: `3`
-- `resolved`: `16`
+- `open`: `0`
+- `resolved`: `19`
 - `ignored`: `9`
 
 ### Ignored
@@ -53,18 +53,16 @@ Production status count for the reviewed IDs after Badearsai follow-up:
 - `faddcd21-1f77-489a-8934-e582d0128d3e`: generated-media tracking warning was stale, but canonical projection is saved/published; watch for fresh same-fingerprint recurrence.
 - `4c50211d-b227-44a6-b3a6-6a35556417c6`: save attempt failed before convergence, but later canonical projection is saved/published; watch for fresh same-fingerprint recurrence.
 - `f3f4946d-8724-4202-9f3a-be8d37f873b6`: billing `501` predates the production full-price Stripe Portal config; current Vercel production env has the required Stripe keys and no exact recurrence after the config/deploy window.
+- `23c23ef3-ea6e-4dbd-b99f-96542ebbbd97`: Kie upload upstream `500` cluster; source retry fix deployed and no fresh same-fingerprint recurrence after current production deployment.
+- `9771bb35-36dd-4255-9c43-bdb3a00d1193`: Kie GPT Image 2 reference staging cluster; source retry fix deployed and no fresh same-fingerprint recurrence after current production deployment.
+- `446d517f-98f3-4578-b29b-160ccc2d9be2`: Kie reference file upload failure client mirror; source retry fix deployed and no fresh same-fingerprint recurrence after current production deployment.
 
-## Still Open
+## Source Fix Completion
 
-- `446d517f-98f3-4578-b29b-160ccc2d9be2`: Kie reference file upload failed.
-- `23c23ef3-ea6e-4dbd-b99f-96542ebbbd97`: Kie upload upstream `500`.
-- `9771bb35-36dd-4255-9c43-bdb3a00d1193`: Kie GPT Image 2 reference media staging failed.
-
-## Source Fix In Progress
-
-- Kie upload cluster (`446d517f-98f3-4578-b29b-160ccc2d9be2`, `23c23ef3-ea6e-4dbd-b99f-96542ebbbd97`, `9771bb35-36dd-4255-9c43-bdb3a00d1193`): local source fix retries the same canonical Kie upload endpoint once for retryable upstream upload failures. Validation passed with `npm run test -- tests/api/kie-upload-url.test.ts`, `npm run type-check:touched`, focused ESLint, Prettier check, and `git diff --check`. Keep open until this code is deployed and current production shows no fresh same-fingerprint recurrence.
-- Continuation check: the current latest production deployment remains `shortpulse-7su05l3jw-kirk-artmans-projects.vercel.app`, created `2026-07-08T21:57:51.302Z`, which predates the local Kie retry edits. Production has no fresh matching Kie upload/reference-staging rows after that deployment timestamp, but that is watch evidence only; it is not proof that the local source fix is live.
+- Kie upload cluster (`446d517f-98f3-4578-b29b-160ccc2d9be2`, `23c23ef3-ea6e-4dbd-b99f-96542ebbbd97`, `9771bb35-36dd-4255-9c43-bdb3a00d1193`): local source fix retries the same canonical Kie upload endpoint once for retryable upstream upload failures. Validation passed with `npm run test -- tests/api/kie-upload-url.test.ts`, `npm run type-check:touched`, focused ESLint, Prettier check, and `git diff --check`.
+- Earlier continuation check: production deployment `shortpulse-7su05l3jw-kirk-artmans-projects.vercel.app`, created `2026-07-08T21:57:51.302Z`, predated the local Kie retry edits. Production had no fresh matching Kie upload/reference-staging rows after that deployment timestamp, but that was watch evidence only, not proof that the local source fix was live.
+- Completion check: after owner deployment, production alias `https://www.shortpulse.ai` resolves to `shortpulse-h7eqstrj4-kirk-artmans-projects.vercel.app`, created `2026-07-09T01:30:57.441Z`. Route parity passed against that deployment, and production has no fresh matching Kie upload/reference-staging rows after that timestamp. The three Kie rows were resolved with watch through `admin_update_app_error_status`.
 
 ## Stop Boundary
 
-No replay, credit spend, provider smoke test, deploy, push, UI change, or billing behavior change was performed. Badearsai used the canonical Admin Errors status RPC to resolve six rows with watch. The next boundary is deployment/current-runtime proof for the remaining three Kie upload incidents; do not prune them before that proof.
+No replay, credit spend, provider smoke test, deploy, push, UI change, or billing behavior change was performed by Badearsai. Badearsai used the canonical Admin Errors status RPC for cleanup. All `28` reviewed incidents are now either resolved with watch or ignored as non-actionable noise.

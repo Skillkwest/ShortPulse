@@ -393,8 +393,10 @@ describe("Admin stats page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Marketing" }));
 
-    expect(screen.getByText("Signed up, not subscribed")).toBeInTheDocument();
-    expect(screen.getByText("Not Subscribed")).toBeInTheDocument();
+    expect(
+      screen.getByText("0 accounts signed up with no subscription purchase")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Signed Up, No Subscription")).toBeInTheDocument();
     expect(screen.getByText("No Generation Yet")).toBeInTheDocument();
     expect(
       screen.getByText("No signed-up non-subscriber targets are available yet.")

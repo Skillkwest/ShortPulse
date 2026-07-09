@@ -11,7 +11,6 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/announcements", label: "Dashboard" },
   { href: "/admin/agent-instructions", label: "AI System Instructions" },
   { href: "/admin/pricing", label: "Model Pricing" },
-  { href: "/admin/storage", label: "Storage" },
   { href: "/admin/catalog", label: "Product Catalog" },
   { href: "/admin/offers", label: "Offers" },
   { href: "/admin/stats", label: "Analytics" },

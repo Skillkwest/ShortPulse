@@ -27,6 +27,7 @@ const DEFAULT_SEEK_SECONDS = 0.5;
 const DEFAULT_FFMPEG_PATH = "ffmpeg";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
@@ -99,6 +100,7 @@ export const parseArgs = (argv) => {
   const seekSeconds = asPositiveNumber(readValue("--seek-seconds"), DEFAULT_SEEK_SECONDS);
   const ffmpegPath = asTrimmedString(readValue("--ffmpeg-path")) ?? DEFAULT_FFMPEG_PATH;
   const mediaFileId = asTrimmedString(readValue("--media-file-id"));
+  const confirmProjectId = asTrimmedString(readValue("--confirm-project-id"));
   const userId = asTrimmedString(readValue("--user-id"));
   const timeoutMs = asPositiveInteger(readValue("--timeout-ms"), DEFAULT_TIMEOUT_MS);
   const force = argv.includes("--force");
@@ -117,6 +119,7 @@ export const parseArgs = (argv) => {
     seekSeconds,
     ffmpegPath,
     mediaFileId,
+    confirmProjectId,
     userId,
     timeoutMs,
     force,
@@ -157,6 +160,7 @@ const usage = () => {
       "  --apply                   Extract and persist poster variants.",
       "  --limit <n>               Max candidate rows to inspect/process (default 25).",
       "  --media-file-id <uuid>    Restrict to one media_files row.",
+      "  --confirm-project-id <id> Required with --apply. Must match the live Supabase project id.",
       "  --user-id <uuid>          Restrict to one owner.",
       "  --force                   Regenerate an existing poster for the scoped --media-file-id.",
       "  --seek-seconds <n>        Approximate seek offset before frame extraction (default 0.5).",
@@ -175,6 +179,41 @@ const getRequiredEnv = (key) => {
   return String(value).trim();
 };
 
+export const inferSupabaseProjectIdFromUrl = (value) => {
+  const trimmed = asTrimmedString(value);
+  if (!trimmed) return null;
+
+  try {
+    const hostname = new URL(trimmed).hostname.trim().toLowerCase();
+    if (!hostname) return null;
+    const [projectId] = hostname.split(".");
+    return asTrimmedString(projectId);
+  } catch {
+    return null;
+  }
+};
+
+export const assertApplyTargetConfirmed = ({ apply, confirmProjectId, actualProjectId }) => {
+  if (!apply) return;
+
+  const normalizedConfirmed = asTrimmedString(confirmProjectId);
+  const normalizedActual = asTrimmedString(actualProjectId);
+
+  if (!normalizedActual) {
+    throw new Error(
+      "Could not infer the active Supabase project id. Refusing --apply without a resolvable target."
+    );
+  }
+  if (!normalizedConfirmed) {
+    throw new Error(`Refusing --apply without --confirm-project-id ${normalizedActual}.`);
+  }
+  if (normalizedConfirmed !== normalizedActual) {
+    throw new Error(
+      `Refusing --apply because --confirm-project-id ${normalizedConfirmed} does not match active project ${normalizedActual}.`
+    );
+  }
+};
+
 const loadClient = () => {
   loadEnvFile(path.join(REPO_ROOT, ".env.agent.local"));
   loadEnvFile(path.join(FRONTEND_ROOT, ".env.local"));
@@ -182,10 +221,15 @@ const loadClient = () => {
 
   const supabaseUrl = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
   const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const projectId = inferSupabaseProjectIdFromUrl(supabaseUrl);
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return {
+    supabase: createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    }),
+    projectId,
+    supabaseUrl,
+  };
 };
 
 const toBuffer = async (downloaded) => {
@@ -309,6 +353,7 @@ const persistPosterVariant = async ({ supabase, candidate, posterBuffer }) => {
     .upload(posterPath, posterBuffer, {
       contentType: "image/jpeg",
       upsert: true,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) throw uploadError;
 
@@ -423,7 +468,12 @@ const main = async () => {
     return;
   }
 
-  const supabase = loadClient();
+  const { supabase, projectId, supabaseUrl } = loadClient();
+  assertApplyTargetConfirmed({
+    apply: args.apply,
+    confirmProjectId: args.confirmProjectId,
+    actualProjectId: projectId,
+  });
   const candidates = await fetchCandidates({
     supabase,
     limit: args.limit,
@@ -438,6 +488,8 @@ const main = async () => {
         {
           mode: "dry_run",
           force: args.force,
+          projectId,
+          supabaseUrl,
           candidateCount: candidates.length,
           candidates,
         },
@@ -472,6 +524,8 @@ const main = async () => {
   const summary = {
     mode: "apply",
     force: args.force,
+    projectId,
+    supabaseUrl,
     candidateCount: candidates.length,
     processed: results.length,
     backfilled: results.filter((row) => row.status === "backfilled").length,

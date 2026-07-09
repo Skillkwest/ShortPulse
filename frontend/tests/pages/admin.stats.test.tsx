@@ -506,7 +506,7 @@ describe("Admin stats page", () => {
     expect(screen.getByRole("button", { name: "Marketing" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sales" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Storage" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute("href", "/admin/storage");
+    expect(screen.queryByRole("link", { name: "Storage" })).not.toBeInTheDocument();
   });
 
   it("renders selected-customer analytics in the stats page", () => {

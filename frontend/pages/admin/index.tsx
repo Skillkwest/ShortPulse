@@ -8,6 +8,7 @@ import { AdminSupportQueueSection } from "../../features/admin/components/AdminS
 import { useAdminUsersCreditsController } from "../../features/admin/logic/useAdminUsersCreditsController";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
+import styles from "../../styles/admin.module.css";
 
 const planLabel = (planId: string | null): string => {
   if (!planId) return "—";
@@ -99,6 +100,7 @@ export default function AdminDashboardPage() {
       pageDescription="Search users, make account adjustments, inspect recent ledger entries when needed, and jump into deeper admin tools from the shared nav."
       userEmail={user?.email}
       currentPath="/admin"
+      mainClassName={styles.adminSupportPageWide}
     >
       <AdminSupportQueueSection
         userSearch={userSearch}

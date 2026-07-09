@@ -1,5 +1,6 @@
 /**
- * Admin API: storage economics snapshot for the /admin/storage workspace.
+ * Parked admin storage economics API.
+ * The retained implementation below is inactive until a dedicated reactivation lane.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
@@ -41,6 +42,10 @@ const PAYMENT_EXEMPT_PLAN_ID = "payment_exempt";
 const PAYMENT_EXEMPT_PLAN_LABEL = "Payment exempt testers";
 const PAYMENT_EXEMPT_PLAN_VISIBILITY = "hidden/admin only";
 const STORAGE_OBJECT_PAGE_SIZE = 1000;
+const ADMIN_STORAGE_ECONOMICS_ENABLED = false;
+const ADMIN_STORAGE_DEACTIVATED_RESPONSE = {
+  error: "Admin storage is currently deactivated.",
+};
 
 const ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
   storageCostPerGbMonth: 0.021,
@@ -1145,6 +1150,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!ADMIN_STORAGE_ECONOMICS_ENABLED) {
+    return res.status(410).json(ADMIN_STORAGE_DEACTIVATED_RESPONSE);
   }
 
   try {

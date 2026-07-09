@@ -89,6 +89,32 @@ function formatBillingStatusLabel(
   return formatStatusLabel(row.subscriptionStatus);
 }
 
+function billingStatusTone(
+  row: Pick<AdminUserRow, "subscriptionStatus" | "cancelAtPeriodEnd">
+): "active" | "warning" | "canceled" | "neutral" {
+  if (row.cancelAtPeriodEnd) return "warning";
+  const status = String(row.subscriptionStatus ?? "")
+    .trim()
+    .toLowerCase();
+  if (status === "active") return "active";
+  if (status === "canceled" || status === "cancelled") return "canceled";
+  return "neutral";
+}
+
+function accessPlanTone(
+  planId: string | null | undefined
+): "baseline" | "starter" | "media" | "studio" | "business" | "neutral" {
+  const normalized = String(planId ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalized || normalized === "free" || normalized === "baseline") return "baseline";
+  if (normalized === "starter") return "starter";
+  if (normalized === "media") return "media";
+  if (normalized === "studio") return "studio";
+  if (normalized === "business") return "business";
+  return "neutral";
+}
+
 function pickPositiveNumber(...values: Array<number | null | undefined>): number | null {
   for (const value of values) {
     if (value != null && Number.isFinite(value) && value > 0) {
@@ -116,13 +142,12 @@ function formatCompactDate(value: string | null | undefined): string {
   });
 }
 
-function formatNextCreditExpiryLabel(
-  row: Pick<AdminUserRow, "nextExpiringCredits" | "nextExpiresAt">
-): string | null {
-  if (row.nextExpiringCredits <= 0 || !row.nextExpiresAt) return null;
-  return `${row.nextExpiringCredits.toLocaleString()} expires ${formatCompactDate(
-    row.nextExpiresAt
-  )}`;
+function formatExpiringCreditsSnapshotLabel(
+  row: Pick<AdminUserRow, "expiringCredits" | "nextExpiresAt">
+): string {
+  if (row.expiringCredits <= 0) return "None";
+  const expiryLabel = row.nextExpiresAt ? formatCompactDate(row.nextExpiresAt) : "No date";
+  return `${row.expiringCredits.toLocaleString()} / ${expiryLabel}`;
 }
 
 function resolveBillingIdentityStateLabel(params: {
@@ -202,8 +227,14 @@ export function AdminSupportQueueSection({
     key: string;
     value: string;
     label: string;
-    helper?: string;
     testId: string;
+  };
+  type AccountStatusItem = {
+    key: string;
+    label: string;
+    value: string;
+    detail: string | null;
+    toneClassName: string;
   };
   type QueueSignal = {
     label: string;
@@ -232,12 +263,6 @@ export function AdminSupportQueueSection({
     : selectedUser?.subscriptionStatus;
   const snapshotContractSource =
     billingDiagnostics?.currentContract?.contractSource ?? selectedUser?.contractSource ?? null;
-  const snapshotMonthlyCredits =
-    billingDiagnostics?.currentContract?.monthlyCreditsCents ??
-    billingDiagnostics?.linkedOffer?.monthlyCreditsCents ??
-    billingDiagnostics?.currentPublicOffer?.monthlyCreditsCents ??
-    selectedUser?.monthlyCreditsCents ??
-    null;
   const snapshotStorageSummary = billingDiagnostics?.storageSummary ?? null;
   const snapshotStorageTotalBytes = pickPositiveNumber(
     snapshotStorageSummary?.totalLimitBytes,
@@ -247,11 +272,6 @@ export function AdminSupportQueueSection({
   );
   const snapshotStorageLabel =
     snapshotStorageTotalBytes != null ? formatStorageBytes(snapshotStorageTotalBytes) : null;
-  const snapshotStorageHelper = snapshotStorageSummary
-    ? snapshotStorageSummary.addonLimitBytes > 0
-      ? `${formatStorageBytes(snapshotStorageSummary.usedBytes)} used · ${formatStorageBytes(snapshotStorageSummary.addonLimitBytes)} add-ons`
-      : `${formatStorageBytes(snapshotStorageSummary.usedBytes)} used`
-    : undefined;
   const snapshotPriceLabel =
     billingDiagnostics?.stripeSubscription?.subscriptionId &&
     billingDiagnostics.stripeSubscription.recurringPriceCents != null
@@ -270,9 +290,6 @@ export function AdminSupportQueueSection({
   const snapshotBillingStateLabel = snapshotCancellationScheduled
     ? "Cancellation scheduled"
     : snapshotStatusLabel;
-  const snapshotCreditsHelper = selectedUser
-    ? `${selectedUser.currentCycleSpentCredits.toLocaleString()} spent this cycle`
-    : undefined;
   const visibleBillingFindings = billingFindings.filter(
     (finding) => finding.code !== "internal_comp_contract"
   );
@@ -282,10 +299,6 @@ export function AdminSupportQueueSection({
     : null;
   const showPricingObservabilityCard =
     pricingObservability != null && pricingObservability.mismatchCount > 0;
-  const hasLinkedStripeSubscription = Boolean(
-    billingDiagnostics?.stripeSubscription?.subscriptionId ||
-    billingDiagnostics?.billingProfile?.stripeSubscriptionId
-  );
   const snapshotStripeCustomerId = billingDiagnostics?.billingProfile?.stripeCustomerId ?? null;
   const snapshotStripeSubscriptionId =
     billingDiagnostics?.stripeSubscription?.subscriptionId ??
@@ -303,6 +316,9 @@ export function AdminSupportQueueSection({
     billingDiagnostics?.stripeSubscription?.currentPeriodEnd ??
     billingDiagnostics?.currentContract?.currentPeriodEnd ??
     null;
+  const snapshotExpiringCreditsLabel = selectedUser
+    ? formatExpiringCreditsSnapshotLabel(selectedUser)
+    : "None";
   const snapshotCards: SnapshotCard[] = selectedUser
     ? [
         {
@@ -315,10 +331,6 @@ export function AdminSupportQueueSection({
           key: "subscription",
           label: "Subscription",
           value: snapshotPriceLabel ?? "—",
-          helper:
-            snapshotMonthlyCredits != null
-              ? `${snapshotMonthlyCredits.toLocaleString()} credits / month`
-              : undefined,
           testId: "snapshot-card-price",
         },
         snapshotStorageLabel
@@ -326,7 +338,6 @@ export function AdminSupportQueueSection({
               key: "storage",
               label: "Storage",
               value: snapshotStorageLabel,
-              helper: snapshotStorageHelper,
               testId: "snapshot-card-storage",
             }
           : null,
@@ -334,8 +345,13 @@ export function AdminSupportQueueSection({
           key: "credits",
           value: selectedUser.spendableCredits.toLocaleString(),
           label: "Spendable",
-          helper: snapshotCreditsHelper,
           testId: "snapshot-card-credits",
+        },
+        {
+          key: "expiring-credits",
+          value: snapshotExpiringCreditsLabel,
+          label: "Expiring credits",
+          testId: "snapshot-card-expiring-credits",
         },
         {
           key: "billing-state",
@@ -344,34 +360,18 @@ export function AdminSupportQueueSection({
             snapshotContractSource === "internal_comp"
               ? "Payment exempt"
               : snapshotBillingStateLabel,
-          helper:
-            snapshotContractSource === "internal_comp"
-              ? `Manual ${planLabel(selectedUser.planId)} access without Stripe billing.`
-              : snapshotCancellationScheduled && snapshotRenewalAt
-                ? `Access ends ${formatCompactDate(snapshotRenewalAt)}.`
-                : hasLinkedStripeSubscription
-                  ? "Stripe-linked billing is configured."
-                  : "No linked Stripe subscription.",
           testId: "snapshot-card-billing-state",
         },
         {
           key: "renewal",
           label: snapshotCancellationScheduled ? "Access ends" : "Next renewal",
           value: snapshotRenewalAt ? formatCompactDate(snapshotRenewalAt) : "No renewal",
-          helper: snapshotCancellationScheduled
-            ? "Cancellation takes effect at period end."
-            : snapshotRenewalAt
-              ? "Current billing period end."
-              : "No active billing cycle.",
           testId: "snapshot-card-renewal",
         },
         {
           key: "joined",
           label: "Joined",
           value: formatCompactDate(selectedUser.createdAt),
-          helper: selectedUser.createdAt
-            ? "Account creation date."
-            : "Creation date is not available.",
           testId: "snapshot-card-joined",
         },
       ].filter((card): card is SnapshotCard => Boolean(card))
@@ -417,19 +417,6 @@ export function AdminSupportQueueSection({
                 helper: "Rows follow the natural user index order for the current page and search.",
               }
     : null;
-  const snapshotNote = !selectedUserId
-    ? "Select an account from the list below."
-    : billingDiagnosticsError
-      ? billingDiagnosticsError
-      : billingDiagnosticsLoading && !billingDiagnosticsLoaded
-        ? "Loading latest account snapshot…"
-        : visibleBillingFindings.length > 0
-          ? `${visibleBillingFindings[0]?.summary}${
-              visibleBillingFindings.length > 1
-                ? ` + ${visibleBillingFindings.length - 1} more`
-                : ""
-            }`
-          : null;
   const effectivePaymentExemptPlanId =
     selectedUser?.planId === "media" ||
     selectedUser?.planId === "studio" ||
@@ -446,7 +433,53 @@ export function AdminSupportQueueSection({
     : selectedUser?.planId === "free" || !selectedUser?.planId
       ? `Enable this to grant ${effectivePaymentExemptPlanLabel} access without Stripe billing.`
       : `Enable this to keep the ${effectivePaymentExemptPlanLabel} plan active without Stripe billing.`;
-
+  const accountStatusItems: AccountStatusItem[] = selectedUserId
+    ? [
+        {
+          key: "billing-state",
+          label: "Billing state",
+          value:
+            snapshotContractSource === "internal_comp"
+              ? "Payment exempt"
+              : snapshotBillingStateLabel,
+          detail: snapshotCancellationScheduled
+            ? snapshotRenewalAt
+              ? `Access ends ${formatCompactDate(snapshotRenewalAt)}.`
+              : "Cancellation is scheduled."
+            : snapshotRenewalAt
+              ? `Current billing period ends ${formatCompactDate(snapshotRenewalAt)}.`
+              : "No active billing cycle.",
+          toneClassName:
+            snapshotCancellationScheduled || snapshotBillingStateLabel !== "Active"
+              ? styles.pillWarn
+              : styles.pillActive,
+        },
+        {
+          key: "billing-identity",
+          label: "Billing identity",
+          value: billingIdentityStateLabel,
+          detail:
+            snapshotContractSource === "internal_comp" && snapshotStripeCustomerId
+              ? "Internal-comp account still has historical Stripe customer linkage."
+              : snapshotStripeSubscriptionId
+                ? "Stripe subscription linkage is present."
+                : snapshotStripeCustomerId
+                  ? "Stripe customer linkage is present without an active subscription id."
+                  : "No Stripe billing identity is linked.",
+          toneClassName:
+            snapshotContractSource === "internal_comp" && snapshotStripeCustomerId
+              ? styles.pillWarn
+              : styles.pillOk,
+        },
+        {
+          key: "payment-exempt",
+          label: "Payment exempt",
+          value: paymentExemptEnabled ? "Enabled" : "Disabled",
+          detail: paymentExemptNote,
+          toneClassName: paymentExemptEnabled ? styles.pillOk : styles.pill,
+        },
+      ]
+    : [];
   const handleShowLedger = async () => {
     if (!selectedUserId) return;
     setLedgerUserId(selectedUserId);
@@ -519,9 +552,9 @@ export function AdminSupportQueueSection({
       </div>
       <div className={styles.adminSupportStack}>
         <div
-          className={`${styles.adminSplitGrid} ${
-            !ledgerVisible ? styles.adminSplitGridSingle : ""
-          }`}
+          className={styles.adminSelectedAccountWorkspace}
+          data-credit-ledger-layout="full-width"
+          data-testid="selected-account-workspace"
         >
           <section className={`${styles.adminSubpanel} ${styles.adminPrimaryPanel}`}>
             {usersLoading && !hasLoadedUsers && !selectedUserId ? (
@@ -546,30 +579,9 @@ export function AdminSupportQueueSection({
                             selectedUser?.id ??
                             "Select an account from the list below"}
                         </span>
-                        {selectedUserId ? (
-                          <div className={styles.accountSnapshotHeaderBadges}>
-                            <span
-                              className={styles.accountSnapshotHeaderBadge}
-                              data-testid="snapshot-status-badge"
-                            >
-                              {snapshotBillingStateLabel}
-                            </span>
-                            {snapshotContractSource === "internal_comp" ? (
-                              <span
-                                className={`${styles.accountSnapshotHeaderBadge} ${styles.accountSnapshotHeaderBadgeAccent}`}
-                                data-testid="snapshot-payment-exempt-badge"
-                              >
-                                ✓ Payment exempt
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                     <div className={styles.accountSnapshotHeadAside}>
-                      {snapshotNote ? (
-                        <span className={styles.accountSnapshotNote}>{snapshotNote}</span>
-                      ) : null}
                       {selectedUserId ? (
                         <div className={styles.tabRow}>
                           <Link
@@ -615,9 +627,6 @@ export function AdminSupportQueueSection({
                       >
                         <span className={styles.accountSnapshotCardLabel}>{card.label}</span>
                         <span className={styles.accountSnapshotCardValue}>{card.value}</span>
-                        {card.helper ? (
-                          <span className={styles.accountSnapshotCardHelper}>{card.helper}</span>
-                        ) : null}
                       </article>
                     ))}
                   </div>
@@ -740,21 +749,10 @@ export function AdminSupportQueueSection({
                       className={styles.adminStripeBillingToggle}
                       onClick={() => setSupportFindingsExpanded((current) => !current)}
                       aria-expanded={supportFindingsExpanded}
-                      aria-controls="admin-support-findings-details"
+                      aria-controls="admin-account-status-details"
                     >
                       <span>
-                        <span className={styles.panelTitle}>Support findings</span>
-                        <span className={styles.adminStripeBillingToggleHint}>
-                          {supportFindingsExpanded
-                            ? "Collapse support findings"
-                            : billingDiagnosticsLoading && !billingDiagnosticsLoaded
-                              ? "Loading support findings"
-                              : visibleBillingFindings.length > 0
-                                ? `${visibleBillingFindings.length} finding${
-                                    visibleBillingFindings.length === 1 ? "" : "s"
-                                  }`
-                                : "Expand support findings"}
-                        </span>
+                        <span className={styles.panelTitle}>Status</span>
                       </span>
                       <CaretDown
                         size={16}
@@ -767,17 +765,32 @@ export function AdminSupportQueueSection({
                     </button>
                     {supportFindingsExpanded ? (
                       <div
-                        id="admin-support-findings-details"
+                        id="admin-account-status-details"
                         className={styles.adminStripeBillingBody}
                       >
                         {billingDiagnosticsLoading && !billingDiagnosticsLoaded ? (
-                          <p className={styles.controlNote}>
-                            Loading billing diagnostics and support findings…
-                          </p>
+                          <p className={styles.controlNote}>Loading account status…</p>
                         ) : billingDiagnosticsError ? (
                           <p className={styles.controlNote}>{billingDiagnosticsError}</p>
-                        ) : visibleBillingFindings.length > 0 ? (
+                        ) : accountStatusItems.length > 0 || visibleBillingFindings.length > 0 ? (
                           <div className={styles.adminBillingFindingList}>
+                            {accountStatusItems.map((item) => (
+                              <article
+                                key={item.key}
+                                className={styles.adminBillingFindingCard}
+                                data-testid={`account-status-${item.key}`}
+                              >
+                                <div className={styles.healthFindingMetaRow}>
+                                  <span className={`${styles.pill} ${item.toneClassName}`}>
+                                    {item.label}
+                                  </span>
+                                </div>
+                                <p className={styles.healthFindingSummary}>{item.value}</p>
+                                {item.detail ? (
+                                  <p className={styles.controlNote}>{item.detail}</p>
+                                ) : null}
+                              </article>
+                            ))}
                             {visibleBillingFindings.map((finding) => (
                               <article
                                 key={finding.code}
@@ -804,7 +817,7 @@ export function AdminSupportQueueSection({
                           </div>
                         ) : (
                           <p className={styles.controlNote}>
-                            No immediate billing anomalies are flagged for this account right now.
+                            No account status items are available for this account right now.
                           </p>
                         )}
                         {showPricingObservabilityCard ? (
@@ -860,11 +873,6 @@ export function AdminSupportQueueSection({
                   >
                     <span>
                       <span className={styles.panelTitle}>Stripe billing</span>
-                      <span className={styles.adminStripeBillingToggleHint}>
-                        {stripeBillingExpanded
-                          ? "Collapse Stripe details"
-                          : "Expand Stripe details"}
-                      </span>
                     </span>
                     <CaretDown
                       size={16}
@@ -951,7 +959,7 @@ export function AdminSupportQueueSection({
           </section>
 
           {ledgerVisible ? (
-            <section className={styles.adminSubpanel}>
+            <section className={styles.adminSubpanel} data-testid="credit-ledger-panel">
               <div className={styles.adminSectionHead}>
                 <div>
                   <p className="eyebrow">Credit transaction log</p>
@@ -1095,196 +1103,224 @@ export function AdminSupportQueueSection({
             />
           </div>
 
-          <div className={styles.adminTable}>
-            <div className={`${styles.adminTableHead} ${styles.adminSupportQueueHead}`}>
-              <span>User</span>
-              <span>Copy</span>
-              <span>Access</span>
-              <span>Billing</span>
-              <span>Payment</span>
-              <span>Spendable</span>
-              <span>Expiring credits</span>
-              <span>Renews / ends</span>
-              <span>Credit flags ({emptyCreditFlagCount})</span>
-            </div>
-            {usersError ? (
-              <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
-                <span className="subdued">{usersError}</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
+          <div className={styles.adminTableScroller}>
+            <div
+              className={`${styles.adminTable} ${styles.adminSupportQueueTable}`}
+              data-testid="admin-support-user-grid"
+            >
+              <div className={`${styles.adminTableHead} ${styles.adminSupportQueueHead}`}>
+                <span>User</span>
+                <span>Copy</span>
+                <span>Access</span>
+                <span>Billing</span>
+                <span>Payment</span>
+                <span>Spendable</span>
+                <span>Renews / ends</span>
+                <span>Credit flags ({emptyCreditFlagCount})</span>
               </div>
-            ) : usersLoading && users.length === 0 ? (
-              <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
-                <span className="subdued">Loading users…</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-              </div>
-            ) : users.length === 0 ? (
-              <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
-                <span className="subdued">
-                  {userSearch.trim() ? "No users match." : "No users loaded yet."}
-                </span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-                <span className="subdued">—</span>
-              </div>
-            ) : (
-              users.map((row) => {
-                const rowLabel = row.email ?? row.id;
-                const queueSignals: QueueSignal[] = [];
-                if (row.spendableCredits <= 0) {
-                  queueSignals.push({
-                    label: "Empty",
-                    toneClassName: styles.pillCritical,
-                  });
-                }
-                const rowCreditExpiryLabel = formatNextCreditExpiryLabel(row);
+              {usersError ? (
+                <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
+                  <span className="subdued">{usersError}</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                </div>
+              ) : usersLoading && users.length === 0 ? (
+                <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
+                  <span className="subdued">Loading users…</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                </div>
+              ) : users.length === 0 ? (
+                <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
+                  <span className="subdued">
+                    {userSearch.trim() ? "No users match." : "No users loaded yet."}
+                  </span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                </div>
+              ) : (
+                users.map((row) => {
+                  const rowLabel = row.email ?? row.id;
+                  const queueSignals: QueueSignal[] = [];
+                  const accessTone = accessPlanTone(row.planId);
+                  const billingTone = billingStatusTone(row);
+                  const accessToneClass =
+                    accessTone === "baseline"
+                      ? styles.adminSupportQueueRowBaseline
+                      : accessTone === "starter"
+                        ? styles.adminSupportQueueRowStarter
+                        : accessTone === "media"
+                          ? styles.adminSupportQueueRowMedia
+                          : accessTone === "studio"
+                            ? styles.adminSupportQueueRowStudio
+                            : accessTone === "business"
+                              ? styles.adminSupportQueueRowBusiness
+                              : styles.adminSupportQueueRowNeutral;
+                  if (row.spendableCredits <= 0) {
+                    queueSignals.push({
+                      label: "Empty",
+                      toneClassName: styles.pillCritical,
+                    });
+                  }
 
-                return (
-                  <div
-                    key={row.id}
-                    className={`${styles.adminTableRow} ${styles.adminSupportQueueRow} ${
-                      selectedUserId === row.id ? styles.adminTableRowActive : ""
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      className={styles.adminSupportQueueSelectButton}
-                      onClick={() => handleSelectUserRow(row.id)}
-                      aria-label={`Select ${rowLabel}`}
-                      aria-pressed={selectedUserId === row.id}
-                    />
-                    <div className={styles.adminSupportQueueRowContent}>
-                      <span className={styles.adminSupportQueueCell} data-label="User">
-                        <span className={styles.adminSupportQueueEmail}>
-                          <span className={styles.adminSupportQueueEmailText}>{rowLabel}</span>
+                  return (
+                    <div
+                      key={row.id}
+                      className={`${styles.adminTableRow} ${styles.adminSupportQueueRow} ${accessToneClass} ${
+                        selectedUserId === row.id ? styles.adminTableRowActive : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className={styles.adminSupportQueueSelectButton}
+                        onClick={() => handleSelectUserRow(row.id)}
+                        aria-label={`Select ${rowLabel}`}
+                        aria-pressed={selectedUserId === row.id}
+                      />
+                      <div className={styles.adminSupportQueueRowContent}>
+                        <span className={styles.adminSupportQueueCell} data-label="User">
+                          <span className={styles.adminSupportQueueEmail}>
+                            <span className={styles.adminSupportQueueEmailText}>{rowLabel}</span>
+                          </span>
                         </span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} ${styles.adminSupportQueueCopyCell}`}
-                        data-label="Copy"
-                      >
-                        <span className={styles.adminSupportQueueCopySlot}>
-                          {row.email ? (
-                            <button
-                              type="button"
-                              className={styles.adminSupportQueueCopyButton}
-                              onClick={() => void handleCopyUserEmail(row)}
-                              aria-label={`Copy ${row.email} to clipboard`}
-                              title={
-                                copiedEmailUserId === row.id
-                                  ? "Copied"
-                                  : copyFailedEmailUserId === row.id
-                                    ? "Copy failed"
-                                    : "Copy email"
-                              }
-                            >
-                              {copiedEmailUserId === row.id ? (
-                                <Check size={14} weight="bold" aria-hidden="true" />
-                              ) : (
-                                <CopySimple size={14} weight="bold" aria-hidden="true" />
+                        <span
+                          className={`${styles.adminSupportQueueCell} ${styles.adminSupportQueueCopyCell}`}
+                          data-label="Copy"
+                        >
+                          <span className={styles.adminSupportQueueCopySlot}>
+                            {row.email ? (
+                              <button
+                                type="button"
+                                className={styles.adminSupportQueueCopyButton}
+                                onClick={() => void handleCopyUserEmail(row)}
+                                aria-label={`Copy ${row.email} to clipboard`}
+                                title={
+                                  copiedEmailUserId === row.id
+                                    ? "Copied"
+                                    : copyFailedEmailUserId === row.id
+                                      ? "Copy failed"
+                                      : "Copy email"
+                                }
+                              >
+                                {copiedEmailUserId === row.id ? (
+                                  <Check size={14} weight="bold" aria-hidden="true" />
+                                ) : (
+                                  <CopySimple size={14} weight="bold" aria-hidden="true" />
+                                )}
+                              </button>
+                            ) : (
+                              <span className="subdued">—</span>
+                            )}
+                          </span>
+                        </span>
+                        <span className={styles.adminSupportQueueCell} data-label="Access">
+                          <span
+                            className={`${styles.adminSupportAccessPlan} ${
+                              accessTone === "baseline"
+                                ? styles.adminSupportAccessPlanBaseline
+                                : accessTone === "starter"
+                                  ? styles.adminSupportAccessPlanStarter
+                                  : accessTone === "media"
+                                    ? styles.adminSupportAccessPlanMedia
+                                    : accessTone === "studio"
+                                      ? styles.adminSupportAccessPlanStudio
+                                      : accessTone === "business"
+                                        ? styles.adminSupportAccessPlanBusiness
+                                        : styles.adminSupportAccessPlanNeutral
+                            }`}
+                            data-access-plan-tone={accessTone}
+                            data-testid={`access-plan-${row.id}`}
+                          >
+                            {planLabel(row.planId)}
+                          </span>
+                        </span>
+                        <span
+                          className={`${styles.adminSupportQueueCell} subdued`}
+                          data-label="Billing"
+                        >
+                          <span
+                            className={`${styles.adminSupportBillingStatus} ${
+                              billingTone === "active"
+                                ? styles.adminSupportBillingStatusActive
+                                : billingTone === "warning"
+                                  ? styles.adminSupportBillingStatusWarning
+                                  : billingTone === "canceled"
+                                    ? styles.adminSupportBillingStatusCanceled
+                                    : styles.adminSupportBillingStatusNeutral
+                            }`}
+                            data-billing-status-tone={billingTone}
+                            data-testid={`billing-status-${row.id}`}
+                          >
+                            {formatBillingStatusLabel(row)}
+                          </span>
+                        </span>
+                        <span
+                          className={`${styles.adminSupportQueueCell} subdued`}
+                          data-label="Payment"
+                        >
+                          {row.contractSource !== "internal_comp" &&
+                          row.recurringPriceCents != null ? (
+                            <span>
+                              {formatRecurringPriceLabel(
+                                row.recurringPriceCents,
+                                row.billingInterval,
+                                formatUsd
                               )}
-                            </button>
+                            </span>
                           ) : (
                             <span className="subdued">—</span>
                           )}
                         </span>
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Access">
-                        <span>{planLabel(row.planId)}</span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Billing"
-                      >
-                        <span>{formatBillingStatusLabel(row)}</span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Payment"
-                      >
-                        {row.contractSource !== "internal_comp" &&
-                        row.recurringPriceCents != null ? (
-                          <span>
-                            {formatRecurringPriceLabel(
-                              row.recurringPriceCents,
-                              row.billingInterval,
-                              formatUsd
-                            )}
-                          </span>
-                        ) : (
-                          <span className="subdued">—</span>
-                        )}
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Spendable">
-                        <span className="mono">{row.spendableCredits.toLocaleString()}</span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Expiring credits"
-                      >
-                        {row.expiringCredits > 0 ? (
-                          <>
-                            <span className="mono">{row.expiringCredits.toLocaleString()}</span>
-                            <span className={styles.adminCreditMeta}>
-                              Expiring subscription credits
-                            </span>
-                          </>
-                        ) : (
-                          <span className="subdued">—</span>
-                        )}
-                        {rowCreditExpiryLabel ? (
-                          <span className={styles.adminCreditMeta}>{rowCreditExpiryLabel}</span>
-                        ) : null}
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Renews / ends"
-                      >
-                        <span>
-                          {row.cancelAtPeriodEnd && row.planRenewalAt
-                            ? `Ends ${formatCompactDate(row.planRenewalAt)}`
-                            : formatCompactDate(row.planRenewalAt)}
+                        <span className={styles.adminSupportQueueCell} data-label="Spendable">
+                          <span className="mono">{row.spendableCredits.toLocaleString()}</span>
                         </span>
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Credit flags">
-                        {queueSignals.length > 0 ? (
-                          <span className={styles.adminSupportQueueSignalList}>
-                            {queueSignals.map((signal) => (
-                              <span
-                                key={`${row.id}-${signal.label}`}
-                                className={`${styles.pill} ${styles.adminSupportQueueSignalPill} ${signal.toneClassName}`}
-                              >
-                                {signal.label}
-                              </span>
-                            ))}
+                        <span
+                          className={`${styles.adminSupportQueueCell} subdued`}
+                          data-label="Renews / ends"
+                        >
+                          <span>
+                            {row.cancelAtPeriodEnd && row.planRenewalAt
+                              ? `Ends ${formatCompactDate(row.planRenewalAt)}`
+                              : formatCompactDate(row.planRenewalAt)}
                           </span>
-                        ) : (
-                          <span className="subdued">—</span>
-                        )}
-                      </span>
+                        </span>
+                        <span className={styles.adminSupportQueueCell} data-label="Credit flags">
+                          {queueSignals.length > 0 ? (
+                            <span className={styles.adminSupportQueueSignalList}>
+                              {queueSignals.map((signal) => (
+                                <span
+                                  key={`${row.id}-${signal.label}`}
+                                  className={`${styles.pill} ${styles.adminSupportQueueSignalPill} ${signal.toneClassName}`}
+                                >
+                                  {signal.label}
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            <span className="subdued">—</span>
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
 
           <div className={styles.searchRow}>

@@ -27,6 +27,7 @@ const DEFAULT_PREVIEW_SECONDS = 3;
 const DEFAULT_FFMPEG_PATH = "ffmpeg";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const DURABLE_MEDIA_CACHE_CONTROL_SECONDS = "31536000";
 const VIDEO_PREVIEW_SCALE_FILTER =
   "scale=360:-2:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2";
 
@@ -426,6 +427,7 @@ const persistPreviewVariant = async ({ supabase, candidate, previewBuffer }) => 
     .upload(previewPath, previewBuffer, {
       contentType: "video/mp4",
       upsert: true,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
   if (uploadError) throw uploadError;
 

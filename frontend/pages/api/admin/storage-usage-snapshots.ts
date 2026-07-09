@@ -1,6 +1,6 @@
 /**
- * Admin API: capture provider-side Supabase usage snapshots for /admin/storage.
- * Snapshot rows are operator evidence for bill pressure and never customer entitlement authority.
+ * Parked admin provider snapshot API.
+ * Snapshot rows remain operator evidence only, and this route is inactive until reactivated.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -35,6 +35,10 @@ const SNAPSHOT_SOURCES = new Set<SnapshotSource>([
   "api_import",
 ]);
 const MAX_NOTES_LENGTH = 1000;
+const ADMIN_STORAGE_SNAPSHOT_CAPTURE_ENABLED = false;
+const ADMIN_STORAGE_DEACTIVATED_RESPONSE = {
+  error: "Admin storage is currently deactivated.",
+};
 
 const normalizeText = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
@@ -94,6 +98,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!ADMIN_STORAGE_SNAPSHOT_CAPTURE_ENABLED) {
+    return res.status(410).json(ADMIN_STORAGE_DEACTIVATED_RESPONSE);
   }
 
   let adminUser: Awaited<ReturnType<typeof requireAdminUser>>;

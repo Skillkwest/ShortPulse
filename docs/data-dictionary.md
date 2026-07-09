@@ -1045,10 +1045,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `storage_used_gb` / `storage_included_gb` (numeric): Provider storage usage and included quota for the month.
 - `uncached_egress_gb` / `cached_egress_gb` (numeric): Provider egress usage for the month.
 - `uncached_egress_included_gb` / `cached_egress_included_gb` (numeric): Included egress quotas used for bill-pressure calculations.
-- `observed_storage_overage_cost_cents`, `observed_uncached_egress_overage_cost_cents`, `observed_cached_egress_overage_cost_cents` (int, nullable): Optional observed invoice/export cost values. When absent, `/api/admin/storage-economics` estimates overage from configured rates.
+- `observed_storage_overage_cost_cents`, `observed_uncached_egress_overage_cost_cents`, `observed_cached_egress_overage_cost_cents` (int, nullable): Optional observed invoice/export cost values retained with the parked provider snapshot schema.
 - `notes` (text, nullable): Operator note for source/freshness context.
 - `created_at` / `updated_at` (timestamptz)
-- Runtime role: provider bill-pressure evidence for `/admin/storage`; not customer entitlement, pricing, Stripe, or quota authority.
+- Runtime role: parked provider bill-pressure evidence for a future admin storage reactivation lane. The current admin storage APIs do not read or write this table while deactivated; it is not customer entitlement, pricing, Stripe, or quota authority.
 - Access model: RLS enabled with no browser policies; service-role-only read/write.
 
 ### billing_profiles

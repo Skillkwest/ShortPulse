@@ -6,6 +6,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminDashboardPage from "../../pages/admin";
+import styles from "../../styles/admin.module.css";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
@@ -673,14 +674,16 @@ describe("Admin users and credits overview", () => {
     );
 
     expect(screen.getAllByText("Access").length).toBeGreaterThan(0);
+    expect(screen.getByRole("main")).toHaveClass(styles.adminSupportPageWide);
+    expect(screen.getByTestId("admin-support-user-grid")).toBeInTheDocument();
     expect(screen.getByText("Credit flags (1)")).toBeInTheDocument();
     expect(screen.getByText("Payment")).toBeInTheDocument();
-    expect(screen.getByText("Expiring credits")).toBeInTheDocument();
     expect(screen.getByText("Renews / ends")).toBeInTheDocument();
     const userListSection = screen.getByRole("heading", { name: "User list" }).closest("section");
     expect(userListSection).not.toBeNull();
     const userList = within(userListSection as HTMLElement);
     expect(userList.getByText("Spendable")).toBeInTheDocument();
+    expect(userList.queryByText("Expiring credits")).not.toBeInTheDocument();
     const userListText = (userListSection as HTMLElement).textContent ?? "";
     expect(userListText.indexOf("Access")).toBeLessThan(userListText.indexOf("Billing"));
     expect(userListText.indexOf("Billing")).toBeLessThan(userListText.indexOf("Payment"));
@@ -691,17 +694,39 @@ describe("Admin users and credits overview", () => {
     expect(userList.queryByText("Storage")).not.toBeInTheDocument();
     const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
     expect(alphaRow).toHaveTextContent("Studio");
+    expect(screen.getByTestId(`access-plan-${USER_1_ID}`)).toHaveAttribute(
+      "data-access-plan-tone",
+      "studio"
+    );
     expect(alphaRow).toHaveTextContent("120");
-    expect(alphaRow).toHaveTextContent("Expiring subscription credits");
-    expect(alphaRow).toHaveTextContent("120 expires Apr 20, 2026");
     expect(alphaRow).toHaveTextContent("$10.00/mo");
     expect(alphaRow).toHaveTextContent("Cancellation scheduled");
+    expect(screen.getByTestId(`billing-status-${USER_1_ID}`)).toHaveAttribute(
+      "data-billing-status-tone",
+      "warning"
+    );
     expect(alphaRow).toHaveTextContent("Ends Apr 30, 2026");
     expect(alphaRow).not.toHaveTextContent("10 GB");
     expect(alphaRow).not.toHaveTextContent("$5.00/mo");
     expect(screen.getByText("Canceled paid subscription")).toBeInTheDocument();
     const betaRow = screen.getByRole("button", { name: "Select beta@example.com" }).parentElement;
     expect(betaRow).toHaveTextContent("$30.00/yr");
+    expect(screen.getByTestId(`access-plan-${USER_2_ID}`)).toHaveAttribute(
+      "data-access-plan-tone",
+      "business"
+    );
+    expect(screen.getByTestId(`access-plan-${ADMIN_ID}`)).toHaveAttribute(
+      "data-access-plan-tone",
+      "business"
+    );
+    expect(screen.getByTestId(`billing-status-${USER_2_ID}`)).toHaveAttribute(
+      "data-billing-status-tone",
+      "canceled"
+    );
+    expect(screen.getByTestId(`billing-status-${ADMIN_ID}`)).toHaveAttribute(
+      "data-billing-status-tone",
+      "active"
+    );
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
     expect(selectButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
@@ -711,21 +736,27 @@ describe("Admin users and credits overview", () => {
     ]);
     await waitFor(() => expect(screen.getByTestId("snapshot-card-storage")).toBeInTheDocument());
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
-    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
-    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
+    expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
+      "10,000 credits / month"
+    );
+    expect(screen.queryByTestId("snapshot-status-badge")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500 GB");
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("2 GB used");
-    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("1,200 spent this cycle");
+    expect(screen.getByTestId("snapshot-card-storage")).not.toHaveTextContent("2 GB used");
+    expect(screen.getByTestId("snapshot-card-credits")).not.toHaveTextContent(
+      "1,200 spent this cycle"
+    );
+    expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("None");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Active");
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
     expect(screen.getByTestId("snapshot-card-joined")).toHaveTextContent("Mar 2, 2026");
-    expect(screen.getByText("Support findings")).toBeInTheDocument();
+    expect(screen.getByText("Status")).toBeInTheDocument();
     const selectedAccountSection = screen
       .getByRole("heading", { name: "Selected account" })
       .closest("section");
     expect(selectedAccountSection).not.toBeNull();
     const creditsAccessHeading = screen.getByRole("heading", { name: "Credits & access" });
-    const supportFindingsToggle = screen.getByRole("button", { name: /Support findings/ });
+    const statusToggle = screen.getByRole("button", { name: /Status/ });
     const stripeBillingToggle = screen.getByRole("button", { name: /Stripe billing/ });
     expect(screen.queryByRole("button", { name: /Customer analytics/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open analytics" })).toHaveAttribute(
@@ -733,12 +764,10 @@ describe("Admin users and credits overview", () => {
       `/admin/stats?customerId=${ADMIN_ID}`
     );
     expect(
-      creditsAccessHeading.compareDocumentPosition(supportFindingsToggle) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+      creditsAccessHeading.compareDocumentPosition(statusToggle) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      supportFindingsToggle.compareDocumentPosition(stripeBillingToggle) &
-        Node.DOCUMENT_POSITION_FOLLOWING
+      statusToggle.compareDocumentPosition(stripeBillingToggle) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
       screen.queryByText("No immediate billing anomalies are flagged for this account right now.")
@@ -780,18 +809,25 @@ describe("Admin users and credits overview", () => {
         expect.objectContaining({ method: "GET" })
       )
     );
+    const selectedAccountWorkspace = screen.getByTestId("selected-account-workspace");
+    const creditLedgerPanel = screen.getByTestId("credit-ledger-panel");
+    expect(selectedAccountWorkspace).toHaveAttribute("data-credit-ledger-layout", "full-width");
+    expect(selectedAccountWorkspace).toContainElement(creditLedgerPanel);
     expect(screen.getByText("ref: ticket-2")).toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/yr");
-    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
-    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Inactive");
+    expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
+      "10,000 credits / month"
+    );
+    expect(screen.queryByTestId("snapshot-status-badge")).not.toBeInTheDocument();
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500 GB");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("0");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
-    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent(
+    expect(screen.getByTestId("snapshot-card-credits")).not.toHaveTextContent(
       "10,400 spent this cycle"
     );
+    expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("None");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Inactive");
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
   });
@@ -815,7 +851,10 @@ describe("Admin users and credits overview", () => {
     expect(
       screen.queryByText("Legacy subscriber remains on the older recurring price.")
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Support findings/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Status/ }));
+    expect(screen.getByTestId("account-status-billing-state")).toHaveTextContent(
+      "Cancellation scheduled"
+    );
     expect(
       screen.getAllByText(
         "Current contract is on a different recurring price than the public offer."
@@ -827,25 +866,31 @@ describe("Admin users and credits overview", () => {
     expect(screen.queryByText("Pricing observability")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
-    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
-    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Cancellation scheduled");
+    expect(screen.queryByTestId("snapshot-status-badge")).not.toBeInTheDocument();
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125 GB");
-    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent(
+    expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
+      "4,000 credits / month"
+    );
+    expect(screen.getByTestId("snapshot-card-storage")).not.toHaveTextContent(
       "5 GB used · 25 GB add-ons"
     );
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("120");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
-    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("88 spent this cycle");
+    expect(screen.getByTestId("snapshot-card-credits")).not.toHaveTextContent(
+      "88 spent this cycle"
+    );
+    expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("120");
+    expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("Apr 20, 2026");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent(
       "Cancellation scheduled"
     );
-    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent(
+    expect(screen.getByTestId("snapshot-card-billing-state")).not.toHaveTextContent(
       "Access ends Apr 30, 2026."
     );
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Access ends");
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
-    expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent(
+    expect(screen.getByTestId("snapshot-card-renewal")).not.toHaveTextContent(
       "Cancellation takes effect at period end."
     );
   });

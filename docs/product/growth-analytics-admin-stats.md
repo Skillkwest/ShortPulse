@@ -10,7 +10,7 @@ The stats workspace has three growth/product analytics lenses:
 - `Marketing`: signup, activation, time-to-value, retention, and source/campaign attribution.
 - `Sales`: pricing intent, checkout behavior, paid conversion, and high-intent/PQL users.
 
-Storage now lives on the sibling `/admin/storage` page: Supabase usage snapshots, product-tracked media storage, account health, aggregate lifecycle health, recurring storage add-on capacity/MRR, provider egress/overage pressure, plan storage rows, source-confidence boundaries, and local capacity risk.
+Storage is currently parked rather than active in the admin workspace. The former sibling `/admin/storage` page returns 404, the Storage tab is removed from admin navigation, and the storage admin APIs return parked responses without Supabase reads or snapshot writes.
 
 This is intentionally not a full CDP, CRM pipeline, billing ledger, or provider invoice reconciliation surface. The current scope is admin-side product-growth visibility plus a separate storage-economics workspace.
 
@@ -111,16 +111,13 @@ Growth telemetry remains telemetry-only rows in `app_error_events`; it does not 
 ## Admin Read Surface
 
 - `/admin/stats`
-- `/admin/storage`
 - `/api/admin/stats/global`
-- `/api/admin/storage-economics`
-- `/api/admin/storage-usage-snapshots`
 - `get_admin_global_stats_v1()`
 - `get_admin_growth_stats_v1()`
 - `get_admin_growth_cohorts_v1()`
 - `get_admin_first_value_funnel_v1()`
 
-The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage is a sibling admin page and endpoint, not part of the product/growth stats RPC. It reports the latest service-role Supabase usage snapshot plus product-tracked storage, account-health rows, aggregate lifecycle health, provider pressure, source-confidence boundaries, and local capacity risk; provider snapshots are captured through the admin-only snapshot route. Storage evidence is not proof of provider invoices, live Stripe state, cleanup authority, or customer-facing pricing readiness unless the snapshot source and freshness say so.
+The stats workspace degrades safely when the growth RPC is missing, leaving Product analytics intact while Marketing/Sales fall back to empty states with an operator-facing warning. Storage is not currently an active sibling admin page or stats endpoint; the parked storage APIs must be reactivated in a dedicated storage lane before product, marketing, or sales decisions depend on that surface again.
 
 The Marketing lens includes a first-pass `Conversion targets` section backed by
 `get_admin_growth_cohorts_v1()`. It summarizes signed-up accounts by current subscription state,

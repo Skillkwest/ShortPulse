@@ -52,7 +52,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/183_fix_media_storage_lifecycle_lint.sql`: rewrite the aggregate media storage lifecycle diagnostic without temp-table references so hosted Supabase lint can analyze the service-role-only RPC.
 - `sql/migrations/184_harden_media_library_bucket_limits.sql`: set private `media_library` bucket file-size and MIME guardrails to match app upload admission without deleting objects.
 - `sql/migrations/185_add_media_storage_basename_resolver_rpc.sql`: add a service-role-only basename resolver RPC for legacy media preview repair without exposing route-local direct `storage.objects` lookup code.
-- `sql/migrations/186_add_admin_storage_usage_snapshots.sql`: add service-role-only admin Supabase usage snapshots for `/admin/storage` provider usage and margin monitoring.
+- `sql/migrations/186_add_admin_storage_usage_snapshots.sql`: add service-role-only admin Supabase usage snapshots for the historical `/admin/storage` provider usage and margin-monitoring plan; the admin storage route is currently parked.
 - `sql/migrations/187_add_app_error_event_telemetry_retention.sql`: add service-role-only daily telemetry rollups and scheduled raw retention for low/medium `telemetry.*` app-error events.
 - `sql/migrations/188_add_media_storage_usage_helper.sql`: add a service-role-only aggregate media storage usage helper for server-side quota preflights.
 - `sql/migrations/189_rename_free_plan_offer_rejection_to_baseline_access.sql`: rename the service-role plan-offer rejection copy for the legacy baseline-access sentinel without changing pricing, entitlement, acquisition, or execute-grant behavior.

@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
+  assertApplyTargetConfirmed,
   fetchCandidates,
+  inferSupabaseProjectIdFromUrl,
   normalizeCandidateRow,
   parseArgs,
+  processCandidate,
   resolvePosterStoragePath,
 } from "../backfill_video_posters.mjs";
 
@@ -26,6 +32,8 @@ describe("backfill_video_posters", () => {
       "7",
       "--media-file-id",
       "11111111-1111-4111-8111-111111111111",
+      "--confirm-project-id",
+      "bgdhqbenqltxildlgkyu",
       "--user-id",
       "22222222-2222-4222-8222-222222222222",
       "--seek-seconds",
@@ -37,6 +45,7 @@ describe("backfill_video_posters", () => {
     expect(args.apply).toBe(true);
     expect(args.limit).toBe(7);
     expect(args.mediaFileId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(args.confirmProjectId).toBe("bgdhqbenqltxildlgkyu");
     expect(args.userId).toBe("22222222-2222-4222-8222-222222222222");
     expect(args.seekSeconds).toBe(1.25);
     expect(args.ffmpegPath).toBe("/opt/bin/ffmpeg");
@@ -95,6 +104,28 @@ describe("backfill_video_posters", () => {
         mediaFileId: "media-7",
       })
     ).toBe("user-7/variants/videos/media-7/poster_720.jpg");
+  });
+
+  it("infers and enforces the active Supabase project id for apply mode", () => {
+    expect(inferSupabaseProjectIdFromUrl("https://bgdhqbenqltxildlgkyu.supabase.co/rest/v1/")).toBe(
+      "bgdhqbenqltxildlgkyu"
+    );
+
+    expect(() =>
+      assertApplyTargetConfirmed({
+        apply: true,
+        confirmProjectId: null,
+        actualProjectId: "bgdhqbenqltxildlgkyu",
+      })
+    ).toThrow(/--confirm-project-id bgdhqbenqltxildlgkyu/i);
+
+    expect(() =>
+      assertApplyTargetConfirmed({
+        apply: true,
+        confirmProjectId: "wrong-project",
+        actualProjectId: "bgdhqbenqltxildlgkyu",
+      })
+    ).toThrow(/does not match active project/i);
   });
 
   it("keeps normal candidate fetches scoped to rows missing posters", async () => {
@@ -213,5 +244,131 @@ describe("backfill_video_posters", () => {
         filename: "clip.mp4",
       },
     ]);
+  });
+
+  it("uploads generated poster variants with durable cache-control", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "shortpulse-poster-test-"));
+    const fakeFfmpegPath = path.join(tempDir, "fake-ffmpeg.mjs");
+    const onePixelJpeg =
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGwP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCcf/EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8BP//Z";
+    await fs.writeFile(
+      fakeFfmpegPath,
+      [
+        "#!/usr/bin/env node",
+        "import fs from 'node:fs';",
+        `const jpeg = Buffer.from('${onePixelJpeg}', 'base64');`,
+        "const outputPath = process.argv.at(-1);",
+        "fs.writeFileSync(outputPath, jpeg);",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+
+    const uploads: Array<{ path: string; options: Record<string, unknown> }> = [];
+    const variants: Array<Record<string, unknown>> = [];
+    const updates: Array<Record<string, unknown>> = [];
+    const supabase = {
+      storage: {
+        from(bucket: string) {
+          expect(bucket).toBe("media_library");
+          return {
+            download: async () => ({
+              data: Buffer.from("source-video"),
+              error: null,
+            }),
+            upload: async (
+              storagePath: string,
+              _body: Buffer,
+              options: Record<string, unknown>
+            ) => {
+              uploads.push({ path: storagePath, options });
+              return { error: null };
+            },
+          };
+        },
+      },
+      from(table: string) {
+        if (table === "media_asset_variants") {
+          return {
+            select() {
+              const query = {
+                eq() {
+                  return query;
+                },
+                limit() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: null,
+                      error: null,
+                    }),
+                  };
+                },
+              };
+              return query;
+            },
+            upsert(payload: Record<string, unknown>) {
+              variants.push(payload);
+              return Promise.resolve({ error: null });
+            },
+          };
+        }
+        if (table === "media_files") {
+          return {
+            update(payload: { poster_variant_path: string }) {
+              return {
+                eq(field: string, value: string) {
+                  const scoped = { ...payload, [field]: value };
+                  return {
+                    eq(nextField: string, nextValue: string) {
+                      updates.push({ ...scoped, [nextField]: nextValue });
+                      return Promise.resolve({ error: null });
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    try {
+      await expect(
+        processCandidate({
+          supabase,
+          candidate: {
+            id: "media-11",
+            userId: "user-11",
+            storagePath: "user-11/generations/videos/source.mp4",
+          },
+          ffmpegPath: fakeFfmpegPath,
+          seekSeconds: 0.5,
+          timeoutMs: 5000,
+        })
+      ).resolves.toEqual({
+        id: "media-11",
+        status: "backfilled",
+        posterPath: "user-11/variants/videos/media-11/poster_720.jpg",
+      });
+
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0]?.options).toMatchObject({
+        contentType: "image/jpeg",
+        upsert: true,
+        cacheControl: "31536000",
+      });
+      expect(variants[0]).toMatchObject({
+        media_file_id: "media-11",
+        storage_path: "user-11/variants/videos/media-11/poster_720.jpg",
+        byte_size: Buffer.from(onePixelJpeg, "base64").byteLength,
+      });
+      expect(updates[0]).toMatchObject({
+        poster_variant_path: "user-11/variants/videos/media-11/poster_720.jpg",
+        id: "media-11",
+        user_id: "user-11",
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

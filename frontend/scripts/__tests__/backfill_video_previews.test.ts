@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
   assertApplyTargetConfirmed,
   formatProcessError,
@@ -295,5 +298,131 @@ describe("backfill_video_previews", () => {
       status: "missing_source",
       error: "Object not found",
     });
+  });
+
+  it("uploads generated preview variants with durable cache-control", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "shortpulse-preview-test-"));
+    const fakeFfmpegPath = path.join(tempDir, "fake-ffmpeg.mjs");
+    await fs.writeFile(
+      fakeFfmpegPath,
+      [
+        "#!/usr/bin/env node",
+        "import fs from 'node:fs';",
+        "const outputPath = process.argv.at(-1);",
+        "fs.writeFileSync(outputPath, Buffer.from('preview-bytes'));",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+
+    const uploads: Array<{ path: string; options: Record<string, unknown> }> = [];
+    const variants: Array<Record<string, unknown>> = [];
+    const updates: MediaFilesUpdate[] = [];
+    const supabase = {
+      storage: {
+        from(bucket: string) {
+          expect(bucket).toBe("media_library");
+          return {
+            download: async () => ({
+              data: Buffer.from("source-video"),
+              error: null,
+            }),
+            upload: async (
+              storagePath: string,
+              _body: Buffer,
+              options: Record<string, unknown>
+            ) => {
+              uploads.push({ path: storagePath, options });
+              return { error: null };
+            },
+          };
+        },
+      },
+      from(table: string) {
+        if (table === "media_asset_variants") {
+          return {
+            select() {
+              const query: VariantLookupQuery = {
+                eq() {
+                  return query;
+                },
+                limit() {
+                  return {
+                    maybeSingle: async () => ({
+                      data: null,
+                      error: null,
+                    }),
+                  };
+                },
+              };
+              return query;
+            },
+            upsert(payload: Record<string, unknown>) {
+              variants.push(payload);
+              return Promise.resolve({ error: null });
+            },
+          };
+        }
+        if (table === "media_files") {
+          return {
+            update(payload: { preview_variant_path: string }) {
+              return {
+                eq(field: string, value: string) {
+                  const scoped = { ...payload, [field]: value };
+                  return {
+                    eq(nextField: string, nextValue: string) {
+                      updates.push({ ...scoped, [nextField]: nextValue } as MediaFilesUpdate);
+                      return Promise.resolve({ error: null });
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    try {
+      await expect(
+        processCandidate({
+          supabase,
+          candidate: {
+            id: "media-11",
+            userId: "user-11",
+            storagePath: "user-11/generations/videos/source.mp4",
+            storageScopeOk: true,
+            sourceStatus: "available",
+          },
+          ffmpegPath: fakeFfmpegPath,
+          seekSeconds: 0.5,
+          previewSeconds: 3,
+          timeoutMs: 5000,
+        })
+      ).resolves.toEqual({
+        id: "media-11",
+        status: "backfilled",
+        previewPath: "user-11/variants/videos/media-11/preview_loop_360p.mp4",
+      });
+
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0]?.options).toMatchObject({
+        contentType: "video/mp4",
+        upsert: true,
+        cacheControl: "31536000",
+      });
+      expect(variants[0]).toMatchObject({
+        media_file_id: "media-11",
+        storage_path: "user-11/variants/videos/media-11/preview_loop_360p.mp4",
+        byte_size: "preview-bytes".length,
+      });
+      expect(updates[0]).toMatchObject({
+        preview_variant_path: "user-11/variants/videos/media-11/preview_loop_360p.mp4",
+        id: "media-11",
+        user_id: "user-11",
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

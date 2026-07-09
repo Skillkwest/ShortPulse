@@ -43,6 +43,12 @@
   padding-right: 16px;
 }
 
+.adminSupportPageWide {
+  max-width: min(1800px, calc(100vw - 32px));
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .adminPage :global(.eyebrow) {
   color: var(--admin-text-faint);
 }
@@ -1792,16 +1798,15 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  --admin-support-user-col: minmax(190px, 1fr);
-  --admin-support-copy-col: 34px;
-  --admin-support-plan-col: minmax(64px, 0.38fr);
-  --admin-support-billing-col: minmax(104px, 0.56fr);
-  --admin-support-payment-col: minmax(92px, 0.5fr);
-  --admin-support-spendable-col: minmax(78px, 0.44fr);
-  --admin-support-expiring-col: minmax(122px, 0.68fr);
-  --admin-support-renews-col: minmax(100px, 0.56fr);
-  --admin-support-flags-col: minmax(76px, 0.42fr);
-  --admin-support-col-gap: 10px;
+  --admin-support-user-col: minmax(260px, 1.45fr);
+  --admin-support-copy-col: 44px;
+  --admin-support-plan-col: minmax(96px, 0.48fr);
+  --admin-support-billing-col: minmax(150px, 0.72fr);
+  --admin-support-payment-col: minmax(118px, 0.58fr);
+  --admin-support-spendable-col: minmax(112px, 0.54fr);
+  --admin-support-renews-col: minmax(132px, 0.64fr);
+  --admin-support-flags-col: minmax(112px, 0.52fr);
+  --admin-support-col-gap: 0;
   grid-template-columns:
     var(--admin-support-user-col)
     var(--admin-support-copy-col)
@@ -1809,14 +1814,115 @@
     var(--admin-support-billing-col)
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-expiring-col)
     var(--admin-support-renews-col)
     var(--admin-support-flags-col);
   gap: var(--admin-support-col-gap);
 }
 
+.adminSupportQueueTable {
+  min-width: 1180px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(210, 220, 232, 0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012)), transparent;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
+}
+
+.adminSupportQueueTable .adminSupportQueueHead,
+.adminSupportQueueTable .adminSupportQueueRowContent {
+  gap: 0;
+}
+
+.adminSupportQueueTable .adminSupportQueueHead {
+  min-height: 40px;
+  border-bottom: 1px solid rgba(180, 190, 204, 0.2);
+  background: rgba(17, 22, 28, 0.96);
+}
+
+.adminSupportQueueTable .adminSupportQueueHead span,
+.adminSupportQueueTable .adminSupportQueueRowContent > span,
+.adminSupportQueueTable > .adminSupportQueueRow > span {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+  padding: 10px 12px;
+  border-right: 1px solid rgba(210, 220, 232, 0.065);
+}
+
+.adminSupportQueueTable .adminSupportQueueHead span {
+  color: var(--admin-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adminSupportQueueTable .adminSupportQueueHead span:last-child,
+.adminSupportQueueTable .adminSupportQueueRowContent > span:last-child,
+.adminSupportQueueTable > .adminSupportQueueRow > span:last-child {
+  border-right: 0;
+}
+
 .adminSupportQueueRow {
+  --admin-support-row-accent: transparent;
   position: relative;
+}
+
+.adminSupportQueueRowBaseline {
+  --admin-support-row-accent: rgba(156, 168, 184, 0.42);
+}
+
+.adminSupportQueueRowStarter {
+  --admin-support-row-accent: rgba(219, 230, 245, 0.54);
+}
+
+.adminSupportQueueRowMedia {
+  --admin-support-row-accent: #4ea09e;
+}
+
+.adminSupportQueueRowStudio {
+  --admin-support-row-accent: #64d0ff;
+}
+
+.adminSupportQueueRowBusiness {
+  --admin-support-row-accent: #ffcb66;
+}
+
+.adminSupportQueueRowNeutral {
+  --admin-support-row-accent: rgba(215, 222, 230, 0.26);
+}
+
+.adminSupportQueueTable .adminSupportQueueRow {
+  min-height: 58px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(210, 220, 232, 0.075);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.028);
+  box-shadow: inset 3px 0 0 var(--admin-support-row-accent);
+  overflow: hidden;
+}
+
+.adminSupportQueueTable .adminSupportQueueRow:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.adminSupportQueueTable .adminSupportQueueRow:last-child {
+  border-bottom: 0;
+}
+
+.adminSupportQueueTable .adminSupportQueueRow:hover {
+  background: rgba(232, 242, 248, 0.07);
+}
+
+.adminSupportQueueTable .adminTableRowActive {
+  --admin-support-row-accent: var(--admin-accent);
+  background: rgba(37, 169, 191, 0.11);
+  box-shadow:
+    inset 3px 0 0 var(--admin-support-row-accent),
+    inset 0 0 0 1px rgba(37, 169, 191, 0.18);
 }
 
 .adminSupportDetailsSection {
@@ -1927,7 +2033,6 @@
     var(--admin-support-billing-col)
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-expiring-col)
     var(--admin-support-renews-col)
     var(--admin-support-flags-col);
   grid-column: 1 / -1;
@@ -1955,6 +2060,18 @@
   min-width: 0;
 }
 
+.adminSupportQueueTable .adminSupportQueueCell[data-label="Payment"],
+.adminSupportQueueTable .adminSupportQueueCell[data-label="Spendable"],
+.adminSupportQueueTable .adminSupportQueueCell[data-label="Renews / ends"] {
+  justify-content: flex-end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.adminSupportQueueTable .adminSupportQueueCell[data-label="Credit flags"] {
+  justify-content: center;
+}
+
 .adminSupportQueueEmail {
   display: inline-flex;
   align-items: center;
@@ -1971,6 +2088,92 @@
 
 .adminSupportQueueCopyCell {
   justify-content: center;
+}
+
+.adminSupportAccessPlan {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(210, 220, 232, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.adminSupportAccessPlanBaseline {
+  border-color: rgba(156, 168, 184, 0.28);
+  background: rgba(156, 168, 184, 0.1);
+  color: #9ca8b8;
+}
+
+.adminSupportAccessPlanStarter {
+  border-color: rgba(219, 230, 245, 0.28);
+  background: rgba(219, 230, 245, 0.1);
+  color: #dbe6f5;
+}
+
+.adminSupportAccessPlanMedia {
+  border-color: rgba(78, 160, 158, 0.46);
+  background: rgba(78, 160, 158, 0.14);
+  color: #4ea09e;
+}
+
+.adminSupportAccessPlanStudio {
+  border-color: rgba(100, 208, 255, 0.5);
+  background: rgba(100, 208, 255, 0.13);
+  color: #64d0ff;
+}
+
+.adminSupportAccessPlanBusiness {
+  border-color: rgba(255, 203, 102, 0.5);
+  background: rgba(255, 203, 102, 0.13);
+  color: #ffcb66;
+}
+
+.adminSupportAccessPlanNeutral {
+  border-color: rgba(210, 220, 232, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--admin-text-muted);
+}
+
+.adminSupportBillingStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(210, 220, 232, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.adminSupportBillingStatusActive {
+  border-color: var(--admin-accent-border);
+  background: var(--admin-accent-soft-2);
+  color: var(--admin-accent-text);
+}
+
+.adminSupportBillingStatusWarning {
+  border-color: var(--admin-warning-border-strong);
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning-text);
+}
+
+.adminSupportBillingStatusCanceled {
+  border-color: rgba(255, 132, 132, 0.42);
+  background: rgba(241, 84, 84, 0.12);
+  color: #ffcfcf;
+}
+
+.adminSupportBillingStatusNeutral {
+  border-color: rgba(210, 220, 232, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--admin-text-muted);
 }
 
 .adminSupportQueueCopySlot {
@@ -2014,17 +2217,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  min-height: 13px;
-}
-
-.adminSupportQueueSignalPill {
-  min-width: 0;
-  padding: 0 4px;
-  border-radius: 6px;
-  font-size: 7px;
-  line-height: 1;
-  white-space: nowrap;
+  justify-content: center;
+  gap: 4px;
+  min-height: 18px;
 }
 
 .adminLedgerHead,
@@ -2104,6 +2299,12 @@
   border: 1px solid var(--admin-accent-border);
 }
 
+.pillActive {
+  background: var(--admin-accent-soft-2);
+  color: var(--admin-accent-text);
+  border: 1px solid var(--admin-accent-border-strong);
+}
+
 .pillWarn {
   background: var(--admin-warning-soft);
   color: var(--admin-warning-text);
@@ -2122,6 +2323,18 @@
   border: 1px solid rgba(248, 78, 78, 0.65);
 }
 
+.pill.adminSupportQueueSignalPill {
+  min-width: 0;
+  min-height: 18px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .pulseLivePill {
   background: rgba(50, 186, 112, 0.18);
   color: #a9f0c2;
@@ -2132,21 +2345,6 @@
   background: rgba(235, 176, 58, 0.2);
   color: #ffe19a;
   border: 1px solid rgba(245, 196, 92, 0.58);
-}
-
-.pill.adminSupportQueueSignalPill {
-  min-width: 0;
-  min-height: 0;
-  height: 13px;
-  box-sizing: border-box;
-  padding: 0 4px;
-  border-radius: 6px;
-  font-size: 7px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: nowrap;
 }
 
 .pillConfidenceHigh {
@@ -3562,15 +3760,11 @@
   gap: 16px;
 }
 
-.adminSplitGrid {
+.adminSelectedAccountWorkspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 14px;
-}
-
-.adminSplitGridSingle {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .adminSubpanel {
@@ -3639,49 +3833,6 @@
   word-break: break-word;
 }
 
-.accountSnapshotHeaderBadges {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.accountSnapshotHeaderBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(18, 20, 24, 0.7);
-  color: var(--admin-text);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-
-.accountSnapshotHeaderBadgeAccent {
-  border-color: rgba(37, 169, 191, 0.28);
-  background: rgba(37, 169, 191, 0.12);
-  color: var(--admin-accent-text);
-}
-
-.accountSnapshotNote {
-  display: inline-flex;
-  align-items: center;
-  max-width: min(100%, 320px);
-  padding: 9px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(37, 169, 191, 0.18);
-  background: rgba(37, 169, 191, 0.08);
-  color: var(--admin-text);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .accountSnapshotCards {
   display: grid;
   grid-template-columns: repeat(var(--snapshot-card-columns, 5), minmax(0, 1fr));
@@ -3715,12 +3866,6 @@
   letter-spacing: -0.015em;
 }
 
-.accountSnapshotCardHelper {
-  color: var(--admin-text-faint);
-  font-size: 10px;
-  line-height: 1.3;
-}
-
 .manualAdjustPanel {
   display: grid;
   gap: 12px;
@@ -3742,14 +3887,6 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-}
-
-.adminStripeBillingToggleHint {
-  display: block;
-  margin-top: 4px;
-  color: var(--admin-text-muted);
-  font-size: 12px;
-  line-height: 1.3;
 }
 
 .adminStripeBillingToggleIcon {
@@ -5408,10 +5545,6 @@
     max-width: 100%;
   }
 
-  .adminSplitGrid {
-    grid-template-columns: 1fr;
-  }
-
   .dashboardTutorialManager {
     grid-template-columns: 1fr;
   }
@@ -5494,10 +5627,6 @@
 
   .panelHeaderRow {
     align-items: flex-start;
-  }
-
-  .accountSnapshotNote {
-    max-width: none;
   }
 
   .accountSnapshotCards {

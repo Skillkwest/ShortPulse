@@ -1808,8 +1808,8 @@
   --admin-support-flags-col: minmax(112px, 0.52fr);
   --admin-support-col-gap: 0;
   grid-template-columns:
-    var(--admin-support-user-col)
     var(--admin-support-copy-col)
+    var(--admin-support-user-col)
     var(--admin-support-plan-col)
     var(--admin-support-billing-col)
     var(--admin-support-payment-col)
@@ -1823,11 +1823,12 @@
   min-width: 1180px;
   gap: 0;
   overflow: hidden;
-  border: 1px solid rgba(210, 220, 232, 0.08);
+  border: 1px solid rgba(184, 200, 218, 0.1);
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012)), transparent;
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
+  background: #0d1116;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
 
 .adminSupportQueueTable .adminSupportQueueHead,
@@ -1837,8 +1838,8 @@
 
 .adminSupportQueueTable .adminSupportQueueHead {
   min-height: 40px;
-  border-bottom: 1px solid rgba(180, 190, 204, 0.2);
-  background: rgba(17, 22, 28, 0.96);
+  border-bottom: 1px solid rgba(184, 200, 218, 0.12);
+  background: #0b0f14;
 }
 
 .adminSupportQueueTable .adminSupportQueueHead span,
@@ -1848,7 +1849,7 @@
   align-content: center;
   min-height: 100%;
   padding: 10px 12px;
-  border-right: 1px solid rgba(210, 220, 232, 0.065);
+  border-right: 1px solid rgba(184, 200, 218, 0.07);
 }
 
 .adminSupportQueueTable .adminSupportQueueHead span {
@@ -1898,15 +1899,15 @@
   min-height: 58px;
   padding: 0;
   border: 0;
-  border-bottom: 1px solid rgba(210, 220, 232, 0.075);
+  border-bottom: 1px solid rgba(184, 200, 218, 0.07);
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.028);
+  background: #10161c;
   box-shadow: inset 3px 0 0 var(--admin-support-row-accent);
   overflow: hidden;
 }
 
 .adminSupportQueueTable .adminSupportQueueRow:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.04);
+  background: #131920;
 }
 
 .adminSupportQueueTable .adminSupportQueueRow:last-child {
@@ -1914,18 +1915,25 @@
 }
 
 .adminSupportQueueTable .adminSupportQueueRow:hover {
-  background: rgba(232, 242, 248, 0.07);
+  background: #17212a;
 }
 
 .adminSupportQueueTable .adminTableRowActive {
   --admin-support-row-accent: var(--admin-accent);
-  background: rgba(37, 169, 191, 0.11);
+  background: #10242b;
   box-shadow:
     inset 3px 0 0 var(--admin-support-row-accent),
-    inset 0 0 0 1px rgba(37, 169, 191, 0.18);
+    inset 0 0 0 1px rgba(37, 169, 191, 0.2);
 }
 
 .adminSupportDetailsSection {
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   scroll-margin-top: 18px;
 }
 
@@ -2027,8 +2035,8 @@
 .adminSupportQueueRowContent {
   display: grid;
   grid-template-columns:
-    var(--admin-support-user-col)
     var(--admin-support-copy-col)
+    var(--admin-support-user-col)
     var(--admin-support-plan-col)
     var(--admin-support-billing-col)
     var(--admin-support-payment-col)
@@ -2140,39 +2148,23 @@
 }
 
 .adminSupportBillingStatus {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 0 9px;
-  border: 1px solid rgba(210, 220, 232, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .adminSupportBillingStatusActive {
-  border-color: var(--admin-accent-border);
-  background: var(--admin-accent-soft-2);
   color: var(--admin-accent-text);
 }
 
 .adminSupportBillingStatusWarning {
-  border-color: var(--admin-warning-border-strong);
-  background: var(--admin-warning-soft);
   color: var(--admin-warning-text);
 }
 
 .adminSupportBillingStatusCanceled {
-  border-color: rgba(255, 132, 132, 0.42);
-  background: rgba(241, 84, 84, 0.12);
   color: #ffcfcf;
 }
 
 .adminSupportBillingStatusNeutral {
-  border-color: rgba(210, 220, 232, 0.12);
-  background: rgba(255, 255, 255, 0.035);
   color: var(--admin-text-muted);
 }
 
@@ -3755,16 +3747,10 @@
   gap: 10px;
 }
 
-.adminSupportStack {
-  display: grid;
-  gap: 16px;
-}
-
 .adminSelectedAccountWorkspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
-  margin-top: 14px;
 }
 
 .adminSubpanel {
@@ -3782,17 +3768,11 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 
-.accountSnapshot {
-  display: grid;
-  gap: 14px;
-  padding: 2px 0 4px;
-}
-
 .accountSnapshotHead {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -3813,21 +3793,21 @@
 .accountSnapshotTitleRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .accountSnapshotTitle {
   display: inline-flex;
   align-items: center;
-  min-height: 56px;
-  padding: 12px 18px;
-  border-radius: 16px;
+  min-height: 46px;
+  padding: 9px 14px;
+  border-radius: 13px;
   border: 1px solid var(--admin-border-soft);
   background: var(--admin-surface-2);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   color: var(--admin-text-strong);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.05;
   word-break: break-word;
@@ -3836,15 +3816,15 @@
 .accountSnapshotCards {
   display: grid;
   grid-template-columns: repeat(var(--snapshot-card-columns, 5), minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .accountSnapshotCard {
   display: grid;
-  gap: 5px;
-  min-height: 78px;
-  padding: 13px 14px;
-  border-radius: 12px;
+  gap: 4px;
+  min-height: 62px;
+  padding: 10px 11px;
+  border-radius: 10px;
   border: 1px solid var(--admin-border-strong);
   background: var(--admin-surface-2);
   box-shadow: none;
@@ -3852,7 +3832,7 @@
 
 .accountSnapshotCardLabel {
   color: var(--admin-text-muted);
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -3860,10 +3840,17 @@
 
 .accountSnapshotCardValue {
   color: var(--admin-text-strong);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.015em;
+}
+
+.accountSnapshotCardHelper {
+  color: var(--admin-text-faint);
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1.25;
 }
 
 .manualAdjustPanel {
@@ -3902,6 +3889,100 @@
 .adminStripeBillingBody {
   display: grid;
   gap: 12px;
+}
+
+.accountStatusList {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(184, 200, 218, 0.1);
+  border-radius: 12px;
+  background: #0d1116;
+}
+
+.accountStatusRow {
+  --account-status-color: var(--admin-text-muted);
+  display: grid;
+  grid-template-columns: 4px minmax(116px, 0.24fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(184, 200, 218, 0.07);
+  background: #11161c;
+}
+
+.accountStatusRow:nth-child(odd) {
+  background: #131920;
+}
+
+.accountStatusRow:last-child {
+  border-bottom: 0;
+}
+
+.accountStatusRowActive {
+  --account-status-color: var(--admin-accent-text);
+}
+
+.accountStatusRowOk {
+  --account-status-color: #9de5c0;
+}
+
+.accountStatusRowWarning {
+  --account-status-color: var(--admin-warning-text);
+}
+
+.accountStatusRowCritical {
+  --account-status-color: #ffcfcf;
+}
+
+.accountStatusRowNeutral {
+  --account-status-color: var(--admin-text-muted);
+}
+
+.accountStatusRail {
+  align-self: stretch;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--account-status-color);
+  opacity: 0.85;
+}
+
+.accountStatusLabel {
+  color: var(--account-status-color);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.accountStatusCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.accountStatusValue {
+  color: var(--admin-text-strong);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.accountStatusDetail {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.accountStatusActions {
+  grid-column: 3;
+  margin: 2px 0 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 3px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
 }
 
 .customerAnalyticsStack {

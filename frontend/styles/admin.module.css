@@ -3772,6 +3772,20 @@
   gap: 12px;
 }
 
+.adminCustomerAnalyticsLookup {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) max-content;
+  gap: 10px;
+  align-items: end;
+}
+
+.adminCustomerAnalyticsMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .customerAnalyticsGrid,
 .customerAnalyticsGridCompact {
   display: grid;
@@ -5488,6 +5502,11 @@
 
   .accountSnapshotCards {
     grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .adminCustomerAnalyticsLookup {
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .customerAnalyticsGrid,

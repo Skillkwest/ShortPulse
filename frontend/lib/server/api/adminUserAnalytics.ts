@@ -1,10 +1,9 @@
 /**
- * Server-side selected-account analytics composer for the admin support console.
- * It keeps the list API lightweight and centralizes source labels for deep account stats.
+ * Server-side selected-customer analytics composer for the admin stats workspace.
+ * It keeps the user-list API lightweight and centralizes source labels for deep account stats.
  */
 import type { AdminUserAnalyticsResponse } from "../../../features/admin/types";
 import { isSchemaCompatibilityError } from "../adminUserHealth/deep";
-import { loadAdminHealthSnapshot } from "../adminUserHealth/snapshot";
 import { resolveAdminBillingDiagnostics } from "./adminBillingDiagnostics";
 import { fetchAdminUserCycleSpend } from "./adminUserCycleSpend";
 import { getSupabaseAdmin } from "./supabaseAdmin";
@@ -38,6 +37,13 @@ type TopUpLedgerRow = {
   metadata: Record<string, unknown> | null;
 };
 
+type CreditSpendLedgerRow = {
+  change_cents: number | string | null;
+  source: string | null;
+};
+
+type AnalyticsTarget = AdminUserAnalyticsResponse["target"];
+
 type CreditPackageRow = {
   id: string;
   price_cents: number | string | null;
@@ -47,8 +53,11 @@ type StripeInvoicePage = StripeInvoiceListResponse & {
   has_more?: boolean;
 };
 
-const MAX_STRIPE_INVOICE_PAGES = 20;
-const STRIPE_INVOICE_PAGE_SIZE = 100;
+const GENERATION_ANALYTICS_LIMIT = 1000;
+const CREDIT_SPEND_LEDGER_LIMIT = 5000;
+const TOP_UP_LEDGER_LIMIT = 1000;
+const STRIPE_INVOICE_LIMIT = 12;
+const ADMIN_ANALYTICS_SECTION_TIMEOUT_MS = 4500;
 
 const toFiniteInt = (value: unknown): number => {
   const numeric = Number(value ?? 0);
@@ -81,6 +90,22 @@ const createSourceNote = (
   status,
   detail,
 });
+
+const withTimeout = async <T>(promise: Promise<T>, label: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${label} exceeded the customer analytics time budget.`));
+        }, ADMIN_ANALYTICS_SECTION_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 const emptyMediaBreakdown = (): AdminUserAnalyticsResponse["mediaBreakdown"] => ({
   images: 0,
@@ -130,6 +155,21 @@ const classifyGenerationMedia = (
   return "unknown";
 };
 
+const loadAnalyticsTarget = async (userId: string): Promise<AnalyticsTarget> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (error || !data?.user) {
+    throw new Error("User not found.");
+  }
+  const user = data.user;
+  return {
+    userId: user.id,
+    email: user.email ?? null,
+    createdAt: typeof user.created_at === "string" ? user.created_at : null,
+    lastSignInAt: typeof user.last_sign_in_at === "string" ? user.last_sign_in_at : null,
+  };
+};
+
 const loadGenerationAnalytics = async (
   userId: string
 ): Promise<{
@@ -152,7 +192,7 @@ const loadGenerationAnalytics = async (
       .select(selectExpression)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(5000);
+      .limit(GENERATION_ANALYTICS_LIMIT);
     if (!error) {
       rows = (Array.isArray(data) ? data : []) as unknown as GenerationAnalyticsRow[];
       selectUsed = selectExpression;
@@ -234,9 +274,9 @@ const loadGenerationAnalytics = async (
     note: createSourceNote(
       "generations",
       "Generation analytics",
-      rows.length >= 5000 ? "partial" : "exact",
-      rows.length >= 5000
-        ? "Read the newest 5,000 ai_generations rows for this account."
+      rows.length >= GENERATION_ANALYTICS_LIMIT ? "partial" : "exact",
+      rows.length >= GENERATION_ANALYTICS_LIMIT
+        ? `Read the newest ${GENERATION_ANALYTICS_LIMIT.toLocaleString()} ai_generations rows for this account.`
         : "Read ai_generations rows for this account."
     ),
   };
@@ -255,29 +295,67 @@ const loadCreditGrantSummary = async (userId: string): Promise<CreditGrantSummar
   return (data as CreditGrantSummaryRow | null) ?? null;
 };
 
-const listAllPaidInvoices = async (stripeCustomerId: string): Promise<StripeInvoiceResponse[]> => {
-  const invoices: StripeInvoiceResponse[] = [];
-  let startingAfter: string | null = null;
-  for (let page = 0; page < MAX_STRIPE_INVOICE_PAGES; page += 1) {
-    const invoiceList: StripeInvoicePage = await stripeGet<StripeInvoicePage>("/invoices", {
-      customer: stripeCustomerId,
-      limit: STRIPE_INVOICE_PAGE_SIZE,
-      ...(startingAfter ? { starting_after: startingAfter } : {}),
-    });
-    const pageRows: StripeInvoiceResponse[] = Array.isArray(invoiceList.data)
-      ? invoiceList.data
-      : [];
-    invoices.push(
-      ...pageRows.filter((invoice) => {
-        const amountPaid = Number(invoice.amount_paid ?? 0);
-        return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
-      })
-    );
-    if (!invoiceList.has_more || pageRows.length === 0) break;
-    startingAfter = pageRows[pageRows.length - 1]?.id ?? null;
-    if (!startingAfter) break;
+const loadCreditSpendTotals = async (
+  userId: string
+): Promise<{
+  totalCreditsSpent: number;
+  generationCreditsSpent: number;
+  note: SourceNote;
+}> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("ai_credit_ledger")
+    .select("change_cents,source")
+    .eq("user_id", userId)
+    .lt("change_cents", 0)
+    .order("created_at", { ascending: false })
+    .limit(CREDIT_SPEND_LEDGER_LIMIT);
+  if (error) {
+    throw new Error(error.message || "Failed to load credit spend analytics.");
   }
-  return invoices;
+  const rows = (Array.isArray(data) ? data : []) as CreditSpendLedgerRow[];
+  let totalCreditsSpent = 0;
+  let generationCreditsSpent = 0;
+  rows.forEach((row) => {
+    const spent = Math.abs(Math.min(0, toFiniteInt(row.change_cents)));
+    totalCreditsSpent += spent;
+    const source = normalizeText(row.source);
+    if (
+      source.includes("generation") ||
+      source.includes("reservation") ||
+      source.includes("fal") ||
+      source.includes("openai") ||
+      source.includes("eleven")
+    ) {
+      generationCreditsSpent += spent;
+    }
+  });
+  return {
+    totalCreditsSpent,
+    generationCreditsSpent,
+    note: createSourceNote(
+      "credit-spend",
+      "Credit spend",
+      rows.length >= CREDIT_SPEND_LEDGER_LIMIT ? "partial" : "exact",
+      rows.length >= CREDIT_SPEND_LEDGER_LIMIT
+        ? `Read the newest ${CREDIT_SPEND_LEDGER_LIMIT.toLocaleString()} debit ledger rows for this account.`
+        : "Read debit credit ledger rows for this account."
+    ),
+  };
+};
+
+const listRecentPaidInvoices = async (
+  stripeCustomerId: string
+): Promise<StripeInvoiceResponse[]> => {
+  const invoiceList: StripeInvoicePage = await stripeGet<StripeInvoicePage>("/invoices", {
+    customer: stripeCustomerId,
+    limit: STRIPE_INVOICE_LIMIT,
+  });
+  const pageRows: StripeInvoiceResponse[] = Array.isArray(invoiceList.data) ? invoiceList.data : [];
+  return pageRows.filter((invoice) => {
+    const amountPaid = Number(invoice.amount_paid ?? 0);
+    return amountPaid > 0 || invoice.paid === true || invoice.status === "paid";
+  });
 };
 
 const loadTopUpAnalytics = async (
@@ -293,7 +371,9 @@ const loadTopUpAnalytics = async (
     .from("ai_credit_ledger")
     .select("change_cents,metadata")
     .eq("user_id", userId)
-    .eq("source", "stripe_checkout");
+    .eq("source", "stripe_checkout")
+    .order("created_at", { ascending: false })
+    .limit(TOP_UP_LEDGER_LIMIT);
   if (error) {
     throw new Error(error.message || "Failed to load top-up analytics.");
   }
@@ -344,16 +424,18 @@ const loadTopUpAnalytics = async (
     note: createSourceNote(
       "top-ups",
       "Top-up analytics",
-      pricedRows === rows.length ? "exact" : "partial",
-      pricedRows === rows.length
-        ? "Read all stripe_checkout credit ledger rows and catalog price snapshots."
-        : "Some top-up rows are missing local package price metadata, so revenue is partial."
+      pricedRows === rows.length && rows.length < TOP_UP_LEDGER_LIMIT ? "exact" : "partial",
+      rows.length >= TOP_UP_LEDGER_LIMIT
+        ? `Read the newest ${TOP_UP_LEDGER_LIMIT.toLocaleString()} stripe_checkout ledger rows; older top-ups are not included in this quick customer analytics payload.`
+        : pricedRows === rows.length
+          ? "Read all stripe_checkout credit ledger rows and catalog price snapshots."
+          : "Some top-up rows are missing local package price metadata, so revenue is partial."
     ),
   };
 };
 
 /**
- * Builds the selected-account analytics payload used by the admin support accordion.
+ * Builds the selected-customer analytics payload used by the admin stats customer detail panel.
  */
 export const resolveAdminUserAnalytics = async ({
   userId,
@@ -368,21 +450,21 @@ export const resolveAdminUserAnalytics = async ({
   const generatedAt = new Date().toISOString();
   const sourceHealth: SourceNote[] = [];
 
-  const health = await loadAdminHealthSnapshot({
-    lookup: userId,
-    lookupMode: "user_id",
-    lookbackDays: 30,
-  });
+  const target = await loadAnalyticsTarget(userId);
   sourceHealth.push(
-    createSourceNote("health", "Health snapshot", "exact", "Loaded admin user-health snapshot.")
+    createSourceNote("target", "Customer identity", "exact", "Loaded Supabase auth identity.")
   );
 
-  const [billingResult, grantSummaryResult, generationResult, topUpResult] =
+  const [billingResult, grantSummaryResult, generationResult, topUpResult, creditSpendResult] =
     await Promise.allSettled([
-      resolveAdminBillingDiagnostics({ userId, logStripeLookupException }),
-      loadCreditGrantSummary(userId),
-      loadGenerationAnalytics(userId),
-      loadTopUpAnalytics(userId),
+      withTimeout(
+        resolveAdminBillingDiagnostics({ userId, logStripeLookupException }),
+        "Billing diagnostics"
+      ),
+      withTimeout(loadCreditGrantSummary(userId), "Credit grant summary"),
+      withTimeout(loadGenerationAnalytics(userId), "Generation analytics"),
+      withTimeout(loadTopUpAnalytics(userId), "Top-up analytics"),
+      withTimeout(loadCreditSpendTotals(userId), "Credit spend analytics"),
     ]);
 
   const billing = billingResult.status === "fulfilled" ? billingResult.value : null;
@@ -418,26 +500,43 @@ export const resolveAdminUserAnalytics = async ({
       ? generationResult.value
       : {
           generations: {
-            total: health.generations.total,
-            succeeded: health.generations.byStatus.success ?? 0,
-            failed: health.generations.byStatus.fail ?? 0,
-            last30dTotal: health.generations.last30d.total,
-            last30dSucceeded: health.generations.last30d.success,
-            last30dFailed: health.generations.last30d.fail,
-            byStatus: health.generations.byStatus,
-            source: "health_snapshot" as const,
+            total: 0,
+            succeeded: 0,
+            failed: 0,
+            last30dTotal: 0,
+            last30dSucceeded: 0,
+            last30dFailed: 0,
+            byStatus: {},
+            source: "unavailable" as const,
           },
           mediaBreakdown: emptyMediaBreakdown(),
           note: createSourceNote(
             "generations",
             "Generation analytics",
-            "partial",
+            "unavailable",
             generationResult.status === "rejected" && generationResult.reason instanceof Error
               ? generationResult.reason.message
-              : "Fell back to user-health generation counts; media breakdown unavailable."
+              : "Generation analytics failed."
           ),
         };
   sourceHealth.push(generationAnalytics.note);
+
+  const creditSpend =
+    creditSpendResult.status === "fulfilled"
+      ? creditSpendResult.value
+      : {
+          totalCreditsSpent: 0,
+          generationCreditsSpent: 0,
+          note: createSourceNote(
+            "credit-spend",
+            "Credit spend",
+            "unavailable",
+            creditSpendResult.status === "rejected" && creditSpendResult.reason instanceof Error
+              ? creditSpendResult.reason.message
+              : "Credit spend analytics failed."
+          ),
+        };
+  sourceHealth.push(creditSpend.note);
 
   const topUps =
     topUpResult.status === "fulfilled"
@@ -466,22 +565,34 @@ export const resolveAdminUserAnalytics = async ({
     "Stripe revenue could not be loaded because the account has no linked Stripe customer.";
   if (stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
     try {
-      const invoices = await listAllPaidInvoices(stripeCustomerId);
+      const invoices = await withTimeout(
+        listRecentPaidInvoices(stripeCustomerId),
+        "Stripe revenue"
+      );
       invoiceCount = invoices.length;
       subscriptionRevenueCents = invoices.reduce(
         (sum, invoice) => sum + Math.max(0, toFiniteInt(invoice.amount_paid)),
         0
       );
       revenueSource = "stripe";
-      revenueNote = "Subscription and storage revenue is summed from paid Stripe invoices.";
+      revenueNote =
+        "Subscription and storage revenue is summed from the most recent paid Stripe invoices.";
       sourceHealth.push(
-        createSourceNote("revenue", "Revenue", "exact", "Read paid Stripe invoices for customer.")
+        createSourceNote(
+          "revenue",
+          "Revenue",
+          "partial",
+          `Read up to ${STRIPE_INVOICE_LIMIT} recent Stripe invoices for this customer.`
+        )
       );
     } catch (error) {
       await logStripeLookupException?.({
         error,
         metadata: { user_id: userId, stripe_customer_id: stripeCustomerId },
       });
+      revenueSource = topUps.revenueCents != null ? "local_ledger" : "unavailable";
+      revenueNote =
+        "Stripe invoice revenue could not be loaded; only local top-up revenue is included.";
       sourceHealth.push(
         createSourceNote(
           "revenue",
@@ -577,30 +688,19 @@ export const resolveAdminUserAnalytics = async ({
 
   return {
     generatedAt,
-    target: {
-      userId,
-      email: health.target.email,
-      createdAt: health.target.createdAt,
-      lastSignInAt: health.target.lastSignInAt,
-    },
+    target,
     credits: {
-      spendableCredits: grantSummary
-        ? toFiniteInt(grantSummary.spendable_cents)
-        : health.credits.spendableCents,
-      availableCredits: grantSummary
-        ? toFiniteInt(grantSummary.available_cents)
-        : health.credits.availableCents,
-      reservedCredits: grantSummary
-        ? toFiniteInt(grantSummary.reserved_cents)
-        : health.credits.reservedCents,
-      totalCreditsSpent: health.credits.totalDebitsCentsAbs,
+      spendableCredits: grantSummary ? toFiniteInt(grantSummary.spendable_cents) : 0,
+      availableCredits: grantSummary ? toFiniteInt(grantSummary.available_cents) : 0,
+      reservedCredits: grantSummary ? toFiniteInt(grantSummary.reserved_cents) : 0,
+      totalCreditsSpent: creditSpend.totalCreditsSpent,
       currentCycleSpentCredits,
-      generationCreditsSpent: health.credits.generationDebitsCentsAbs,
+      generationCreditsSpent: creditSpend.generationCreditsSpent,
       expiringCredits: grantSummary ? toFiniteInt(grantSummary.expiring_cents) : 0,
       nonExpiringCredits: grantSummary ? toFiniteInt(grantSummary.non_expiring_cents) : 0,
       nextExpiringCredits: grantSummary ? toFiniteInt(grantSummary.next_expiring_cents) : 0,
       nextExpiresAt: grantSummary?.next_expires_at ?? null,
-      source: grantSummary ? "exact" : "health_snapshot",
+      source: grantSummary ? "exact" : "unavailable",
     },
     billing: {
       status: stripeSubscription?.status ?? currentContract?.status ?? null,

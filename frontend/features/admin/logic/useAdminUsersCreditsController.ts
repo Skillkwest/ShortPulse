@@ -9,7 +9,6 @@ import type {
   AdminCreditLedgerRow,
   AdminDeleteUserResponse,
   AdminPagination,
-  AdminUserAnalyticsResponse,
   AdminUserRow,
 } from "../types";
 
@@ -75,17 +74,12 @@ type UseAdminUsersCreditsControllerResult = {
   billingDiagnosticsLoading: boolean;
   billingDiagnosticsError: string | null;
   billingDiagnosticsLoaded: boolean;
-  userAnalytics: AdminUserAnalyticsResponse | null;
-  userAnalyticsLoading: boolean;
-  userAnalyticsError: string | null;
-  userAnalyticsLoaded: boolean;
   usersResultStart: number;
   usersResultEnd: number;
   setSelectedUserId: React.Dispatch<React.SetStateAction<string>>;
   loadUsers: () => Promise<void>;
   loadCreditLedger: () => Promise<void>;
   loadBillingDiagnostics: () => Promise<void>;
-  loadUserAnalytics: () => Promise<void>;
   handleUserSearchChange: (value: string) => void;
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
@@ -149,15 +143,6 @@ export const useAdminUsersCreditsController = ({
   const [billingDiagnosticsLoading, setBillingDiagnosticsLoading] = React.useState(false);
   const [billingDiagnosticsError, setBillingDiagnosticsError] = React.useState<string | null>(null);
   const [billingDiagnosticsLoaded, setBillingDiagnosticsLoaded] = React.useState(false);
-  const [userAnalytics, setUserAnalytics] = React.useState<AdminUserAnalyticsResponse | null>(null);
-  const [userAnalyticsLoading, setUserAnalyticsLoading] = React.useState(false);
-  const [userAnalyticsError, setUserAnalyticsError] = React.useState<string | null>(null);
-  const [userAnalyticsLoaded, setUserAnalyticsLoaded] = React.useState(false);
-  const selectedUserIdRef = React.useRef(selectedUserId);
-
-  React.useEffect(() => {
-    selectedUserIdRef.current = selectedUserId;
-  }, [selectedUserId]);
 
   const loadUsers = React.useCallback(async () => {
     setUsersLoading(true);
@@ -316,52 +301,6 @@ export const useAdminUsersCreditsController = ({
     }
   }, [selectedUserId]);
 
-  const loadUserAnalytics = React.useCallback(async () => {
-    if (!selectedUserId) {
-      setUserAnalytics(null);
-      setUserAnalyticsError(null);
-      setUserAnalyticsLoaded(false);
-      return;
-    }
-
-    const requestedUserId = selectedUserId;
-    setUserAnalyticsLoading(true);
-    setUserAnalyticsError(null);
-    try {
-      const response = await fetchWithAuth(
-        `/api/admin/users/${encodeURIComponent(requestedUserId)}/analytics`,
-        {
-          method: "GET",
-        }
-      );
-      const payload = (await response.json().catch(() => ({}))) as
-        | AdminUserAnalyticsResponse
-        | { error?: string };
-      if (!response.ok) {
-        throw new Error(
-          typeof (payload as { error?: unknown }).error === "string"
-            ? (payload as { error: string }).error
-            : "Failed to load customer analytics."
-        );
-      }
-
-      if (selectedUserIdRef.current !== requestedUserId) return;
-      setUserAnalytics(payload as AdminUserAnalyticsResponse);
-      setUserAnalyticsLoaded(true);
-    } catch (error) {
-      if (selectedUserIdRef.current !== requestedUserId) return;
-      setUserAnalytics(null);
-      setUserAnalyticsLoaded(false);
-      setUserAnalyticsError(
-        error instanceof Error ? error.message : "Failed to load customer analytics."
-      );
-    } finally {
-      if (selectedUserIdRef.current === requestedUserId) {
-        setUserAnalyticsLoading(false);
-      }
-    }
-  }, [selectedUserId]);
-
   React.useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedUserSearch(userSearch), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
@@ -395,9 +334,6 @@ export const useAdminUsersCreditsController = ({
     setBillingDiagnostics(null);
     setBillingDiagnosticsError(null);
     setBillingDiagnosticsLoaded(false);
-    setUserAnalytics(null);
-    setUserAnalyticsError(null);
-    setUserAnalyticsLoaded(false);
     setBillingOverrideResult(null);
     setBillingPortalResult(null);
     setBillingCustomerSyncResult(null);
@@ -454,24 +390,13 @@ export const useAdminUsersCreditsController = ({
       setAdjustment("");
       setAdjustmentIntentKey(createCreditAdjustmentIntentKey());
       setAdjustResult("Credit adjustment applied.");
-      const analyticsRefresh = userAnalyticsLoaded ? loadUserAnalytics() : Promise.resolve();
-      setUserAnalytics(null);
-      setUserAnalyticsLoaded(false);
-      await Promise.all([loadUsers(), loadCreditLedger(), analyticsRefresh]);
+      await Promise.all([loadUsers(), loadCreditLedger()]);
     } catch (error) {
       setAdjustResult(error instanceof Error ? error.message : "Credit adjustment failed.");
     } finally {
       setAdjustSubmitting(false);
     }
-  }, [
-    adjustment,
-    adjustmentIntentKey,
-    loadCreditLedger,
-    loadUserAnalytics,
-    loadUsers,
-    selectedUserId,
-    userAnalyticsLoaded,
-  ]);
+  }, [adjustment, adjustmentIntentKey, loadCreditLedger, loadUsers, selectedUserId]);
 
   const handleGrantInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
@@ -519,8 +444,6 @@ export const useAdminUsersCreditsController = ({
           ? `Payment-exempt access saved and ${grantedCredits.toLocaleString()} credits were seeded.`
           : "Payment-exempt access saved."
       );
-      setUserAnalytics(null);
-      setUserAnalyticsLoaded(false);
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
       return true;
     } catch (error) {
@@ -566,8 +489,6 @@ export const useAdminUsersCreditsController = ({
       setBillingOverrideResult(
         "Payment-exempt access removed and the account was returned to baseline access."
       );
-      setUserAnalytics(null);
-      setUserAnalyticsLoaded(false);
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
       return true;
     } catch (error) {
@@ -656,8 +577,6 @@ export const useAdminUsersCreditsController = ({
             ? "Stripe customer identity synced."
             : "Stripe customer identity was already up to date."
       );
-      setUserAnalytics(null);
-      setUserAnalyticsLoaded(false);
       await Promise.all([loadUsers(), loadBillingDiagnostics()]);
     } catch (error) {
       setBillingCustomerSyncResult(
@@ -708,9 +627,6 @@ export const useAdminUsersCreditsController = ({
           setCreditLedgerRows([]);
           setCreditLedgerError(null);
           setCreditLedgerLoaded(false);
-          setUserAnalytics(null);
-          setUserAnalyticsError(null);
-          setUserAnalyticsLoaded(false);
         }
 
         setDeleteResult("User deleted permanently.");
@@ -792,17 +708,12 @@ export const useAdminUsersCreditsController = ({
     billingDiagnosticsLoading,
     billingDiagnosticsError,
     billingDiagnosticsLoaded,
-    userAnalytics,
-    userAnalyticsLoading,
-    userAnalyticsError,
-    userAnalyticsLoaded,
     usersResultStart,
     usersResultEnd,
     setSelectedUserId,
     loadUsers,
     loadCreditLedger,
     loadBillingDiagnostics,
-    loadUserAnalytics,
     handleUserSearchChange,
     handlePreviousUsersPage,
     handleNextUsersPage,

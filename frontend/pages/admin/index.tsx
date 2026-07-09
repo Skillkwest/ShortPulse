@@ -60,16 +60,11 @@ export default function AdminDashboardPage() {
     billingDiagnosticsLoading,
     billingDiagnosticsError,
     billingDiagnosticsLoaded,
-    userAnalytics,
-    userAnalyticsLoading,
-    userAnalyticsError,
-    userAnalyticsLoaded,
     usersResultStart,
     usersResultEnd,
     setSelectedUserId,
     loadUsers,
     loadCreditLedger,
-    loadUserAnalytics,
     handleUserSearchChange,
     handlePreviousUsersPage,
     handleNextUsersPage,
@@ -133,16 +128,11 @@ export default function AdminDashboardPage() {
         billingDiagnosticsLoading={billingDiagnosticsLoading}
         billingDiagnosticsError={billingDiagnosticsError}
         billingDiagnosticsLoaded={billingDiagnosticsLoaded}
-        userAnalytics={userAnalytics}
-        userAnalyticsLoading={userAnalyticsLoading}
-        userAnalyticsError={userAnalyticsError}
-        userAnalyticsLoaded={userAnalyticsLoaded}
         usersResultStart={usersResultStart}
         usersResultEnd={usersResultEnd}
         setSelectedUserId={setSelectedUserId}
         loadUsers={loadUsers}
         loadCreditLedger={loadCreditLedger}
-        loadUserAnalytics={loadUserAnalytics}
         handleUserSearchChange={handleUserSearchChange}
         handlePreviousUsersPage={handlePreviousUsersPage}
         handleNextUsersPage={handleNextUsersPage}

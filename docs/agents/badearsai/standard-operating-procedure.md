@@ -37,7 +37,20 @@ It does not cover production mutation outside reviewed Admin Errors status treat
 - Group likely causal chains, but never drop individual IDs.
 - When packet output is too large, use structured parsing rather than reading the packet as raw prose.
 
-### Step 3. Trace The Owning Source
+### Step 3. Check Watch Context
+
+Before treating a pasted row as brand-new work:
+
+- Check whether the incident ID is already resolved/watch, ignored, or resolved in Admin Errors.
+- Check whether the fingerprint, source/message, provider/model, endpoint, task family, or failure reason matches a known watch item.
+- Treat exact already-resolved/watch incident IDs as already handled unless new packet evidence contradicts the prior rationale.
+- Treat new same-signature rows as watch candidates, not automatic new implementation work.
+- Promote a watched signature back to `real issue` when fresh repeats cross the watch condition: multiple new rows after the last cleanup, multiple users, current-release recurrence after deploy, a new provider/model/route shape, a new user-visible symptom, or production evidence showing unresolved/corrupt canonical state.
+- If the row is a same-signature singleton and production evidence still matches the watched rationale, mark it `resolved` with `watch: true` and add a note linking it to the repeat condition.
+
+Use `docs/agents/badearsai/workspace/watch-list.md` as the lightweight working index for known watched signatures. Admin Errors status metadata remains the live queue source of truth; the workspace watch list is an aid for consistent triage.
+
+### Step 4. Trace The Owning Source
 
 For each incident or causal chain:
 
@@ -53,7 +66,7 @@ For each incident or causal chain:
   - or insufficient packet detail.
 - Name the owner lane and repo path when available.
 
-### Step 4. Classify
+### Step 5. Classify
 
 Use these classifications:
 
@@ -65,7 +78,7 @@ Use these classifications:
 
 Each classification must include confidence: high, medium, or low.
 
-### Step 5. Decide Queue Treatment
+### Step 6. Decide Queue Treatment
 
 For default Admin Errors queue hygiene, decide whether the item should be:
 
@@ -82,7 +95,7 @@ Use the canonical Admin Errors status vocabulary:
 - `ignored`: expected noise, routine non-actionable telemetry, stale/deploy-skew, duplicate already tracked elsewhere, rate/admission/safety behavior, or not useful in the default queue.
 - `resolved` plus `watch: true`: leave the default queue while retaining a watch label and concrete recurrence condition.
 
-### Step 6. Clean Up Reviewed Rows
+### Step 7. Clean Up Reviewed Rows
 
 After classification, remove reviewed items from the default Admin Errors panel through the correct status treatment when all of these are true:
 
@@ -106,7 +119,7 @@ Stop before cleanup when:
 - safe Admin authentication/status tooling is unavailable,
 - or the change would affect rows outside the current reviewed set.
 
-### Step 7. Validate Without Mutating
+### Step 8. Validate Without Mutating
 
 Use non-mutating checks for source proof and recurrence decisions:
 
@@ -119,7 +132,7 @@ Use non-mutating checks for source proof and recurrence decisions:
 
 Do not use service-role env, Supabase writes outside the reviewed Admin Errors status path, provider submits, generation replay, billing/subscription changes, or credit-spend tests unless explicitly approved.
 
-### Step 8. Report
+### Step 9. Report
 
 Close with:
 
@@ -134,7 +147,7 @@ Close with:
 - exact stop boundary,
 - suggested next highest-ROI action.
 
-### Step 9. Record Durable Lessons
+### Step 10. Record Durable Lessons
 
 Update Badearsai memory, training history, run log, or retained reports when:
 

@@ -41,7 +41,7 @@ describe("AdminPageHeader", () => {
     expect(links[1]).toHaveTextContent("Dashboard");
     expect(links[1]).toHaveAttribute("href", "/admin/announcements");
     expect(links[1]).toHaveAttribute("aria-current", "page");
-    expect(links[2]).toHaveTextContent("Agent Instructions");
+    expect(links[2]).toHaveTextContent("AI System Instructions");
     expect(links[2]).toHaveAttribute("href", "/admin/agent-instructions");
     expect(links[3]).toHaveTextContent("Model Pricing");
     expect(links[3]).toHaveAttribute("href", "/admin/pricing");

@@ -119,6 +119,13 @@ const buildBuiltInStyleResponse = (
   }),
 });
 
+const openAgentInstructionTab = (label: string) => {
+  const sectionNav = screen.getByRole("navigation", {
+    name: "Agent instruction sections",
+  });
+  fireEvent.click(within(sectionNav).getByRole("button", { name: label }));
+};
+
 describe("Admin agent instructions page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -163,36 +170,79 @@ describe("Admin agent instructions page", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows Agent Instructions as a primary admin nav tab and renders the stored Standard and Pulse editors", async () => {
+  it("shows AI System Instructions as a primary admin nav tab and renders the stored Standard and Pulse editors", async () => {
     render(<AdminAgentInstructionsPage />);
 
     expect(screen.getByRole("heading", { name: "Agent instructions" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Agent Instructions" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "AI System Instructions" })).toHaveAttribute(
       "aria-current",
       "page"
     );
     const sectionNav = screen.getByRole("navigation", {
       name: "Agent instruction sections",
     });
-    const standardTab = within(sectionNav).getByRole("button", { name: "Standard" });
+    const standardTab = within(sectionNav).getByRole("button", {
+      name: "Standard Create Agent",
+    });
     const stylesTab = within(sectionNav).getByRole("button", { name: "Styles" });
     const presetsTab = within(sectionNav).getByRole("button", { name: "Presets" });
     const pulsesTab = within(sectionNav).getByRole("button", { name: "Pulses" });
+    expect(
+      within(sectionNav)
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    ).toEqual(["Standard Create Agent", "Pulses", "Presets", "Styles"]);
     expect(standardTab).toHaveAttribute("aria-current", "true");
-    fireEvent.click(stylesTab);
-    expect(stylesTab).toHaveAttribute("aria-current", "true");
-    expect(standardTab).not.toHaveAttribute("aria-current");
-    fireEvent.click(presetsTab);
-    expect(presetsTab).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("heading", { name: "Standard Create Agent" })).toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Pulse set")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit Mode System Presets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Styles")).not.toBeInTheDocument();
+
     fireEvent.click(pulsesTab);
     expect(pulsesTab).toHaveAttribute("aria-current", "true");
     expect(await screen.findByText("Global built-in Pulse set")).toBeInTheDocument();
-    expect(screen.getByText("Global built-in Styles")).toBeInTheDocument();
-    expect(screen.getByText("Standard Create Agent")).toBeInTheDocument();
     expect(screen.getByText("Video Prompt Magic")).toBeInTheDocument();
     expect(screen.getByText("Multi Sequence Video Prompt")).toBeInTheDocument();
     expect(screen.getByText("DFY Story Builder")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Standard Create Agent" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit Mode System Presets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Styles")).not.toBeInTheDocument();
+
+    fireEvent.click(presetsTab);
+    expect(presetsTab).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("Edit Mode System Presets")).toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Pulse set")).not.toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Styles")).not.toBeInTheDocument();
+
+    fireEvent.click(stylesTab);
+    expect(stylesTab).toHaveAttribute("aria-current", "true");
+    expect(standardTab).not.toHaveAttribute("aria-current");
+    expect(screen.getByText("Global built-in Styles")).toBeInTheDocument();
     expect(screen.getByText("Style Extraction System Prompt")).toBeInTheDocument();
+    expect(screen.queryByText("Global built-in Pulse set")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit Mode System Presets")).not.toBeInTheDocument();
+  });
+
+  it("keeps Pulse system instructions hidden until a card is expanded", async () => {
+    render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
+
+    const firstDefinition = CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0];
+    await screen.findByText(firstDefinition.label);
+
+    const pulseCard = screen.getByText(firstDefinition.label).closest("article");
+    if (!pulseCard) throw new Error("Expected built-in Pulse card.");
+
+    const collapsedPreview = firstDefinition.systemInstructions.trim().slice(0, 180);
+    expect(within(pulseCard).queryByText(collapsedPreview)).not.toBeInTheDocument();
+    expect(within(pulseCard).queryByRole("textbox", { name: "Prompt" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
+    expect(within(pulseCard).getByRole("textbox", { name: "Prompt" })).toHaveValue(
+      firstDefinition.systemInstructions
+    );
   });
 
   it("edits, adds, removes, and saves built-in Pulse slots", async () => {
@@ -230,10 +280,16 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
-    await screen.findByText("Video Prompt Magic");
+    await screen.findByText("Live Standard runtime prompt is active.");
 
-    const standardCard = screen.getByText("Standard Create Agent").closest("article");
+    const standardCard = screen
+      .getByRole("heading", { name: "Standard Create Agent" })
+      .closest("article");
     if (!standardCard) throw new Error("Expected Standard Create Agent card.");
+    expect(within(standardCard).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+    expect(
+      within(standardCard).queryByRole("button", { name: "Reset to stored" })
+    ).not.toBeInTheDocument();
     fireEvent.click(within(standardCard).getByRole("button", { name: "Expand" }));
     fireEvent.change(within(standardCard).getByRole("textbox", { name: "Runtime system prompt" }), {
       target: { value: "Future standard instructions." },
@@ -261,6 +317,9 @@ describe("Admin agent instructions page", () => {
       expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
     });
 
+    openAgentInstructionTab("Pulses");
+    await screen.findByText("Video Prompt Magic");
+
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
     expect(within(pulseCard).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
@@ -275,7 +334,7 @@ describe("Admin agent instructions page", () => {
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Prompt" }), {
       target: { value: "Draft pulse instructions." },
     });
-    expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(pulseCard).getByRole("button", { name: "Save" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
     expect(screen.getByText("Pulse Slot 2")).toBeInTheDocument();
@@ -324,7 +383,7 @@ describe("Admin agent instructions page", () => {
 
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
     expect(within(pulseCard).queryByText("Stored")).not.toBeInTheDocument();
-    expect(within(pulseCard).getByText("Live")).toBeInTheDocument();
+    expect(within(pulseCard).queryByText("Live")).not.toBeInTheDocument();
   }, 10_000);
 
   it("creates a built-in Pulse from the simple authoring fields", async () => {
@@ -353,6 +412,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
@@ -419,6 +479,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
@@ -447,7 +508,7 @@ describe("Admin agent instructions page", () => {
       publicationStatus: "published",
     });
     expect(screen.queryByText("Stored")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Live").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Live")).not.toBeInTheDocument();
   }, 10_000);
 
   it("edits, adds, removes, resets, and saves built-in Styles", async () => {
@@ -491,6 +552,7 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Styles");
     await screen.findByText("Global built-in Styles");
 
     const stylesCard = screen.getByText("Global built-in Styles").closest("article");
@@ -531,7 +593,7 @@ describe("Admin agent instructions page", () => {
         "data:image/jpeg;base64,uploaded-built-in-style-preview"
       );
     });
-    expect(within(stylesCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Styles set" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: /Add built-in Style/i }));
     expect(screen.getByText("Style 2")).toBeInTheDocument();
@@ -624,13 +686,9 @@ describe("Admin agent instructions page", () => {
 
     expect(within(stylesCard).getByText("Editorial Cinematic")).toBeInTheDocument();
     expect(within(stylesCard).getByText("Lo-fi Noir")).toBeInTheDocument();
-    fireEvent.change(within(cinematicTile).getByRole("textbox", { name: "Style name" }), {
-      target: { value: "Temporary style name" },
-    });
-    fireEvent.click(within(stylesCard).getByRole("button", { name: "Reset to stored" }));
-    expect(within(cinematicTile).getByRole("textbox", { name: "Style name" })).toHaveValue(
-      "Editorial Cinematic"
-    );
+    expect(
+      within(stylesCard).queryByRole("button", { name: "Reset to stored" })
+    ).not.toBeInTheDocument();
   });
 
   it("saves one Pulse card without publishing other unsaved Pulse edits", async () => {
@@ -671,6 +729,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     const firstCard = screen.getByText("Video Prompt Magic").closest("article");
@@ -722,8 +781,8 @@ describe("Admin agent instructions page", () => {
     expect(payload.builtInDefinitions[0]).not.toHaveProperty("artifactTarget");
 
     expect(within(firstCard).queryByText("Stored")).not.toBeInTheDocument();
-    expect(within(firstCard).getByText("Live")).toBeInTheDocument();
-    expect(within(secondCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(firstCard).queryByText("Live")).not.toBeInTheDocument();
+    expect(within(secondCard).getByRole("button", { name: "Save" })).toBeEnabled();
     expect(within(secondCard).getByRole("textbox", { name: "Title" })).toHaveValue(
       "Do Not Publish Yet"
     );
@@ -771,6 +830,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     const firstCard = screen.getByText("Video Prompt Magic").closest("article");
@@ -799,7 +859,7 @@ describe("Admin agent instructions page", () => {
 
     await waitFor(() => {
       expect(within(firstCard).queryByText("Stored")).not.toBeInTheDocument();
-      expect(within(firstCard).getByText("Live")).toBeInTheDocument();
+      expect(within(firstCard).queryByText("Live")).not.toBeInTheDocument();
     });
   });
 
@@ -835,6 +895,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
@@ -845,7 +906,11 @@ describe("Admin agent instructions page", () => {
       })
     );
     expect(within(pulseCard).queryByText("Admin draft")).not.toBeInTheDocument();
-    expect(within(pulseCard).getAllByText("Draft").length).toBeGreaterThanOrEqual(2);
+    expect(
+      within(pulseCard).getByRole("checkbox", {
+        name: "Keep Video Prompt Magic in admin as a draft",
+      })
+    ).toBeChecked();
 
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Save" }));
 
@@ -876,6 +941,7 @@ describe("Admin agent instructions page", () => {
 
   it("blocks global Pulse set saves while a new slot is blank or incomplete", async () => {
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     await screen.findByText("Video Prompt Magic");
 
     fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
@@ -925,17 +991,22 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Styles");
     await screen.findByText("Style Extraction System Prompt");
 
     const styleCard = screen.getByText("Style Extraction System Prompt").closest("article");
     if (!styleCard) throw new Error("Expected style extraction prompt card.");
+    expect(within(styleCard).queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+    expect(
+      within(styleCard).queryByRole("button", { name: "Reset to stored" })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(within(styleCard).getByRole("button", { name: "Expand" }));
     const promptBox = within(styleCard).getByRole("textbox", { name: "Runtime system prompt" });
     fireEvent.change(promptBox, {
       target: { value: "Digital Illustration, soft bloom" },
     });
-    expect(within(styleCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(styleCard).getByRole("button", { name: "Save prompt" })).toBeEnabled();
 
     fireEvent.click(within(styleCard).getByRole("button", { name: "Save prompt" }));
 
@@ -961,7 +1032,6 @@ describe("Admin agent instructions page", () => {
       expectedUpdatedAt: "2026-05-05T18:00:00.000Z",
     });
     expect(promptBox).toHaveValue("Digital Illustration, soft bloom");
-    expect(within(styleCard).getByText("Live override")).toBeInTheDocument();
   });
 
   it("edits and saves the global Edit system preset catalog", async () => {
@@ -1000,6 +1070,7 @@ describe("Admin agent instructions page", () => {
     );
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Presets");
     await screen.findByText("Edit Mode System Presets");
 
     const editCard = screen.getByText("Edit Mode System Presets").closest("article");
@@ -1073,6 +1144,7 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Styles");
     const degradedMessage = await screen.findByText(
       "Live control-plane lookup failed. Showing the seeded code prompt until the admin route recovers."
     );
@@ -1080,7 +1152,11 @@ describe("Admin agent instructions page", () => {
     expect(degradedMessage).toBeInTheDocument();
     const styleCard = screen.getByText("Style Extraction System Prompt").closest("article");
     if (!styleCard) throw new Error("Expected style extraction prompt card.");
-    expect(within(styleCard).getByText("Seeded local copy")).toBeInTheDocument();
+    expect(
+      within(styleCard).getByText(
+        "Seed fallback active for the Styles Library extraction system prompt."
+      )
+    ).toBeInTheDocument();
   });
 
   it("blocks Pulse saves when the catalog read is degraded", async () => {
@@ -1121,6 +1197,7 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
+    openAgentInstructionTab("Pulses");
     const degradedMessage = await screen.findByText(
       "Live Pulse catalog lookup failed. Showing fallback Pulse content. Reload before saving so the live shared set is not overwritten."
     );
@@ -1182,11 +1259,11 @@ describe("Admin agent instructions page", () => {
     });
 
     render(<AdminAgentInstructionsPage />);
-    const liveCatalogMessage = await screen.findByText(
-      /Live global Pulse catalog last updated by admin@example.com/
-    );
-    expect(liveCatalogMessage).toBeInTheDocument();
-    const liveCatalogMessageText = liveCatalogMessage.textContent ?? "";
+    openAgentInstructionTab("Pulses");
+    expect(await screen.findByText("Video Prompt Magic")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Live global Pulse catalog last updated by admin@example.com/)
+    ).not.toBeInTheDocument();
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Pulse card.");
@@ -1199,7 +1276,6 @@ describe("Admin agent instructions page", () => {
     expect(
       await screen.findByText("Failed to save built-in guided workflows.")
     ).toBeInTheDocument();
-    expect(screen.queryByText(liveCatalogMessageText)).not.toBeInTheDocument();
-    expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
+    expect(within(pulseCard).getByRole("button", { name: "Save" })).toBeEnabled();
   });
 });

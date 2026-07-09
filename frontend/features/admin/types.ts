@@ -30,6 +30,10 @@ export type AdminUserRow = {
   availableCredits: number;
   reservedCredits: number;
   spendableCredits: number;
+  expiringCredits: number;
+  nonExpiringCredits: number;
+  nextExpiringCredits: number;
+  nextExpiresAt: string | null;
   createdAt: string | null;
 };
 

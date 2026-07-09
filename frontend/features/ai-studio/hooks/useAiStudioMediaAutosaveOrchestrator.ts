@@ -45,6 +45,10 @@ const inferMediaSource = (output: StudioOutput): MediaAutosaveSource => {
   return "upload";
 };
 
+const isInFlightGeneratedOutput = (output: StudioOutput): boolean =>
+  output.mediaSource === "generated" &&
+  (output.taskState === "pending" || output.taskState === "running");
+
 const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean) => ({
   intent: "auto" as PersistenceIntent,
   source: inferMediaSource(output),
@@ -96,6 +100,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
       const attemptCount = attemptCountByOutputIdRef.current.get(output.id) ?? 0;
       if (attemptCount >= AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT) return;
       if (output.mediaSource === "generated" && !hasDurableGenerationIdentity(output)) return;
+      if (isInFlightGeneratedOutput(output)) return;
       const effectiveOutput =
         !isMediaStorageFull && output.saveState === "blocked_storage"
           ? { ...output, saveState: "failed" as const }

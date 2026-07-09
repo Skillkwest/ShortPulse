@@ -331,6 +331,62 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
   });
 
+  it("waits for in-flight generated outputs to finish before autosaving interim previews", async () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    const { rerender } = renderHook(
+      ({ outputs }: { outputs: StudioOutput[] }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          enabled: true,
+          outputs,
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          outputs: [
+            createOutput({
+              id: "generated-running-video-1",
+              mode: "video",
+              generationId: "gen-running-video-1",
+              taskId: "task-running-video-1",
+              taskState: "running",
+              queueState: "dispatched",
+              previewUrl: "https://signed.shortpulse.test/reference-frame.jpg",
+              resultUrls: [],
+              previewStoragePath: null,
+              fullStoragePath: null,
+            }),
+          ],
+        },
+      }
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+
+    rerender({
+      outputs: [
+        createOutput({
+          id: "generated-running-video-1",
+          mode: "video",
+          generationId: "gen-running-video-1",
+          taskId: "task-running-video-1",
+          taskState: "success",
+          queueState: "dispatched",
+          previewUrl: "https://signed.shortpulse.test/generated-preview.mp4",
+          resultUrls: ["https://provider.shortpulse.test/generated-video.mp4"],
+          previewStoragePath: "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+          fullStoragePath: "user-1/generations/videos/media-1.mp4",
+        }),
+      ],
+    });
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1));
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("generated-running-video-1", {
+      intent: "auto",
+    });
+  });
+
   it("does not autosave outputs that only have blank media placeholders", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>

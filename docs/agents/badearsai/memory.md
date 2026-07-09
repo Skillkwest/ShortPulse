@@ -22,6 +22,15 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Treat `client.ai_studio.media_library_save_failure` as actionable when it blocks saving generated media; the likely owner seam is generation identity, generated-media authority, or media persistence, not the button alone.
 - Treat Kie `/api/kie/upload-url` upstream failures as real user impact until Event Detail proves provider outage, source-media admission mismatch, or expected rate limit.
 
+## Watch Intake Rules
+
+- When the user pastes a row that is already on the watch list, do not audit it as a brand-new mystery by default.
+- First check whether the exact incident is already `resolved` with `watch: true`, then check whether a new incident matches the same watched signature by fingerprint, source/message, provider/model, endpoint, task family, or failure reason.
+- If the exact watched incident reappears with no new evidence, confirm it is already handled and leave it out of the default queue.
+- If a new row matches a watched singleton and current production evidence still supports the old rationale, mark it `resolved` with `watch: true` and add a note tying it to the repeat condition.
+- Promote a watched signature back to `real issue` when recurrence becomes fresh and meaningful: multiple new rows, multiple users, current-release repeats after deploy, a changed provider/model/route shape, a new user-visible symptom, or production state that remains unresolved/corrupt.
+- Keep a lightweight working index at `docs/agents/badearsai/workspace/watch-list.md`; Admin Errors metadata remains the live source of truth.
+
 ## Admin Errors Cleanup Rules
 
 - Current canonical statuses are `open`, `resolved`, and `ignored`.

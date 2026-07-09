@@ -116,6 +116,10 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 120,
               availableCredits: 150,
               reservedCredits: 30,
+              expiringCredits: 120,
+              nonExpiringCredits: 0,
+              nextExpiringCredits: 120,
+              nextExpiresAt: "2026-04-20T12:00:00.000Z",
               currentCycleSpentCredits: 88,
               subscriptionStatus: "active",
               cancelAtPeriodEnd: true,
@@ -140,8 +144,12 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 0,
               availableCredits: 0,
               reservedCredits: 0,
+              expiringCredits: 0,
+              nonExpiringCredits: 0,
+              nextExpiringCredits: 0,
+              nextExpiresAt: null,
               currentCycleSpentCredits: 10400,
-              subscriptionStatus: "inactive",
+              subscriptionStatus: "canceled",
               cancelAtPeriodEnd: false,
               planRenewalAt: "2026-05-15T12:00:00.000Z",
               topUpPurchaseCount: 0,
@@ -164,6 +172,10 @@ describe("Admin users and credits overview", () => {
               spendableCredits: 5000,
               availableCredits: 5000,
               reservedCredits: 0,
+              expiringCredits: 0,
+              nonExpiringCredits: 5000,
+              nextExpiringCredits: 0,
+              nextExpiresAt: null,
               currentCycleSpentCredits: 1200,
               subscriptionStatus: "active",
               cancelAtPeriodEnd: false,
@@ -566,6 +578,10 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 120,
             availableCredits: 150,
             reservedCredits: 30,
+            expiringCredits: 120,
+            nonExpiringCredits: 0,
+            nextExpiringCredits: 120,
+            nextExpiresAt: "2026-04-20T12:00:00.000Z",
             currentCycleSpentCredits: 88,
             subscriptionStatus: "active",
             cancelAtPeriodEnd: true,
@@ -590,8 +606,12 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 0,
             availableCredits: 0,
             reservedCredits: 0,
+            expiringCredits: 0,
+            nonExpiringCredits: 0,
+            nextExpiringCredits: 0,
+            nextExpiresAt: null,
             currentCycleSpentCredits: 10400,
-            subscriptionStatus: "inactive",
+            subscriptionStatus: "canceled",
             cancelAtPeriodEnd: false,
             planRenewalAt: "2026-05-15T12:00:00.000Z",
             topUpPurchaseCount: 0,
@@ -614,6 +634,10 @@ describe("Admin users and credits overview", () => {
             spendableCredits: 5000,
             availableCredits: 5000,
             reservedCredits: 0,
+            expiringCredits: 0,
+            nonExpiringCredits: 5000,
+            nextExpiringCredits: 0,
+            nextExpiresAt: null,
             currentCycleSpentCredits: 1200,
             subscriptionStatus: "active",
             cancelAtPeriodEnd: false,
@@ -649,10 +673,10 @@ describe("Admin users and credits overview", () => {
       expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
     );
 
-    expect(screen.getAllByText("Plan").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Access").length).toBeGreaterThan(0);
     expect(screen.getByText("Credit flags (1)")).toBeInTheDocument();
     expect(screen.getByText("Cycle spent")).toBeInTheDocument();
-    expect(screen.getByText("Top-ups")).toBeInTheDocument();
+    expect(screen.getByText("Top-up purchases")).toBeInTheDocument();
     expect(screen.getByText("Renews / ends")).toBeInTheDocument();
     const userListSection = screen.getByRole("heading", { name: "User list" }).closest("section");
     expect(userListSection).not.toBeNull();
@@ -662,12 +686,15 @@ describe("Admin users and credits overview", () => {
     expect(alphaRow).toHaveTextContent("Studio");
     expect(alphaRow).toHaveTextContent("88");
     expect(alphaRow).toHaveTextContent("120");
+    expect(alphaRow).toHaveTextContent("Expiring subscription credits");
+    expect(alphaRow).toHaveTextContent("120 expires Apr 20, 2026");
     expect(alphaRow).toHaveTextContent("2,500");
     expect(alphaRow).toHaveTextContent("2 purchases");
     expect(alphaRow).toHaveTextContent("Cancellation scheduled");
     expect(alphaRow).toHaveTextContent("Ends Apr 30, 2026");
     expect(alphaRow).not.toHaveTextContent("10 GB");
     expect(alphaRow).not.toHaveTextContent("$5.00/mo");
+    expect(screen.getByText("Canceled paid subscription")).toBeInTheDocument();
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
     expect(selectButtons.map((button) => button.getAttribute("aria-label"))).toEqual([
@@ -756,6 +783,12 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent(
+      "Expiring subscription credits"
+    );
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent(
+      "120 expires Apr 20, 2026"
+    );
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Cancellation scheduled");
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125 GB");

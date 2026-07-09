@@ -863,36 +863,60 @@ const currentSnapshotMonth = (capturedAt: Date): string =>
 const buildAutomaticStorageUsageSnapshot = async ({
   supabaseAdmin,
   productTrackedBytes,
+  providerSnapshot,
 }: {
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
   productTrackedBytes: number;
+  providerSnapshot: AdminStorageUsageSnapshotRow | null;
 }): Promise<AdminStorageUsageSnapshotRow> => {
   const storageObjectsBytes = await loadStorageObjectsBytes(supabaseAdmin);
   const storageBytes = storageObjectsBytes ?? productTrackedBytes;
   const capturedAt = new Date();
   const sourceDetail =
     storageObjectsBytes === null ? "media_files.file_size fallback" : "storage.objects metadata";
+  const egressSourceDetail = providerSnapshot
+    ? `${providerSnapshot.source ?? "provider snapshot"} captured ${providerSnapshot.captured_at ?? "without capture time"}`
+    : "configured Supabase env overrides/defaults";
 
   return {
-    snapshot_month: currentSnapshotMonth(capturedAt),
-    captured_at: capturedAt.toISOString(),
+    snapshot_month: providerSnapshot?.snapshot_month ?? currentSnapshotMonth(capturedAt),
+    captured_at: providerSnapshot?.captured_at ?? capturedAt.toISOString(),
     source: "api_import",
-    supabase_plan: process.env.SUPABASE_PLAN_NAME?.trim() || "Production",
-    compute_plan: process.env.SUPABASE_COMPUTE_PLAN?.trim() || ASSUMPTIONS.computePlan,
-    compute_monthly_cost_cents: envNumber(
-      process.env.SUPABASE_COMPUTE_MONTHLY_COST_CENTS,
-      ASSUMPTIONS.computeMonthlyCostCents
-    ),
+    supabase_plan:
+      providerSnapshot?.supabase_plan ?? process.env.SUPABASE_PLAN_NAME?.trim() ?? "Production",
+    compute_plan:
+      providerSnapshot?.compute_plan ??
+      process.env.SUPABASE_COMPUTE_PLAN?.trim() ??
+      ASSUMPTIONS.computePlan,
+    compute_monthly_cost_cents:
+      providerSnapshot?.compute_monthly_cost_cents ??
+      envNumber(
+        process.env.SUPABASE_COMPUTE_MONTHLY_COST_CENTS,
+        ASSUMPTIONS.computeMonthlyCostCents
+      ),
     storage_used_gb: bytesToGb(storageBytes),
-    storage_included_gb: envNumber(process.env.SUPABASE_STORAGE_INCLUDED_GB, 100),
-    uncached_egress_gb: envNumber(process.env.SUPABASE_UNCACHED_EGRESS_GB, 0),
-    cached_egress_gb: envNumber(process.env.SUPABASE_CACHED_EGRESS_GB, 0),
-    uncached_egress_included_gb: envNumber(process.env.SUPABASE_UNCACHED_EGRESS_INCLUDED_GB, 250),
-    cached_egress_included_gb: envNumber(process.env.SUPABASE_CACHED_EGRESS_INCLUDED_GB, 250),
-    observed_storage_overage_cost_cents: null,
-    observed_uncached_egress_overage_cost_cents: null,
-    observed_cached_egress_overage_cost_cents: null,
-    notes: `Automatic production snapshot from ${sourceDetail}. Egress fields use configured Supabase env overrides when present.`,
+    storage_included_gb:
+      providerSnapshot?.storage_included_gb ??
+      envNumber(process.env.SUPABASE_STORAGE_INCLUDED_GB, 100),
+    uncached_egress_gb:
+      providerSnapshot?.uncached_egress_gb ?? envNumber(process.env.SUPABASE_UNCACHED_EGRESS_GB, 0),
+    cached_egress_gb:
+      providerSnapshot?.cached_egress_gb ?? envNumber(process.env.SUPABASE_CACHED_EGRESS_GB, 0),
+    uncached_egress_included_gb:
+      providerSnapshot?.uncached_egress_included_gb ??
+      envNumber(process.env.SUPABASE_UNCACHED_EGRESS_INCLUDED_GB, 250),
+    cached_egress_included_gb:
+      providerSnapshot?.cached_egress_included_gb ??
+      envNumber(process.env.SUPABASE_CACHED_EGRESS_INCLUDED_GB, 250),
+    observed_storage_overage_cost_cents:
+      providerSnapshot?.observed_storage_overage_cost_cents ?? null,
+    observed_uncached_egress_overage_cost_cents:
+      providerSnapshot?.observed_uncached_egress_overage_cost_cents ?? null,
+    observed_cached_egress_overage_cost_cents:
+      providerSnapshot?.observed_cached_egress_overage_cost_cents ?? null,
+    notes:
+      `Automatic production storage snapshot from ${sourceDetail}. ` +
+      `Egress and observed overage evidence from ${egressSourceDetail}.`,
   };
 };
 
@@ -1024,9 +1048,10 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   const automaticProviderUsageRow = await buildAutomaticStorageUsageSnapshot({
     supabaseAdmin,
     productTrackedBytes: totalTrackedBytes,
+    providerSnapshot: providerUsageRows[0] ?? null,
   });
   const providerUsage = buildAdminStorageProviderUsage({
-    row: automaticProviderUsageRow ?? providerUsageRows[0] ?? null,
+    row: automaticProviderUsageRow,
     assumptions: ASSUMPTIONS,
     productTrackedBytes: totalTrackedBytes,
   });

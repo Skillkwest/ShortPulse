@@ -28,10 +28,11 @@ ADR 0060 intentionally keeps derivative and transient infrastructure bytes out o
    - Read-only aggregate diagnostics come before any deletion proposal.
    - Row-level object paths stay local-only and must not be pasted into tracked reports or chat.
    - Unknown, invalid, voice-source, motion-reference-without-verified-leases, and otherwise ambiguous classes require manual review.
+   - Active-user-owned private storage objects must not be deleted by lifecycle cleanup, even when they are transient, unreferenced, and older than TTL. A lifecycle object under an active auth user remains report-only until a separate explicit user/account-retirement, account-deletion, or customer-approved cleanup authority proves deletion is allowed.
 
 4. Automated cleanup must use Supabase Storage API deletion, not direct SQL deletion from `storage.objects`.
    - SQL may classify candidates and produce aggregate health.
-   - Actual object deletion, when separately approved, must go through the Storage API in bounded batches with before/after proof.
+   - Actual object deletion, when separately approved for non-active-user-owned objects, must go through the Storage API in bounded batches with before/after proof.
 
 5. The first durable runtime step is a disabled-by-default dry-run internal route backed by a service-role-only aggregate RPC.
    - The route reports counts/bytes by lifecycle action, reason, and path class.
@@ -55,7 +56,7 @@ Protected or durable classes:
 - custom voice sample paths
 - legacy or ambiguous user-scoped uploads until reviewed
 
-Candidate cleanup classes after TTL and no blocking reference:
+Candidate cleanup classes after TTL, no blocking reference, and no active-user ownership:
 
 - upload staging paths
 - transient reference image paths
@@ -93,7 +94,8 @@ This decision is implemented correctly only when:
 3. The diagnostic RPC is service-role-only.
 4. `voice_source_lifecycle` remains service-role-only and never becomes customer quota, voice ownership, or provider access authority.
 5. Delete behavior remains absent or separately gated behind explicit approval, bounded Storage API batches, and before/after manifests.
-6. Existing customer quota, Media Library UI behavior, private bucket policy, and Supabase image transformation prohibition remain unchanged.
+6. Active-user-owned private storage objects remain report-only unless a separate account/user-retirement authority proves deletion is allowed.
+7. Existing customer quota, Media Library UI behavior, private bucket policy, and Supabase image transformation prohibition remain unchanged.
 
 ## References
 

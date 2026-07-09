@@ -2,6 +2,7 @@
  * Media storage section for the profile workspace.
  * Separates recurring storage capacity and add-on management from credits and subscription plans.
  */
+import { useEffect, useRef } from "react";
 import { Receipt } from "phosphor-react";
 import type { BillingStorageAddonRecord } from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
@@ -19,6 +20,7 @@ import {
 } from "../profilePageModel";
 import { profileClass } from "../profileRouteStyles";
 import { ProfileMetricCard, ProfilePanel } from "./ProfileSurface";
+import { reportAppError } from "../../../lib/appErrorReporter";
 
 type ProfileStorageSectionProps = {
   activeAddonStorageBytes: number;
@@ -45,6 +47,30 @@ const STORAGE_ADDON_PLAN_LABELS: Record<string, string> = {
   media: "Media",
   studio: "Studio",
   business: "Business",
+};
+const STORAGE_ADDON_TELEMETRY_SOURCE = "telemetry.storage.addon";
+
+type StorageAddonTelemetryEvent =
+  | "storage_addon_impression"
+  | "storage_addon_add_clicked"
+  | "storage_addon_warning_viewed";
+
+const reportStorageAddonTelemetry = (
+  eventName: StorageAddonTelemetryEvent,
+  metadata: Record<string, unknown>
+) => {
+  void reportAppError({
+    source: STORAGE_ADDON_TELEMETRY_SOURCE,
+    scope: "app",
+    severity: "low",
+    message: eventName,
+    metadata: {
+      telemetry_family: "storage_addon",
+      telemetry_version: 1,
+      event_name: eventName,
+      ...metadata,
+    },
+  });
 };
 
 function resolveStorageAddonMinimumPlanLabel(storageAddonId: string): string {
@@ -76,6 +102,8 @@ export function ProfileStorageSection({
   usedStorageBytes,
   onStorageAddonChange,
 }: ProfileStorageSectionProps) {
+  const reportedImpressionKeys = useRef(new Set<string>());
+  const reportedWarningKeys = useRef(new Set<string>());
   const activeAddonRowsById = new Map<string, BillingSubscriptionStorageAddon[]>();
   activeStorageAddons.forEach((addon) => {
     const currentRows = activeAddonRowsById.get(addon.storageAddonId) ?? [];
@@ -117,6 +145,42 @@ export function ProfileStorageSection({
       ? Math.min(100, Math.max(0, Math.round((usedStorageBytes / totalStorageLimitBytes) * 100)))
       : 0;
   const hasActiveStorageAddon = activeStorageAddons.length > 0;
+  const visibleStorageAddonIds = storageAddons.map((addon) => addon.id).join(",");
+
+  useEffect(() => {
+    if (billingPlansLoading || storageAddons.length === 0) return;
+    const impressionKey = `${storageAddonManagementState}:${visibleStorageAddonIds}`;
+    if (reportedImpressionKeys.current.has(impressionKey)) return;
+    reportedImpressionKeys.current.add(impressionKey);
+
+    reportStorageAddonTelemetry("storage_addon_impression", {
+      storage_addon_ids: storageAddons.map((addon) => addon.id),
+      storage_addon_count: storageAddons.length,
+      storage_addon_management_state: storageAddonManagementState,
+      active_plan_id: activePlanId,
+      has_active_storage_addon: hasActiveStorageAddon,
+    });
+  }, [
+    activePlanId,
+    billingPlansLoading,
+    hasActiveStorageAddon,
+    storageAddonManagementState,
+    storageAddons,
+    visibleStorageAddonIds,
+  ]);
+
+  useEffect(() => {
+    if (!storageCalloutMessage) return;
+    const warningKey = `${storageAddonManagementState}:${storageCalloutMessage}`;
+    if (reportedWarningKeys.current.has(warningKey)) return;
+    reportedWarningKeys.current.add(warningKey);
+
+    reportStorageAddonTelemetry("storage_addon_warning_viewed", {
+      storage_addon_management_state: storageAddonManagementState,
+      active_plan_id: activePlanId,
+      warning: storageAddonManagementState,
+    });
+  }, [activePlanId, storageAddonManagementState, storageCalloutMessage]);
 
   return (
     <>
@@ -274,12 +338,20 @@ export function ProfileStorageSection({
                             "profile-button",
                             usesPrimaryActionStyle ? "primary-btn" : "ghost-btn"
                           )}
-                          onClick={() =>
+                          onClick={() => {
+                            const action = isActive ? "remove" : "add";
+                            if (action === "add") {
+                              reportStorageAddonTelemetry("storage_addon_add_clicked", {
+                                storage_addon_id: addon.id,
+                                active_plan_id: activePlanId,
+                                switches_active_addon: switchesActiveAddon,
+                              });
+                            }
                             onStorageAddonChange({
                               storageAddonId: addon.id,
-                              action: isActive ? "remove" : "add",
-                            })
-                          }
+                              action,
+                            });
+                          }}
                           aria-disabled={blocksPlanEligibility ? true : undefined}
                           disabled={
                             !isStorageAddonManagementAvailable || isBusy || blocksPlanEligibility

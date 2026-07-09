@@ -71,6 +71,7 @@
     "media:audit-stale-image-thumbs": "node ./scripts/audit_stale_image_thumb_variants.mjs",
     "media:audit-orphaned-videos": "node ./scripts/audit_orphaned_media_videos.mjs",
     "media:cleanup-orphaned-videos": "node ./scripts/cleanup_orphaned_media_videos.mjs",
+    "media:lifecycle-cleanup": "node ./scripts/media_storage_lifecycle_cleanup.mjs --dry-run",
     "media:phase0": "node ./scripts/media_library_phase0_bundle.mjs",
     "media:phase0:probe": "node ./scripts/media_library_phase0_bundle.mjs --run-probe",
     "media:readiness": "node ./scripts/media_library_diagnostics_readiness.mjs",

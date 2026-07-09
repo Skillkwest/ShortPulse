@@ -245,7 +245,7 @@ describe("Admin storage page", () => {
     useAdminStorageEconomicsControllerMock.mockReturnValue(buildStorageEconomicsState());
   });
 
-  it("renders storage as a standalone admin page without economics or funnel panels", () => {
+  it("renders storage as a standalone admin page with decision-grade business panels", () => {
     render(<AdminStoragePage />);
 
     expect(screen.getByRole("heading", { name: "Storage", level: 1 })).toBeInTheDocument();
@@ -256,10 +256,13 @@ describe("Admin storage page", () => {
     expect(screen.getByText(/Production database/)).toBeInTheDocument();
     expect(screen.getByText("Total Egress")).toBeInTheDocument();
     expect(screen.getByText("18.00x product-tracked storage")).toBeInTheDocument();
-    expect(screen.queryByText("Capacity and margin snapshot")).not.toBeInTheDocument();
-    expect(screen.queryByText("Storage revenue against shared infra")).not.toBeInTheDocument();
-    expect(screen.queryByText("Storage add-on conversion")).not.toBeInTheDocument();
-    expect(screen.queryByText("Estimate boundaries")).not.toBeInTheDocument();
+    expect(screen.getByText("Capacity and margin snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Product Tracked")).toBeInTheDocument();
+    expect(screen.getByText("Add-on Margin")).toBeInTheDocument();
+    expect(screen.getByText("Business Margin")).toBeInTheDocument();
+    expect(screen.getByText("Storage add-on conversion")).toBeInTheDocument();
+    expect(screen.getByText("Estimate boundaries")).toBeInTheDocument();
+    expect(screen.getByText("Provider invoice proof is unavailable.")).toBeInTheDocument();
     expect(screen.getByText("Plan Limit")).toBeInTheDocument();
     expect(screen.getByText("Catalog Price")).toBeInTheDocument();
     expect(screen.getByText("Contract MRR")).toBeInTheDocument();
@@ -297,8 +300,14 @@ describe("Admin storage page", () => {
       within(addOnsSection as HTMLElement).queryByText("$9 • available")
     ).not.toBeInTheDocument();
     expect(within(addOnsSection as HTMLElement).queryByText("Cost 2x")).not.toBeInTheDocument();
-    expect(within(addOnsSection as HTMLElement).queryByText("Margin 1x")).not.toBeInTheDocument();
+    expect(within(addOnsSection as HTMLElement).getByText("Margin 2x")).toBeInTheDocument();
     expect(screen.queryByText(/50 GBstorage_50gb/)).not.toBeInTheDocument();
+    const funnelSection = screen
+      .getByRole("heading", { name: "Storage add-on conversion" })
+      .closest("section");
+    expect(funnelSection).toBeTruthy();
+    expect(within(funnelSection as HTMLElement).getByText("Requests")).toBeInTheDocument();
+    expect(within(funnelSection as HTMLElement).getByText("Successes")).toBeInTheDocument();
     const riskSection = screen
       .getByRole("heading", { name: "Storage risk queue" })
       .closest("section");

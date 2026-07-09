@@ -122,11 +122,21 @@ export const AdminStorageEconomicsPanel = ({
   error,
   onRefresh,
 }: AdminStorageEconomicsPanelProps) => {
-  const { providerUsage, byPlan, addonPackages, riskQueue } = storageEconomics;
+  const {
+    providerUsage,
+    overview,
+    byPlan,
+    addonPackages,
+    funnel,
+    riskQueue,
+    dataGaps,
+    generatedAt,
+  } = storageEconomics;
   const hasProviderSnapshot =
     providerUsage.status !== "unavailable" && providerUsage.source !== "unavailable";
   const providerOverageCostCents =
     providerUsage.observedTotalOverageCostCents ?? providerUsage.estimatedTotalOverageCostCents;
+  const generatedAtLabel = generatedAt ? formatDate(generatedAt) : "No refresh timestamp";
 
   return (
     <>
@@ -253,6 +263,62 @@ export const AdminStorageEconomicsPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Business view</p>
+            <h2 className={styles.adminSectionTitle}>Capacity and margin snapshot</h2>
+            <p className="tiny subdued">
+              Product-tracked storage, recurring add-on revenue, and estimated margin pressure.
+            </p>
+          </div>
+        </div>
+        <div className={styles.adminGrid}>
+          <MetricCard
+            label="Product Tracked"
+            value={formatBytes(overview.totalTrackedBytes)}
+            meta={`${formatCount(overview.accountsWithMedia)} of ${formatCount(
+              overview.trackedAccounts
+            )} accounts with media`}
+          />
+          <MetricCard
+            label="Add-on MRR"
+            value={formatMoney(overview.activeAddonMrrCents)}
+            meta={`${formatCount(overview.activeAddonSubscribers)} active subscriber${overview.activeAddonSubscribers === 1 ? "" : "s"}`}
+          />
+          <MetricCard
+            label="Sold Add-on Capacity"
+            value={formatBytes(overview.activeAddonSoldCapacityBytes)}
+            meta={`${formatMoney(overview.estimatedAddonCost2xCents)} est. 2x variable cost`}
+          />
+          <MetricCard
+            label="Add-on Margin"
+            value={formatPct(overview.estimatedAddonGrossMargin2xPct)}
+            meta={`${formatPct(overview.estimatedAddonGrossMargin1xPct)} at 1x egress`}
+          />
+          <MetricCard
+            label="Storage Revenue"
+            value={formatMoney(overview.estimatedTotalStorageRevenueCents)}
+            meta={`${formatMoney(overview.estimatedPlanMrrCents)} plan MRR + ${formatMoney(
+              overview.activeAddonMrrCents
+            )} add-on MRR`}
+          />
+          <MetricCard
+            label="Business Margin"
+            value={formatPct(overview.estimatedBusinessStorageMarginPct)}
+            meta={`${formatMoney(overview.estimatedBusinessStorageCostCents)} estimated shared cost`}
+          />
+          <MetricCard
+            label="Quota Risk"
+            value={`${formatCount(overview.accountsOver80Pct)} near / ${formatCount(
+              overview.accountsOverQuota
+            )} over`}
+            meta={`${formatCount(overview.baselineStorageUsers)} baseline storage users`}
+          />
+          <MetricCard label="Refreshed" value={generatedAtLabel} meta="Admin API payload time" />
+        </div>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
             <p className={styles.adminSectionEyebrow}>Plans</p>
             <h2 className={styles.adminSectionTitle}>Storage by plan</h2>
             <p className="tiny subdued">
@@ -317,7 +383,7 @@ export const AdminStorageEconomicsPanel = ({
             <div
               className={styles.adminTableHead}
               style={{
-                gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr",
+                gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.8fr",
               }}
             >
               <span>Package</span>
@@ -327,6 +393,7 @@ export const AdminStorageEconomicsPanel = ({
               <span>MRR</span>
               <span>Sold</span>
               <span>Tracked</span>
+              <span>Margin 2x</span>
             </div>
             {addonPackages.length ? (
               addonPackages.map((row) => (
@@ -334,7 +401,8 @@ export const AdminStorageEconomicsPanel = ({
                   key={row.storageAddonId}
                   className={styles.adminTableRow}
                   style={{
-                    gridTemplateColumns: "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr",
+                    gridTemplateColumns:
+                      "minmax(0, 1.3fr) 0.9fr 0.7fr 0.6fr 0.8fr 0.9fr 0.9fr 0.8fr",
                   }}
                 >
                   <span className={styles.adminMonoCell}>{row.displayName}</span>
@@ -344,11 +412,55 @@ export const AdminStorageEconomicsPanel = ({
                   <span>{formatMoney(row.mrrCents)}</span>
                   <span>{formatBytes(row.soldCapacityBytes)}</span>
                   <span>{formatBytes(row.trackedUsageBytes)}</span>
+                  <span>{formatPct(row.estimatedMargin2xPct)}</span>
                 </div>
               ))
             ) : (
               <EmptyTableRow message="No recurring storage add-on catalog rows are available yet." />
             )}
+          </div>
+        </TableShell>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className={styles.adminSectionEyebrow}>Conversion</p>
+            <h2 className={styles.adminSectionTitle}>Storage add-on conversion</h2>
+            <p className="tiny subdued">Storage add-on funnel events recorded in app telemetry.</p>
+          </div>
+        </div>
+        <TableShell>
+          <div className={styles.adminTable} style={ADDON_TABLE_STYLE}>
+            <div
+              className={styles.adminTableHead}
+              style={{ gridTemplateColumns: "minmax(0, 1.2fr) 0.7fr 0.7fr 0.7fr" }}
+            >
+              <span>Event</span>
+              <span>Total</span>
+              <span>Last 24h</span>
+              <span>Last 7d</span>
+            </div>
+            {[
+              ["Impressions", funnel.impressions],
+              ["Add clicks", funnel.addClicks],
+              ["Warnings", funnel.warningViews],
+              ["Requests", funnel.addRequests],
+              ["Successes", funnel.addSuccesses],
+              ["Failures", funnel.addFailures],
+              ["Removals", funnel.removals],
+            ].map(([label, window]) => (
+              <div
+                key={label as string}
+                className={styles.adminTableRow}
+                style={{ gridTemplateColumns: "minmax(0, 1.2fr) 0.7fr 0.7fr 0.7fr" }}
+              >
+                <span>{label as string}</span>
+                <span>{formatCount((window as typeof funnel.impressions).total)}</span>
+                <span>{formatCount((window as typeof funnel.impressions).last24h)}</span>
+                <span>{formatCount((window as typeof funnel.impressions).last7d)}</span>
+              </div>
+            ))}
           </div>
         </TableShell>
       </section>
@@ -404,6 +516,34 @@ export const AdminStorageEconomicsPanel = ({
             )}
           </div>
         </TableShell>
+      </section>
+
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <div>
+            <p className={styles.adminSectionEyebrow}>Boundaries</p>
+            <h2 className={styles.adminSectionTitle}>Estimate boundaries</h2>
+            <p className="tiny subdued">
+              Known limits before using this page for pricing, sales, or operating calls.
+            </p>
+          </div>
+        </div>
+        {dataGaps.length ? (
+          <div className={styles.adminWarningPanel}>
+            <ul className={styles.adminWarningList}>
+              {dataGaps.map((gap) => (
+                <li key={gap}>{gap}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <AppMessage
+            className={styles.adminWarningPanel}
+            tone="success"
+            mode="banner"
+            message="No storage data gaps reported by the admin API."
+          />
+        )}
       </section>
     </>
   );

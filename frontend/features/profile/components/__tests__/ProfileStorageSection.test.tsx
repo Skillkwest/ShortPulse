@@ -1,9 +1,21 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileStorageSection } from "../ProfileStorageSection";
 
+const reportAppErrorMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/appErrorReporter", () => ({
+  reportAppError: (...args: unknown[]) => reportAppErrorMock(...args),
+}));
+
 describe("ProfileStorageSection", () => {
-  it("renders recurring storage add-on cards", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders recurring storage add-on cards and emits funnel telemetry", async () => {
+    const onStorageAddonChange = vi.fn();
+
     render(
       <ProfileStorageSection
         activeAddonStorageBytes={100 * 1024 * 1024 * 1024}
@@ -47,7 +59,7 @@ describe("ProfileStorageSection", () => {
         storageTransactionsLoading={false}
         totalStorageLimitBytes={250 * 1024 * 1024 * 1024}
         usedStorageBytes={50 * 1024 * 1024 * 1024}
-        onStorageAddonChange={vi.fn()}
+        onStorageAddonChange={onStorageAddonChange}
       />
     );
 
@@ -63,6 +75,38 @@ describe("ProfileStorageSection", () => {
     expect(
       screen.getByText("Need more than 1 TB? Contact support for a storage review.")
     ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.storage.addon",
+          message: "storage_addon_impression",
+          metadata: expect.objectContaining({
+            event_name: "storage_addon_impression",
+            storage_addon_count: 2,
+            storage_addon_management_state: "eligible",
+          }),
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch to 250 GB" }));
+
+    expect(onStorageAddonChange).toHaveBeenCalledWith({
+      storageAddonId: "storage_250gb",
+      action: "add",
+    });
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.storage.addon",
+        message: "storage_addon_add_clicked",
+        metadata: expect.objectContaining({
+          event_name: "storage_addon_add_clicked",
+          storage_addon_id: "storage_250gb",
+          switches_active_addon: true,
+        }),
+      })
+    );
   });
 
   it("shows plan-ineligible storage add-ons as disabled upgrade options", () => {
@@ -112,7 +156,7 @@ describe("ProfileStorageSection", () => {
     expect(requiresMediaButton).toHaveClass("ghost-btn");
   });
 
-  it("shows a View plans action when recurring storage requires a paid plan", () => {
+  it("shows a View plans action when recurring storage requires a paid plan", async () => {
     render(
       <ProfileStorageSection
         activeAddonStorageBytes={0}
@@ -149,5 +193,17 @@ describe("ProfileStorageSection", () => {
     const planLink = screen.getByRole("link", { name: "View plans" });
     expect(planLink).toHaveAttribute("href", "/profile?section=subscription&from=%2Fai-studio");
     expect(planLink).toHaveClass("app-message__action", "ai-panel-plan-access-cta");
+    await waitFor(() => {
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.storage.addon",
+          message: "storage_addon_warning_viewed",
+          metadata: expect.objectContaining({
+            event_name: "storage_addon_warning_viewed",
+            storage_addon_management_state: "requires_paid_plan",
+          }),
+        })
+      );
+    });
   });
 });

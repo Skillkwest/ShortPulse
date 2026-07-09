@@ -320,6 +320,16 @@
   line-height: 1.45;
 }
 
+.adminWarningList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--admin-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .adminWarningMeta {
   margin: 0;
   color: var(--admin-text-faint);
@@ -1116,8 +1126,8 @@
 
 .agentEditPresetGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .agentBuiltInStyleGrid {
@@ -1127,7 +1137,7 @@
 .agentEditPresetTile {
   position: relative;
   display: grid;
-  min-height: 132px;
+  min-height: 174px;
   border-radius: 16px;
   border: 1px solid rgba(255, 179, 70, 0.62);
   background:
@@ -1148,9 +1158,9 @@
 .agentEditPresetTileButton {
   display: grid;
   gap: 10px;
-  min-height: 132px;
+  min-height: 174px;
   width: 100%;
-  padding: 14px;
+  padding: 18px;
   border: 0;
   border-radius: 16px;
   background: transparent;
@@ -1281,7 +1291,7 @@
   font-size: 13px;
   line-height: 1.5;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
 }
 
 .agentEditPresetModalCard {
@@ -5265,6 +5275,7 @@
 }
 
 @media (max-width: 980px) {
+  .agentEditPresetGrid,
   .agentBuiltInStyleGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5453,6 +5464,7 @@
 }
 
 @media (max-width: 720px) {
+  .agentEditPresetGrid,
   .agentBuiltInStyleGrid {
     grid-template-columns: 1fr;
   }

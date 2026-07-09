@@ -20,3 +20,4 @@ Do not store secrets, API keys, cookies, raw env values, provider credentials, s
 - `intake/`: safe copied-packet summaries and manifests.
 - `scratch/`: temporary working notes that may be deleted or promoted later.
 - `handoffs/`: draft owner handoffs for Bactuo, Gutan, Money Stuff, Datserok, Dave, Gear Ball, Nuclo, or other lanes.
+- `watch-list.md`: lightweight working index of watched signatures and their reopen conditions.

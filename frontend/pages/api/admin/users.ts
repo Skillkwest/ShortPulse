@@ -36,6 +36,10 @@ type AdminUserRow = {
   availableCredits: number;
   reservedCredits: number;
   spendableCredits: number;
+  expiringCredits: number;
+  nonExpiringCredits: number;
+  nextExpiringCredits: number;
+  nextExpiresAt: string | null;
   createdAt: string | null;
 };
 
@@ -366,6 +370,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       const reservedCredits = grantSummary.reservedCents;
       const spendableCredits = grantSummary.spendableCents;
+      const expiringCredits = grantSummary.expiringCents;
+      const nonExpiringCredits = grantSummary.nonExpiringCents;
+      const nextExpiringCredits = grantSummary.nextExpiringCents;
       const topUpSummary = topUpSummaryByUser.get(user.id);
       const recurringStorage = recurringStorageByUser.get(user.id);
       return {
@@ -402,6 +409,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         availableCredits,
         reservedCredits,
         spendableCredits,
+        expiringCredits,
+        nonExpiringCredits,
+        nextExpiringCredits,
+        nextExpiresAt: grantSummary.nextExpiresAt,
         createdAt: user.created_at ?? null,
       };
     });

@@ -79,9 +79,14 @@ function formatStatusLabel(value: string | null | undefined): string {
 function formatBillingStatusLabel(
   row: Pick<AdminUserRow, "subscriptionStatus" | "cancelAtPeriodEnd">
 ): string {
-  return row.cancelAtPeriodEnd
-    ? "Cancellation scheduled"
-    : formatStatusLabel(row.subscriptionStatus);
+  if (row.cancelAtPeriodEnd) return "Cancellation scheduled";
+  const status = String(row.subscriptionStatus ?? "")
+    .trim()
+    .toLowerCase();
+  if (status === "canceled" || status === "cancelled") {
+    return "Canceled paid subscription";
+  }
+  return formatStatusLabel(row.subscriptionStatus);
 }
 
 function pickPositiveNumber(...values: Array<number | null | undefined>): number | null {
@@ -109,6 +114,27 @@ function formatCompactDate(value: string | null | undefined): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatCreditSourceLabel(
+  row: Pick<AdminUserRow, "expiringCredits" | "nonExpiringCredits" | "spendableCredits">
+): string | null {
+  if (row.spendableCredits <= 0) return null;
+  if (row.expiringCredits > 0 && row.nonExpiringCredits > 0) {
+    return `${row.expiringCredits.toLocaleString()} expiring · ${row.nonExpiringCredits.toLocaleString()} non-expiring`;
+  }
+  if (row.expiringCredits > 0) return "Expiring subscription credits";
+  if (row.nonExpiringCredits > 0) return "Non-expiring credits";
+  return "Usable credits";
+}
+
+function formatNextCreditExpiryLabel(
+  row: Pick<AdminUserRow, "nextExpiringCredits" | "nextExpiresAt">
+): string | null {
+  if (row.nextExpiringCredits <= 0 || !row.nextExpiresAt) return null;
+  return `${row.nextExpiringCredits.toLocaleString()} expires ${formatCompactDate(
+    row.nextExpiresAt
+  )}`;
 }
 
 function resolveBillingIdentityStateLabel(params: {
@@ -256,10 +282,12 @@ export function AdminSupportQueueSection({
     ? "Cancellation scheduled"
     : snapshotStatusLabel;
   const snapshotCreditsHelper = [
+    selectedUser ? formatCreditSourceLabel(selectedUser) : null,
     `available ${selectedUser?.availableCredits.toLocaleString() ?? "0"}`,
     selectedUser && selectedUser.reservedCredits > 0
       ? `held ${selectedUser.reservedCredits.toLocaleString()}`
       : null,
+    selectedUser ? formatNextCreditExpiryLabel(selectedUser) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -297,7 +325,7 @@ export function AdminSupportQueueSection({
     ? [
         {
           key: "plan",
-          label: "Plan",
+          label: "Access",
           value: planLabel(selectedUser.planId),
           testId: "snapshot-card-plan",
         },
@@ -1052,11 +1080,11 @@ export function AdminSupportQueueSection({
             <div className={`${styles.adminTableHead} ${styles.adminSupportQueueHead}`}>
               <span>User</span>
               <span>Copy</span>
-              <span>Plan</span>
+              <span>Access</span>
               <span>Credit flags ({emptyCreditFlagCount})</span>
               <span>Cycle spent</span>
               <span>Spendable</span>
-              <span>Top-ups</span>
+              <span>Top-up purchases</span>
               <span>Billing</span>
               <span>Renews / ends</span>
             </div>
@@ -1108,6 +1136,8 @@ export function AdminSupportQueueSection({
                     toneClassName: styles.pillCritical,
                   });
                 }
+                const rowCreditSourceLabel = formatCreditSourceLabel(row);
+                const rowCreditExpiryLabel = formatNextCreditExpiryLabel(row);
 
                 return (
                   <div
@@ -1159,7 +1189,7 @@ export function AdminSupportQueueSection({
                           )}
                         </span>
                       </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Plan">
+                      <span className={styles.adminSupportQueueCell} data-label="Access">
                         <span>{planLabel(row.planId)}</span>
                       </span>
                       <span className={styles.adminSupportQueueCell} data-label="Credit flags">
@@ -1185,10 +1215,16 @@ export function AdminSupportQueueSection({
                       </span>
                       <span className={styles.adminSupportQueueCell} data-label="Spendable">
                         <span className="mono">{row.spendableCredits.toLocaleString()}</span>
+                        {rowCreditSourceLabel ? (
+                          <span className={styles.adminCreditMeta}>{rowCreditSourceLabel}</span>
+                        ) : null}
+                        {rowCreditExpiryLabel ? (
+                          <span className={styles.adminCreditMeta}>{rowCreditExpiryLabel}</span>
+                        ) : null}
                       </span>
                       <span
                         className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Top-ups"
+                        data-label="Top-up purchases"
                       >
                         <span className="mono">{row.topUpCreditsPurchased.toLocaleString()}</span>
                         <span className={styles.adminCreditMeta}>

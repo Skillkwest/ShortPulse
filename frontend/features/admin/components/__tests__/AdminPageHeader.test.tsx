@@ -27,11 +27,12 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Dashboard"
-        description="Manage dashboard content."
         userEmail="admin@example.com"
         currentPath="/admin/announcements"
       />
     );
+
+    expect(screen.queryByText("Manage dashboard content.")).not.toBeInTheDocument();
 
     const nav = screen.getByRole("navigation", { name: "Admin pages" });
     const links = within(nav).getAllByRole("link");
@@ -71,7 +72,6 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Agent Tester Reports"
-        description="Read automated tester reports."
         userEmail="admin@example.com"
         currentPath="/admin/tester-reports"
       />
@@ -88,7 +88,6 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Issue reports"
-        description="Read user-reported issues."
         userEmail="admin@example.com"
         currentPath="/admin/reports"
       />
@@ -121,7 +120,6 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Generation trace"
-        description="Inspect generation lifecycle events."
         userEmail="admin@example.com"
         currentPath="/admin/generation-trace"
       />
@@ -152,7 +150,6 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Ophestivus"
-        description="Track operator tasks."
         userEmail="admin@example.com"
         currentPath="/admin/kanban"
       />
@@ -180,7 +177,6 @@ describe("AdminPageHeader", () => {
     render(
       <AdminPageHeader
         title="Crash logs"
-        description="Inspect browser crash sessions."
         userEmail="admin@example.com"
         currentPath="/admin/crashes"
       />

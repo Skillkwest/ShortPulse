@@ -145,7 +145,7 @@ describe("PulsePresetsLibraryPanel", () => {
 
     expect(screen.getByRole("dialog", { name: "Video Prompt Magic details" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Video Prompt Magic" })).toBeInTheDocument();
-    const promptViewer = screen.getByLabelText("Prompt") as HTMLTextAreaElement;
+    const promptViewer = screen.getByLabelText("Custom Instructions") as HTMLTextAreaElement;
     expect(promptViewer.value).toContain("Single-Shot Video Prompt");
     expect(promptViewer).toHaveAttribute("readonly");
     expect(

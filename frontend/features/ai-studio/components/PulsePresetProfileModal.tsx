@@ -1,6 +1,6 @@
 /**
  * Pulse-specific read-only profile modal for built-in guided workflows.
- * Shows the resolved built-in prompt without allowing in-place edits.
+ * Shows the resolved built-in custom instructions without allowing in-place edits.
  */
 import React from "react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
@@ -44,10 +44,10 @@ export function PulsePresetProfileModal({ preset, onClose }: PulsePresetProfileM
           </header>
           <textarea
             className="pulse-presets-library-prompt-viewer"
-            aria-label="Prompt"
+            aria-label="Custom Instructions"
             readOnly
             value={promptText}
-            placeholder="No prompt is available for this built-in Pulse."
+            placeholder="No custom instructions are available for this Pulse."
           />
         </div>
       </div>

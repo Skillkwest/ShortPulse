@@ -207,3 +207,9 @@ Keep this table updated when adding routes and reflect protection rules in `fron
 `/admin/tester-reports` is an authenticated admin route for automated tester-agent run reports. It defaults to unreviewed reports oldest first for the Hybervees analysis workflow, shows the tester persona/account and ShortPulse account under test, and lets the operator expand both the persona report and engineering handoff for a run.
 
 `/api/admin/tester-reports` is the authenticated admin read API for that page. `/api/admin/tester-reports-review` is the authenticated admin mutation API for Hybervees review progress. `/api/internal/tester-reports/ingest` is the route-secret-protected automation ingest API and is intentionally separate from the customer issue-report path.
+
+## Admin Support APIs
+
+| Route                                 | Auth required | Purpose                                  | Notes                                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/admin/users/[userId]/analytics` | Yes           | Admin selected-account analytics payload | `GET` only. Returns source-labeled credit, billing, revenue, top-up, generation, media, storage, and agent-telemetry availability details for the Customer Support selected-account analytics accordion without bloating the user list API. |

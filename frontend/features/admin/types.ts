@@ -202,6 +202,112 @@ export type AdminBillingDiagnosticsResponse = {
   findings: AdminHealthFinding[];
 };
 
+export type AdminUserAnalyticsMetricSource =
+  | "exact"
+  | "stripe"
+  | "local_ledger"
+  | "health_snapshot"
+  | "generation_rows"
+  | "estimated"
+  | "unavailable";
+
+export type AdminUserAnalyticsSourceNote = {
+  key: string;
+  label: string;
+  status: "exact" | "partial" | "unavailable";
+  detail: string;
+};
+
+export type AdminUserAnalyticsResponse = {
+  generatedAt: string;
+  target: {
+    userId: string;
+    email: string | null;
+    createdAt: string | null;
+    lastSignInAt: string | null;
+  };
+  credits: {
+    spendableCredits: number;
+    availableCredits: number;
+    reservedCredits: number;
+    totalCreditsSpent: number;
+    currentCycleSpentCredits: number | null;
+    generationCreditsSpent: number;
+    expiringCredits: number;
+    nonExpiringCredits: number;
+    nextExpiringCredits: number;
+    nextExpiresAt: string | null;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  billing: {
+    status: string | null;
+    contractSource: "stripe" | "internal_comp" | null;
+    recurringPriceCents: number | null;
+    billingInterval: "month" | "year" | null;
+    monthlyRecurringRevenueCents: number | null;
+    renewalAt: string | null;
+    paymentExempt: boolean;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  revenue: {
+    totalRevenueCents: number | null;
+    subscriptionRevenueCents: number | null;
+    topUpRevenueCents: number | null;
+    invoiceCount: number;
+    topUpPurchaseCount: number;
+    source: AdminUserAnalyticsMetricSource;
+    note: string;
+  };
+  topUps: {
+    purchaseCount: number;
+    creditsPurchased: number;
+    revenueCents: number | null;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  generations: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    last30dTotal: number;
+    last30dSucceeded: number;
+    last30dFailed: number;
+    byStatus: Record<string, number>;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  mediaBreakdown: {
+    images: number;
+    videos: number;
+    audio: number;
+    voices: number;
+    music: number;
+    soundEffects: number;
+    unknownAudio: number;
+    unknown: number;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  storage: {
+    usedBytes: number | null;
+    totalLimitBytes: number | null;
+    addonLimitBytes: number | null;
+    remainingBytes: number | null;
+    isOverLimit: boolean | null;
+    source: AdminUserAnalyticsMetricSource;
+  };
+  agentUsage: {
+    standard: {
+      turns: number | null;
+      source: AdminUserAnalyticsMetricSource;
+      note: string;
+    };
+    pulse: {
+      turns: number | null;
+      source: AdminUserAnalyticsMetricSource;
+      note: string;
+    };
+  };
+  sourceHealth: AdminUserAnalyticsSourceNote[];
+};
+
 export type AdminErrorStatus = "open" | "ignored" | "resolved";
 export type AdminErrorIncidentViewMode = "queue" | "history";
 

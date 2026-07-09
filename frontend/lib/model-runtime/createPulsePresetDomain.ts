@@ -303,7 +303,7 @@ const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
     typeof (value as { publicationStatus?: unknown }).publicationStatus === "string"
       ? (value as { publicationStatus: string }).publicationStatus.trim()
       : "";
-  if (!presetId || !label || !description) {
+  if (!presetId || !label || !description || !systemInstructions) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {

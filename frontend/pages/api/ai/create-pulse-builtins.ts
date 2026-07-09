@@ -16,6 +16,7 @@ const toPublicCreatePulseBuiltInDefinition = (definition: RuntimeCreatePulseBuil
   presetId: definition.presetId,
   label: definition.label,
   description: definition.description,
+  systemInstructions: definition.systemInstructions,
   pulseKind: definition.pulseKind,
   runtimeMode: definition.runtimeMode,
   activationMode: definition.activationMode,

@@ -15,6 +15,7 @@ import type {
   AdminBillingDiagnosticsResponse,
   AdminCreditLedgerRow,
   AdminPagination,
+  AdminUserAnalyticsResponse,
   AdminUserRow,
 } from "../types";
 import styles from "../../../styles/admin.module.css";
@@ -47,11 +48,16 @@ type AdminSupportQueueSectionProps = {
   billingDiagnosticsLoading: boolean;
   billingDiagnosticsError: string | null;
   billingDiagnosticsLoaded: boolean;
+  userAnalytics: AdminUserAnalyticsResponse | null;
+  userAnalyticsLoading: boolean;
+  userAnalyticsError: string | null;
+  userAnalyticsLoaded: boolean;
   usersResultStart: number;
   usersResultEnd: number;
   setSelectedUserId: (value: string) => void;
   loadUsers: () => Promise<void>;
   loadCreditLedger: () => Promise<void>;
+  loadUserAnalytics: () => Promise<void>;
   handleUserSearchChange: (value: string) => void;
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
@@ -114,6 +120,23 @@ function formatCompactDate(value: string | null | undefined): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatInteger(value: number | null | undefined): string {
+  return value == null ? "—" : Math.trunc(value).toLocaleString();
+}
+
+function formatCurrencyCents(
+  valueCents: number | null | undefined,
+  formatUsd: (value: number | null) => string
+): string {
+  return valueCents == null ? "—" : formatUsd(valueCents / 100);
+}
+
+function sourceStatusLabel(status: AdminUserAnalyticsResponse["sourceHealth"][number]["status"]) {
+  if (status === "exact") return "Exact";
+  if (status === "partial") return "Partial";
+  return "Unavailable";
 }
 
 function formatNextCreditExpiryLabel(
@@ -179,11 +202,16 @@ export function AdminSupportQueueSection({
   billingDiagnosticsLoading,
   billingDiagnosticsError,
   billingDiagnosticsLoaded,
+  userAnalytics,
+  userAnalyticsLoading,
+  userAnalyticsError,
+  userAnalyticsLoaded,
   usersResultStart,
   usersResultEnd,
   setSelectedUserId,
   loadUsers,
   loadCreditLedger,
+  loadUserAnalytics,
   handleUserSearchChange,
   handlePreviousUsersPage,
   handleNextUsersPage,
@@ -218,6 +246,7 @@ export function AdminSupportQueueSection({
     userId: string;
     value: boolean;
   } | null>(null);
+  const [customerAnalyticsExpanded, setCustomerAnalyticsExpanded] = useState(false);
   const [stripeBillingExpanded, setStripeBillingExpanded] = useState(false);
   const [supportFindingsExpanded, setSupportFindingsExpanded] = useState(false);
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
@@ -455,6 +484,14 @@ export function AdminSupportQueueSection({
     }
   };
 
+  const handleToggleCustomerAnalytics = () => {
+    const nextExpanded = !customerAnalyticsExpanded;
+    setCustomerAnalyticsExpanded(nextExpanded);
+    if (nextExpanded && selectedUserId && !userAnalyticsLoaded && !userAnalyticsLoading) {
+      void loadUserAnalytics();
+    }
+  };
+
   const handlePaymentExemptToggle = async (nextChecked: boolean) => {
     if (!selectedUserId || billingOverrideSubmitting) return;
     const previousValue = paymentExemptEnabled;
@@ -502,6 +539,7 @@ export function AdminSupportQueueSection({
   };
 
   const handleSelectUserRow = (userId: string) => {
+    setCustomerAnalyticsExpanded(false);
     setStripeBillingExpanded(false);
     setSupportFindingsExpanded(false);
     setSelectedUserId(userId);
@@ -612,6 +650,316 @@ export function AdminSupportQueueSection({
                         ) : null}
                       </article>
                     ))}
+                  </div>
+                ) : null}
+
+                {selectedUserId ? (
+                  <div className={styles.manualAdjustPanel}>
+                    <button
+                      type="button"
+                      className={styles.adminStripeBillingToggle}
+                      onClick={handleToggleCustomerAnalytics}
+                      aria-expanded={customerAnalyticsExpanded}
+                      aria-controls="admin-customer-analytics-details"
+                    >
+                      <span>
+                        <span className={styles.panelTitle}>Customer analytics</span>
+                        <span className={styles.adminStripeBillingToggleHint}>
+                          {customerAnalyticsExpanded
+                            ? "Collapse customer analytics"
+                            : userAnalyticsLoading && !userAnalyticsLoaded
+                              ? "Loading customer analytics"
+                              : "Expand customer analytics"}
+                        </span>
+                      </span>
+                      <CaretDown
+                        size={16}
+                        weight="bold"
+                        className={`${styles.adminStripeBillingToggleIcon} ${
+                          customerAnalyticsExpanded
+                            ? styles.adminStripeBillingToggleIconExpanded
+                            : ""
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    {customerAnalyticsExpanded ? (
+                      <div
+                        id="admin-customer-analytics-details"
+                        className={styles.adminStripeBillingBody}
+                      >
+                        {userAnalyticsLoading && !userAnalyticsLoaded ? (
+                          <p className={styles.controlNote}>Loading customer analytics…</p>
+                        ) : userAnalyticsError ? (
+                          <p className={styles.controlNote}>{userAnalyticsError}</p>
+                        ) : userAnalytics ? (
+                          <div className={styles.customerAnalyticsStack}>
+                            <div className={styles.customerAnalyticsGrid}>
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Credits</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Current spendable</dt>
+                                    <dd>{formatInteger(userAnalytics.credits.spendableCredits)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Total spent</dt>
+                                    <dd>
+                                      {formatInteger(userAnalytics.credits.totalCreditsSpent)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>This cycle spent</dt>
+                                    <dd>
+                                      {formatInteger(
+                                        selectedUser?.currentCycleSpentCredits ??
+                                          userAnalytics.credits.currentCycleSpentCredits
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Generation spend</dt>
+                                    <dd>
+                                      {formatInteger(userAnalytics.credits.generationCreditsSpent)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Expiring</dt>
+                                    <dd>{formatInteger(userAnalytics.credits.expiringCredits)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Next expiry</dt>
+                                    <dd>
+                                      {userAnalytics.credits.nextExpiringCredits > 0
+                                        ? `${userAnalytics.credits.nextExpiringCredits.toLocaleString()} on ${formatCompactDate(
+                                            userAnalytics.credits.nextExpiresAt
+                                          )}`
+                                        : "—"}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Revenue</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Total revenue</dt>
+                                    <dd>
+                                      {formatCurrencyCents(
+                                        userAnalytics.revenue.totalRevenueCents,
+                                        formatUsd
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>MRR</dt>
+                                    <dd>
+                                      {formatCurrencyCents(
+                                        userAnalytics.billing.monthlyRecurringRevenueCents,
+                                        formatUsd
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Subscription revenue</dt>
+                                    <dd>
+                                      {formatCurrencyCents(
+                                        userAnalytics.revenue.subscriptionRevenueCents,
+                                        formatUsd
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Top-up revenue</dt>
+                                    <dd>
+                                      {formatCurrencyCents(
+                                        userAnalytics.revenue.topUpRevenueCents,
+                                        formatUsd
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Invoices</dt>
+                                    <dd>{formatInteger(userAnalytics.revenue.invoiceCount)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Renewal / end</dt>
+                                    <dd>{formatCompactDate(userAnalytics.billing.renewalAt)}</dd>
+                                  </div>
+                                </dl>
+                                <p className={styles.controlNote}>{userAnalytics.revenue.note}</p>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Generations</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Total</dt>
+                                    <dd>{formatInteger(userAnalytics.generations.total)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Succeeded</dt>
+                                    <dd>{formatInteger(userAnalytics.generations.succeeded)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Failed</dt>
+                                    <dd>{formatInteger(userAnalytics.generations.failed)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Last 30d</dt>
+                                    <dd>{formatInteger(userAnalytics.generations.last30dTotal)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Images</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.images)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Videos</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.videos)}</dd>
+                                  </div>
+                                </dl>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Audio</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Total audio</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.audio)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Voices</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.voices)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Music</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.music)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Sound effects</dt>
+                                    <dd>
+                                      {formatInteger(userAnalytics.mediaBreakdown.soundEffects)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Unknown audio</dt>
+                                    <dd>
+                                      {formatInteger(userAnalytics.mediaBreakdown.unknownAudio)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Unknown media</dt>
+                                    <dd>{formatInteger(userAnalytics.mediaBreakdown.unknown)}</dd>
+                                  </div>
+                                </dl>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Top-ups</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Purchases</dt>
+                                    <dd>{formatInteger(userAnalytics.topUps.purchaseCount)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Credits purchased</dt>
+                                    <dd>{formatInteger(userAnalytics.topUps.creditsPurchased)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Revenue</dt>
+                                    <dd>
+                                      {formatCurrencyCents(
+                                        userAnalytics.topUps.revenueCents,
+                                        formatUsd
+                                      )}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Storage</p>
+                                <dl className={styles.customerAnalyticsMetricList}>
+                                  <div>
+                                    <dt>Used</dt>
+                                    <dd>
+                                      {userAnalytics.storage.usedBytes == null
+                                        ? "—"
+                                        : formatStorageBytes(userAnalytics.storage.usedBytes)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Limit</dt>
+                                    <dd>
+                                      {userAnalytics.storage.totalLimitBytes == null
+                                        ? "—"
+                                        : formatStorageBytes(userAnalytics.storage.totalLimitBytes)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Add-ons</dt>
+                                    <dd>
+                                      {userAnalytics.storage.addonLimitBytes == null
+                                        ? "—"
+                                        : formatStorageBytes(userAnalytics.storage.addonLimitBytes)}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt>Remaining</dt>
+                                    <dd>
+                                      {userAnalytics.storage.remainingBytes == null
+                                        ? "—"
+                                        : formatStorageBytes(userAnalytics.storage.remainingBytes)}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              </article>
+                            </div>
+
+                            <div className={styles.customerAnalyticsGridCompact}>
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Agent usage</p>
+                                <p className={styles.controlNote}>
+                                  Standard mode: {userAnalytics.agentUsage.standard.note}
+                                </p>
+                                <p className={styles.controlNote}>
+                                  Pulse mode: {userAnalytics.agentUsage.pulse.note}
+                                </p>
+                              </article>
+
+                              <article className={styles.customerAnalyticsCard}>
+                                <p className={styles.customerAnalyticsCardTitle}>Source health</p>
+                                <div className={styles.customerAnalyticsSourceList}>
+                                  {userAnalytics.sourceHealth.map((note) => (
+                                    <div key={`${note.key}-${note.label}`}>
+                                      <span
+                                        className={`${styles.pill} ${
+                                          note.status === "exact"
+                                            ? styles.pillOk
+                                            : note.status === "partial"
+                                              ? styles.pillWarn
+                                              : styles.pillCritical
+                                        }`}
+                                      >
+                                        {sourceStatusLabel(note.status)}
+                                      </span>
+                                      <span>
+                                        <strong>{note.label}</strong> · {note.detail}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </article>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className={styles.controlNote}>
+                            Expand again to retry loading customer analytics.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1094,7 +1442,6 @@ export function AdminSupportQueueSection({
               <span>Access</span>
               <span>Billing</span>
               <span>Payment</span>
-              <span>Cycle spent</span>
               <span>Spendable</span>
               <span>Expiring credits</span>
               <span>Renews / ends</span>
@@ -1103,7 +1450,6 @@ export function AdminSupportQueueSection({
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                 <span className="subdued">{usersError}</span>
-                <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
@@ -1124,14 +1470,12 @@ export function AdminSupportQueueSection({
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
-                <span className="subdued">—</span>
               </div>
             ) : users.length === 0 ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                 <span className="subdued">
                   {userSearch.trim() ? "No users match." : "No users loaded yet."}
                 </span>
-                <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
@@ -1228,11 +1572,6 @@ export function AdminSupportQueueSection({
                         ) : (
                           <span className="subdued">—</span>
                         )}
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Cycle spent">
-                        <span className="mono">
-                          {row.currentCycleSpentCredits.toLocaleString()}
-                        </span>
                       </span>
                       <span className={styles.adminSupportQueueCell} data-label="Spendable">
                         <span className="mono">{row.spendableCredits.toLocaleString()}</span>

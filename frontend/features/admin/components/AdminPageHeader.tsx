@@ -36,7 +36,6 @@ const ERRORS_NAV_ITEMS = [
 
 type AdminPageHeaderProps = {
   title: string;
-  description: string;
   userEmail: string | null | undefined;
   currentPath: string;
   renderBareNav?: boolean;
@@ -48,7 +47,6 @@ type AdminPageHeaderProps = {
  */
 export function AdminPageHeader({
   title,
-  description,
   userEmail,
   currentPath,
   renderBareNav = false,
@@ -128,7 +126,6 @@ export function AdminPageHeader({
         <div>
           <p className="eyebrow">Admin</p>
           <h1 className={styles.adminTitle}>{title}</h1>
-          <p className="tiny subdued">{description}</p>
         </div>
         <div className={styles.adminUserPill}>
           <ShieldCheck size={18} weight="fill" />

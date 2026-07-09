@@ -165,7 +165,6 @@ export function AdminRouteShell({
       >
         <AdminPageHeader
           title={pageTitle}
-          description={pageDescription}
           userEmail={userEmail}
           currentPath={currentPath}
           renderBareNav={renderBareNav}

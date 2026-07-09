@@ -14,7 +14,7 @@ const publicPromptModifierDefinition: PublicBuiltInDefinition = {
   presetId: "prompt_modifier",
   label: "Prompt Modifier",
   description: "Modify prompts.",
-  systemInstructions: "",
+  systemInstructions: "Ask for a source prompt, then return a cleaner version.",
   pulseKind: "custom_gpt",
   runtimeMode: "custom_gpt",
   activationMode: "activate_and_start",
@@ -55,6 +55,17 @@ describe("Create Pulse built-in catalog normalization", () => {
         publicPromptModifierDefinition,
       ])
     ).toEqual([retiredPublicMetadataDefinition]);
+  });
+
+  it("rejects public built-ins that are missing system instructions", () => {
+    expect(
+      normalizePublicBuiltInDefinitions([
+        {
+          ...publicPromptModifierDefinition,
+          systemInstructions: "",
+        },
+      ])
+    ).toEqual([]);
   });
 
   it("normalizes server built-ins without preserving starter metadata", () => {

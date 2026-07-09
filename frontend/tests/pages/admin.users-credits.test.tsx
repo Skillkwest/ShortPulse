@@ -68,6 +68,114 @@ const deferred = <T,>() => {
   return { promise, resolve, reject };
 };
 
+const buildAnalyticsResponse = (userId: string) => ({
+  generatedAt: "2026-04-30T12:00:00.000Z",
+  target: {
+    userId,
+    email:
+      userId === USER_2_ID
+        ? "beta@example.com"
+        : userId === ADMIN_ID
+          ? "admin@example.com"
+          : "alpha@example.com",
+    createdAt: "2026-03-02T12:00:00.000Z",
+    lastSignInAt: "2026-04-29T12:00:00.000Z",
+  },
+  credits: {
+    spendableCredits: userId === USER_2_ID ? 0 : 5000,
+    availableCredits: userId === USER_2_ID ? 0 : 5000,
+    reservedCredits: 0,
+    totalCreditsSpent: userId === USER_2_ID ? 10400 : 3200,
+    currentCycleSpentCredits: null,
+    generationCreditsSpent: userId === USER_2_ID ? 9900 : 2800,
+    expiringCredits: userId === USER_2_ID ? 0 : 1200,
+    nonExpiringCredits: userId === USER_2_ID ? 0 : 3800,
+    nextExpiringCredits: userId === USER_2_ID ? 0 : 1200,
+    nextExpiresAt: userId === USER_2_ID ? null : "2026-05-20T12:00:00.000Z",
+    source: "exact",
+  },
+  billing: {
+    status: userId === USER_2_ID ? "inactive" : "active",
+    contractSource: "stripe",
+    recurringPriceCents: userId === USER_2_ID ? 3000 : 3000,
+    billingInterval: userId === USER_2_ID ? "year" : "month",
+    monthlyRecurringRevenueCents: userId === USER_2_ID ? 250 : 3000,
+    renewalAt: "2026-04-30T12:00:00.000Z",
+    paymentExempt: false,
+    source: "exact",
+  },
+  revenue: {
+    totalRevenueCents: userId === USER_2_ID ? 3000 : 14900,
+    subscriptionRevenueCents: userId === USER_2_ID ? 3000 : 9900,
+    topUpRevenueCents: userId === USER_2_ID ? 0 : 5000,
+    invoiceCount: userId === USER_2_ID ? 1 : 3,
+    topUpPurchaseCount: userId === USER_2_ID ? 0 : 2,
+    source: "stripe",
+    note: "Subscription and storage revenue is summed from paid Stripe invoices.",
+  },
+  topUps: {
+    purchaseCount: userId === USER_2_ID ? 0 : 2,
+    creditsPurchased: userId === USER_2_ID ? 0 : 2500,
+    revenueCents: userId === USER_2_ID ? 0 : 5000,
+    source: "local_ledger",
+  },
+  generations: {
+    total: userId === USER_2_ID ? 120 : 42,
+    succeeded: userId === USER_2_ID ? 110 : 39,
+    failed: userId === USER_2_ID ? 3 : 1,
+    last30dTotal: userId === USER_2_ID ? 40 : 12,
+    last30dSucceeded: userId === USER_2_ID ? 37 : 11,
+    last30dFailed: userId === USER_2_ID ? 1 : 0,
+    byStatus: { success: userId === USER_2_ID ? 110 : 39, fail: userId === USER_2_ID ? 3 : 1 },
+    source: "generation_rows",
+  },
+  mediaBreakdown: {
+    images: userId === USER_2_ID ? 60 : 20,
+    videos: userId === USER_2_ID ? 20 : 8,
+    audio: userId === USER_2_ID ? 30 : 10,
+    voices: userId === USER_2_ID ? 12 : 4,
+    music: userId === USER_2_ID ? 10 : 3,
+    soundEffects: userId === USER_2_ID ? 8 : 2,
+    unknownAudio: userId === USER_2_ID ? 0 : 1,
+    unknown: userId === USER_2_ID ? 10 : 4,
+    source: "generation_rows",
+  },
+  storage: {
+    usedBytes: 2147483648,
+    totalLimitBytes: 536870912000,
+    addonLimitBytes: 0,
+    remainingBytes: 534723428352,
+    isOverLimit: false,
+    source: "exact",
+  },
+  agentUsage: {
+    standard: {
+      turns: null,
+      source: "unavailable",
+      note: "Standard agent route telemetry is emitted for runtime monitoring, but per-user historical turn analytics are not yet durable in an admin-readable table.",
+    },
+    pulse: {
+      turns: null,
+      source: "unavailable",
+      note: "Pulse agent quality is tracked through route telemetry and Pulse session state; per-user historical turn totals need a separate telemetry persistence lane.",
+    },
+  },
+  sourceHealth: [
+    {
+      key: "health",
+      label: "Health snapshot",
+      status: "exact",
+      detail: "Loaded admin user-health snapshot.",
+    },
+    {
+      key: "agent",
+      label: "Agent usage",
+      status: "unavailable",
+      detail: "Per-user historical agent turn analytics are not durable yet.",
+    },
+  ],
+});
+
 describe("Admin users and credits overview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -442,6 +550,12 @@ describe("Admin users and credits overview", () => {
                 ],
         });
       }
+      if (path.includes("/api/admin/users/") && path.endsWith("/analytics")) {
+        const analyticsUserId = decodeURIComponent(
+          path.replace("/api/admin/users/", "").replace("/analytics", "")
+        );
+        return jsonResponse(buildAnalyticsResponse(analyticsUserId));
+      }
       if (path === "/api/admin/credits/adjust") {
         expect(options?.method).toBe("POST");
         const body =
@@ -675,23 +789,22 @@ describe("Admin users and credits overview", () => {
     expect(screen.getAllByText("Access").length).toBeGreaterThan(0);
     expect(screen.getByText("Credit flags (1)")).toBeInTheDocument();
     expect(screen.getByText("Payment")).toBeInTheDocument();
-    expect(screen.getByText("Cycle spent")).toBeInTheDocument();
     expect(screen.getByText("Expiring credits")).toBeInTheDocument();
     expect(screen.getByText("Renews / ends")).toBeInTheDocument();
     const userListSection = screen.getByRole("heading", { name: "User list" }).closest("section");
     expect(userListSection).not.toBeNull();
+    const userList = within(userListSection as HTMLElement);
+    expect(userList.getByText("Spendable")).toBeInTheDocument();
     const userListText = (userListSection as HTMLElement).textContent ?? "";
     expect(userListText.indexOf("Access")).toBeLessThan(userListText.indexOf("Billing"));
     expect(userListText.indexOf("Billing")).toBeLessThan(userListText.indexOf("Payment"));
-    expect(userListText.indexOf("Payment")).toBeLessThan(userListText.indexOf("Cycle spent"));
+    expect(userListText.indexOf("Payment")).toBeLessThan(userListText.indexOf("Spendable"));
     expect(userListText.indexOf("Renews / ends")).toBeLessThan(
       userListText.indexOf("Credit flags")
     );
-    const userList = within(userListSection as HTMLElement);
     expect(userList.queryByText("Storage")).not.toBeInTheDocument();
     const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
     expect(alphaRow).toHaveTextContent("Studio");
-    expect(alphaRow).toHaveTextContent("88");
     expect(alphaRow).toHaveTextContent("120");
     expect(alphaRow).toHaveTextContent("Expiring subscription credits");
     expect(alphaRow).toHaveTextContent("120 expires Apr 20, 2026");
@@ -725,9 +838,15 @@ describe("Admin users and credits overview", () => {
       .getByRole("heading", { name: "Selected account" })
       .closest("section");
     expect(selectedAccountSection).not.toBeNull();
+    const customerAnalyticsToggle = screen.getByRole("button", { name: /Customer analytics/ });
     const creditsAccessHeading = screen.getByRole("heading", { name: "Credits & access" });
     const supportFindingsToggle = screen.getByRole("button", { name: /Support findings/ });
     const stripeBillingToggle = screen.getByRole("button", { name: /Stripe billing/ });
+    expect(customerAnalyticsToggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      customerAnalyticsToggle.compareDocumentPosition(creditsAccessHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       creditsAccessHeading.compareDocumentPosition(supportFindingsToggle) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -739,6 +858,31 @@ describe("Admin users and credits overview", () => {
     expect(
       screen.queryByText("No immediate billing anomalies are flagged for this account right now.")
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Total revenue")).not.toBeInTheDocument();
+    expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
+      `/api/admin/users/${ADMIN_ID}/analytics`,
+      expect.anything()
+    );
+    fireEvent.click(customerAnalyticsToggle);
+    await waitFor(() =>
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        `/api/admin/users/${ADMIN_ID}/analytics`,
+        expect.objectContaining({ method: "GET" })
+      )
+    );
+    expect(customerAnalyticsToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Total revenue")).toBeInTheDocument();
+    expect(screen.getByText("$149.00")).toBeInTheDocument();
+    expect(screen.getByText("MRR")).toBeInTheDocument();
+    expect(screen.getByText("3,200")).toBeInTheDocument();
+    expect(screen.getByText("Voices")).toBeInTheDocument();
+    expect(screen.getByText("Music")).toBeInTheDocument();
+    expect(screen.getByText("Sound effects")).toBeInTheDocument();
+    expect(screen.getAllByText("Agent usage").length).toBeGreaterThan(0);
+    expect(screen.getByText("Source health")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Per-user historical agent turn analytics are not durable yet/)
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
     expect(fetchWithAuthMock).not.toHaveBeenCalledWith(

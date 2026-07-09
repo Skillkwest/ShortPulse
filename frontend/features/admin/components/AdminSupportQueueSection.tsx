@@ -116,18 +116,6 @@ function formatCompactDate(value: string | null | undefined): string {
   });
 }
 
-function formatCreditSourceLabel(
-  row: Pick<AdminUserRow, "expiringCredits" | "nonExpiringCredits" | "spendableCredits">
-): string | null {
-  if (row.spendableCredits <= 0) return null;
-  if (row.expiringCredits > 0 && row.nonExpiringCredits > 0) {
-    return `${row.expiringCredits.toLocaleString()} expiring · ${row.nonExpiringCredits.toLocaleString()} non-expiring`;
-  }
-  if (row.expiringCredits > 0) return "Expiring subscription credits";
-  if (row.nonExpiringCredits > 0) return "Non-expiring credits";
-  return "Usable credits";
-}
-
 function formatNextCreditExpiryLabel(
   row: Pick<AdminUserRow, "nextExpiringCredits" | "nextExpiresAt">
 ): string | null {
@@ -231,6 +219,7 @@ export function AdminSupportQueueSection({
     value: boolean;
   } | null>(null);
   const [stripeBillingExpanded, setStripeBillingExpanded] = useState(false);
+  const [supportFindingsExpanded, setSupportFindingsExpanded] = useState(false);
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
   const selectedUserPriceLabel = formatRecurringPriceLabel(
     selectedUser?.recurringPriceCents,
@@ -281,16 +270,9 @@ export function AdminSupportQueueSection({
   const snapshotBillingStateLabel = snapshotCancellationScheduled
     ? "Cancellation scheduled"
     : snapshotStatusLabel;
-  const snapshotCreditsHelper = [
-    selectedUser ? formatCreditSourceLabel(selectedUser) : null,
-    `available ${selectedUser?.availableCredits.toLocaleString() ?? "0"}`,
-    selectedUser && selectedUser.reservedCredits > 0
-      ? `held ${selectedUser.reservedCredits.toLocaleString()}`
-      : null,
-    selectedUser ? formatNextCreditExpiryLabel(selectedUser) : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const snapshotCreditsHelper = selectedUser
+    ? `${selectedUser.currentCycleSpentCredits.toLocaleString()} spent this cycle`
+    : undefined;
   const visibleBillingFindings = billingFindings.filter(
     (finding) => finding.code !== "internal_comp_contract"
   );
@@ -409,13 +391,7 @@ export function AdminSupportQueueSection({
             "Retry the user list below after access or network issues clear. The selected-account workspace will re-open once a row is available again.",
         }
       : usersLoading && !hasLoadedUsers
-        ? {
-            eyebrow: "Loading accounts",
-            title: "Preparing the selected account workspace",
-            description: "We’re loading the current support queue in user index order.",
-            helper:
-              "You can start scanning the queue as soon as rows load. Credits, access controls, and Stripe actions stay hidden until a real account is selected.",
-          }
+        ? null
         : userSearch.trim() && !hasLoadedUsers
           ? {
               eyebrow: "No matches",
@@ -527,6 +503,7 @@ export function AdminSupportQueueSection({
 
   const handleSelectUserRow = (userId: string) => {
     setStripeBillingExpanded(false);
+    setSupportFindingsExpanded(false);
     setSelectedUserId(userId);
     scrollSelectedAccountIntoView();
   };
@@ -547,7 +524,9 @@ export function AdminSupportQueueSection({
           }`}
         >
           <section className={`${styles.adminSubpanel} ${styles.adminPrimaryPanel}`}>
-            {selectedAccountState ? (
+            {usersLoading && !hasLoadedUsers && !selectedUserId ? (
+              <p className={styles.selectedAccountLoadingText}>Loading selected account…</p>
+            ) : selectedAccountState ? (
               <div className={styles.adminStatePanel}>
                 <p className={styles.adminStateEyebrow}>{selectedAccountState.eyebrow}</p>
                 <h3 className={styles.adminStateTitle}>{selectedAccountState.title}</h3>
@@ -633,86 +612,6 @@ export function AdminSupportQueueSection({
                         ) : null}
                       </article>
                     ))}
-                  </div>
-                ) : null}
-
-                {selectedUserId ? (
-                  <div className={styles.manualAdjustPanel}>
-                    <div className={styles.panelHeaderRow}>
-                      <h3 className={styles.panelTitle}>Support findings</h3>
-                    </div>
-                    {billingDiagnosticsLoading && !billingDiagnosticsLoaded ? (
-                      <p className={styles.controlNote}>
-                        Loading billing diagnostics and support findings…
-                      </p>
-                    ) : billingDiagnosticsError ? (
-                      <p className={styles.controlNote}>{billingDiagnosticsError}</p>
-                    ) : visibleBillingFindings.length > 0 ? (
-                      <div className={styles.adminBillingFindingList}>
-                        {visibleBillingFindings.map((finding) => (
-                          <article key={finding.code} className={styles.adminBillingFindingCard}>
-                            <div className={styles.healthFindingMetaRow}>
-                              <span
-                                className={`${styles.pill} ${findingToneClassName(finding.severity)}`}
-                              >
-                                {finding.severity}
-                              </span>
-                            </div>
-                            <p className={styles.healthFindingSummary}>{finding.summary}</p>
-                            <p className={styles.controlNote}>{finding.details}</p>
-                            {finding.recommendedActions.length > 0 ? (
-                              <ul className={styles.healthActionList}>
-                                {finding.recommendedActions.map((action) => (
-                                  <li key={`${finding.code}-${action}`}>{action}</li>
-                                ))}
-                              </ul>
-                            ) : null}
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className={styles.controlNote}>
-                        No immediate billing anomalies are flagged for this account right now.
-                      </p>
-                    )}
-                    {showPricingObservabilityCard ? (
-                      <div className={styles.adminBillingFindingCard}>
-                        <div className={styles.healthFindingMetaRow}>
-                          <span
-                            className={`${styles.pill} ${
-                              pricingObservability.mismatchCount > 0
-                                ? styles.pillWarn
-                                : styles.pillOk
-                            }`}
-                          >
-                            {pricingObservability.mismatchCount > 0
-                              ? `${pricingObservability.mismatchCount} mismatch${
-                                  pricingObservability.mismatchCount === 1 ? "" : "es"
-                                }`
-                              : "No recent mismatches"}
-                          </span>
-                        </div>
-                        <p className={styles.healthFindingSummary}>Pricing observability</p>
-                        <p className={styles.controlNote}>
-                          {pricingObservabilityCoverageLabel}
-                          {pricingObservability.lastObservedAt
-                            ? ` · last observed ${formatCompactDate(
-                                pricingObservability.lastObservedAt
-                              )}`
-                            : " · no recent observed rows yet"}
-                        </p>
-                        {selectedUserId ? (
-                          <Link
-                            href={`/admin/generation-trace?userId=${encodeURIComponent(
-                              selectedUserId
-                            )}`}
-                            className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                          >
-                            Open pricing trace
-                          </Link>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
                 ) : null}
 
@@ -826,6 +725,123 @@ export function AdminSupportQueueSection({
                   </div>
                 </div>
 
+                {selectedUserId ? (
+                  <div className={styles.manualAdjustPanel}>
+                    <button
+                      type="button"
+                      className={styles.adminStripeBillingToggle}
+                      onClick={() => setSupportFindingsExpanded((current) => !current)}
+                      aria-expanded={supportFindingsExpanded}
+                      aria-controls="admin-support-findings-details"
+                    >
+                      <span>
+                        <span className={styles.panelTitle}>Support findings</span>
+                        <span className={styles.adminStripeBillingToggleHint}>
+                          {supportFindingsExpanded
+                            ? "Collapse support findings"
+                            : billingDiagnosticsLoading && !billingDiagnosticsLoaded
+                              ? "Loading support findings"
+                              : visibleBillingFindings.length > 0
+                                ? `${visibleBillingFindings.length} finding${
+                                    visibleBillingFindings.length === 1 ? "" : "s"
+                                  }`
+                                : "Expand support findings"}
+                        </span>
+                      </span>
+                      <CaretDown
+                        size={16}
+                        weight="bold"
+                        className={`${styles.adminStripeBillingToggleIcon} ${
+                          supportFindingsExpanded ? styles.adminStripeBillingToggleIconExpanded : ""
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    {supportFindingsExpanded ? (
+                      <div
+                        id="admin-support-findings-details"
+                        className={styles.adminStripeBillingBody}
+                      >
+                        {billingDiagnosticsLoading && !billingDiagnosticsLoaded ? (
+                          <p className={styles.controlNote}>
+                            Loading billing diagnostics and support findings…
+                          </p>
+                        ) : billingDiagnosticsError ? (
+                          <p className={styles.controlNote}>{billingDiagnosticsError}</p>
+                        ) : visibleBillingFindings.length > 0 ? (
+                          <div className={styles.adminBillingFindingList}>
+                            {visibleBillingFindings.map((finding) => (
+                              <article
+                                key={finding.code}
+                                className={styles.adminBillingFindingCard}
+                              >
+                                <div className={styles.healthFindingMetaRow}>
+                                  <span
+                                    className={`${styles.pill} ${findingToneClassName(finding.severity)}`}
+                                  >
+                                    {finding.severity}
+                                  </span>
+                                </div>
+                                <p className={styles.healthFindingSummary}>{finding.summary}</p>
+                                <p className={styles.controlNote}>{finding.details}</p>
+                                {finding.recommendedActions.length > 0 ? (
+                                  <ul className={styles.healthActionList}>
+                                    {finding.recommendedActions.map((action) => (
+                                      <li key={`${finding.code}-${action}`}>{action}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className={styles.controlNote}>
+                            No immediate billing anomalies are flagged for this account right now.
+                          </p>
+                        )}
+                        {showPricingObservabilityCard ? (
+                          <div className={styles.adminBillingFindingCard}>
+                            <div className={styles.healthFindingMetaRow}>
+                              <span
+                                className={`${styles.pill} ${
+                                  pricingObservability.mismatchCount > 0
+                                    ? styles.pillWarn
+                                    : styles.pillOk
+                                }`}
+                              >
+                                {pricingObservability.mismatchCount > 0
+                                  ? `${pricingObservability.mismatchCount} mismatch${
+                                      pricingObservability.mismatchCount === 1 ? "" : "es"
+                                    }`
+                                  : "No recent mismatches"}
+                              </span>
+                            </div>
+                            <p className={styles.healthFindingSummary}>Pricing observability</p>
+                            <p className={styles.controlNote}>
+                              {pricingObservabilityCoverageLabel}
+                              {pricingObservability.lastObservedAt
+                                ? ` · last observed ${formatCompactDate(
+                                    pricingObservability.lastObservedAt
+                                  )}`
+                                : " · no recent observed rows yet"}
+                            </p>
+                            {selectedUserId ? (
+                              <Link
+                                href={`/admin/generation-trace?userId=${encodeURIComponent(
+                                  selectedUserId
+                                )}`}
+                                className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                              >
+                                Open pricing trace
+                              </Link>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className={styles.manualAdjustPanel}>
                   <button
                     type="button"
@@ -857,11 +873,6 @@ export function AdminSupportQueueSection({
                       className={styles.adminStripeBillingBody}
                     >
                       <div className={styles.panelHeaderRow}>
-                        <p className={styles.controlNote}>
-                          {hasLinkedStripeSubscription
-                            ? "Use this for billed subscriptions and invoices."
-                            : "Use this to inspect Stripe-linked accounts, customer identity, and saved payment methods."}
-                        </p>
                         <div className={styles.tabRow}>
                           <button
                             type="button"
@@ -1081,12 +1092,13 @@ export function AdminSupportQueueSection({
               <span>User</span>
               <span>Copy</span>
               <span>Access</span>
-              <span>Credit flags ({emptyCreditFlagCount})</span>
+              <span>Billing</span>
+              <span>Payment</span>
               <span>Cycle spent</span>
               <span>Spendable</span>
-              <span>Top-up purchases</span>
-              <span>Billing</span>
+              <span>Expiring credits</span>
               <span>Renews / ends</span>
+              <span>Credit flags ({emptyCreditFlagCount})</span>
             </div>
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
@@ -1099,10 +1111,12 @@ export function AdminSupportQueueSection({
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
+                <span className="subdued">—</span>
               </div>
             ) : usersLoading && users.length === 0 ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
                 <span className="subdued">Loading users…</span>
+                <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
@@ -1125,6 +1139,7 @@ export function AdminSupportQueueSection({
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
                 <span className="subdued">—</span>
+                <span className="subdued">—</span>
               </div>
             ) : (
               users.map((row) => {
@@ -1136,7 +1151,6 @@ export function AdminSupportQueueSection({
                     toneClassName: styles.pillCritical,
                   });
                 }
-                const rowCreditSourceLabel = formatCreditSourceLabel(row);
                 const rowCreditExpiryLabel = formatNextCreditExpiryLabel(row);
 
                 return (
@@ -1192,6 +1206,65 @@ export function AdminSupportQueueSection({
                       <span className={styles.adminSupportQueueCell} data-label="Access">
                         <span>{planLabel(row.planId)}</span>
                       </span>
+                      <span
+                        className={`${styles.adminSupportQueueCell} subdued`}
+                        data-label="Billing"
+                      >
+                        <span>{formatBillingStatusLabel(row)}</span>
+                      </span>
+                      <span
+                        className={`${styles.adminSupportQueueCell} subdued`}
+                        data-label="Payment"
+                      >
+                        {row.contractSource !== "internal_comp" &&
+                        row.recurringPriceCents != null ? (
+                          <span>
+                            {formatRecurringPriceLabel(
+                              row.recurringPriceCents,
+                              row.billingInterval,
+                              formatUsd
+                            )}
+                          </span>
+                        ) : (
+                          <span className="subdued">—</span>
+                        )}
+                      </span>
+                      <span className={styles.adminSupportQueueCell} data-label="Cycle spent">
+                        <span className="mono">
+                          {row.currentCycleSpentCredits.toLocaleString()}
+                        </span>
+                      </span>
+                      <span className={styles.adminSupportQueueCell} data-label="Spendable">
+                        <span className="mono">{row.spendableCredits.toLocaleString()}</span>
+                      </span>
+                      <span
+                        className={`${styles.adminSupportQueueCell} subdued`}
+                        data-label="Expiring credits"
+                      >
+                        {row.expiringCredits > 0 ? (
+                          <>
+                            <span className="mono">{row.expiringCredits.toLocaleString()}</span>
+                            <span className={styles.adminCreditMeta}>
+                              Expiring subscription credits
+                            </span>
+                          </>
+                        ) : (
+                          <span className="subdued">—</span>
+                        )}
+                        {rowCreditExpiryLabel ? (
+                          <span className={styles.adminCreditMeta}>{rowCreditExpiryLabel}</span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={`${styles.adminSupportQueueCell} subdued`}
+                        data-label="Renews / ends"
+                      >
+                        <span>
+                          {row.cancelAtPeriodEnd && row.planRenewalAt
+                            ? `Ends ${formatCompactDate(row.planRenewalAt)}`
+                            : formatCompactDate(row.planRenewalAt)}
+                        </span>
+                      </span>
                       <span className={styles.adminSupportQueueCell} data-label="Credit flags">
                         {queueSignals.length > 0 ? (
                           <span className={styles.adminSupportQueueSignalList}>
@@ -1207,55 +1280,6 @@ export function AdminSupportQueueSection({
                         ) : (
                           <span className="subdued">—</span>
                         )}
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Cycle spent">
-                        <span className="mono">
-                          {row.currentCycleSpentCredits.toLocaleString()}
-                        </span>
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Spendable">
-                        <span className="mono">{row.spendableCredits.toLocaleString()}</span>
-                        {rowCreditSourceLabel ? (
-                          <span className={styles.adminCreditMeta}>{rowCreditSourceLabel}</span>
-                        ) : null}
-                        {rowCreditExpiryLabel ? (
-                          <span className={styles.adminCreditMeta}>{rowCreditExpiryLabel}</span>
-                        ) : null}
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Top-up purchases"
-                      >
-                        <span className="mono">{row.topUpCreditsPurchased.toLocaleString()}</span>
-                        <span className={styles.adminCreditMeta}>
-                          {row.topUpPurchaseCount.toLocaleString()} purchases
-                        </span>
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Billing"
-                      >
-                        <span>{formatBillingStatusLabel(row)}</span>
-                        {row.contractSource !== "internal_comp" &&
-                        row.recurringPriceCents != null ? (
-                          <span className={styles.adminCreditMeta}>
-                            {formatRecurringPriceLabel(
-                              row.recurringPriceCents,
-                              row.billingInterval,
-                              formatUsd
-                            )}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span
-                        className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Renews / ends"
-                      >
-                        <span>
-                          {row.cancelAtPeriodEnd && row.planRenewalAt
-                            ? `Ends ${formatCompactDate(row.planRenewalAt)}`
-                            : formatCompactDate(row.planRenewalAt)}
-                        </span>
                       </span>
                     </div>
                   </div>

@@ -1781,26 +1781,28 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  --admin-support-user-col: minmax(205px, 1.12fr);
-  --admin-support-copy-col: 36px;
-  --admin-support-plan-col: minmax(68px, 0.42fr);
-  --admin-support-flags-col: minmax(78px, 0.46fr);
-  --admin-support-spent-col: minmax(84px, 0.48fr);
-  --admin-support-spendable-col: minmax(86px, 0.52fr);
-  --admin-support-topups-col: minmax(112px, 0.7fr);
-  --admin-support-billing-col: minmax(112px, 0.64fr);
-  --admin-support-renews-col: minmax(104px, 0.6fr);
+  --admin-support-user-col: minmax(190px, 1fr);
+  --admin-support-copy-col: 34px;
+  --admin-support-plan-col: minmax(64px, 0.38fr);
+  --admin-support-billing-col: minmax(104px, 0.56fr);
+  --admin-support-payment-col: minmax(92px, 0.5fr);
+  --admin-support-spent-col: minmax(76px, 0.42fr);
+  --admin-support-spendable-col: minmax(78px, 0.44fr);
+  --admin-support-expiring-col: minmax(122px, 0.68fr);
+  --admin-support-renews-col: minmax(100px, 0.56fr);
+  --admin-support-flags-col: minmax(76px, 0.42fr);
   --admin-support-col-gap: 10px;
   grid-template-columns:
     var(--admin-support-user-col)
     var(--admin-support-copy-col)
     var(--admin-support-plan-col)
-    var(--admin-support-flags-col)
+    var(--admin-support-billing-col)
+    var(--admin-support-payment-col)
     var(--admin-support-spent-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-topups-col)
-    var(--admin-support-billing-col)
-    var(--admin-support-renews-col);
+    var(--admin-support-expiring-col)
+    var(--admin-support-renews-col)
+    var(--admin-support-flags-col);
   gap: var(--admin-support-col-gap);
 }
 
@@ -1880,6 +1882,13 @@
   color: var(--admin-text-faint);
 }
 
+.selectedAccountLoadingText {
+  margin: 0;
+  padding: 10px 2px;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
 .adminSupportQueueSelectButton {
   grid-column: 1 / -1;
   grid-row: 1;
@@ -1906,12 +1915,13 @@
     var(--admin-support-user-col)
     var(--admin-support-copy-col)
     var(--admin-support-plan-col)
-    var(--admin-support-flags-col)
+    var(--admin-support-billing-col)
+    var(--admin-support-payment-col)
     var(--admin-support-spent-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-topups-col)
-    var(--admin-support-billing-col)
-    var(--admin-support-renews-col);
+    var(--admin-support-expiring-col)
+    var(--admin-support-renews-col)
+    var(--admin-support-flags-col);
   grid-column: 1 / -1;
   grid-row: 1;
   align-items: center;

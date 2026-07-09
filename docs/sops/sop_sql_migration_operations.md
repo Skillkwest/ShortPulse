@@ -82,6 +82,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/212_add_issue_report_screenshots.sql`: add private screenshot storage, metadata, and the service-role-only atomic issue-report insert helper for `/report-issue` and `/admin/reports`.
 - `sql/migrations/213_add_billing_subscription_change_intents.sql`: add the service-role-only full-price subscription-upgrade intent proof table used by the Stripe paid-invoice webhook.
 - `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`: add the service-role-only Stripe subscription schedule projection used by Profile and AI Studio to show pending period-end downgrades while current contracts remain active.
+- `sql/migrations/219_add_account_storage_ownership_proof.sql`: add service-role-only inactive-account storage ownership proof RPCs for report-only active/inactive/deleted/missing-owner classification without deletion authority.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -91,6 +92,8 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_media_storage_lifecycle_summary.sql`: aggregate Media Library lifecycle dry-run classes from `get_media_storage_lifecycle_summary(integer)` without object paths or user ids (read-only).
 - `sql/check_media_storage_cleanup_manifest.sql`: manifest-first Media Library storage cleanup classifier for protected, review, integrity, and deletion-candidate object classes. It is read-only, prints raw storage paths only for local delete-candidate review, and must be run before any storage cleanup deletion is proposed.
 - `frontend/scripts/media_storage_lifecycle_cleanup.mjs`: dry-run-only operator wrapper for the cleanup manifest. It consumes `sql/check_media_storage_cleanup_manifest.sql` as the classification source of truth and refuses destructive `--apply` because active-user-owned private storage objects must not be deleted by lifecycle cleanup. Raw candidate paths remain local-only and must not be pasted into chat or tracked reports.
+- `sql/check_account_storage_ownership_proof.sql`: aggregate inactive-account storage ownership proof from `get_account_storage_ownership_proof_summary(integer)` without object paths, user ids, or deletion authority (read-only).
+- `frontend/scripts/account_storage_ownership_proof.mjs`: report-only operator wrapper for inactive-account storage ownership proof. It refuses destructive flags and runs `sql/check_account_storage_ownership_proof.sql` through `psql` without passing the database URL as a positional command argument.
 - `sql/check_database_egress_query_stats.sql`: `pg_stat_statements` query-class summary plus hot-path table scan/cache/index posture for database/API egress risk without printing raw query text or row data (read-only).
 - `sql/check_postgrest_payload_projection_risk.sql`: PostgREST payload projection risk summary for generation tables, including aggregate column-size posture and hot query projection classes without printing raw query text or row data (read-only).
 - `sql/check_scheduler_egress_activity.sql`: Supabase Cron and `pg_net` activity profile for distinguishing expected scheduler cadence from duplicate jobs or failing HTTP patterns, without printing URLs, headers, bodies, or secrets (read-only).
@@ -340,6 +343,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `216_repair_pulse_text_first_builtin_catalog.sql`
 - `217_repair_pulse_single_shot_builtin_catalog.sql`
 - `218_add_admin_growth_cohorts_stats.sql`
+- `219_add_account_storage_ownership_proof.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

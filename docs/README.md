@@ -67,6 +67,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`
 - `docs/planning/ai-studio-generation-persistence-architecture-plan-2026-06-10.md`
 - `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
+- `docs/planning/admin-storage-intelligence-buildout-plan-2026-07-09.md`
 - `docs/planning/credit-grant-lot-expiration-buildout-plan-2026-07-06.md`
 - `docs/planning/stripe-failed-payment-recovery-buildout-plan-2026-07-07.md`
 - `docs/planning/dashboard-tutorial-hub-buildout-plan-2026-06-10.md`

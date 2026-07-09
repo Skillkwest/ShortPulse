@@ -65,6 +65,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
 - Used by: dashboard/account storage surfaces for accurate usage display independent of paged list caches.
 
+### Account storage ownership proof RPCs
+
+- `get_account_storage_ownership_proof_summary(inactive_days integer)`: service-role-only aggregate proof report for account/storage ownership state. Returns grouped counts and storage totals by owner state, activity status, and proof status without user ids, emails, object paths, signed URLs, or deletion instructions.
+- `get_account_storage_ownership_proof_details(inactive_days integer, user_id uuid, limit integer)`: service-role-only row-level proof report for local operator review. It may include user ids/emails and last-activity timestamps, but it is not a browser payload and must not be pasted into public/customer-facing reports.
+- Proof signals: `auth.users`, `storage.objects` media-library prefixes, `ai_generations`, `ai_credit_ledger`, `ai_credit_reservations`, `media_files`, `projects`, `project_workspace_states`, `user_owned_custom_voices`, `voice_source_lifecycle`, and current billing contracts.
+- Proof statuses: `active_user_report_only`, `inactive_user_report_only`, `deleted_auth_report_only`, and `owner_missing_manual_review`.
+- Boundary: these RPCs prove status and blockers only. They do not delete media, enqueue cleanup, recommend deletion, or authorize inactive-user data removal.
+
 ### characters
 
 - `id` (uuid, pk)

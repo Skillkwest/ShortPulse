@@ -13,6 +13,12 @@ import {
   buildAdminStorageProviderUsage,
   type AdminStorageUsageSnapshotRow,
 } from "../../../lib/server/api/adminStorageProviderUsage";
+import {
+  buildAdminStorageAccountHealth,
+  buildAdminStorageEvidenceRows,
+  buildAdminStorageTrend,
+  loadAdminStorageLifecycleHealth,
+} from "../../../lib/server/api/adminStorageIntelligence";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import type {
@@ -20,8 +26,10 @@ import type {
   AdminStorageEconomicsAddonPackageRow,
   AdminStorageEconomicsAssumptions,
   AdminStorageEconomicsFunnel,
+  AdminStorageLifecycleHealth,
   AdminStorageEconomicsOverview,
   AdminStorageEconomicsPlanRow,
+  AdminStorageTrend,
   AdminStorageProviderUsage,
   AdminStorageEconomicsResponse,
   AdminStorageEconomicsRiskRow,
@@ -160,6 +168,11 @@ type StorageObjectsSchemaClient = {
       };
     };
   };
+};
+
+type AutomaticStorageUsageSnapshotResult = {
+  row: AdminStorageUsageSnapshotRow;
+  storageSource: "live_storage_metadata" | "product_tracked";
 };
 
 const emptyWindow = (): AdminStatsCountWindow => ({
@@ -791,7 +804,9 @@ const buildOverview = (params: {
 
 const buildDataGaps = (
   funnel: AdminStorageEconomicsFunnel,
-  providerUsage: AdminStorageProviderUsage
+  providerUsage: AdminStorageProviderUsage,
+  lifecycleHealth: AdminStorageLifecycleHealth,
+  trend: AdminStorageTrend
 ): string[] => {
   const gaps = [
     "Product-tracked storage uses media_files.file_size, not provider invoice/object-storage metering.",
@@ -816,6 +831,16 @@ const buildDataGaps = (
   ) {
     gaps.push(
       "Client-side storage add-on impression, click, and warning telemetry is incomplete; route mutation telemetry may still be present."
+    );
+  }
+  if (lifecycleHealth.status === "unavailable") {
+    gaps.push(
+      "Aggregate storage lifecycle health is unavailable; object class and manual-review bytes are not shown."
+    );
+  }
+  if (trend.status === "unavailable") {
+    gaps.push(
+      "Historical storage trend snapshots are unavailable; trend cards show latest state only."
     );
   }
   return gaps;
@@ -868,7 +893,7 @@ const buildAutomaticStorageUsageSnapshot = async ({
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
   productTrackedBytes: number;
   providerSnapshot: AdminStorageUsageSnapshotRow | null;
-}): Promise<AdminStorageUsageSnapshotRow> => {
+}): Promise<AutomaticStorageUsageSnapshotResult> => {
   const storageObjectsBytes = await loadStorageObjectsBytes(supabaseAdmin);
   const storageBytes = storageObjectsBytes ?? productTrackedBytes;
   const capturedAt = new Date();
@@ -879,44 +904,48 @@ const buildAutomaticStorageUsageSnapshot = async ({
     : "configured Supabase env overrides/defaults";
 
   return {
-    snapshot_month: providerSnapshot?.snapshot_month ?? currentSnapshotMonth(capturedAt),
-    captured_at: providerSnapshot?.captured_at ?? capturedAt.toISOString(),
-    source: "api_import",
-    supabase_plan:
-      providerSnapshot?.supabase_plan ?? process.env.SUPABASE_PLAN_NAME?.trim() ?? "Production",
-    compute_plan:
-      providerSnapshot?.compute_plan ??
-      process.env.SUPABASE_COMPUTE_PLAN?.trim() ??
-      ASSUMPTIONS.computePlan,
-    compute_monthly_cost_cents:
-      providerSnapshot?.compute_monthly_cost_cents ??
-      envNumber(
-        process.env.SUPABASE_COMPUTE_MONTHLY_COST_CENTS,
-        ASSUMPTIONS.computeMonthlyCostCents
-      ),
-    storage_used_gb: bytesToGb(storageBytes),
-    storage_included_gb:
-      providerSnapshot?.storage_included_gb ??
-      envNumber(process.env.SUPABASE_STORAGE_INCLUDED_GB, 100),
-    uncached_egress_gb:
-      providerSnapshot?.uncached_egress_gb ?? envNumber(process.env.SUPABASE_UNCACHED_EGRESS_GB, 0),
-    cached_egress_gb:
-      providerSnapshot?.cached_egress_gb ?? envNumber(process.env.SUPABASE_CACHED_EGRESS_GB, 0),
-    uncached_egress_included_gb:
-      providerSnapshot?.uncached_egress_included_gb ??
-      envNumber(process.env.SUPABASE_UNCACHED_EGRESS_INCLUDED_GB, 250),
-    cached_egress_included_gb:
-      providerSnapshot?.cached_egress_included_gb ??
-      envNumber(process.env.SUPABASE_CACHED_EGRESS_INCLUDED_GB, 250),
-    observed_storage_overage_cost_cents:
-      providerSnapshot?.observed_storage_overage_cost_cents ?? null,
-    observed_uncached_egress_overage_cost_cents:
-      providerSnapshot?.observed_uncached_egress_overage_cost_cents ?? null,
-    observed_cached_egress_overage_cost_cents:
-      providerSnapshot?.observed_cached_egress_overage_cost_cents ?? null,
-    notes:
-      `Automatic production storage snapshot from ${sourceDetail}. ` +
-      `Egress and observed overage evidence from ${egressSourceDetail}.`,
+    row: {
+      snapshot_month: providerSnapshot?.snapshot_month ?? currentSnapshotMonth(capturedAt),
+      captured_at: providerSnapshot?.captured_at ?? capturedAt.toISOString(),
+      source: "api_import",
+      supabase_plan:
+        providerSnapshot?.supabase_plan ?? process.env.SUPABASE_PLAN_NAME?.trim() ?? "Production",
+      compute_plan:
+        providerSnapshot?.compute_plan ??
+        process.env.SUPABASE_COMPUTE_PLAN?.trim() ??
+        ASSUMPTIONS.computePlan,
+      compute_monthly_cost_cents:
+        providerSnapshot?.compute_monthly_cost_cents ??
+        envNumber(
+          process.env.SUPABASE_COMPUTE_MONTHLY_COST_CENTS,
+          ASSUMPTIONS.computeMonthlyCostCents
+        ),
+      storage_used_gb: bytesToGb(storageBytes),
+      storage_included_gb:
+        providerSnapshot?.storage_included_gb ??
+        envNumber(process.env.SUPABASE_STORAGE_INCLUDED_GB, 100),
+      uncached_egress_gb:
+        providerSnapshot?.uncached_egress_gb ??
+        envNumber(process.env.SUPABASE_UNCACHED_EGRESS_GB, 0),
+      cached_egress_gb:
+        providerSnapshot?.cached_egress_gb ?? envNumber(process.env.SUPABASE_CACHED_EGRESS_GB, 0),
+      uncached_egress_included_gb:
+        providerSnapshot?.uncached_egress_included_gb ??
+        envNumber(process.env.SUPABASE_UNCACHED_EGRESS_INCLUDED_GB, 250),
+      cached_egress_included_gb:
+        providerSnapshot?.cached_egress_included_gb ??
+        envNumber(process.env.SUPABASE_CACHED_EGRESS_INCLUDED_GB, 250),
+      observed_storage_overage_cost_cents:
+        providerSnapshot?.observed_storage_overage_cost_cents ?? null,
+      observed_uncached_egress_overage_cost_cents:
+        providerSnapshot?.observed_uncached_egress_overage_cost_cents ?? null,
+      observed_cached_egress_overage_cost_cents:
+        providerSnapshot?.observed_cached_egress_overage_cost_cents ?? null,
+      notes:
+        `Automatic production storage snapshot from ${sourceDetail}. ` +
+        `Egress and observed overage evidence from ${egressSourceDetail}.`,
+    },
+    storageSource: storageObjectsBytes === null ? "product_tracked" : "live_storage_metadata",
   };
 };
 
@@ -1045,13 +1074,13 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   });
   const usageByUser = new Map(accounts.map((account) => [account.userId, account.trackedBytes]));
   const totalTrackedBytes = accounts.reduce((sum, account) => sum + account.trackedBytes, 0);
-  const automaticProviderUsageRow = await buildAutomaticStorageUsageSnapshot({
+  const automaticProviderUsage = await buildAutomaticStorageUsageSnapshot({
     supabaseAdmin,
     productTrackedBytes: totalTrackedBytes,
     providerSnapshot: providerUsageRows[0] ?? null,
   });
   const providerUsage = buildAdminStorageProviderUsage({
-    row: automaticProviderUsageRow,
+    row: automaticProviderUsage.row,
     assumptions: ASSUMPTIONS,
     productTrackedBytes: totalTrackedBytes,
   });
@@ -1063,10 +1092,27 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
   });
   const funnel = buildFunnel(telemetryEvents);
   const riskQueue = buildRiskQueue(accounts);
-  const riskQueueUserEmails = await loadRiskQueueUserEmails(
-    supabaseAdmin,
-    riskQueue.map((row) => row.userId)
-  );
+  const accountHealth = buildAdminStorageAccountHealth(accounts);
+  const lifecycleHealth = await loadAdminStorageLifecycleHealth(supabaseAdmin);
+  const trend = buildAdminStorageTrend();
+  const evidence = buildAdminStorageEvidenceRows({
+    storageSource: automaticProviderUsage.storageSource,
+    providerUsage,
+    hasProviderSnapshot: Boolean(providerUsageRows[0]),
+    funnel,
+    lifecycleHealth,
+  });
+  const riskQueueUserEmails = await loadRiskQueueUserEmails(supabaseAdmin, [
+    ...riskQueue.map((row) => row.userId),
+    ...accountHealth.topStorageAccounts.map((row) => row.userId),
+    ...accountHealth.quotaPressureAccounts.map((row) => row.userId),
+    ...accountHealth.addonOpportunityAccounts.map((row) => row.userId),
+  ]);
+  const withUserEmails = <T extends { userId: string; userEmail: string | null }>(rows: T[]): T[] =>
+    rows.map((row) => ({
+      ...row,
+      userEmail: riskQueueUserEmails.get(row.userId) ?? null,
+    }));
 
   return {
     assumptions: ASSUMPTIONS,
@@ -1075,11 +1121,16 @@ const buildPayload = async (): Promise<AdminStorageEconomicsResponse> => {
     byPlan: buildPlanRows(accounts, plans, planOffers),
     addonPackages,
     funnel,
-    riskQueue: riskQueue.map((row) => ({
-      ...row,
-      userEmail: riskQueueUserEmails.get(row.userId) ?? null,
-    })),
-    dataGaps: buildDataGaps(funnel, providerUsage),
+    riskQueue: withUserEmails(riskQueue),
+    accountHealth: {
+      topStorageAccounts: withUserEmails(accountHealth.topStorageAccounts),
+      quotaPressureAccounts: withUserEmails(accountHealth.quotaPressureAccounts),
+      addonOpportunityAccounts: withUserEmails(accountHealth.addonOpportunityAccounts),
+    },
+    lifecycleHealth,
+    trend,
+    evidence,
+    dataGaps: buildDataGaps(funnel, providerUsage, lifecycleHealth, trend),
     health: {
       degraded: false,
       reason: null,

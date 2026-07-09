@@ -9,11 +9,19 @@ import type {
   AdminStorageEconomicsFunnel,
   AdminStorageEconomicsHealth,
   AdminStorageEconomicsOverview,
+  AdminStorageAccountHealth,
+  AdminStorageAccountOpportunityType,
+  AdminStorageEvidenceRow,
+  AdminStorageEvidenceSource,
+  AdminStorageEvidenceStatus,
   AdminStorageEconomicsPlanRow,
   AdminStorageProviderUsage,
   AdminStorageEconomicsResponse,
   AdminStorageEconomicsRiskRow,
   AdminStorageEconomicsRiskType,
+  AdminStorageLifecycleAction,
+  AdminStorageLifecycleHealth,
+  AdminStorageTrend,
 } from "../types";
 
 export const DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS: AdminStorageEconomicsAssumptions = {
@@ -107,6 +115,37 @@ export const DEFAULT_ADMIN_STORAGE_ECONOMICS_HEALTH: AdminStorageEconomicsHealth
   funnelSource: "unavailable",
 };
 
+export const DEFAULT_ADMIN_STORAGE_ACCOUNT_HEALTH: AdminStorageAccountHealth = {
+  topStorageAccounts: [],
+  quotaPressureAccounts: [],
+  addonOpportunityAccounts: [],
+};
+
+export const DEFAULT_ADMIN_STORAGE_LIFECYCLE_HEALTH: AdminStorageLifecycleHealth = {
+  source: "unavailable",
+  status: "unavailable",
+  cleanupTtlDays: null,
+  totalObjectCount: 0,
+  totalMb: 0,
+  protectedObjectCount: 0,
+  protectedMb: 0,
+  deleteCandidateObjectCount: 0,
+  deleteCandidateMb: 0,
+  manualReviewObjectCount: 0,
+  manualReviewMb: 0,
+  integrityProblemObjectCount: 0,
+  integrityProblemMb: 0,
+  rows: [],
+  reason: null,
+};
+
+export const DEFAULT_ADMIN_STORAGE_TREND: AdminStorageTrend = {
+  source: "unavailable",
+  status: "unavailable",
+  snapshots: [],
+  reason: null,
+};
+
 export const DEFAULT_ADMIN_STORAGE_ECONOMICS_RESPONSE: AdminStorageEconomicsResponse = {
   assumptions: DEFAULT_ADMIN_STORAGE_ECONOMICS_ASSUMPTIONS,
   overview: DEFAULT_ADMIN_STORAGE_ECONOMICS_OVERVIEW,
@@ -115,6 +154,10 @@ export const DEFAULT_ADMIN_STORAGE_ECONOMICS_RESPONSE: AdminStorageEconomicsResp
   addonPackages: [],
   funnel: DEFAULT_ADMIN_STORAGE_ECONOMICS_FUNNEL,
   riskQueue: [],
+  accountHealth: DEFAULT_ADMIN_STORAGE_ACCOUNT_HEALTH,
+  lifecycleHealth: DEFAULT_ADMIN_STORAGE_LIFECYCLE_HEALTH,
+  trend: DEFAULT_ADMIN_STORAGE_TREND,
+  evidence: [],
   dataGaps: [],
   health: DEFAULT_ADMIN_STORAGE_ECONOMICS_HEALTH,
   generatedAt: null,
@@ -129,6 +172,41 @@ const VALID_RISK_TYPES = new Set<AdminStorageEconomicsRiskType>([
   "stacked_addon_quantity",
   "manual_review_addon",
   "local_addon_missing_stripe_item",
+]);
+
+const VALID_ACCOUNT_OPPORTUNITY_TYPES = new Set<AdminStorageAccountOpportunityType>([
+  "top_storage",
+  "near_quota",
+  "over_quota",
+  "addon_opportunity",
+  "addon_underused",
+  "baseline_usage",
+]);
+
+const VALID_EVIDENCE_SOURCES = new Set<AdminStorageEvidenceSource>([
+  "product_tracked",
+  "live_storage_metadata",
+  "provider_snapshot",
+  "configured_estimate",
+  "local_billing_rows",
+  "app_error_events",
+  "lifecycle_rpc",
+  "unavailable",
+]);
+
+const VALID_EVIDENCE_STATUSES = new Set<AdminStorageEvidenceStatus>([
+  "current",
+  "stale",
+  "estimated",
+  "unavailable",
+]);
+
+const VALID_LIFECYCLE_ACTIONS = new Set<AdminStorageLifecycleAction>([
+  "protected",
+  "delete_candidate",
+  "manual_review_required",
+  "integrity_problem",
+  "unknown",
 ]);
 
 const toObject = (value: unknown): Record<string, unknown> =>
@@ -164,6 +242,16 @@ const toStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
+
+const normalizeEvidenceStatus = (value: unknown): AdminStorageEvidenceStatus =>
+  typeof value === "string" && VALID_EVIDENCE_STATUSES.has(value as AdminStorageEvidenceStatus)
+    ? (value as AdminStorageEvidenceStatus)
+    : "unavailable";
+
+const normalizeEvidenceSource = (value: unknown): AdminStorageEvidenceSource =>
+  typeof value === "string" && VALID_EVIDENCE_SOURCES.has(value as AdminStorageEvidenceSource)
+    ? (value as AdminStorageEvidenceSource)
+    : "unavailable";
 
 const normalizeCountWindow = (value: unknown): AdminStatsCountWindow => {
   const row = toObject(value);
@@ -369,6 +457,123 @@ const normalizeRiskRows = (value: unknown): AdminStorageEconomicsRiskRow[] => {
   });
 };
 
+const normalizeAccountHealthRows = (value: unknown) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    const opportunityTypes = Array.isArray(row.opportunityTypes)
+      ? row.opportunityTypes.filter(
+          (type): type is AdminStorageAccountOpportunityType =>
+            typeof type === "string" &&
+            VALID_ACCOUNT_OPPORTUNITY_TYPES.has(type as AdminStorageAccountOpportunityType)
+        )
+      : [];
+    return {
+      userId: toText(row.userId, "unknown"),
+      userEmail: toTextOrNull(row.userEmail),
+      planId: toText(row.planId, "unknown"),
+      trackedBytes: toCount(row.trackedBytes),
+      totalLimitBytes: toCount(row.totalLimitBytes),
+      usagePct: toNullableNumber(row.usagePct),
+      activeAddonCount: toCount(row.activeAddonCount),
+      opportunityTypes,
+      details: toText(row.details, "Review storage account state."),
+    };
+  });
+};
+
+const normalizeAccountHealth = (value: unknown): AdminStorageAccountHealth => {
+  const row = toObject(value);
+  return {
+    topStorageAccounts: normalizeAccountHealthRows(row.topStorageAccounts),
+    quotaPressureAccounts: normalizeAccountHealthRows(row.quotaPressureAccounts),
+    addonOpportunityAccounts: normalizeAccountHealthRows(row.addonOpportunityAccounts),
+  };
+};
+
+const normalizeLifecycleRows = (value: unknown) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    const rawAction = row.manifestAction;
+    const manifestAction =
+      typeof rawAction === "string" &&
+      VALID_LIFECYCLE_ACTIONS.has(rawAction as AdminStorageLifecycleAction)
+        ? (rawAction as AdminStorageLifecycleAction)
+        : "unknown";
+    return {
+      manifestAction,
+      manifestReason: toText(row.manifestReason, "unknown"),
+      safePathClass: toText(row.safePathClass, "unknown"),
+      objectCount: toCount(row.objectCount),
+      objectsMissingSizeMetadata: toCount(row.objectsMissingSizeMetadata),
+      totalMb: toNumber(row.totalMb),
+      oldestObjectCreatedAt: toTextOrNull(row.oldestObjectCreatedAt),
+      newestObjectCreatedAt: toTextOrNull(row.newestObjectCreatedAt),
+      youngestAgeDays: toNullableNumber(row.youngestAgeDays),
+      oldestAgeDays: toNullableNumber(row.oldestAgeDays),
+    };
+  });
+};
+
+const normalizeLifecycleHealth = (value: unknown): AdminStorageLifecycleHealth => {
+  const row = toObject(value);
+  return {
+    source: row.source === "lifecycle_rpc" ? "lifecycle_rpc" : "unavailable",
+    status: normalizeEvidenceStatus(row.status),
+    cleanupTtlDays: toNullableNumber(row.cleanupTtlDays),
+    totalObjectCount: toCount(row.totalObjectCount),
+    totalMb: toNumber(row.totalMb),
+    protectedObjectCount: toCount(row.protectedObjectCount),
+    protectedMb: toNumber(row.protectedMb),
+    deleteCandidateObjectCount: toCount(row.deleteCandidateObjectCount),
+    deleteCandidateMb: toNumber(row.deleteCandidateMb),
+    manualReviewObjectCount: toCount(row.manualReviewObjectCount),
+    manualReviewMb: toNumber(row.manualReviewMb),
+    integrityProblemObjectCount: toCount(row.integrityProblemObjectCount),
+    integrityProblemMb: toNumber(row.integrityProblemMb),
+    rows: normalizeLifecycleRows(row.rows),
+    reason: toTextOrNull(row.reason),
+  };
+};
+
+const normalizeTrend = (value: unknown): AdminStorageTrend => {
+  const row = toObject(value);
+  const snapshots = Array.isArray(row.snapshots)
+    ? row.snapshots.map((item) => {
+        const snapshot = toObject(item);
+        return {
+          capturedAt: toText(snapshot.capturedAt, ""),
+          productTrackedBytes: toCount(snapshot.productTrackedBytes),
+          providerStorageGb: toNullableNumber(snapshot.providerStorageGb),
+          addonMrrCents: toCount(snapshot.addonMrrCents),
+          activeAddonSoldCapacityBytes: toCount(snapshot.activeAddonSoldCapacityBytes),
+        };
+      })
+    : [];
+  return {
+    source: row.source === "historical_snapshots" ? "historical_snapshots" : "unavailable",
+    status: normalizeEvidenceStatus(row.status),
+    snapshots: snapshots.filter((snapshot) => snapshot.capturedAt.length > 0),
+    reason: toTextOrNull(row.reason),
+  };
+};
+
+const normalizeEvidence = (value: unknown): AdminStorageEvidenceRow[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const row = toObject(item);
+    return {
+      metricKey: toText(row.metricKey, "unknown"),
+      label: toText(row.label, "Unknown"),
+      source: normalizeEvidenceSource(row.source),
+      status: normalizeEvidenceStatus(row.status),
+      capturedAt: toTextOrNull(row.capturedAt),
+      details: toText(row.details, "No source details available."),
+    };
+  });
+};
+
 const normalizeHealth = (value: unknown): AdminStorageEconomicsHealth => {
   const row = toObject(value);
   return {
@@ -391,6 +596,10 @@ export const normalizeAdminStorageEconomicsResponse = (
     addonPackages: normalizeAddonPackageRows(row.addonPackages),
     funnel: normalizeFunnel(row.funnel),
     riskQueue: normalizeRiskRows(row.riskQueue),
+    accountHealth: normalizeAccountHealth(row.accountHealth),
+    lifecycleHealth: normalizeLifecycleHealth(row.lifecycleHealth),
+    trend: normalizeTrend(row.trend),
+    evidence: normalizeEvidence(row.evidence),
     dataGaps: toStringArray(row.dataGaps),
     health: normalizeHealth(row.health),
     generatedAt: toTextOrNull(row.generatedAt),

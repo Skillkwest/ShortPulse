@@ -29,6 +29,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
 - `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
+- `docs/planning/admin-storage-intelligence-buildout-plan-2026-07-09.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/evidence/runtime-v2/README.md`
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`

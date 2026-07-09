@@ -127,8 +127,8 @@ const AGENT_INSTRUCTION_SECTION_TABS: Array<{
   id: AgentInstructionSectionId;
   label: string;
 }> = [
-  { id: "standard", label: "Standard Create Agent" },
   { id: "pulses", label: "Pulses" },
+  { id: "standard", label: "Standard Create Agent" },
   { id: "presets", label: "Presets" },
   { id: "styles", label: "Styles" },
 ];
@@ -202,16 +202,6 @@ const arePulseDraftsEqual = (left: AdminPulseDraft, right: AdminPulseDraft): boo
   left.memoryPolicy === right.memoryPolicy &&
   left.schemaVersion === right.schemaVersion &&
   left.publicationStatus === right.publicationStatus;
-
-const arePulseDraftListsEqual = (
-  left: readonly AdminPulseDraft[],
-  right: readonly AdminPulseDraft[]
-): boolean =>
-  left.length === right.length &&
-  left.every((draft, index) => {
-    const candidate = right[index];
-    return candidate ? arePulseDraftsEqual(draft, candidate) : false;
-  });
 
 const buildBuiltInStyleDraftFromDefinition = (
   definition: BuiltInStyleDefinition,
@@ -498,21 +488,15 @@ const loadBuiltInStyleCatalog = async (): Promise<BuiltInStyleCatalogDraft> => {
  */
 export function AdminAgentInstructionsSection() {
   const [activeInstructionSection, setActiveInstructionSection] =
-    React.useState<AgentInstructionSectionId>("standard");
+    React.useState<AgentInstructionSectionId>("pulses");
   const [standardInstructions, setStandardInstructions] = React.useState<string>(
     SEEDED_STANDARD_SYSTEM_PROMPT
   );
   const [storedStandardInstructions, setStoredStandardInstructions] = React.useState<string>(
     SEEDED_STANDARD_SYSTEM_PROMPT
   );
-  const [standardCardCollapsed, setStandardCardCollapsed] = React.useState(true);
-  const [standardPromptSource, setStandardPromptSource] = React.useState<"control_plane" | "seed">(
-    "seed"
-  );
+  const [standardCardCollapsed, setStandardCardCollapsed] = React.useState(false);
   const [standardPromptUpdatedAt, setStandardPromptUpdatedAt] = React.useState<string | null>(null);
-  const [standardPromptUpdatedByEmail, setStandardPromptUpdatedByEmail] = React.useState<
-    string | null
-  >(null);
   const [standardPromptLoading, setStandardPromptLoading] = React.useState(true);
   const [standardPromptSaveState, setStandardPromptSaveState] = React.useState<SaveState>("idle");
   const [standardPromptLoadIssue, setStandardPromptLoadIssue] = React.useState<string | null>(null);
@@ -524,13 +508,7 @@ export function AdminAgentInstructionsSection() {
   const [storedStyleExtractPrompt, setStoredStyleExtractPrompt] = React.useState<string>(
     SEEDED_STYLE_EXTRACT_PROMPT
   );
-  const [styleExtractPromptSource, setStyleExtractPromptSource] = React.useState<
-    "control_plane" | "seed"
-  >("seed");
   const [styleExtractPromptUpdatedAt, setStyleExtractPromptUpdatedAt] = React.useState<
-    string | null
-  >(null);
-  const [styleExtractPromptUpdatedByEmail, setStyleExtractPromptUpdatedByEmail] = React.useState<
     string | null
   >(null);
   const [styleExtractPromptLoading, setStyleExtractPromptLoading] = React.useState(true);
@@ -547,13 +525,7 @@ export function AdminAgentInstructionsSection() {
   const [nextBuiltInStyleDraftIndex, setNextBuiltInStyleDraftIndex] = React.useState(1);
   const [builtInStyleLoading, setBuiltInStyleLoading] = React.useState(true);
   const [builtInStyleSaveState, setBuiltInStyleSaveState] = React.useState<SaveState>("idle");
-  const [builtInStyleCatalogSource, setBuiltInStyleCatalogSource] = React.useState<
-    "control_plane" | "seed"
-  >("seed");
   const [builtInStyleCatalogUpdatedAt, setBuiltInStyleCatalogUpdatedAt] = React.useState<
-    string | null
-  >(null);
-  const [builtInStyleCatalogUpdatedByEmail, setBuiltInStyleCatalogUpdatedByEmail] = React.useState<
     string | null
   >(null);
   const [builtInStyleCatalogDegraded, setBuiltInStyleCatalogDegraded] = React.useState(false);
@@ -567,19 +539,13 @@ export function AdminAgentInstructionsSection() {
   const [builtInStyleDragOverId, setBuiltInStyleDragOverId] = React.useState<string | null>(null);
   const [builtInStylePreviewUploadIssueById, setBuiltInStylePreviewUploadIssueById] =
     React.useState<BuiltInStylePreviewUploadIssueMap>({});
-  const [editSystemPresetCardCollapsed, setEditSystemPresetCardCollapsed] = React.useState(true);
+  const [editSystemPresetCardCollapsed, setEditSystemPresetCardCollapsed] = React.useState(false);
   const [editSystemPresetDrafts, setEditSystemPresetDrafts] = React.useState<
     AdminEditPresetDraft[]
   >(() => buildAdminEditPresetDrafts());
-  const [editSystemPresetSource, setEditSystemPresetSource] = React.useState<
-    "control_plane" | "seed"
-  >("seed");
   const [editSystemPresetUpdatedAt, setEditSystemPresetUpdatedAt] = React.useState<string | null>(
     null
   );
-  const [editSystemPresetUpdatedByEmail, setEditSystemPresetUpdatedByEmail] = React.useState<
-    string | null
-  >(null);
   const [editSystemPresetLoading, setEditSystemPresetLoading] = React.useState(true);
   const [editSystemPresetSaveState, setEditSystemPresetSaveState] =
     React.useState<SaveState>("idle");
@@ -612,14 +578,6 @@ export function AdminAgentInstructionsSection() {
       >,
     [storedPulseDrafts]
   );
-  const hasPulseUnsavedChanges = React.useMemo(
-    () => !arePulseDraftListsEqual(pulseDrafts, storedPulseDrafts),
-    [pulseDrafts, storedPulseDrafts]
-  );
-  const hasUnpublishablePulseDrafts = React.useMemo(
-    () => pulseDrafts.some((draft) => isPulseDraftBlank(draft) || !isPulseDraftPersistable(draft)),
-    [pulseDrafts]
-  );
   const hasStandardPromptUnsavedChanges = standardInstructions !== storedStandardInstructions;
   const hasStyleExtractPromptUnsavedChanges = styleExtractPrompt !== storedStyleExtractPrompt;
   const hasBuiltInStyleUnsavedChanges = React.useMemo(
@@ -636,37 +594,10 @@ export function AdminAgentInstructionsSection() {
   const builtInStyleSaveExpectedUpdatedAt = builtInStyleCatalogUpdatedAt;
   const isPulseSaveBlockedByDegradedCatalog = pulseCatalogDegraded;
   const pulseSaveExpectedUpdatedAt = pulseCatalogUpdatedAt;
-  const standardPromptUpdatedLabel = React.useMemo(() => {
-    if (!standardPromptUpdatedAt) return null;
-    const timestamp = new Date(standardPromptUpdatedAt);
-    if (Number.isNaN(timestamp.getTime())) return null;
-    return timestamp.toLocaleString();
-  }, [standardPromptUpdatedAt]);
-  const editSystemPresetUpdatedLabel = React.useMemo(() => {
-    if (!editSystemPresetUpdatedAt) return null;
-    const timestamp = new Date(editSystemPresetUpdatedAt);
-    if (Number.isNaN(timestamp.getTime())) return null;
-    return timestamp.toLocaleString();
-  }, [editSystemPresetUpdatedAt]);
-  const styleExtractPromptUpdatedLabel = React.useMemo(() => {
-    if (!styleExtractPromptUpdatedAt) return null;
-    const timestamp = new Date(styleExtractPromptUpdatedAt);
-    if (Number.isNaN(timestamp.getTime())) return null;
-    return timestamp.toLocaleString();
-  }, [styleExtractPromptUpdatedAt]);
-  const builtInStyleCatalogUpdatedLabel = React.useMemo(() => {
-    if (!builtInStyleCatalogUpdatedAt) return null;
-    const timestamp = new Date(builtInStyleCatalogUpdatedAt);
-    if (Number.isNaN(timestamp.getTime())) return null;
-    return timestamp.toLocaleString();
-  }, [builtInStyleCatalogUpdatedAt]);
-
   const hydrateStandardPrompt = React.useCallback((draft: StandardPromptDraft) => {
     setStandardInstructions(draft.promptBody);
     setStoredStandardInstructions(draft.promptBody);
-    setStandardPromptSource(draft.source);
     setStandardPromptUpdatedAt(draft.updatedAt);
-    setStandardPromptUpdatedByEmail(draft.updatedByEmail);
   }, []);
 
   const hydrateEditSystemPresetCatalog = React.useCallback(
@@ -674,9 +605,7 @@ export function AdminAgentInstructionsSection() {
       const drafts = buildAdminEditPresetDrafts(catalog.presetDefinitions);
       setEditSystemPresetDrafts(drafts);
       setNextEditPresetDraftIndex(drafts.length + 1);
-      setEditSystemPresetSource(catalog.source);
       setEditSystemPresetUpdatedAt(catalog.updatedAt);
-      setEditSystemPresetUpdatedByEmail(catalog.updatedByEmail);
     },
     []
   );
@@ -692,18 +621,14 @@ export function AdminAgentInstructionsSection() {
   const hydrateStyleExtractPrompt = React.useCallback((draft: StyleExtractPromptDraft) => {
     setStyleExtractPrompt(draft.promptBody);
     setStoredStyleExtractPrompt(draft.promptBody);
-    setStyleExtractPromptSource(draft.source);
     setStyleExtractPromptUpdatedAt(draft.updatedAt);
-    setStyleExtractPromptUpdatedByEmail(draft.updatedByEmail);
   }, []);
 
   const hydrateBuiltInStyleDrafts = React.useCallback((catalog: BuiltInStyleCatalogDraft) => {
     setBuiltInStyleDrafts(catalog.drafts);
     setStoredBuiltInStyleDrafts(catalog.drafts);
     setNextBuiltInStyleDraftIndex(catalog.drafts.length + 1);
-    setBuiltInStyleCatalogSource(catalog.source);
     setBuiltInStyleCatalogUpdatedAt(catalog.updatedAt);
-    setBuiltInStyleCatalogUpdatedByEmail(catalog.updatedByEmail);
     setBuiltInStyleCatalogDegraded(catalog.degraded);
   }, []);
 
@@ -1410,85 +1335,6 @@ export function AdminAgentInstructionsSection() {
     setPulseSaveIssue(null);
   }, [nextPulseDraftIndex]);
 
-  const handleResetAllPulseDrafts = React.useCallback(() => {
-    setPulseDrafts(storedPulseDrafts);
-    setNextPulseDraftIndex(storedPulseDrafts.length + 1);
-    setPulseSaveState("idle");
-    setPendingPulseDraftSaveId(null);
-    setPulseSaveIssue(null);
-  }, [storedPulseDrafts]);
-
-  const handleSavePulseDrafts = React.useCallback(async () => {
-    if (isPulseSaveBlockedByDegradedCatalog) {
-      setPulseSaveState("error");
-      setPulseSaveIssue(
-        "Reload the live Pulse catalog before saving. Fallback content cannot be published as the global built-in set."
-      );
-      return;
-    }
-    if (hasUnpublishablePulseDrafts) {
-      setPulseSaveState("error");
-      setPulseSaveIssue(
-        "Complete or remove every Pulse slot before saving the shared built-in set."
-      );
-      return;
-    }
-    setPendingPulseDraftSaveId(null);
-    setPulseSaveState("saving");
-    setPulseSaveIssue(null);
-    try {
-      const builtInDefinitions = pulseDrafts.map(buildPulseDefinitionFromDraft);
-      const response = await fetchWithAuth("/api/admin/agent-instructions/pulse-builtins", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          builtInDefinitions,
-          expectedUpdatedAt: pulseSaveExpectedUpdatedAt,
-        }),
-      });
-      const payload = (await response.json()) as {
-        builtInDefinitions?: unknown;
-        updatedAt?: string | null;
-        updatedByEmail?: string | null;
-        source?: "control_plane" | "seed";
-        degraded?: boolean;
-        code?: string;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(payload.error || "Unable to save the global Pulse built-in set.");
-      }
-      const normalizedDefinitions = normalizeCreatePulseBuiltInPresetDefinitions(
-        payload.builtInDefinitions
-      );
-      hydratePulseDrafts({
-        drafts: buildPulseDraftsFromDefinitions(normalizedDefinitions, {
-          templateDrafts: pulseDrafts,
-        }),
-        source: payload.source === "control_plane" ? "control_plane" : "seed",
-        updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : null,
-        updatedByEmail: typeof payload.updatedByEmail === "string" ? payload.updatedByEmail : null,
-        degraded: payload.degraded === true,
-      });
-      setPulseCatalogLoadIssue(null);
-      setPulseSaveState("saved");
-    } catch (error) {
-      setPulseSaveState("error");
-      setPulseSaveIssue(
-        error instanceof Error ? error.message : "Unable to save the global Pulse built-in set."
-      );
-    }
-  }, [
-    hydratePulseDrafts,
-    hasUnpublishablePulseDrafts,
-    isPulseSaveBlockedByDegradedCatalog,
-    pulseDrafts,
-    pulseSaveExpectedUpdatedAt,
-  ]);
-
   const handleSavePulseDraft = React.useCallback(
     async (localId: string) => {
       const targetDraft = pulseDrafts.find((draft) => draft.localId === localId);
@@ -1630,10 +1476,6 @@ export function AdminAgentInstructionsSection() {
                     </button>
                     <h3 className={styles.agentInstructionTitle}>Standard Create Agent</h3>
                   </div>
-                  <p className={styles.agentInstructionDescription}>
-                    Controls the Standard Create agent system prompt used by
-                    <code> /api/ai/studio-agent-standard</code> for all users.
-                  </p>
                 </div>
                 <div className={styles.agentInstructionActions}>
                   <button
@@ -1675,23 +1517,12 @@ export function AdminAgentInstructionsSection() {
                   spellCheck={false}
                   rows={14}
                 />
-                <p className={styles.agentInstructionNote}>
-                  {standardPromptLoadIssue
-                    ? standardPromptLoadIssue
-                    : standardPromptSaveState === "error"
-                      ? "Unable to save the live Standard system prompt."
-                      : standardPromptSource === "control_plane"
-                        ? `Live Standard runtime prompt${standardPromptUpdatedByEmail ? ` last updated by ${standardPromptUpdatedByEmail}` : ""}${standardPromptUpdatedLabel ? ` on ${standardPromptUpdatedLabel}` : ""}.`
-                        : "Showing the local code copy. Standard runtime remains blocked until the live control-plane prompt exists."}
-                </p>
+                {standardPromptLoadIssue || standardPromptSaveState === "error" ? (
+                  <p className={styles.agentInstructionNote}>
+                    {standardPromptLoadIssue ?? "Unable to save the live Standard system prompt."}
+                  </p>
+                ) : null}
               </div>
-              {standardCardCollapsed ? (
-                <p className={styles.agentInstructionCollapsedSummary}>
-                  {standardPromptSource === "control_plane"
-                    ? "Live Standard runtime prompt is active."
-                    : "Standard runtime prompt is missing; local code copy shown for reference."}
-                </p>
-              ) : null}
             </article>
           </div>
         ) : null}
@@ -1718,10 +1549,12 @@ export function AdminAgentInstructionsSection() {
                     </button>
                     <h3 className={styles.agentInstructionTitle}>Style Extraction System Prompt</h3>
                   </div>
-                  <p className={styles.agentInstructionDescription}>
-                    Controls how Styles Library extraction interprets uploaded reference images and
-                    outputs reusable style add-on prompts for <code>/api/ai/extract-style</code>.
-                  </p>
+                  {styleExtractPromptLoadIssue || styleExtractPromptSaveState === "error" ? (
+                    <p className={styles.agentInstructionNote}>
+                      {styleExtractPromptLoadIssue ??
+                        "Unable to save the live style extraction prompt."}
+                    </p>
+                  ) : null}
                 </div>
                 <div className={styles.agentInstructionActions}>
                   <button
@@ -1763,23 +1596,7 @@ export function AdminAgentInstructionsSection() {
                   spellCheck={false}
                   rows={20}
                 />
-                <p className={styles.agentInstructionNote}>
-                  {styleExtractPromptLoadIssue
-                    ? styleExtractPromptLoadIssue
-                    : styleExtractPromptSaveState === "error"
-                      ? "Unable to save the live style extraction prompt."
-                      : styleExtractPromptSource === "control_plane"
-                        ? `Live runtime override${styleExtractPromptUpdatedByEmail ? ` last updated by ${styleExtractPromptUpdatedByEmail}` : ""}${styleExtractPromptUpdatedLabel ? ` on ${styleExtractPromptUpdatedLabel}` : ""}.`
-                        : "No runtime override yet. The extractor is currently using the seeded code prompt fallback."}
-                </p>
               </div>
-              {styleExtractPromptCardCollapsed ? (
-                <p className={styles.agentInstructionCollapsedSummary}>
-                  {styleExtractPromptSource === "control_plane"
-                    ? "Live override active for the Styles Library extraction system prompt."
-                    : "Seed fallback active for the Styles Library extraction system prompt."}
-                </p>
-              ) : null}
             </article>
 
             <article className={styles.agentInstructionCard}>
@@ -1802,20 +1619,11 @@ export function AdminAgentInstructionsSection() {
                     </button>
                     <h3 className={styles.agentInstructionTitle}>Global built-in Styles</h3>
                   </div>
-                  <p className={styles.agentInstructionDescription}>
-                    Controls the shared built-in Styles catalog shown in AI Studio for all users.
-                    Users can delete these from their own library, but only admins can change the
-                    global built-in definitions here.
-                  </p>
-                  <p className={styles.agentInstructionNote}>
-                    {builtInStyleSaveIssue
-                      ? builtInStyleSaveIssue
-                      : builtInStyleCatalogLoadIssue
-                        ? builtInStyleCatalogLoadIssue
-                        : builtInStyleCatalogSource === "control_plane"
-                          ? `Live global Styles catalog${builtInStyleCatalogUpdatedByEmail ? ` last updated by ${builtInStyleCatalogUpdatedByEmail}` : ""}${builtInStyleCatalogUpdatedLabel ? ` on ${builtInStyleCatalogUpdatedLabel}` : ""}.`
-                          : "Showing the seeded Styles catalog. Saving here creates or replaces the shared built-in set for all users."}
-                  </p>
+                  {builtInStyleSaveIssue || builtInStyleCatalogLoadIssue ? (
+                    <p className={styles.agentInstructionNote}>
+                      {builtInStyleSaveIssue ?? builtInStyleCatalogLoadIssue}
+                    </p>
+                  ) : null}
                 </div>
                 <div className={styles.agentInstructionActions}>
                   <button
@@ -2010,12 +1818,6 @@ export function AdminAgentInstructionsSection() {
                   </button>
                 </div>
               </div>
-              {builtInStyleCardCollapsed ? (
-                <p className={styles.agentInstructionCollapsedSummary}>
-                  {builtInStyleDrafts.length} built-in Style
-                  {builtInStyleDrafts.length === 1 ? "" : "s"} available for AI Studio.
-                </p>
-              ) : null}
             </article>
           </div>
         ) : null}
@@ -2047,19 +1849,11 @@ export function AdminAgentInstructionsSection() {
                     </button>
                     <h3 className={styles.agentInstructionTitle}>Edit Mode System Presets</h3>
                   </div>
-                  <p className={styles.agentInstructionDescription}>
-                    Controls the shared Expert Edit system preset catalog shown in AI Studio for all
-                    users.
-                  </p>
-                  <p className={styles.agentInstructionNote}>
-                    {editSystemPresetLoadIssue
-                      ? editSystemPresetLoadIssue
-                      : editSystemPresetSaveState === "error"
-                        ? "Unable to save the live Edit preset catalog."
-                        : editSystemPresetSource === "control_plane"
-                          ? `Live global Edit preset catalog${editSystemPresetUpdatedByEmail ? ` last updated by ${editSystemPresetUpdatedByEmail}` : ""}${editSystemPresetUpdatedLabel ? ` on ${editSystemPresetUpdatedLabel}` : ""}.`
-                          : "Showing the seeded Edit preset catalog. Saving here creates or replaces the shared preset set for all users."}
-                  </p>
+                  {editSystemPresetLoadIssue || editSystemPresetSaveState === "error" ? (
+                    <p className={styles.agentInstructionNote}>
+                      {editSystemPresetLoadIssue ?? "Unable to save the live Edit preset catalog."}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -2120,12 +1914,6 @@ export function AdminAgentInstructionsSection() {
                   </button>
                 </div>
               </div>
-              {editSystemPresetCardCollapsed ? (
-                <p className={styles.agentInstructionCollapsedSummary}>
-                  {editSystemPresetDrafts.length} system presets available for Edit mode. Expand
-                  this card to browse and edit the shared global set.
-                </p>
-              ) : null}
             </article>
           </div>
         ) : null}
@@ -2178,6 +1966,11 @@ export function AdminAgentInstructionsSection() {
                     : !isPulseDraftBlank(draft);
                   const cardTitle =
                     draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
+                  const publicationLabel = draft.publicationStatus === "draft" ? "Draft" : "Live";
+                  const publicationPillClass =
+                    draft.publicationStatus === "draft"
+                      ? styles.pulseDraftPill
+                      : styles.pulseLivePill;
                   const validationIssue = resolvePulseDraftValidationIssue(draft);
                   const canSaveCard =
                     !pulseLoading &&
@@ -2213,6 +2006,9 @@ export function AdminAgentInstructionsSection() {
                               <span>{isCollapsed ? "Expand" : "Collapse"}</span>
                             </button>
                             <h4 className={styles.agentInstructionTitle}>{cardTitle}</h4>
+                            <span className={`${styles.pill} ${publicationPillClass}`}>
+                              {publicationLabel}
+                            </span>
                           </div>
                         </div>
                         <div className={styles.agentInstructionActions}>
@@ -2315,30 +2111,6 @@ export function AdminAgentInstructionsSection() {
                       Create another shared Pulse slot at the bottom of this catalog.
                     </span>
                   </button>
-                  <div className={styles.agentInstructionFooterActions}>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={handleResetAllPulseDrafts}
-                      disabled={!hasPulseUnsavedChanges || pulseLoading}
-                    >
-                      Reset to stored set
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => void handleSavePulseDrafts()}
-                      disabled={
-                        pulseLoading ||
-                        pulseSaveState === "saving" ||
-                        isPulseSaveBlockedByDegradedCatalog ||
-                        hasUnpublishablePulseDrafts ||
-                        !hasPulseUnsavedChanges
-                      }
-                    >
-                      {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
-                    </button>
-                  </div>
                 </article>
               </div>
               {pulseSectionCollapsed ? (

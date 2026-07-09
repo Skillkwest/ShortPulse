@@ -45,6 +45,11 @@ ADR 0060 intentionally keeps derivative and transient infrastructure bytes out o
    - Registry-backed decisions outrank path heuristics for supported new voice-source writes.
    - Existing manifest classification remains the migration and audit bridge for historical objects.
 
+7. Inactive-account proof is separate from deletion.
+   - `get_account_storage_ownership_proof_details(...)` and `get_account_storage_ownership_proof_summary(...)` may report whether an account/storage prefix has recent activity, billing blockers, credit reservation blockers, deleted Auth state, or missing owner state.
+   - These RPCs are service-role-only and report-only. They do not authorize deletion, enqueue cleanup, call Supabase Storage deletion, or decide final inactive-user data removal.
+   - The default operator report must stay aggregate-only. Row-level user proof is local service-role evidence for human review, not a browser/customer payload.
+
 ## Lifecycle Classes
 
 Protected or durable classes:
@@ -96,6 +101,7 @@ This decision is implemented correctly only when:
 5. Delete behavior remains absent or separately gated behind explicit approval, bounded Storage API batches, and before/after manifests.
 6. Active-user-owned private storage objects remain report-only unless a separate account/user-retirement authority proves deletion is allowed.
 7. Existing customer quota, Media Library UI behavior, private bucket policy, and Supabase image transformation prohibition remain unchanged.
+8. Inactive-account proof diagnostics remain service-role-only, report-only, and separate from any manual human deletion process.
 
 ## References
 

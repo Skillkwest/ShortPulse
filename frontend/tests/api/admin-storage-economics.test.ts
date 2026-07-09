@@ -39,6 +39,10 @@ const createSupabaseAdmin = (
     },
     error: null,
   }));
+  const rpc = vi.fn(async (functionName: string) => ({
+    data: tables[`rpc:${functionName}`] ?? [],
+    error: null,
+  }));
   type MockQueryResult = { data: unknown[]; error: null };
   type MockQueryBuilder = {
     select: ReturnType<typeof vi.fn>;
@@ -71,6 +75,7 @@ const createSupabaseAdmin = (
       },
     },
     from,
+    rpc,
     getUserById,
     selects,
   };
@@ -296,6 +301,32 @@ describe("GET /api/admin/storage-economics", () => {
             },
           },
         ],
+        "rpc:get_media_storage_lifecycle_summary": [
+          {
+            manifest_action: "manual_review_required",
+            manifest_reason: "voice source requires lifecycle proof",
+            safe_path_class: "media_library/voice_changer_source_audio",
+            object_count: 2,
+            objects_missing_size_metadata: 0,
+            total_mb: 24,
+            oldest_object_created_at: "2026-07-01T00:00:00.000Z",
+            newest_object_created_at: "2026-07-02T00:00:00.000Z",
+            youngest_age_days: 1,
+            oldest_age_days: 2,
+          },
+          {
+            manifest_action: "protected",
+            manifest_reason: "referenced by media table",
+            safe_path_class: "media_library/generation_images",
+            object_count: 5,
+            objects_missing_size_metadata: 0,
+            total_mb: 128,
+            oldest_object_created_at: "2026-07-01T00:00:00.000Z",
+            newest_object_created_at: "2026-07-02T00:00:00.000Z",
+            youngest_age_days: 1,
+            oldest_age_days: 2,
+          },
+        ],
       },
       {
         "user-free": "free@example.com",
@@ -409,7 +440,51 @@ describe("GET /api/admin/storage-economics", () => {
         }),
       ])
     );
+    expect(payload.accountHealth.topStorageAccounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "user-paid",
+          userEmail: null,
+          opportunityTypes: expect.arrayContaining(["top_storage"]),
+        }),
+      ])
+    );
+    expect(payload.lifecycleHealth).toEqual(
+      expect.objectContaining({
+        source: "lifecycle_rpc",
+        status: "current",
+        totalObjectCount: 7,
+        manualReviewObjectCount: 2,
+        manualReviewMb: 24,
+      })
+    );
+    expect(payload.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          metricKey: "product_tracked_storage",
+          source: "product_tracked",
+          status: "current",
+        }),
+        expect.objectContaining({
+          metricKey: "provider_egress",
+          source: "provider_snapshot",
+        }),
+        expect.objectContaining({
+          metricKey: "lifecycle_health",
+          source: "lifecycle_rpc",
+        }),
+      ])
+    );
+    expect(payload.trend).toEqual(
+      expect.objectContaining({
+        source: "unavailable",
+        status: "unavailable",
+      })
+    );
     expect(supabase.getUserById).toHaveBeenCalledWith("user-free");
+    expect(supabase.rpc).toHaveBeenCalledWith("get_media_storage_lifecycle_summary", {
+      p_cleanup_ttl_days: 7,
+    });
     expect(JSON.stringify(payload)).not.toContain("must-not-be-selected");
     expect(supabase.selects.media_files?.[0]).toBe("user_id, file_size, created_at");
     expect(supabase.selects.billing_plans?.[0]).toBe(

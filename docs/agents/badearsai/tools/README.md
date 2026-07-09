@@ -4,7 +4,7 @@ Purpose: inventory helper tools and scripts for Badearsai's error-monitoring wor
 
 ## Current Status
 
-No executable Badearsai-specific scripts exist yet.
+Badearsai now has a Crash Logs helper at `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
 
 ## Manual Tools In Use
 
@@ -15,6 +15,10 @@ No executable Badearsai-specific scripts exist yet.
 - Unauthenticated route probes for fail-closed checks when they are non-mutating.
 - Existing route/docs/test files for canonical source ownership.
 - Canonical status semantics: `frontend/pages/api/admin/errors-status.ts` and `frontend/pages/api/admin/errors-status-bulk.ts`.
+- Crash Logs read/review helper:
+  - `node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list`,
+  - `node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list --status all --review-status open --limit 50`,
+  - `node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs review --session <browser-crash-session-row-id> --status resolved|ignored|open --note "<rationale>" --reviewer-email <admin-email>`.
 - Existing Ophestivus helpers when the current workflow fits their board/status model:
   - `npm -C frontend run ophestivus:error-status -- --incident <incident-id> [--after <iso>]`,
   - `npm -C frontend run ophestivus:error-status -- --fingerprint <fingerprint> [--after <iso>]`,
@@ -22,6 +26,27 @@ No executable Badearsai-specific scripts exist yet.
   - `npm -C frontend run ophestivus:complete-error-ticket -- ... --dry-run`.
 
 ## Planned Scripts
+
+### Crash Log Intake Helper
+
+Status: implemented at `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
+
+Goal: pull current `/admin/crashes` evidence directly from production so Badearsai can run the Crash Log SOP without pasted packets.
+
+Default output:
+
+- row ID,
+- evidence status and confidence,
+- effective stale status,
+- review status,
+- route,
+- last event and timeline,
+- release/build,
+- redacted user/session boundary,
+- allowlisted metadata keys,
+- pressure/crash-report summary.
+
+Review updates are guarded and must be one-row, note-backed status changes that match the canonical review fields owned by `frontend/pages/api/admin/crashes-status.ts`.
 
 ### Triage Packet Parser
 
@@ -77,7 +102,7 @@ Expected output:
 
 ## Tool Rules
 
-- Tools must be read-only except for reviewed Admin Errors status treatment on the current pasted batch or another explicit user-approved mutation.
+- Tools must be read-only except for reviewed Admin Errors or Crash Logs status treatment on the current batch/run or another explicit user-approved mutation.
 - Tools must not print or retain secrets, cookies, raw env values, signed URLs, private customer content, or customer payment details.
 - Tools must preserve individual incident IDs even when grouping causal chains.
 - Tools must label proof level and stop boundaries.

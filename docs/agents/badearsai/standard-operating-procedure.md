@@ -12,7 +12,11 @@ Run this SOP when the user says:
 - `error manager`,
 - `are these errors real or noise`,
 - `trace these issues`,
+- `check crash log`,
+- `check crash logs`,
 - or asks to classify Admin Errors during launch rollout.
+
+If the trigger references `/admin/crashes`, Crash Logs, browser crashes, freezes, or the phrase `check crash log`, run `docs/agents/badearsai/sop-crash-log-triage.md` as the scoped workflow for that surface.
 
 ## Scope
 

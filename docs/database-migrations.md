@@ -349,6 +349,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 215.  `sql/migrations/216_repair_pulse_text_first_builtin_catalog.sql`
 216.  `sql/migrations/217_repair_pulse_single_shot_builtin_catalog.sql`
 217.  `sql/migrations/218_add_admin_growth_cohorts_stats.sql`
+218.  `sql/migrations/219_add_account_storage_ownership_proof.sql`
       Rollback files:
 
 
@@ -438,6 +439,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/213_add_billing_subscription_change_intents_rollback.sql`
     - `sql/migrations/rollback/214_add_admin_error_watch_items_rollback.sql`
     - `sql/migrations/rollback/215_add_billing_subscription_scheduled_changes_rollback.sql`
+    - `sql/migrations/rollback/219_add_account_storage_ownership_proof_rollback.sql`
     - `sql/migrations/rollback/143_add_project_workspace_snapshot_freshness_guard_rollback.sql`
     - `sql/migrations/rollback/152_add_audio_generation_display_title_rollback.sql`
     - `sql/migrations/rollback/153_add_dashboard_tutorials_rollback.sql`
@@ -589,6 +591,7 @@ Billing safety note:
 - Migration `186_add_admin_storage_usage_snapshots.sql` adds service-role-only `admin_storage_usage_snapshots` so `/admin/storage` can compare product-tracked storage/add-on revenue against operator-captured Supabase usage, egress, and observed overage cost snapshots without exposing provider economics to customer roles.
 - Migration `187_add_app_error_event_telemetry_retention.sql` adds service-role-only daily telemetry rollups and schedules raw retention for low/medium `telemetry.*` rows in `app_error_events`, without performing a one-time historical prune during migration apply.
 - Migration `188_add_media_storage_usage_helper.sql` adds service-role-only `resolve_media_storage_usage_bytes(uuid)` so trusted server quota preflights can read aggregate Media Library usage without exposing direct table access to customer roles.
+- Migration `219_add_account_storage_ownership_proof.sql` adds service-role-only account storage ownership proof RPCs plus a read-only aggregate diagnostic script. The proof reports active/inactive/deleted/missing-owner status and blockers only; it does not delete, enqueue cleanup, or authorize inactive-user data removal.
 - Migration `189_rename_free_plan_offer_rejection_to_baseline_access.sql` renames the service-role plan-offer rejection copy for the legacy baseline-access sentinel without changing pricing, entitlement, acquisition, or execute-grant behavior. Hosted apply remains a separate approved Supabase operation.
 - Migration `190_require_paid_plan_for_media_library_inserts.sql` adds `user_has_paid_media_library_access(uuid)` and requires a current non-free billing plan before authenticated users can insert `media_files` or `media_prompts`; existing owned select/update/delete isolation remains intact. Hosted apply remains a separate approved Supabase operation.
 - Migration `191_rename_credit_top_up_packages.sql` renames credit top-up package display names to amount-only customer copy while leaving ids, pricing, Stripe linkage, activation state, and grant amounts unchanged. Hosted apply remains a separate approved Supabase operation.

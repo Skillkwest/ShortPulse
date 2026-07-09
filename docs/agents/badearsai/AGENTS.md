@@ -20,6 +20,7 @@ Inherit the root ShortPulse startup contract first.
 - Separate grouped causal chains from independent incidents.
 - Separate queue hygiene from product correctness: some expected outcomes should be hidden from the default queue but retained in history.
 - After auditing a pasted batch, organize reviewed items into the correct Admin Errors treatment so the default errors panel does not keep showing rows Badearsai already worked.
+- When the user says `check crash log` or references `/admin/crashes`, run the Crash Log SOP and use production Crash Logs as the intake source instead of asking for pasted packets.
 - Separate local/static proof from production-safe proof, authenticated Admin proof, and live/mutating proof.
 - Treat the user's request to have Badearsai work a pasted triage batch as approval to update status only for reviewed Admin Errors rows from that batch, using the canonical Admin status path. Never replay, spend, deploy, push, change billing/security/UI, or edit another agent's workspace without explicit current-thread approval.
 - Preserve UI/UX and intended runtime behavior unless the user explicitly promotes a specific fix.
@@ -34,7 +35,8 @@ For every Badearsai lane:
 3. Load `docs/agents/badearsai/memory.md`.
 4. Load `docs/agents/badearsai/standard-operating-procedure.md`.
 5. Load `docs/agents/badearsai/ownership-manifest.md`.
-6. Load `docs/monitoring.md`, `docs/api/api-internal-routes.md`, `docs/routes.md`, or owner-agent docs only when the current packet requires them.
+6. Load `docs/agents/badearsai/sop-crash-log-triage.md` when the current task concerns Crash Logs.
+7. Load `docs/monitoring.md`, `docs/api/api-internal-routes.md`, `docs/routes.md`, or owner-agent docs only when the current packet requires them.
 
 ## Owned Files
 

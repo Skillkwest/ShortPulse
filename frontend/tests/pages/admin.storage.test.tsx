@@ -214,6 +214,89 @@ const buildStorageEconomicsState = () => ({
         details: "baseline storage usage",
       },
     ],
+    accountHealth: {
+      topStorageAccounts: [
+        {
+          userId: "user-1",
+          userEmail: "starter@example.com",
+          planId: "starter",
+          trackedBytes: 10737418240,
+          totalLimitBytes: 64424509440,
+          usagePct: 16.7,
+          activeAddonCount: 1,
+          opportunityTypes: ["top_storage"],
+          details: "Top tracked storage account.",
+        },
+      ],
+      quotaPressureAccounts: [
+        {
+          userId: "user-2",
+          userEmail: "quota@example.com",
+          planId: "free",
+          trackedBytes: 2147483648,
+          totalLimitBytes: 0,
+          usagePct: null,
+          activeAddonCount: 0,
+          opportunityTypes: ["baseline_usage"],
+          details: "Tracked storage exists without a base/add-on limit.",
+        },
+      ],
+      addonOpportunityAccounts: [],
+    },
+    lifecycleHealth: {
+      source: "lifecycle_rpc",
+      status: "current",
+      cleanupTtlDays: 7,
+      totalObjectCount: 12,
+      totalMb: 2048,
+      protectedObjectCount: 10,
+      protectedMb: 1700,
+      deleteCandidateObjectCount: 1,
+      deleteCandidateMb: 2,
+      manualReviewObjectCount: 1,
+      manualReviewMb: 346,
+      integrityProblemObjectCount: 0,
+      integrityProblemMb: 0,
+      reason: null,
+      rows: [
+        {
+          manifestAction: "manual_review_required",
+          manifestReason: "voice source requires lifecycle proof",
+          safePathClass: "media_library/voice_changer_source_audio",
+          objectCount: 1,
+          objectsMissingSizeMetadata: 0,
+          totalMb: 346,
+          oldestObjectCreatedAt: "2026-07-01T00:00:00.000Z",
+          newestObjectCreatedAt: "2026-07-01T00:00:00.000Z",
+          youngestAgeDays: 1,
+          oldestAgeDays: 1,
+        },
+      ],
+    },
+    trend: {
+      source: "unavailable",
+      status: "unavailable",
+      snapshots: [],
+      reason: "Historical aggregate storage snapshots are not wired yet.",
+    },
+    evidence: [
+      {
+        metricKey: "product_tracked_storage",
+        label: "Product-tracked storage",
+        source: "product_tracked",
+        status: "current",
+        capturedAt: null,
+        details: "Summed from media_files.file_size and used for customer quota decisions.",
+      },
+      {
+        metricKey: "provider_egress",
+        label: "Provider egress and overage",
+        source: "provider_snapshot",
+        status: "current",
+        capturedAt: "2026-07-15T00:00:00.000Z",
+        details: "Latest admin provider snapshot row supplies egress evidence.",
+      },
+    ],
     dataGaps: ["Provider invoice proof is unavailable."],
     health: {
       degraded: false,
@@ -250,12 +333,18 @@ describe("Admin storage page", () => {
 
     expect(screen.getByRole("heading", { name: "Storage", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Storage" })).toHaveAttribute("href", "/admin/storage");
+    expect(screen.getByText("Executive snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Storage intelligence")).toBeInTheDocument();
     expect(screen.getByText("Supabase usage")).toBeInTheDocument();
-    expect(screen.getByText("Supabase pressure")).toBeInTheDocument();
-    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText("Provider pressure")).toBeInTheDocument();
+    expect(screen.getAllByText("Current").length).toBeGreaterThan(0);
     expect(screen.getByText(/Production database/)).toBeInTheDocument();
     expect(screen.getByText("Total Egress")).toBeInTheDocument();
     expect(screen.getByText("18.00x product-tracked storage")).toBeInTheDocument();
+    expect(screen.getByText("Top storage accounts")).toBeInTheDocument();
+    expect(screen.getByText("Quota and add-on opportunities")).toBeInTheDocument();
+    expect(screen.getByText("Storage object classes")).toBeInTheDocument();
+    expect(screen.getByText("Source confidence")).toBeInTheDocument();
     expect(screen.getByText("Capacity and margin snapshot")).toBeInTheDocument();
     expect(screen.getByText("Product Tracked")).toBeInTheDocument();
     expect(screen.getByText("Add-on Margin")).toBeInTheDocument();
@@ -314,6 +403,57 @@ describe("Admin storage page", () => {
     expect(riskSection).toBeTruthy();
     expect(within(riskSection as HTMLElement).getByText("starter@example.com")).toBeInTheDocument();
     expect(within(riskSection as HTMLElement).queryByText("user-1")).not.toBeInTheDocument();
+    const lifecycleSection = screen
+      .getByRole("heading", { name: "Storage object classes" })
+      .closest("section");
+    expect(lifecycleSection).toBeTruthy();
+    expect(
+      within(lifecycleSection as HTMLElement).getByText("media_library/voice_changer_source_audio")
+    ).toBeInTheDocument();
+    expect(
+      within(lifecycleSection as HTMLElement).getAllByText(/report-only/).length
+    ).toBeGreaterThan(0);
+    const evidenceSection = screen
+      .getByRole("heading", { name: "Source confidence" })
+      .closest("section");
+    expect(evidenceSection).toBeTruthy();
+    expect(within(evidenceSection as HTMLElement).getByText("Product rows")).toBeInTheDocument();
+    expect(
+      within(evidenceSection as HTMLElement).getByText("Provider snapshot")
+    ).toBeInTheDocument();
+  });
+
+  it("labels egress as configured estimate when no provider egress snapshot backs it", () => {
+    const baseState = buildStorageEconomicsState();
+    useAdminStorageEconomicsControllerMock.mockReturnValue({
+      ...baseState,
+      storageEconomics: {
+        ...baseState.storageEconomics,
+        evidence: baseState.storageEconomics.evidence.map((row) =>
+          row.metricKey === "provider_egress"
+            ? {
+                ...row,
+                source: "configured_estimate",
+                status: "estimated",
+                capturedAt: null,
+                details:
+                  "Egress uses configured defaults because no provider snapshot row is available.",
+              }
+            : row
+        ),
+      },
+    });
+
+    render(<AdminStoragePage />);
+
+    expect(screen.getAllByText(/Configured egress estimate/).length).toBeGreaterThan(0);
+    const evidenceSection = screen
+      .getByRole("heading", { name: "Source confidence" })
+      .closest("section");
+    expect(evidenceSection).toBeTruthy();
+    expect(
+      within(evidenceSection as HTMLElement).getByText("Configured estimate")
+    ).toBeInTheDocument();
   });
 
   it("does not render missing Supabase provider evidence as zero usage", () => {

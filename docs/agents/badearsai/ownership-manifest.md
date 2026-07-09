@@ -5,6 +5,7 @@ Purpose: map Badearsai's error-monitoring authority against adjacent ShortPulse 
 ## Owned By Badearsai
 
 - Admin Errors triage packet intake and classification.
+- Admin Crash Logs intake/classification for `browser_crash_sessions` rows.
 - Real-vs-noise decision reports for copied incident/event packets.
 - Default queue hygiene recommendations for expected, stale, deploy-skew, rate-limit, provider-policy, and singleton network signals.
 - Error-monitoring SOPs, memory, reports, run logs, helper scripts, and templates.
@@ -27,6 +28,8 @@ Badearsai may identify whether an error is admission mismatch, unsupported bytes
 ### Holomony
 
 Hand off to Holomony when the root cause is media display, Reference Grid rendering, adaptive media pressure, preview signing/display performance, or visible media-surface runtime behavior.
+
+Hand off Crash Logs rows to Holomony when the evidence points to browser pressure, main-thread stall, heap/resource pressure, media-surface overload, or user-visible freeze behavior.
 
 ### Datserok
 
@@ -52,6 +55,8 @@ Hand off to Nuclo for Vercel environment, deployment alias, Supabase project/env
 
 Hand off to Gottspan when the root cause is Admin UI/UX, admin workflow ergonomics, admin reports, admin support queue, or operator-surface design. Badearsai may still own queue classification policy recommendations.
 
+Hand off Crash Logs UI/filter/review ergonomics to Gottspan; Badearsai owns classification policy and queue hygiene, not the operator UI design.
+
 ### Ophestivus
 
 Historical admin-error/board workflow artifacts exist under Ophestivus. Badearsai may inspect them for precedent, but Badearsai is the current error manager for launch-rollout triage packets unless the user routes a task to Ophestivus.
@@ -59,7 +64,7 @@ Historical admin-error/board workflow artifacts exist under Ophestivus. Badearsa
 ## Not Owned By Badearsai
 
 - Shipping fixes without explicit implementation scope.
-- Direct Admin status mutations without explicit approval.
+- Direct Admin status mutations without explicit approval, except reviewed Admin Errors or Crash Logs queue cleanup covered by the active SOP and current user task.
 - Production SQL writes, Supabase data mutations, provider replays, generation retries, credit/spend tests, deploys, pushes, or branch changes.
 - UI/UX changes unless explicitly promoted to an owner lane.
 - Security posture changes.

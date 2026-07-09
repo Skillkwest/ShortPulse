@@ -1009,6 +1009,106 @@ export type AdminStorageEconomicsRiskRow = {
   details: string;
 };
 
+export type AdminStorageEvidenceSource =
+  | "product_tracked"
+  | "live_storage_metadata"
+  | "provider_snapshot"
+  | "configured_estimate"
+  | "local_billing_rows"
+  | "app_error_events"
+  | "lifecycle_rpc"
+  | "unavailable";
+
+export type AdminStorageEvidenceStatus = "current" | "stale" | "estimated" | "unavailable";
+
+export type AdminStorageEvidenceRow = {
+  metricKey: string;
+  label: string;
+  source: AdminStorageEvidenceSource;
+  status: AdminStorageEvidenceStatus;
+  capturedAt: string | null;
+  details: string;
+};
+
+export type AdminStorageAccountOpportunityType =
+  | "top_storage"
+  | "near_quota"
+  | "over_quota"
+  | "addon_opportunity"
+  | "addon_underused"
+  | "baseline_usage";
+
+export type AdminStorageAccountHealthRow = {
+  userId: string;
+  userEmail: string | null;
+  planId: string;
+  trackedBytes: number;
+  totalLimitBytes: number;
+  usagePct: number | null;
+  activeAddonCount: number;
+  opportunityTypes: AdminStorageAccountOpportunityType[];
+  details: string;
+};
+
+export type AdminStorageAccountHealth = {
+  topStorageAccounts: AdminStorageAccountHealthRow[];
+  quotaPressureAccounts: AdminStorageAccountHealthRow[];
+  addonOpportunityAccounts: AdminStorageAccountHealthRow[];
+};
+
+export type AdminStorageLifecycleAction =
+  | "protected"
+  | "delete_candidate"
+  | "manual_review_required"
+  | "integrity_problem"
+  | "unknown";
+
+export type AdminStorageLifecycleRow = {
+  manifestAction: AdminStorageLifecycleAction;
+  manifestReason: string;
+  safePathClass: string;
+  objectCount: number;
+  objectsMissingSizeMetadata: number;
+  totalMb: number;
+  oldestObjectCreatedAt: string | null;
+  newestObjectCreatedAt: string | null;
+  youngestAgeDays: number | null;
+  oldestAgeDays: number | null;
+};
+
+export type AdminStorageLifecycleHealth = {
+  source: "lifecycle_rpc" | "unavailable";
+  status: AdminStorageEvidenceStatus;
+  cleanupTtlDays: number | null;
+  totalObjectCount: number;
+  totalMb: number;
+  protectedObjectCount: number;
+  protectedMb: number;
+  deleteCandidateObjectCount: number;
+  deleteCandidateMb: number;
+  manualReviewObjectCount: number;
+  manualReviewMb: number;
+  integrityProblemObjectCount: number;
+  integrityProblemMb: number;
+  rows: AdminStorageLifecycleRow[];
+  reason: string | null;
+};
+
+export type AdminStorageTrendSnapshot = {
+  capturedAt: string;
+  productTrackedBytes: number;
+  providerStorageGb: number | null;
+  addonMrrCents: number;
+  activeAddonSoldCapacityBytes: number;
+};
+
+export type AdminStorageTrend = {
+  source: "historical_snapshots" | "unavailable";
+  status: AdminStorageEvidenceStatus;
+  snapshots: AdminStorageTrendSnapshot[];
+  reason: string | null;
+};
+
 export type AdminStorageEconomicsHealth = {
   degraded: boolean;
   reason: string | null;
@@ -1024,6 +1124,10 @@ export type AdminStorageEconomicsResponse = {
   addonPackages: AdminStorageEconomicsAddonPackageRow[];
   funnel: AdminStorageEconomicsFunnel;
   riskQueue: AdminStorageEconomicsRiskRow[];
+  accountHealth: AdminStorageAccountHealth;
+  lifecycleHealth: AdminStorageLifecycleHealth;
+  trend: AdminStorageTrend;
+  evidence: AdminStorageEvidenceRow[];
   dataGaps: string[];
   health: AdminStorageEconomicsHealth;
   generatedAt: string | null;

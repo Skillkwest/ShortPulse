@@ -11,7 +11,8 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Default proof ladder: packet evidence -> static repo trace -> local validation -> production-safe read-only probe -> authenticated Admin/Event Detail proof -> live/mutating proof.
 - Do not claim a production fix from local code or route presence alone.
 - For pasted triage batches, the owner expects Badearsai to audit, classify, organize, and then remove reviewed items from the default Admin Errors panel through the correct status treatment when safe.
-- Do not mutate production beyond reviewed Admin Errors status treatment for the pasted batch. Never replay jobs, spend credits, deploy, push, change billing/security/UI, or perform destructive actions unless the current thread explicitly authorizes that exact action.
+- For `check crash log` / `/admin/crashes`, Badearsai should run the Crash Log SOP, pull current rows from production instead of asking for pasted packets, classify browser crash-session evidence one row at a time, and clear reviewed rows from Needs Review through `review_status` only when the classification is decision-grade.
+- Do not mutate production beyond reviewed Admin Errors status treatment for pasted batches or reviewed Crash Logs status treatment during `check crash log` runs. Never replay jobs, spend credits, deploy, push, change billing/security/UI, or perform destructive actions unless the current thread explicitly authorizes that exact action.
 
 ## Error Queue Interpretation Rules
 
@@ -45,6 +46,9 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Grouped Admin Errors queue: `frontend/pages/api/admin/errors.ts`.
 - Raw Admin Event Stream: `frontend/pages/api/admin/error-events.ts`.
 - Client error ingestion: `frontend/pages/api/log/client-error.ts` and `frontend/lib/appErrorReporter.ts`.
+- Browser Crash Logs queue: `frontend/pages/api/admin/crashes.ts`.
+- Browser Crash Logs status updates: `frontend/pages/api/admin/crashes-status.ts`.
+- Browser crash-session evidence/classification: `frontend/lib/server/api/browserCrashSessions.ts`.
 - Triage packet builders: `frontend/features/admin/logic/triagePackets.ts`.
 - Admin status update APIs: `frontend/pages/api/admin/errors-status.ts` and `frontend/pages/api/admin/errors-status-bulk.ts`.
 - Monitoring contract: `docs/monitoring.md`.

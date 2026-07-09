@@ -66,7 +66,14 @@ export function PresetLibraryDetailModal({
           </header>
           <dl className="preset-library-detail-list">
             {fields.map((field) => (
-              <div className="preset-library-detail-row" key={field.label}>
+              <div
+                className={
+                  field.preserveWhitespace
+                    ? "preset-library-detail-row preset-library-detail-row--long-form"
+                    : "preset-library-detail-row"
+                }
+                key={field.label}
+              >
                 <dt>{field.label}</dt>
                 <dd className={field.preserveWhitespace ? "preserve-whitespace" : undefined}>
                   {field.value}

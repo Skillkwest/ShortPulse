@@ -251,7 +251,7 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Bonus credits", included: false },
+      { label: "Free BONUS credits", included: false },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 12_900,
@@ -270,14 +270,14 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
     cardFooterDescription: "Best for serious creators with heavy workflow & storage needs",
-    bonusCreditsLabel: "+ 500 bonus credits every month included",
+    bonusCreditsLabel: "+ 500 BONUS credits every month for FREE",
     cardFeatures: [
       { label: "Create studio", included: true },
       { label: "Editing studio", included: true },
       { label: "Video studio", included: true },
       { label: "Sound Studio", included: true },
       { label: "Lowest cost per credit", included: true },
-      { label: "Bonus credits", included: true },
+      { label: "Free BONUS credits", included: true },
     ],
     displayPricing: {
       monthlyDisplayPriceCents: 29_900,

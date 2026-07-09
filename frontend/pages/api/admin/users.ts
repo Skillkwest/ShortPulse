@@ -25,6 +25,7 @@ type AdminUserRow = {
   monthlyCreditsCents: number | null;
   billingSource: "billing_profile" | "subscription_contract";
   subscriptionStatus: string | null;
+  cancelAtPeriodEnd: boolean;
   planRenewalAt: string | null;
   currentCycleSpentCredits: number;
   topUpPurchaseCount: number;
@@ -55,6 +56,7 @@ type BillingSubscriptionContractRow = {
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
   status: string | null;
+  cancel_at_period_end: boolean | null;
   current_period_start: string | null;
   current_period_end: string | null;
 };
@@ -243,7 +245,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         supabaseAdmin
           .from("billing_subscription_contracts")
           .select(
-            "user_id, plan_id, offer_id, stripe_price_id, contract_source, billing_interval, recurring_price_cents, monthly_credits_cents, status, current_period_start, current_period_end"
+            "user_id, plan_id, offer_id, stripe_price_id, contract_source, billing_interval, recurring_price_cents, monthly_credits_cents, status, cancel_at_period_end, current_period_start, current_period_end"
           )
           .in("user_id", userIds)
           .is("ended_at", null),
@@ -386,6 +388,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           (contract?.status as string | undefined) ??
           (profile?.subscription_status as string | undefined) ??
           null,
+        cancelAtPeriodEnd: contract?.cancel_at_period_end === true,
         planRenewalAt:
           (contract?.current_period_end as string | undefined) ??
           (profile?.current_period_end as string | undefined) ??

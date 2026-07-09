@@ -128,7 +128,7 @@ export const resolveAdminBillingDiagnostics = async ({
     supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "id, plan_id, offer_id, billing_interval, stripe_customer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at"
+        "id, plan_id, offer_id, billing_interval, stripe_customer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, cancel_at_period_end, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at"
       )
       .eq("user_id", userId)
       .is("ended_at", null)
@@ -429,6 +429,7 @@ export const resolveAdminBillingDiagnostics = async ({
         monthlyCreditsCents: asCents(currentContract.monthly_credits_cents),
         storageLimitBytes: asCents(currentContract.storage_limit_bytes),
         status: currentContract.status ?? null,
+        cancelAtPeriodEnd: currentContract.cancel_at_period_end === true,
         currentPeriodStart: currentContract.current_period_start ?? null,
         currentPeriodEnd: currentContract.current_period_end ?? null,
         lastCreditGrantAt: currentContract.last_credit_grant_at ?? null,

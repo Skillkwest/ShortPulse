@@ -645,9 +645,8 @@ describe("Pricing route behavior", () => {
     expect(screen.getByRole("link", { name: "ShortPulse" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("button", { name: "Annual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("with annual billing")).toBeInTheDocument();
-    expect(
-      screen.getByText("Upgrade anytime. Downgrades apply at the next billing cycle.")
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Upgrade anytime/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Downgrades apply/i)).not.toBeInTheDocument();
   });
 
   it("allows switching from annual to monthly billing", async () => {

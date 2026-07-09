@@ -30,6 +30,7 @@ export type BillingContractRow = {
   monthly_credits_cents: number | string | null;
   storage_limit_bytes: number | string | null;
   status: string | null;
+  cancel_at_period_end: boolean | null;
   current_period_start: string | null;
   current_period_end: string | null;
   last_credit_grant_at: string | null;

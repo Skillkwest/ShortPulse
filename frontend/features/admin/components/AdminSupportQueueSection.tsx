@@ -76,6 +76,14 @@ function formatStatusLabel(value: string | null | undefined): string {
     .join(" ");
 }
 
+function formatBillingStatusLabel(
+  row: Pick<AdminUserRow, "subscriptionStatus" | "cancelAtPeriodEnd">
+): string {
+  return row.cancelAtPeriodEnd
+    ? "Cancellation scheduled"
+    : formatStatusLabel(row.subscriptionStatus);
+}
+
 function pickPositiveNumber(...values: Array<number | null | undefined>): number | null {
   for (const value of values) {
     if (value != null && Number.isFinite(value) && value > 0) {
@@ -241,6 +249,12 @@ export function AdminSupportQueueSection({
         )
       : selectedUserPriceLabel;
   const snapshotStatusLabel = formatStatusLabel(snapshotStatus);
+  const snapshotCancellationScheduled = Boolean(
+    billingDiagnostics?.currentContract?.cancelAtPeriodEnd ?? selectedUser?.cancelAtPeriodEnd
+  );
+  const snapshotBillingStateLabel = snapshotCancellationScheduled
+    ? "Cancellation scheduled"
+    : snapshotStatusLabel;
   const snapshotCreditsHelper = [
     `available ${selectedUser?.availableCredits.toLocaleString() ?? "0"}`,
     selectedUser && selectedUser.reservedCredits > 0
@@ -317,20 +331,28 @@ export function AdminSupportQueueSection({
           key: "billing-state",
           label: "Billing state",
           value:
-            snapshotContractSource === "internal_comp" ? "Payment exempt" : snapshotStatusLabel,
+            snapshotContractSource === "internal_comp"
+              ? "Payment exempt"
+              : snapshotBillingStateLabel,
           helper:
             snapshotContractSource === "internal_comp"
               ? `Manual ${planLabel(selectedUser.planId)} access without Stripe billing.`
-              : hasLinkedStripeSubscription
-                ? "Stripe-linked billing is configured."
-                : "No linked Stripe subscription.",
+              : snapshotCancellationScheduled && snapshotRenewalAt
+                ? `Access ends ${formatCompactDate(snapshotRenewalAt)}.`
+                : hasLinkedStripeSubscription
+                  ? "Stripe-linked billing is configured."
+                  : "No linked Stripe subscription.",
           testId: "snapshot-card-billing-state",
         },
         {
           key: "renewal",
-          label: "Next renewal",
+          label: snapshotCancellationScheduled ? "Access ends" : "Next renewal",
           value: snapshotRenewalAt ? formatCompactDate(snapshotRenewalAt) : "No renewal",
-          helper: snapshotRenewalAt ? "Current billing period end." : "No active billing cycle.",
+          helper: snapshotCancellationScheduled
+            ? "Cancellation takes effect at period end."
+            : snapshotRenewalAt
+              ? "Current billing period end."
+              : "No active billing cycle.",
           testId: "snapshot-card-renewal",
         },
         {
@@ -523,7 +545,7 @@ export function AdminSupportQueueSection({
                               className={styles.accountSnapshotHeaderBadge}
                               data-testid="snapshot-status-badge"
                             >
-                              {snapshotStatusLabel}
+                              {snapshotBillingStateLabel}
                             </span>
                             {snapshotContractSource === "internal_comp" ? (
                               <span
@@ -1036,7 +1058,7 @@ export function AdminSupportQueueSection({
               <span>Spendable</span>
               <span>Top-ups</span>
               <span>Billing</span>
-              <span>Renews</span>
+              <span>Renews / ends</span>
             </div>
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
@@ -1177,7 +1199,7 @@ export function AdminSupportQueueSection({
                         className={`${styles.adminSupportQueueCell} subdued`}
                         data-label="Billing"
                       >
-                        <span>{formatStatusLabel(row.subscriptionStatus)}</span>
+                        <span>{formatBillingStatusLabel(row)}</span>
                         {row.contractSource !== "internal_comp" &&
                         row.recurringPriceCents != null ? (
                           <span className={styles.adminCreditMeta}>
@@ -1191,9 +1213,13 @@ export function AdminSupportQueueSection({
                       </span>
                       <span
                         className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Renews"
+                        data-label="Renews / ends"
                       >
-                        <span>{formatCompactDate(row.planRenewalAt)}</span>
+                        <span>
+                          {row.cancelAtPeriodEnd && row.planRenewalAt
+                            ? `Ends ${formatCompactDate(row.planRenewalAt)}`
+                            : formatCompactDate(row.planRenewalAt)}
+                        </span>
                       </span>
                     </div>
                   </div>

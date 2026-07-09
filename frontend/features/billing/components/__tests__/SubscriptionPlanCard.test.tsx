@@ -43,8 +43,8 @@ describe("SubscriptionPlanCard", () => {
 
     expect(resolvePlanPricingForInterval(businessPlan, "month").monthlyCreditsCents).toBe(8000);
     expect(screen.getByText("7,500 credits every month")).toBeInTheDocument();
-    expect(screen.getByText("+ 500 bonus credits every month included")).toBeInTheDocument();
-    expect(screen.getByText("Bonus credits").closest("li")).toHaveClass("is-included");
+    expect(screen.getByText("+ 500 BONUS credits every month for FREE")).toBeInTheDocument();
+    expect(screen.getByText("Free BONUS credits").closest("li")).toHaveClass("is-included");
     expect(screen.queryByText("8,000 credits every month")).not.toBeInTheDocument();
   });
 });

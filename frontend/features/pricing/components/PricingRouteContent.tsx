@@ -401,9 +401,6 @@ export function PricingRouteContent({ billingCatalog, isAuthenticated }: Pricing
                   void handleIntervalToggle(billingInterval);
                 }}
               />
-              <p className="pricing-billing-helper">
-                Upgrade anytime. Downgrades apply at the next billing cycle.
-              </p>
               {sortedPlans.length === 0 ? (
                 <AppMessage
                   className="pricing-route-notice"

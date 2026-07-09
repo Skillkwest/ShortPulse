@@ -140,6 +140,7 @@ describe("GET /api/admin/users", () => {
               recurring_price_cents: 1000,
               monthly_credits_cents: 4000,
               status: "active",
+              cancel_at_period_end: true,
               current_period_start: "2026-02-01T00:00:00.000Z",
               current_period_end: "2026-03-01T00:00:00.000Z",
             },
@@ -273,6 +274,7 @@ describe("GET /api/admin/users", () => {
             monthlyCreditsCents: 4000,
             billingSource: "subscription_contract",
             subscriptionStatus: "active",
+            cancelAtPeriodEnd: true,
             planRenewalAt: "2026-03-01T00:00:00.000Z",
             credits: 75,
             spendableCredits: 75,
@@ -381,6 +383,7 @@ describe("GET /api/admin/users", () => {
                       recurring_price_cents: 3000,
                       monthly_credits_cents: 6000,
                       status: "active",
+                      cancel_at_period_end: true,
                       current_period_start: "2026-02-01T00:00:00.000Z",
                       current_period_end: "2026-03-01T00:00:00.000Z",
                     },
@@ -394,6 +397,7 @@ describe("GET /api/admin/users", () => {
                       recurring_price_cents: 3000,
                       monthly_credits_cents: 10000,
                       status: "active",
+                      cancel_at_period_end: false,
                       current_period_start: "2026-02-15T00:00:00.000Z",
                       current_period_end: "2026-03-15T00:00:00.000Z",
                     },
@@ -460,6 +464,7 @@ describe("GET /api/admin/users", () => {
         users: [
           expect.objectContaining({
             id: "user-1",
+            cancelAtPeriodEnd: true,
             spendableCredits: 75,
             reservedCredits: 25,
             currentCycleSpentCredits: 33,
@@ -471,6 +476,7 @@ describe("GET /api/admin/users", () => {
           }),
           expect.objectContaining({
             id: "user-2",
+            cancelAtPeriodEnd: false,
             spendableCredits: 120,
             reservedCredits: 0,
             currentCycleSpentCredits: 44,

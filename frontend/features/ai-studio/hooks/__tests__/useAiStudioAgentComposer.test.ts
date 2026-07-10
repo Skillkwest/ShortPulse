@@ -17,6 +17,7 @@ import {
 import { uploadImageAssetToStorage } from "../../utils/imageUpload";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
 import { AGENT_IMAGE_CAPACITY_MESSAGE } from "../../../../prefabs/agent/attachmentPolicy";
+import type { AgentAttachment } from "../../../../prefabs/agent";
 
 vi.mock("../../utils/dragDrop", async () => {
   const actual =
@@ -645,6 +646,33 @@ describe("useAiStudioAgentComposer", () => {
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
+  it("rejects image eleven in one file batch without evicting accepted images", async () => {
+    const files = Array.from(
+      { length: 11 },
+      (_, index) =>
+        new File([`image-${index + 1}`], `image-${index + 1}.png`, { type: "image/png" })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(10);
+      expect(result.current.agentAttachmentError).toBe(AGENT_IMAGE_CAPACITY_MESSAGE);
+    });
+    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(10);
+  });
+
   it("prefers structured composer image drops over synthetic image files from the browser", async () => {
     const files = [new File(["ghost"], "ghost.png", { type: "image/png" })];
     extractComposerImageDropPayloadMock.mockReturnValue({
@@ -939,6 +967,75 @@ describe("useAiStudioAgentComposer", () => {
       expect(result.current.agentAttachmentError).toBe(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE);
     });
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a sibling preparation failure visible when another file succeeds", async () => {
+    createEphemeralComposerImageDataMock
+      .mockRejectedValueOnce(new Error(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE))
+      .mockResolvedValueOnce({
+        previewDataUrl: "data:image/png;base64,cHJldmlldy0y",
+        modelDataUrl: "data:image/png;base64,bW9kZWwtMg==",
+        width: 512,
+        height: 512,
+      });
+    const files = [
+      new File(["broken"], "broken.png", { type: "image/png" }),
+      new File(["ready"], "ready.png", { type: "image/png" }),
+    ];
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(1);
+      expect(result.current.agentAttachments[0]).toMatchObject({ deliveryStatus: "ready" });
+      expect(result.current.agentAttachmentError).toBe(EPHEMERAL_IMAGE_UNREADABLE_MESSAGE);
+    });
+  });
+
+  it("keeps partial-capacity feedback after accepted sibling files become ready", async () => {
+    const existingAttachments: AgentAttachment[] = Array.from({ length: 9 }, (_, index) => ({
+      id: `existing-${index + 1}`,
+      kind: "image",
+      source: "ephemeral_local",
+      imageUrl: `data:image/png;base64,${Buffer.from(`preview-${index + 1}`).toString("base64")}`,
+      modelDataUrl: `data:image/png;base64,${Buffer.from(`model-${index + 1}`).toString("base64")}`,
+      deliveryStatus: "ready",
+    }));
+    const files = [
+      new File(["ten"], "ten.png", { type: "image/png" }),
+      new File(["eleven"], "eleven.png", { type: "image/png" }),
+    ];
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.setAgentAttachments(existingAttachments);
+    });
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentAttachments).toHaveLength(10);
+      expect(result.current.agentAttachmentError).toBe(AGENT_IMAGE_CAPACITY_MESSAGE);
+    });
+    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(1);
   });
 
   it("records ephemeral image creation events when create workflow debug is enabled", async () => {
@@ -1501,6 +1598,100 @@ describe("useAiStudioAgentComposer", () => {
         mediaId: "media-1",
         deliveryStatus: "ready",
       });
+    });
+  });
+
+  it("ignores a stale duplicate drop completion after a newer drop has resolved", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "image",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+    const resolvers: Array<(value: ResolvedInternalReferenceSource) => void> = [];
+    const resolveInternalImageDropSource = vi.fn(
+      () =>
+        new Promise<ResolvedInternalReferenceSource>((resolve) => {
+          resolvers.push(resolve);
+        })
+    );
+    const buildResolvedSource = (url: string): ResolvedInternalReferenceSource => ({
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "out-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "curated",
+        resolutionReason: "saved_media_lookup",
+      },
+      outputId: "out-1",
+      mediaId: "media-1",
+      mediaSource: "generated",
+      preview: { url },
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "Resolved prompt",
+      preparedImageUrl: url,
+      loadBlob: async (): Promise<Blob> => {
+        throw new Error("No local blob for signed source");
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+        resolveInternalImageDropSource,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+
+    act(() => {
+      resolvers[1]?.(buildResolvedSource("https://signed.example.com/newer.png"));
+    });
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]).toMatchObject({
+        imageUrl: "https://signed.example.com/newer.png",
+        modelDataUrl: "https://signed.example.com/newer.png",
+        deliveryStatus: "ready",
+      });
+    });
+
+    act(() => {
+      resolvers[0]?.(buildResolvedSource("https://signed.example.com/stale.png"));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      imageUrl: "https://signed.example.com/newer.png",
+      modelDataUrl: "https://signed.example.com/newer.png",
+      deliveryStatus: "ready",
     });
   });
 

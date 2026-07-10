@@ -24,6 +24,7 @@ describe("executeStudioAgentFastPathTurn", () => {
       text: async () => "gateway error",
     });
     const markStage = vi.fn();
+    const onProviderCall = vi.fn();
 
     const result = await executeStudioAgentFastPathTurn({
       apiKey: "key",
@@ -35,6 +36,7 @@ describe("executeStudioAgentFastPathTurn", () => {
       context: {},
       messages: [{ role: "user", content: "hello" }],
       markStage,
+      onProviderCall,
     });
 
     expect(result).toEqual({
@@ -43,6 +45,7 @@ describe("executeStudioAgentFastPathTurn", () => {
       detail: "gateway error",
     });
     expect(markStage).toHaveBeenCalledWith("fast_path_turn", expect.any(Number));
+    expect(onProviderCall).toHaveBeenCalledWith("coordinator");
   });
 
   it("normalizes thrown transport errors into retryable failures", async () => {
@@ -662,6 +665,7 @@ describe("executeStudioAgentFastPathTurn", () => {
         }),
       });
     const markStage = vi.fn();
+    const onProviderCall = vi.fn();
 
     const result = await executeStudioAgentFastPathTurn({
       apiKey: "key",
@@ -673,11 +677,13 @@ describe("executeStudioAgentFastPathTurn", () => {
       context: {},
       messages: [{ role: "user", content: "hello" }],
       markStage,
+      onProviderCall,
     });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(onProviderCall.mock.calls.map(([stage]) => stage)).toEqual(["coordinator", "repair"]);
     const repairCallArgs = fetchStudioAgentChatCompletionMock.mock.calls[1]?.[0] as
       | { messages?: Array<{ role?: string; content?: string }> }
       | undefined;

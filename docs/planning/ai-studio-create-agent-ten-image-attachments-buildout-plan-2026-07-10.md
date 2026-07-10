@@ -1,6 +1,6 @@
 # AI Studio Create Agent Ten-Image Attachments Buildout Plan
 
-Status: complete locally; release and production proof deferred
+Status: remediation complete locally; release and production proof deferred
 
 Purpose: provide the single implementation source for increasing Create-agent image attachments from three to ten without silent truncation, request-size regression, storage-lifecycle expansion, or Standard/Pulse runtime drift.
 
@@ -79,7 +79,7 @@ Allow Standard and Pulse Create composers to accept and actually submit up to te
 5. All visible ready images must survive composer state, client context building, transport serialization, server sanitation, thinker metadata, and provider message construction.
 6. Existing trusted HTTPS image URLs remain URLs. True local files remain ephemeral and use compacted inline media; they are not uploaded or persisted for agent vision.
 7. The complete mixed request remains below the current 1.5 MiB application guard and 2 MiB parser ceiling.
-8. Standard uses one multimodal agent request. Pulse uses at most one batched vision-summary request plus one coordinator request.
+8. Standard uses one nominal multimodal agent request. Pulse uses one batched vision-summary stage plus one coordinator stage on the nominal successful path. Existing bounded transport retries, malformed-output repair, and Safe Completion recovery may add physical provider calls; every physical call is counted in privacy-safe turn telemetry.
 9. Standard/Pulse prompt, transcript, workflow, and hidden-context isolation remain unchanged.
 
 ## Implementation Batches
@@ -103,8 +103,8 @@ Local proof must demonstrate:
 - Unsafe or unsupported media fails explicitly; no product request is silently reduced.
 - Inline media and the complete serialized request remain inside existing byte ceilings.
 - Preparation concurrency is bounded and partial failures are recoverable without corrupting attachment order.
-- Standard sends one request with ten images.
-- Pulse performs one batched summary request and one coordinator request with ten images.
+- Standard sends one nominal request with ten images; existing bounded reliability and safety exceptions remain intact.
+- Pulse performs one batched summary request and one coordinator request with ten images on the nominal successful path, while retry, repair, and Safe Completion tests prove that additional physical calls are explicit and telemetry-counted.
 - Standard/Pulse mode isolation remains intact.
 - Desktop overflow, keyboard removal, unique accessible labels, and ready/preparing/failed status work at ten images.
 - Targeted tests, touched-file type checks, targeted lint, `npm -C frontend run docs:check`, and `git diff --check` pass, or unrelated pre-existing failures are isolated with evidence.
@@ -113,7 +113,7 @@ Local proof must demonstrate:
 
 Stop when scoped code, tests, telemetry, and existing SOP updates are locally green and the final audit finds no silent truncation, body-budget regression, provider-call fan-out, mode-boundary drift, persistence expansion, or unresolved in-scope defect.
 
-Stop earlier if overlapping runtime edits cannot be preserved safely, any ready image can disappear before provider construction, the complete request cannot stay below existing limits, Pulse cannot be bounded to two provider calls, validation blocks further safe progress, or required work crosses into persistence, storage, billing, deployment, release, or another owner lane.
+Stop earlier if overlapping runtime edits cannot be preserved safely, any ready image can disappear before provider construction, the complete request cannot stay below existing limits, Pulse image fan-out exceeds one batched vision-summary call, physical provider calls cannot be accounted for across bounded retry/repair/recovery behavior, validation blocks further safe progress, or required work crosses into persistence, storage, billing, deployment, release, or another owner lane.
 
 This implementation lane stops before commit, push, deploy, authenticated production validation, or production-readiness claims.
 
@@ -123,7 +123,7 @@ Local proof cannot establish real-world fidelity for ten compacted local images,
 
 ## Local Completion Evidence
 
-Completed on 2026-07-10 on local `production`, without commit, push, deploy, storage changes, or production mutation.
+The initial 2026-07-10 local completion claim below was invalidated by a broader second-pass audit. Keep it as historical evidence of what passed, not as current completion authority.
 
 - Shared image capacity is ten; image eleven is explicitly rejected without eviction, duplicates refresh in place, and prompt capacity remains independent.
 - Local images use bounded preparation and send-time compaction; safe HTTPS sources remain URLs; client transport measures the serialized request before fetch.
@@ -133,3 +133,37 @@ Completed on 2026-07-10 on local `production`, without commit, push, deploy, sto
 - Privacy-safe payload telemetry records mode, counts, inline bytes, and preparation duration without prompts, image data, or URLs.
 - Focused regression result: 15 files passed, 191 tests passed.
 - `npm -C frontend run type-check:touched`, targeted ESLint, `npm -C frontend run docs:check`, and `git diff --check` passed.
+
+## Second-Pass Audit Remediation List
+
+This list is the implementation source of truth for reopening the lane. Resolve in order and re-audit after each fix.
+
+1. Reject an eleventh image in a single file batch instead of slicing it before capacity feedback.
+2. Preserve attachments added during Standard send preparation or an in-flight request; clear and restore only the outbound snapshot.
+3. Preserve partial-capacity and per-file preparation errors when sibling files finish successfully.
+4. Mark send-time failed image ids on the restored composer cards so the user can identify and remove them.
+5. Prevent stale async duplicate-reference resolutions from overwriting or deleting a newer replacement.
+6. Reconcile the Pulse provider-call contract with bounded retry, repair, and Safe Completion recovery without weakening existing safety or reliability behavior.
+7. Complete privacy-safe attachment/provider-call telemetry and the missing proof matrix.
+8. Remove obsolete SOP guidance that permits silent media omission or describes the current Pulse image path as one physical model call.
+
+Protected contracts for remediation:
+
+- Preserve the current desktop layout, controls, copy style, and Standard/Pulse interaction model except for clearer existing error/status feedback.
+- Preserve image-eleven rejection without eviction, duplicate refresh-in-place, independent prompt capacity, ephemeral/no-storage behavior, exact request guards, Standard/Pulse isolation, and current safety/retry/recovery behavior.
+- Do not add persistence, storage, billing, security, mobile, compatibility, fallback, alternate-route, or duplicate-authority work.
+- Stop before commit, push, deploy, authenticated production validation, launch-posture changes, or any material product-semantics decision that cannot be resolved from the existing contracts.
+
+## Remediation Completion Evidence
+
+Completed locally on 2026-07-10 without commit, push, deploy, storage, persistence, billing, or production mutation.
+
+- One-batch image 11 is rejected while the first ten remain attached; partial-capacity feedback survives successful sibling preparation.
+- Standard clears/restores only its outbound attachment snapshot, preserving attachments added during preparation or an in-flight request.
+- Preparation failures and send-time failures remain attached to the specific recoverable composer cards in both Standard and Pulse.
+- Duplicate structured drops use per-attachment preparation generations, so stale asynchronous completion cannot overwrite, delete, or resurrect newer state.
+- Pulse provider accounting now counts every physical vision, coordinator, retry, repair, and Safe Completion recovery call without weakening existing bounded reliability or safety behavior.
+- The proof matrix includes 0/1/3/10/11 capacity, one-batch and partial-capacity cases, mixed preparation results, rapid duplicate completion, in-flight Standard intake, failed-card presentation, ten mixed HTTPS/inline transport order, aggregate compaction failure, privacy-safe client telemetry, and an integrated ten-image Pulse vision-plus-coordinator route.
+- Consolidated focused result: 17 files passed, 231 tests passed.
+- `npm -C frontend run type-check:touched`, targeted ESLint, `npm -C frontend run docs:check`, and `git diff --check` passed.
+- Concurrent unrelated worktree changes were preserved and excluded from this lane's completion claim.

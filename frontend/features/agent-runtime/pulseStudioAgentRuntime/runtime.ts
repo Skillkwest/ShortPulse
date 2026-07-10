@@ -16,6 +16,7 @@ import {
 import { resolveSafetyModality } from "../safetyPolicy/decisionEngine";
 import { MISSING_PROVIDER_API_KEY_MESSAGE } from "../safetyPolicy/providerErrorPolicy";
 import {
+  buildSafeCompletionTelemetryDisposition,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
   emitStudioAgentInputPrecheckTelemetry,
@@ -364,6 +365,15 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       refusalField: precheckResult.scopeTelemetry.refusalField,
       rewrittenFields: precheckResult.scopeTelemetry.rewrittenFields,
       nonBlockingSignalCount: precheckResult.scopeTelemetry.nonBlockingSignalCount,
+      safeCompletionTelemetry:
+        precheckResult.outcome === "refusal"
+          ? buildSafeCompletionTelemetryDisposition({
+              enabled: safetyRuntimeConfig.safeCompletionEnabled,
+              recoverySkipReason: precheckResult.decision?.hardFloorViolation
+                ? "hard_floor"
+                : "policy_refusal",
+            })
+          : undefined,
     });
   }
   if (precheckResult.outcome === "refusal") {
@@ -396,6 +406,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   });
 
   let visionSummaryMap = new Map<string, string>();
+  let providerCallCount = 0;
   let untrustedImageTextSignalCount = 0;
   let untrustedImageTextAffectedImageCount = 0;
   let untrustedImageTextRemovedLineCount = 0;
@@ -414,6 +425,9 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         apiKey,
         visionModel: openAiVisionModel,
         timeoutMs: visionTimeoutMs,
+        onProviderCall: () => {
+          providerCallCount += 1;
+        },
         onUntrustedImageTextSignal: (signal) => {
           untrustedImageTextSignalCount += 1;
           untrustedImageTextAffectedImageCount += 1;
@@ -500,6 +514,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     safeCompletionRecoverySkipReason: safeCompletionRecoveryEligibility.eligible
       ? null
       : safeCompletionRecoveryEligibility.skipReason,
+    initialProviderCallCount: providerCallCount,
     routeLabel: PULSE_ROUTE_LABEL,
     safetyRoute: PULSE_PROMPT_CACHE_ROUTE,
   });

@@ -1,8 +1,8 @@
 # AI Studio Safe Completion Implementation Plan
 
-Status: local implementation complete; release handoff pending
+Status: local implementation complete; release proof pending
 
-Implementation state: local build complete; release and production proof pending.
+Implementation state: all seven July 10 remediation issues are complete within the approved local lane. Commit, deploy, production evaluation, and Copperknot catalog/readiness updates remain outside this lane.
 
 Purpose: provide the single working plan for first-turn safe completion across AI Studio Create Standard and Pulse agents.
 
@@ -68,6 +68,28 @@ Out of scope:
 - A client-side `Make safe` action, automatic visible second turn, duplicate prompt copies, lexical creative-rewrite expansion, or an always-on LLM pre-rewriter.
 - Commit, push, deploy, live control-plane mutation, provider-cost evaluation, authenticated production validation, or launch-readiness claims.
 
+## Active Remediation Issue List
+
+This section is the source of truth for the reopened implementation sequence. Resolve the issues in order and validate each source boundary before continuing.
+
+1. Complete locally: stop Standard Responses API safety blocks before any Chat fallback or recovery dispatch.
+2. Complete locally: prevent every machine failure class from exposing Generate or other reusable prompt affordances, even when stale reusable metadata is present.
+3. Complete locally: make the promotion evaluator require the complete refusal envelope and enforce a 100% gate for every hard-floor/refusal case.
+4. Complete locally: emit the complete Safe Completion contract and recovery disposition on terminal Standard and Pulse safety paths.
+5. Complete locally: add the missing route-level corpus, unsafe-recovery, Pulse termination, kill-switch, exact-precedence, and evaluator proof-boundary coverage.
+6. Complete locally: tighten provider safety-block classification so unrelated provider/configuration errors are not hidden as content refusals.
+7. Complete locally within the active lane: reconcile the active owner, execution program, plan lifecycle, operator map, SOPs, and concurrent attachment-work boundaries. Copperknot-owned system-catalog posture remains a separate owner boundary.
+
+Protected contracts for every remediation issue:
+
+- Preserve current visual UI/UX and successful-output reuse behavior.
+- Preserve Standard/Pulse route, transcript, workflow, session, artifact, and persistence isolation.
+- Preserve actionless hard-floor, provider-block, and output-safety refusals.
+- Do not weaken privacy, security, billing/credit, branch, launch, or release posture.
+- Preserve concurrent ten-image attachment work; do not revert or silently partition its behavior.
+
+Each issue is complete only after focused regression proof, relevant type/lint checks, and a scoped diff audit show that the source defect is fixed without contract drift. Stop before commit, push, deploy, live mutation, provider-cost evaluation, authenticated production testing, or release promotion.
+
 ## Product Contract
 
 For transformable content, preserve characters, setting, style, tone, energy, continuity, format, timing, artifact target, and production constraints. Make only the minimum safe substitutions and return the completed work directly. Do not prepend a policy lecture, request SFW wording, ask for approval, or require another user turn.
@@ -121,7 +143,30 @@ The implementation lane stops before commit, push, deploy, live prompt/catalog w
 
 Local proof cannot establish actual deployed-model adherence, live control-plane contents, provider recovery latency/cost, or authenticated production UI behavior. After separately approved commit and deployment, validate bounded text-only turns at `https://www.shortpulse.ai` in Standard, one custom Pulse, and every published built-in, paired with structured trace telemetry and unchanged product credits.
 
-## Local Implementation Checkpoint — 2026-07-10
+## Local Remediation Completion Checkpoint — 2026-07-10
+
+The active remediation list is complete within the approved Pulse/shared-runtime lane:
+
+- Standard Responses safety blocks terminate before Chat fallback or recovery.
+- Machine failures cannot expose stale prompt reuse or Generate affordances.
+- Refusal scoring requires the complete actionless machine envelope and every refusal-class request must pass.
+- Standard and Pulse terminal telemetry share the complete privacy-safe Safe Completion disposition.
+- Standard and Pulse route matrices cover the full corpus, unsafe recovered output, bounded recovery termination, kill-switch behavior, and exact contract precedence.
+- Provider safety-block classification requires concrete block, flag, filter, or violation evidence instead of generic safety-category words.
+- Pulse ownership, Program 1 execution authority, the operator map, and attachment/Safe Completion SOP boundaries are aligned. Copperknot retains the separate system-catalog/readiness posture.
+
+Current local proof:
+
+- 188 focused Safe Completion/runtime/UI tests pass across nine files.
+- Agent contract checks pass `76/76`; agent disable/continuity checks pass `116/116`; the Generate CTA guard passes.
+- TypeScript, scoped ESLint, documentation checks, production build, evaluator syntax, and `git diff --check` pass.
+- Branch enforcement remains `production` / `shortpulse.allowedBranch=production`.
+
+Unproven locally: deployed-model adherence, live Standard and built-in prompt contents, authenticated production UI behavior, correlated provider/recovery counts from production telemetry, provider latency/cost, and release readiness.
+
+## Superseded Local Implementation Checkpoint — 2026-07-10
+
+The second-pass audit reopened this checkpoint. The statements below describe the earlier implementation state and are not current completion authority until every active remediation issue above is resolved and revalidated.
 
 Completed locally:
 

@@ -20,9 +20,9 @@ If the trigger references `/admin/crashes`, Crash Logs, browser crashes, freezes
 
 ## Scope
 
-This SOP covers triage packet intake, source tracing, incident grouping, real-vs-noise decisions, queue-pruning recommendations, Admin Errors panel cleanup, owner-lane routing, proof boundaries, and retained reports.
+This SOP covers triage packet intake, source tracing, incident grouping, real-vs-noise decisions, queue-pruning recommendations, Admin Errors panel cleanup, owner-lane routing, proof boundaries, narrow source fixes for proven app-owned defects, and retained reports.
 
-It does not cover production mutation outside reviewed Admin Errors status treatment for the current pasted batch, live replay, provider-spend smoke tests, deploys, pushes, broad refactors, UI/UX changes, security posture changes, or another agent's implementation lane unless explicitly authorized.
+It does not cover production mutation outside reviewed Admin Errors status treatment for the current pasted batch, live replay, provider-spend smoke tests, deploys, pushes, broad refactors, UI/UX changes, security posture changes, or another agent's implementation lane unless explicitly authorized. Badearsai may still implement a narrow canonical source fix when the current thread authorizes solving discovered issues, production/repo evidence proves the defect is app-owned, the fix is high-ROI and scoped, and the change preserves UI/UX, product semantics, security/privacy, billing/credits, deploy/branch policy, and adjacent owner boundaries.
 
 ## Required Workflow
 
@@ -30,7 +30,7 @@ It does not cover production mutation outside reviewed Admin Errors status treat
 
 - Follow the root startup contract.
 - Load Badearsai contract, memory, SOP, and ownership manifest.
-- Confirm task mode. Default to audit plus queue cleanup for pasted triage batches; default to no product-code edits.
+- Confirm task mode. Default to audit plus queue cleanup for pasted triage batches, but do not let queue cleanup substitute for source correction. Default to no product-code edits until evidence proves a narrow app-owned defect or the user explicitly promotes the lane to implementation.
 - Identify the packet source, copied-at time, production environment, affected route(s), and whether the user supplied a single packet or a batch.
 - Check the worktree before edits or broad commands; ignore unrelated dirty files.
 
@@ -60,6 +60,8 @@ For each incident or causal chain:
 
 - Search for exact route, endpoint, source, message, route label, and metadata keys.
 - Read the owning route/service/helper/SOP before classifying.
+- Trace far enough to distinguish the external trigger from the app-owned failure mode. A provider, browser, network, or user-action trigger can still expose an app bug if ShortPulse reports the wrong state, fails to reconcile canonical data, leaks noise into the wrong queue, double-charges, loses saved output, or leaves the UI/runtime inconsistent.
+- Do not mark a row as provider noise, watch, or resolved merely because the provider was involved. First ask: did the provider actually fail, did the app handle that failure correctly, did canonical production state settle correctly, and did the user-facing/runtime state match canonical state?
 - Identify whether the headline is:
   - route missing/stale deploy,
   - intentional auth/rate/admission gating,
@@ -82,11 +84,26 @@ Use these classifications:
 
 Each classification must include confidence: high, medium, or low.
 
+Classification must also state whether there is an app-owned source defect. If yes, the default next action is source fix or owner-lane escalation before queue cleanup; if no, the item may be pruned, ignored, or resolved/watch with proof and a recurrence condition.
+
+### Step 5A. Fix Real App-Owned Defects Before Cleanup
+
+When evidence shows a real app-owned issue:
+
+- Keep the incident `open` until the fix is made or the owner-lane blocker is explicit.
+- Locate the canonical source path and make the smallest high-ROI source fix when it is inside Badearsai's approved scope.
+- Do not add fallbacks, duplicate authorities, backup implementations, broad refactors, or patch-on-patch behavior.
+- Preserve UI/UX, intended runtime behavior, launch posture, security/privacy posture, billing/credit behavior, persistence contracts, branch policy, and deploy state unless the current thread explicitly authorizes a change.
+- Run focused validation for the touched surface and audit the diff for regressions before treating the issue as handled.
+- If the correct fix belongs to another owner lane or requires approval-gated mutation/spend/deploy/security/UI work, do not clear the row as noise. Keep it `open` or explicitly hand it off with the proof, owner, required fix/proof, and stop boundary.
+- If an incident has both a provider-side failure and an app-side handling bug, fix or escalate the app-side bug and classify the provider side separately as watch/noise only after source tracing.
+
 ### Step 6. Decide Queue Treatment
 
 For default Admin Errors queue hygiene, decide whether the item should be:
 
 - kept open as operator work,
+- kept open because a real app-owned source fix or owner-lane proof is still pending,
 - resolved after current proof or verified no-repeat condition,
 - ignored with explicit rationale,
 - marked resolved as a watch item with a concrete repeat condition,
@@ -98,6 +115,8 @@ Use the canonical Admin Errors status vocabulary:
 - `resolved`: fixed, verified clean, no longer actionable, or ready to leave the default queue.
 - `ignored`: expected noise, routine non-actionable telemetry, stale/deploy-skew, duplicate already tracked elsewhere, rate/admission/safety behavior, or not useful in the default queue.
 - `resolved` plus `watch: true`: leave the default queue while retaining a watch label and concrete recurrence condition.
+
+Never use `resolved`, `ignored`, or `resolved` plus `watch: true` to hide a real app-owned defect that has not been fixed, validated, or explicitly handed off.
 
 ### Step 7. Clean Up Reviewed Rows
 

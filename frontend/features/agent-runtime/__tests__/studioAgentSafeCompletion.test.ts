@@ -4,6 +4,7 @@ import {
   SAFE_COMPLETION_SYSTEM_INSTRUCTION,
   hasAmbiguousAgeSexualSignal,
   resolveSafeCompletionRecoveryEligibility,
+  stripEditableSafeCompletionSystemInstruction,
   withSafeCompletionRecoveryInstruction,
 } from "../studioAgentSafeCompletion";
 import {
@@ -29,6 +30,14 @@ describe("studioAgentSafeCompletion", () => {
     expect(SAFE_COMPLETION_SYSTEM_INSTRUCTION).toContain("same response");
     expect(SAFE_COMPLETION_SYSTEM_INSTRUCTION).toContain("Do not give a policy lecture");
     expect(SAFE_COMPLETION_SYSTEM_INSTRUCTION).toContain("ask the user to resubmit");
+  });
+
+  it("removes exact editable copies before the code-owned contract is appended", () => {
+    expect(
+      stripEditableSafeCompletionSystemInstruction(
+        `Editable instructions.\n\n${SAFE_COMPLETION_SYSTEM_INSTRUCTION}\n\nKeep this format.`
+      )
+    ).toBe("Editable instructions.\n\n\n\nKeep this format.");
   });
 
   it("permits one recovery only with affirmative server safety evidence", () => {

@@ -982,7 +982,14 @@ describe("Admin users and credits overview", () => {
     expect(
       screen.queryByText("Legacy subscriber remains on the older recurring price.")
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Status/ }));
+    const statusToggle = screen.getByRole("button", { name: /Status/ });
+    expect(statusToggle).toHaveTextContent("Warning");
+    expect(statusToggle).toHaveTextContent("Pending cancellation");
+    expect(statusToggle).toHaveTextContent("Issue");
+    expect(statusToggle).toHaveTextContent(
+      "Current contract is on a different recurring price than the public offer."
+    );
+    fireEvent.click(statusToggle);
     expect(screen.getByTestId("account-status-billing-state")).toHaveTextContent(
       "Pending cancellation"
     );

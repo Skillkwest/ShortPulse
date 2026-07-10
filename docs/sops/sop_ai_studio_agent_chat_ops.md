@@ -90,9 +90,9 @@ Prompt ownership rule:
 - Safe Completion contract: Standard, custom Pulse, and built-in guided workflows receive one code-owned instruction at final platform-policy precedence. Eligible model refusals recover at most once; hard floors, policy refusals, provider HTTP safety blocks, output-safety refusals, malformed output, and route/configuration errors never recover.
 - Reuse contract: typed refusals and errors remain readable but expose no drag, Use, Apply, or Generate behavior. Successful assistant text and prompt artifacts retain their existing explicit reuse paths.
 - Canonical read/write continuity is a guided-lane concern; Standard no longer uses the hidden canonical prompt loop.
-- Single-stage Pulse path: one model call handles text-only and mixed/image turns in the canonical Pulse path; legacy V2 rollback fallback is removed from Create agents.
+- Pulse execution path: text-only turns use the coordinator stage. Mixed/image turns add at most one ID-keyed batched vision-summary stage before the coordinator. Bounded transport retries, malformed-output repair, and eligible Safe Completion recovery may add physical provider calls; turn telemetry counts every physical call. Legacy V2 rollback fallback remains removed from Create agents.
 - Right-column drop payload precedence is `internal -> files -> text -> media`; mixed payloads that include prompt text plus media URL hints resolve as prompt text.
-- Size and source checks: `safeContext` and `buildAgentContext` drop non-https URLs and enforce payload limits before send.
+- Size and source checks: `safeContext` and `buildAgentContext` accept safe `https://` image URLs and bounded `data:image/*` inputs, reject unsupported or over-cap media explicitly, and enforce payload limits before send.
 - Provider/runtime failures return explicit non-success errors, so the Create panel does not mask broken agent routes with synthetic assistant recovery text.
 - Parse/body-read failures are normalized into classified stage failures, keeping malformed upstream payloads out of route-level exception paths.
 - Explicit errors remain for auth/config/invalid-request lanes (feature disabled, missing key, malformed payload, auth denial), and the mode-owned Create agent hook surfaces those error strings.
@@ -105,7 +105,7 @@ Prompt ownership rule:
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
 - ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be dragged into the composer or saved explicitly.
 - ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be dragged into the composer or saved explicitly.
-- ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
+- ✅ Oversize media: attach a large local image → require bounded client compaction or an explicit per-image/request-size failure. The request must never silently omit the image or continue as text-only.
 - ✅ Drift guard: in Standard, confirm the second turn includes prior assistant text in outbound history with no hidden canonical rewrite. In Pulse, confirm guided continuity still behaves as expected.
 - ✅ Safe completion: use the approved mixed basketball fixture in Standard, one custom Pulse, and each published built-in; require completed safe work without an SFW/resubmit turn.
 - ✅ Refusal path: validate hard-floor refusal on both routes, require empty actions and zero recovery calls, and confirm the bubble is non-reusable.

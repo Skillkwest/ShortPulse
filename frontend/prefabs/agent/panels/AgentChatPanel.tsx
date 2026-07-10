@@ -32,12 +32,6 @@ const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
 const CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX = 24;
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
-const resolveAssistantPromptArtifactText = (message: AgentMessage): string | null => {
-  if (message.role !== "assistant" || message.canUseAsPrompt !== true) return null;
-  const outputPrompt = typeof message.outputPrompt === "string" ? message.outputPrompt.trim() : "";
-  return outputPrompt.length > 0 ? outputPrompt : null;
-};
-
 const isAssistantMachineFailure = (message: AgentMessage): boolean =>
   message.role === "assistant" &&
   (message.decision === "refuse" ||
@@ -46,6 +40,13 @@ const isAssistantMachineFailure = (message: AgentMessage): boolean =>
     message.outcomeClass === "refusal_model" ||
     message.outcomeClass === "upstream_error" ||
     message.outcomeClass === "route_error");
+
+const resolveAssistantPromptArtifactText = (message: AgentMessage): string | null => {
+  if (message.role !== "assistant" || isAssistantMachineFailure(message)) return null;
+  if (message.canUseAsPrompt !== true) return null;
+  const outputPrompt = typeof message.outputPrompt === "string" ? message.outputPrompt.trim() : "";
+  return outputPrompt.length > 0 ? outputPrompt : null;
+};
 
 const resolveAssistantDraggableText = (message: AgentMessage): string | null => {
   if (message.role !== "assistant") return null;

@@ -30,6 +30,7 @@ import type {
   SafetyPostprocessMode,
 } from "../safetyPolicy/types";
 import {
+  buildSafeCompletionTelemetryDisposition,
   resolvePolicyVersionFromProfileId,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
@@ -46,8 +47,8 @@ import {
   resolveLatestStudioAgentUserInput,
 } from "../studioAgentPulseRuntime";
 import {
-  SAFE_COMPLETION_CONTRACT_VERSION,
   resolveSafeCompletionSystemInstruction,
+  stripEditableSafeCompletionSystemInstruction,
   type SafeCompletionRecoverySkipReason,
 } from "../studioAgentSafeCompletion";
 
@@ -100,13 +101,16 @@ export const buildStudioAgentOpenAiMessages = ({
   orchestration: StudioAgentOrchestration;
   safeCompletionInstruction?: string | null;
 }): OpenAIChatMessage[] => {
+  const canonicalSystemPrompt = safeCompletionInstruction
+    ? stripEditableSafeCompletionSystemInstruction(systemPrompt)
+    : systemPrompt;
   const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
   const pulseTurnStateMessage = buildStudioAgentPulseTurnStateMessage({
     pulse: context.pulse,
     messages,
   });
   const chat: OpenAIChatMessage[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: canonicalSystemPrompt },
     ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
     ...(pulseTurnStateMessage ? [{ role: "system" as const, content: pulseTurnStateMessage }] : []),
     { role: "system", content: `CONTEXT:\n${stringifyPulseContextForTextPrompt(context)}` },
@@ -187,6 +191,7 @@ export const executeStudioAgentCoordinator = async ({
   safeCompletionEnabled,
   safeCompletionRecoveryEligible,
   safeCompletionRecoverySkipReason,
+  initialProviderCallCount = 0,
   routeLabel = "ai/studio-agent",
   safetyRoute = "studio-agent",
 }: {
@@ -228,9 +233,14 @@ export const executeStudioAgentCoordinator = async ({
   safeCompletionEnabled: boolean;
   safeCompletionRecoveryEligible: boolean;
   safeCompletionRecoverySkipReason: SafeCompletionRecoverySkipReason | null;
+  initialProviderCallCount?: number;
   routeLabel?: string;
   safetyRoute?: StudioAgentSafetyRoute;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
+  let providerCallCount = initialProviderCallCount;
+  const recordProviderCall = () => {
+    providerCallCount += 1;
+  };
   const openAiMessages = buildStudioAgentOpenAiMessages({
     messages,
     context,
@@ -295,6 +305,7 @@ export const executeStudioAgentCoordinator = async ({
         outcomeClass: "refusal_safety",
         retryUsed,
         retryCount,
+        providerCallCount,
         reasonCode: "PROVIDER_SAFETY_REFUSAL",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
@@ -307,6 +318,10 @@ export const executeStudioAgentCoordinator = async ({
           modality: safetyModality,
           decisionAction: "refuse",
           providerBlocked: safetyRefusal,
+          ...buildSafeCompletionTelemetryDisposition({
+            enabled: safeCompletionEnabled,
+            recoverySkipReason: "not_model_refusal",
+          }),
         },
       });
       return {
@@ -327,6 +342,7 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: "upstream_error",
       retryUsed,
       retryCount,
+      providerCallCount,
       reasonCode: "UPSTREAM_ERROR",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
@@ -548,6 +564,7 @@ export const executeStudioAgentCoordinator = async ({
       retryCount,
       repairUsed,
       repairCount,
+      providerCallCount,
       reasonCode: finalReasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
@@ -573,20 +590,21 @@ export const executeStudioAgentCoordinator = async ({
         providerBlocked: false,
         hardFloorViolation: safetyHardFloorViolation,
         rollbackTriggered: safetyRollbackTriggered,
-        safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
-        safeCompletionEnabled,
-        refusalSource,
-        recoveryEligible:
-          safeCompletionRecoveryEligible &&
-          (safeCompletionRecoveryAttempted || refusalSource !== null),
-        recoveryAttempted: safeCompletionRecoveryAttempted,
-        recoveryOutcome: safeCompletionRecoveryOutcome,
-        recoverySkipReason: safeCompletionRecoveryAttempted
-          ? null
-          : refusalSource
-            ? safeCompletionRecoverySkipReason
-            : "not_model_refusal",
-        recoveryLatencyMs: safeCompletionRecoveryLatencyMs,
+        ...buildSafeCompletionTelemetryDisposition({
+          enabled: safeCompletionEnabled,
+          refusalSource,
+          recoveryEligible:
+            safeCompletionRecoveryEligible &&
+            (safeCompletionRecoveryAttempted || refusalSource !== null),
+          recoveryAttempted: safeCompletionRecoveryAttempted,
+          recoveryOutcome: safeCompletionRecoveryOutcome,
+          recoverySkipReason: safeCompletionRecoveryAttempted
+            ? null
+            : refusalSource
+              ? safeCompletionRecoverySkipReason
+              : "not_model_refusal",
+          recoveryLatencyMs: safeCompletionRecoveryLatencyMs,
+        }),
       },
     });
     return {
@@ -635,6 +653,7 @@ export const executeStudioAgentCoordinator = async ({
       messages,
       markStage,
       safeCompletionRecoveryEligible,
+      onProviderCall: recordProviderCall,
     });
 
     while (!turn.ok) {
@@ -677,6 +696,7 @@ export const executeStudioAgentCoordinator = async ({
         messages,
         markStage,
         safeCompletionRecoveryEligible,
+        onProviderCall: recordProviderCall,
       });
     }
 
@@ -736,6 +756,7 @@ export const executeStudioAgentCoordinator = async ({
       outcomeClass: "route_error",
       retryUsed: false,
       retryCount: 0,
+      providerCallCount,
       reasonCode: "ROUTE_ERROR",
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,

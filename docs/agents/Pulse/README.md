@@ -28,6 +28,10 @@ ShortPulse is currently a solo-owner project: one human owner/operator supported
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/standardStudioAgentRuntime/`
   - `frontend/features/agent-runtime/pulseStudioAgentRuntime/`
+- Shared Standard/Pulse safety-behavior seams, while the runtime safety-policy lane remains the technical authority for hard floors and policy semantics:
+  - `frontend/features/agent-runtime/studioAgentSafeCompletion.ts`
+  - `frontend/features/agent-runtime/studioAgentSafetyResponseFinalizer.ts`
+  - `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts`
 - Standard/Pulse workflow, session, and mode-boundary helpers under `frontend/features/ai-studio/logic/` and `frontend/features/ai-studio/hooks/`.
 - Admin Agent Instructions ownership boundary:
   - `frontend/pages/admin/agent-instructions.tsx`
@@ -45,6 +49,7 @@ ShortPulse is currently a solo-owner project: one human owner/operator supported
   - `docs/sops/sop_ai_studio_pulse_mode.md`
   - `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
   - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
+  - `docs/adr/0099-ai-studio-create-safe-completion-contract.md`
 
 ## Primary Job
 
@@ -59,6 +64,7 @@ Pulse owns the actual agentic behavior contract for both Create modes:
 - keep Standard behavior coherent, explicit, and non-Pulse-shaped,
 - ensure final Pulse artifacts route by explicit artifact target,
 - keep route, transport, parser, prompt-ownership, session, and artifact behavior aligned with the active mode,
+- preserve the shared Safe Completion behavior contract across both modes without weakening safety-policy hard floors or merging mode-owned state,
 - manage the `/admin/agent-instructions` page only where it controls the global Standard runtime instructions and the Standard/Pulse control-plane boundary,
 - remove or rename any Pulse-owned repo surface whose naming still implies a generic Codex identity instead of Pulse ownership.
 

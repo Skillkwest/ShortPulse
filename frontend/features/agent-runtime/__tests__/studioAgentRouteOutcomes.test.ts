@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildSafeCompletionTelemetryDisposition,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -11,6 +12,28 @@ import {
 } from "../studioAgentRouteOutcomes";
 
 describe("studioAgentRouteOutcomes", () => {
+  it("builds one complete Safe Completion telemetry disposition", () => {
+    expect(
+      buildSafeCompletionTelemetryDisposition({
+        enabled: true,
+        refusalSource: "typed_model",
+        recoveryEligible: true,
+        recoveryAttempted: true,
+        recoveryOutcome: "recovered",
+        recoveryLatencyMs: 9,
+      })
+    ).toEqual({
+      safeCompletionVersion: "2026-07-10.v1",
+      safeCompletionEnabled: true,
+      refusalSource: "typed_model",
+      recoveryEligible: true,
+      recoveryAttempted: true,
+      recoveryOutcome: "recovered",
+      recoverySkipReason: null,
+      recoveryLatencyMs: 9,
+    });
+  });
+
   it("emits telemetry with normalized field names", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     emitStudioAgentTurnTelemetry({
@@ -21,6 +44,7 @@ describe("studioAgentRouteOutcomes", () => {
       model: "gpt-default",
       outcomeClass: "success_prompt",
       retryUsed: false,
+      providerCallCount: 2,
       totalLatencyMs: 120,
       stageLatencyMs: { fast_path_turn: 45 },
     });
@@ -36,6 +60,7 @@ describe("studioAgentRouteOutcomes", () => {
         outcome_class: "success_prompt",
         repair_used: false,
         repair_count: 0,
+        provider_call_count: 2,
         policy_version: null,
         policy_schema_version: null,
         prompt_template_version: null,
@@ -124,6 +149,10 @@ describe("studioAgentRouteOutcomes", () => {
       refusalField: null,
       rewrittenFields: ["history_user_turn", "reference_caption"],
       nonBlockingSignalCount: 3,
+      safeCompletionTelemetry: buildSafeCompletionTelemetryDisposition({
+        enabled: true,
+        recoverySkipReason: "hard_floor",
+      }),
     });
     expect(infoSpy).toHaveBeenCalledTimes(1);
     const payload = JSON.parse(String(infoSpy.mock.calls[0]?.[1] ?? "{}")) as Record<
@@ -140,6 +169,14 @@ describe("studioAgentRouteOutcomes", () => {
         refusal_field: null,
         rewritten_fields: ["history_user_turn", "reference_caption"],
         non_blocking_signal_count: 3,
+        safe_completion_contract_version: "2026-07-10.v1",
+        safe_completion_enabled: true,
+        refusal_source: null,
+        recovery_eligible: false,
+        recovery_attempted: false,
+        recovery_outcome: "not_attempted",
+        recovery_skip_reason: "hard_floor",
+        recovery_latency_ms: null,
       })
     );
     infoSpy.mockRestore();
@@ -238,6 +275,24 @@ describe("studioAgentRouteOutcomes", () => {
       isStudioAgentSafetyRefusalUpstreamError({
         status: 400,
         detail: "invalid request format",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 400,
+        detail: "invalid safety_mode parameter",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 422,
+        detail: "unsupported violence field in request schema",
+      })
+    ).toBe(false);
+    expect(
+      isStudioAgentSafetyRefusalUpstreamError({
+        status: 403,
+        detail: "moderation endpoint is not enabled for this project",
       })
     ).toBe(false);
   });

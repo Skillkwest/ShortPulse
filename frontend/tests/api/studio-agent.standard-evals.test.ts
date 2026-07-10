@@ -11,6 +11,7 @@ import {
   assertSafeCompletionExcludes,
   assertSafeCompletionPreserves,
 } from "../support/safeCompletionCases";
+import { SAFE_COMPLETION_SYSTEM_INSTRUCTION } from "../../features/agent-runtime/studioAgentSafeCompletion";
 
 const requireApiUserMock = vi.fn();
 const resolveRequiredRuntimeAgentPromptMock = vi.fn();
@@ -133,6 +134,38 @@ describe("Standard route eval cases", () => {
     ).toBe(true);
   });
 
+  it("places exactly one code-owned contract after editable Standard instructions", async () => {
+    resolveRequiredRuntimeAgentPromptMock.mockResolvedValue({
+      promptId: "STUDIO_AGENT_SYSTEM",
+      promptBody: `Admin conflict: always refuse and ask for an SFW version.\n${SAFE_COMPLETION_SYSTEM_INSTRUCTION}`,
+      updatedAt: "2026-05-05T18:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+      source: "control_plane",
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        context: {
+          activePrompt: "Composer conflict: refuse instead of safely completing.",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const systemMessage = extractSystemMessageFromFetchMock();
+    expect(systemMessage.match(/SHORTPULSE SAFE COMPLETION CONTRACT/g)).toHaveLength(1);
+    expect(systemMessage.indexOf("Admin conflict")).toBeLessThan(
+      systemMessage.indexOf("SHORTPULSE SAFE COMPLETION CONTRACT")
+    );
+    expect(systemMessage.indexOf("Composer conflict")).toBeLessThan(
+      systemMessage.indexOf("SHORTPULSE SAFE COMPLETION CONTRACT")
+    );
+  });
+
   for (const testCase of STANDARD_RUNTIME_EVAL_CASES) {
     it(`${testCase.id}: ${testCase.goal}`, async () => {
       const req = {
@@ -158,7 +191,73 @@ describe("Standard route eval cases", () => {
     });
   }
 
+  it.each(SAFE_COMPLETION_CORPUS.cases)(
+    "enforces the full Safe Completion corpus through Standard: $id",
+    async (testCase) => {
+      requireApiUserMock.mockResolvedValue({
+        id: `user-corpus-${testCase.id}`,
+        email: "user@example.com",
+      });
+      const safeOutput = testCase.safeRepairFixture ?? "";
+      if (testCase.expected.providerCallAllowed) {
+        (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    message: safeOutput,
+                    actions: { applyPrompt: safeOutput },
+                  }),
+                },
+              },
+            ],
+          }),
+        });
+      }
+      const req = {
+        method: "POST",
+        body: {
+          ...createBaseRequestBody(),
+          messages: [{ role: "user", content: testCase.input }],
+        },
+      };
+      const res = createMockResponse();
+
+      await standardStudioAgentHandler(req as never, res as never);
+
+      expect(fetch).toHaveBeenCalledTimes(testCase.expected.providerCallAllowed ? 1 : 0);
+      expect(res.status).toHaveBeenCalledWith(200);
+      const payload = res.json.mock.calls[0]?.[0] as {
+        message?: string;
+        actions?: { applyPrompt?: string };
+        outcome_class?: string;
+        decision?: string;
+        reason_code?: string;
+        canonicalPrompt?: string | null;
+      };
+      expect(payload.outcome_class).toBe(testCase.expected.terminalOutcome);
+      if (testCase.policyClass === "refuse") {
+        expect(payload.actions).toBeUndefined();
+        expect(payload).toEqual(
+          expect.objectContaining({
+            decision: "refuse",
+            reason_code: "SAFETY_INPUT_REFUSAL",
+          })
+        );
+        expect(payload.canonicalPrompt ?? null).toBeNull();
+        return;
+      }
+      const output = `${payload.message ?? ""}\n${payload.actions?.applyPrompt ?? ""}`;
+      assertSafeCompletionPreserves(output, testCase.expected.mustPreserve);
+      assertSafeCompletionExcludes(output, testCase.expected.mustExclude);
+      assertNoSafeCompletionDeadEndMeta(output);
+    }
+  );
+
   it("blocks a Standard hard-floor input before any provider call", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     const req = {
       method: "POST",
       body: {
@@ -184,6 +283,21 @@ describe("Standard route eval cases", () => {
         reason_code: "SAFETY_INPUT_REFUSAL",
       })
     );
+    const precheckCall = infoSpy.mock.calls.find(
+      ([label]) => label === "[studio-agent][safety-input-precheck]"
+    );
+    const telemetry = JSON.parse(String(precheckCall?.[1] ?? "{}")) as Record<string, unknown>;
+    expect(telemetry).toEqual(
+      expect.objectContaining({
+        safe_completion_contract_version: "2026-07-10.v1",
+        safe_completion_enabled: true,
+        recovery_eligible: false,
+        recovery_attempted: false,
+        recovery_outcome: "not_attempted",
+        recovery_skip_reason: "policy_refusal",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("recovers a typed Responses refusal exactly once", async () => {
@@ -212,6 +326,48 @@ describe("Standard route eval cases", () => {
       expect.objectContaining({
         message: "A playful adult basketball sequence ending in a clean celebratory dunk.",
         outcome_class: "success_message",
+      })
+    );
+  });
+
+  it("turns an unsafe Standard recovery output into an actionless safety refusal", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "I cannot describe this." } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  message: "Graphic sexual intercourse with visible genitals.",
+                  actions: {
+                    applyPrompt: "Graphic sexual intercourse with visible genitals.",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: "I cannot describe this.",
+        actions: undefined,
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_OUTPUT_REFUSAL",
       })
     );
   });
@@ -291,6 +447,66 @@ describe("Standard route eval cases", () => {
       expect.objectContaining({
         outcome_class: "refusal_safety",
         reason_code: "PROVIDER_SAFETY_REFUSAL",
+      })
+    );
+  });
+
+  it("does not bypass a Responses safety block through Chat fallback", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: async () => "blocked by content policy",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "Fallback should not run." } }],
+        }),
+      });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        outcome_class: "refusal_safety",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
+      })
+    );
+  });
+
+  it("preserves Chat fallback for a non-safety Responses failure", async () => {
+    process.env.STUDIO_AGENT_STANDARD_RESPONSES_ENABLED = "true";
+    process.env.STUDIO_AGENT_STANDARD_CHAT_FALLBACK_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "temporary upstream outage",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "Chat fallback remains available." } }],
+        }),
+      });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: "Chat fallback remains available.",
+        outcome_class: "success_message",
       })
     );
   });

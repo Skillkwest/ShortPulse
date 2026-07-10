@@ -39,6 +39,7 @@ export const buildStudioAgentImageSummaryMap = async ({
   visionModel,
   timeoutMs,
   onUntrustedImageTextSignal,
+  onProviderCall,
 }: {
   openAiUrl: string;
   context: AgentContext;
@@ -47,6 +48,7 @@ export const buildStudioAgentImageSummaryMap = async ({
   visionModel: string;
   timeoutMs: number;
   onUntrustedImageTextSignal?: (signal: StudioAgentUntrustedImageTextSignal) => void;
+  onProviderCall?: () => void;
 }): Promise<Map<string, string>> => {
   const mediaItems = (context.media ?? [])
     .filter((item) => item.kind === "image")
@@ -58,6 +60,7 @@ export const buildStudioAgentImageSummaryMap = async ({
       typeof item.url === "string" && item.url.length > 0
   );
   if (!validMediaItems.length) return new Map();
+  onProviderCall?.();
   const response = await fetchStudioAgentChatCompletion({
     apiKey,
     openAiUrl,

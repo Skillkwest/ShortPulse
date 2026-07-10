@@ -49,7 +49,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
     `modelId`: string | null;
     `mode`: "text" | "image" | "video";
     `references`: array of `{ id, kind: "image" | "video" | "prompt", promptSnippet?: string, aspect?: string, caption?: string }`;
-    `media`: array of `{ id, kind: "image", url: "https://...", thumbnailAlt?: string }`;
+    `media`: array of `{ id, kind: "image", url: "https://..." | "data:image/...", thumbnailAlt?: string }`, bounded by the shared count and byte policies;
     `selectedReferenceIds`?: string[];
     `focusedSource`?: "image" | "prompt" | "agent-output";
     `focusedReferenceId`?: string | null;
@@ -80,7 +80,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
    - classifies the turn (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`),
    - runs server-authoritative pre-provider safety precheck,
    - batches all attached images into at most one ID-keyed vision-summary call when description is required,
-   - executes the guided single-stage Pulse workflow call, keeping the total Pulse provider-call bound at two for an image turn.
+   - executes the guided coordinator stage. The nominal mixed/image path is one batched vision-summary call plus one coordinator call; bounded transport retries, malformed-output repair, and eligible Safe Completion recovery are explicit additional physical calls and are included in turn telemetry.
 7. Response returns lane-owned output. Standard returns visible assistant text plus a reusable prompt artifact on generation-ready success; Pulse may return structured workflow state and/or prompt actions.
 8. On Apply: the active mode-owned prompt setter updates only that mode's prompt state when the UI explicitly chooses to use a returned prompt. Standard no longer auto-derives prompt continuity from a hidden canonical path.
 9. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
@@ -94,13 +94,13 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Transport errors are normalized into classified failures before routing.
 - Parse/body-read exceptions are normalized into typed stage failures (`status` + `detail`) instead of bubbling as route-level exceptions.
 - Explicit auth/config/request failures (missing key, disabled route, invalid payload/auth): keep explicit non-200 errors for debugging.
-- Oversize media payloads: drop images, tell the agent “media omitted due to size” in `context`.
+- Oversize media payloads: compact local inline images within the shared client budget or fail the affected image/request explicitly. Never silently omit media and continue as text-only.
 - Final provider/model refusal: display the refusal and keep the previous prompt intact. A terminal model-authored refusal after eligible recovery remains `outcome_class=refusal_model` with `reason_code=PROVIDER_SAFETY_REFUSAL`; local/input/output policy and hard-floor refusals use `refusal_safety`. Both remain readable but cannot be dragged, used, applied, or generated from.
 - Canonical refusal copy: `I cannot describe this.` with empty actions.
 
 ## Data handling & safety
 
-- Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
+- Never send raw file blobs to the LLM route. Reuse safe signed/public `https://` URLs when available; otherwise encode true local files as bounded, compacted `data:image/*` inputs for the current chat turn only.
 - No transcript storage in Supabase; chats live in memory while `clientSessionKey` persists in `sessionStorage` for reload continuity.
 - Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) through a service-role RPC with DB-enforced retention bounds (TTL `1..90 days`, cap `1..200`, defaults `30 days` + `200`) and deterministic pruning.
 - Provider-bound studio-agent text is safety-gated before execution by the same shared evaluator used by output post-process; server precheck is authoritative.
@@ -119,7 +119,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 - Agent enabled: start chat, receive a prompt, drag it into the composer, and successfully generate image/video.
 - Agent disabled (flag off or missing key): legacy prompt textarea renders; generation still works.
-- Large image drop: agent call omits media and reports omission without crashing.
+- Large image drop: client compaction succeeds within the shared request budget or the affected image/request fails explicitly without silent omission.
 - Video reference: first frame captured and sent (<= guardrail size); agent response acknowledges video context.
 - Safety refusal path returns without altering prompt state.
 - Transformable mixed-content requests complete in the same turn in Standard, custom Pulse, and built-in guided workflows without asking for an SFW resubmission.

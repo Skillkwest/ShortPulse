@@ -3,7 +3,7 @@
 Purpose: define the authoritative execution reading path for active work, reduce planning-doc ambiguity, and group ongoing work into bounded programs instead of page-by-page backlog sprawl.
 
 Status: active
-Last reviewed: 2026-05-11
+Last reviewed: 2026-07-10
 
 ## Why this exists
 
@@ -84,6 +84,7 @@ Primary entry docs:
 - `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 - `docs/planning/ai-studio-generation-admission-rollout-plan.md`
 - `docs/planning/billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`
+- `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 
 Stop rule:
@@ -153,7 +154,6 @@ Primary entry docs:
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`
 - `docs/planning/ai-studio-video-lip-sync-remediation-plan-2026-06-10.md`
-- `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/routes.md`

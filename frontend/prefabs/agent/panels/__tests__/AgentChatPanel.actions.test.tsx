@@ -294,6 +294,48 @@ describe("AgentChatPanel prompt actions", () => {
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
   });
 
+  it.each(["refusal_safety", "refusal_model", "upstream_error", "route_error"] as const)(
+    "does not expose reusable actions for %s messages with stale prompt metadata",
+    (outcomeClass) => {
+      const onGenerateOutputPrompt = vi.fn();
+      const onUseAssistantMessageAsPrompt = vi.fn();
+      const onAssistantMessageEdit = vi.fn(() => true);
+      const content = `Terminal ${outcomeClass} message.`;
+
+      render(
+        <AgentChatPanel
+          messages={[
+            {
+              id: `failure-${outcomeClass}`,
+              role: "assistant",
+              content,
+              outputPrompt: "Stale prompt artifact that must not be reusable.",
+              canUseAsPrompt: true,
+              outcomeClass,
+            },
+          ]}
+          input=""
+          highlightLatestAssistantOnly
+          onInputChange={vi.fn()}
+          onSend={vi.fn()}
+          onGenerateOutputPrompt={onGenerateOutputPrompt}
+          onUseAssistantMessageAsPrompt={onUseAssistantMessageAsPrompt}
+          onAssistantMessageEdit={onAssistantMessageEdit}
+        />
+      );
+
+      expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Use as prompt" })).toBeNull();
+      const message = screen.getByText(content);
+      expect(message.closest(".agent-message-prompt-drag-surface")).toBeNull();
+      expect(message.closest(".agent-message")).not.toHaveClass("is-draggable");
+      fireEvent.doubleClick(message);
+      expect(onAssistantMessageEdit).not.toHaveBeenCalled();
+      expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
+      expect(onUseAssistantMessageAsPrompt).not.toHaveBeenCalled();
+    }
+  );
+
   it("keeps conversational assistant replies draggable as text without treating them as prompt output", () => {
     const onGenerateOutputPrompt = vi.fn();
 

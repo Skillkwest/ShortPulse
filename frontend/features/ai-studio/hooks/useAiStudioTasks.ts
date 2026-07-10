@@ -796,32 +796,45 @@ export function useAiStudioTasks({
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = getPollMaxWaitMs(provider);
       if (elapsedMs > maxWaitMs) {
-        addBreadcrumb({
-          type: "ui",
-          level: "warn",
-          message: "generation_poll_timeout",
-          data: {
+        pollTimersRef.current[outputId] = window.setTimeout(async () => {
+          if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
+            return;
+          }
+          const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
+            outputId,
+            taskId,
             provider,
-            task_id: taskId,
-            output_id: outputId,
-            poll_attempt: attempt,
-            elapsed_ms: elapsedMs,
-            max_wait_ms: maxWaitMs,
-          },
-        });
-        settlePollingFailure({
-          outputId,
-          taskId,
-          provider,
-          message: "Generation timed out. Please retry.",
-          detail: "The generation stopped making progress after provider handoff. Please retry.",
-          reasonCode: "poll_timeout",
-          pollAttempt: attempt,
-          noMediaAttempt,
-          elapsedMs,
-          maxWaitMs,
-          timestamp: "Generation timed out",
-        });
+          });
+          if (visibleGenerationSettled) {
+            return;
+          }
+          addBreadcrumb({
+            type: "ui",
+            level: "warn",
+            message: "generation_poll_timeout",
+            data: {
+              provider,
+              task_id: taskId,
+              output_id: outputId,
+              poll_attempt: attempt,
+              elapsed_ms: elapsedMs,
+              max_wait_ms: maxWaitMs,
+            },
+          });
+          settlePollingFailure({
+            outputId,
+            taskId,
+            provider,
+            message: "Generation timed out. Please retry.",
+            detail: "The generation stopped making progress after provider handoff. Please retry.",
+            reasonCode: "poll_timeout",
+            pollAttempt: attempt,
+            noMediaAttempt,
+            elapsedMs,
+            maxWaitMs,
+            timestamp: "Generation timed out",
+          });
+        }, 0);
         return;
       }
       const timeoutId = window.setTimeout(async () => {

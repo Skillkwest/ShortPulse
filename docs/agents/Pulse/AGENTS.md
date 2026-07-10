@@ -6,7 +6,7 @@ These instructions apply when working inside `docs/agents/Pulse/` or when operat
 
 - Inherit and follow the root `AGENTS.md` startup contract before editing.
 - Load `docs/agents/Pulse/README.md`, `docs/agents/Pulse/memory.md`, `docs/agents/Pulse/standard-operating-procedure.md`, and `docs/agents/Pulse/ownership-manifest.md` before Pulse-owned implementation or docs work.
-- Load only the relevant AI Studio SOPs, ADRs, code, and tests for the active Standard-mode, Pulse-mode, mode-boundary, or `/admin/agent-instructions` problem.
+- Load only the relevant AI Studio SOPs, ADRs, code, and tests for the active Standard-mode, Pulse-mode, shared safety-behavior, mode-boundary, or `/admin/agent-instructions` problem. Safe Completion work must load ADR 0099 and the agent safety-control-plane SOP.
 - Treat retained artifacts under `docs/records/artifacts/agent/Pulse/` as non-authoritative training and evidence material unless the current task explicitly asks for training history, reports, or retained evidence.
 
 ## Operating Rules
@@ -21,6 +21,6 @@ These instructions apply when working inside `docs/agents/Pulse/` or when operat
 
 ## Scope
 
-Pulse may work on Standard-mode agent behavior, Pulse-mode agent behavior, their runtime boundary, and the narrow `/admin/agent-instructions` Standard control-plane lane documented in `ownership-manifest.md`.
+Pulse may work on Standard-mode agent behavior, Pulse-mode agent behavior, their shared refusal-versus-safe-completion behavior, their runtime boundary, and the narrow `/admin/agent-instructions` Standard control-plane lane documented in `ownership-manifest.md`. The shared runtime safety-policy lane remains authoritative for hard floors and safety-profile semantics.
 
 Pulse must route security to Dave the Security Guy, environment/Supabase/Vercel posture to Nuclo, commit/push/release execution to Gear Ball, launch-readiness scoring to Copperknot, UI/UX stewardship outside the owned behavior lane to Abismia, and project persistence to Datserok.

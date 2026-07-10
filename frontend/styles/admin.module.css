@@ -1801,7 +1801,7 @@
   --admin-support-user-col: minmax(230px, 1.2fr);
   --admin-support-copy-col: 44px;
   --admin-support-plan-col: minmax(86px, 0.34fr);
-  --admin-support-billing-col: minmax(132px, 0.5fr);
+  --admin-support-billing-col: minmax(96px, 0.24fr);
   --admin-support-payment-col: minmax(104px, 0.42fr);
   --admin-support-spendable-col: minmax(112px, 0.54fr);
   --admin-support-renews-col: minmax(132px, 0.64fr);
@@ -4119,6 +4119,13 @@
   cursor: pointer;
 }
 
+.adminStripeBillingToggle > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .adminStripeBillingToggleIcon {
   flex: 0 0 auto;
   color: var(--admin-text-muted);
@@ -4138,6 +4145,64 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px;
+}
+
+.accountStatusSummaryPills {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.accountStatusSummaryPill {
+  --account-status-summary-color: var(--admin-text-muted);
+  --account-status-summary-border: rgba(184, 200, 218, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: min(420px, 34vw);
+  padding: 4px 8px;
+  border: 1px solid var(--account-status-summary-border);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.accountStatusSummaryPill > span {
+  flex: 0 0 auto;
+  color: var(--account-status-summary-color);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.accountStatusSummaryPill > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--admin-text-strong);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountStatusSummaryPillIssue {
+  --account-status-summary-color: #9de5c0;
+  --account-status-summary-border: rgba(157, 229, 192, 0.3);
+}
+
+.accountStatusSummaryPillWarning {
+  --account-status-summary-color: #ffd23f;
+  --account-status-summary-border: rgba(255, 210, 63, 0.42);
+}
+
+.accountStatusSummaryPillCritical {
+  --account-status-summary-color: #ff4d57;
+  --account-status-summary-border: rgba(255, 77, 87, 0.44);
 }
 
 .accountStatusRow {

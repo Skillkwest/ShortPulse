@@ -219,6 +219,28 @@ export const runPulseCreateAgentSend = async ({
       })
     );
   };
+  const updateComposerAttachmentDelivery = (
+    ids: string[],
+    status: "pending" | "preparing" | "ready" | "failed",
+    deliveryError?:
+      | string
+      | null
+      | ((attachment: (typeof outboundAttachments)[number]) => string | null)
+  ) => {
+    if (!ids.length) return;
+    setAgentAttachments((attachments) =>
+      attachments.map((attachment) => {
+        if (!ids.includes(attachment.id)) return attachment;
+        const resolvedError =
+          typeof deliveryError === "function" ? deliveryError(attachment) : deliveryError;
+        return {
+          ...attachment,
+          deliveryStatus: attachment.kind === "prompt" ? "ready" : status,
+          deliveryError: attachment.kind === "prompt" ? null : (resolvedError ?? null),
+        };
+      })
+    );
+  };
   const clearComposerDraft = () => {
     if (composerCleared) return;
     composerCleared = true;
@@ -271,6 +293,7 @@ export const runPulseCreateAgentSend = async ({
     } catch {
       const failedIds = Array.from(ephemeralImageUrls.keys());
       updateOptimisticAttachmentDelivery(failedIds, "failed", EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+      updateComposerAttachmentDelivery(failedIds, "failed", EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
       setAgentAttachmentError(
         "Attached images could not fit within the agent request limit. Remove an image and try again."
       );
@@ -285,6 +308,11 @@ export const runPulseCreateAgentSend = async ({
     if (imageAttachmentIds.length > 0) {
       if (failedEphemeralImageIds.length > 0) {
         updateOptimisticAttachmentDelivery(
+          failedEphemeralImageIds,
+          "failed",
+          EPHEMERAL_IMAGE_SEND_MISSING_MESSAGE
+        );
+        updateComposerAttachmentDelivery(
           failedEphemeralImageIds,
           "failed",
           EPHEMERAL_IMAGE_SEND_MISSING_MESSAGE
@@ -314,6 +342,11 @@ export const runPulseCreateAgentSend = async ({
             "failed",
             "Image URL missing. Remove this image and attach it again."
           );
+          updateComposerAttachmentDelivery(
+            preparedImageResult.failedIds,
+            "failed",
+            "Image URL missing. Remove this image and attach it again."
+          );
           setAgentAttachmentError(
             "One or more attached images are missing a valid URL. Remove failed images and try again."
           );
@@ -324,6 +357,13 @@ export const runPulseCreateAgentSend = async ({
           return;
         }
         updateOptimisticAttachmentDelivery(
+          preparedImageResult.failedIds,
+          "failed",
+          (attachment) =>
+            preparedImageResult.failureMessages[attachment.id] ??
+            "Image upload/preparation failed. Remove this image and try again."
+        );
+        updateComposerAttachmentDelivery(
           preparedImageResult.failedIds,
           "failed",
           (attachment) =>

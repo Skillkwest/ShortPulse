@@ -19,6 +19,7 @@ describe("studioAgentVisionSummaries", () => {
   it("builds image summaries for ten images with one batched describe call", async () => {
     fetchStudioAgentChatCompletionMock.mockReset();
     const onUntrustedImageTextSignal = vi.fn();
+    const onProviderCall = vi.fn();
     fetchStudioAgentChatCompletionMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -54,9 +55,11 @@ describe("studioAgentVisionSummaries", () => {
       visionModel: "gpt-vision",
       timeoutMs: 20000,
       onUntrustedImageTextSignal,
+      onProviderCall,
     });
 
     expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(onProviderCall).toHaveBeenCalledTimes(1);
     expect(summaryMap.size).toBe(10);
     expect(summaryMap.get("image-1")).toBe(
       "A sharp product photo of a red sneaker on white background."

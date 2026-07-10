@@ -2,7 +2,10 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
-import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
+import {
+  IMAGE_POLL_MAX_WAIT_MS,
+  MAX_CONCURRENT_STATUS_REQUESTS,
+} from "../taskPolling/pollingSchedulePolicy";
 import {
   resolveGenerationProjectionLifecycle,
   resolveVisibleGenerationReconcile,
@@ -2096,6 +2099,7 @@ describe("useAiStudioTasks", () => {
       );
     });
 
+    await vi.advanceTimersByTimeAsync(0);
     await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
@@ -2118,6 +2122,72 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("fail");
     expect(output.timestamp).toBe("Generation timed out");
     expect(output.errorMessage).toBe("Generation timed out. Please retry.");
+  });
+
+  it("reconciles canonical media before declaring an overdue image poll timed out", async () => {
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-timeout-recovered",
+      previewUrl: "https://cdn.test/timeout-recovered-preview.png",
+      previewStoragePath: "user-1/generations/images/timeout-recovered-preview.png",
+      fullStoragePath: "user-1/generations/images/timeout-recovered-full.png",
+      resultUrls: ["https://cdn.test/timeout-recovered-full.png"],
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    const startedAt = Date.now() - IMAGE_POLL_MAX_WAIT_MS - 1;
+
+    act(() => {
+      result.current.startPollingTask(
+        "task-timeout-recovered",
+        "out-1",
+        12,
+        "fal-nano-banana-2",
+        startedAt,
+        0
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalNanoBananaStatusMock).not.toHaveBeenCalled();
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "task-timeout-recovered",
+    });
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-timeout-recovered",
+        provider: "fal-nano-banana-2",
+        resultUrls: ["https://cdn.test/timeout-recovered-full.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.status).toBe("saved");
+    expect(output.saveState).toBe("saved");
+    expect(output.generationId).toBe("gen-timeout-recovered");
+    expect(output.errorMessage).toBeNull();
   });
 
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {

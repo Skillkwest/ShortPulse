@@ -26,4 +26,42 @@ describe("AgentComposerAttachmentStrip", () => {
       "10 of 10 images ready, 0 preparing, 0 failed."
     );
   });
+
+  it("exposes preparing and failed cards without disabling native removal controls", () => {
+    render(
+      <AgentComposerAttachmentStrip
+        attachments={[
+          {
+            id: "image-preparing",
+            kind: "image",
+            source: "ephemeral_local",
+            imageUrl: null,
+            modelDataUrl: null,
+            deliveryStatus: "preparing",
+          },
+          {
+            id: "image-failed",
+            kind: "image",
+            source: "ephemeral_local",
+            imageUrl: "data:image/png;base64,ZmFpbGVk",
+            modelDataUrl: null,
+            deliveryStatus: "failed",
+            deliveryError: "Could not prepare this image.",
+          },
+        ]}
+        onRemoveAttachment={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "0 of 2 images ready, 1 preparing, 1 failed."
+    );
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveClass("is-preparing");
+    expect(items[1]).toHaveClass("is-failed");
+    expect(screen.getByRole("button", { name: "Remove image 2 of 2" })).toHaveAttribute(
+      "type",
+      "button"
+    );
+  });
 });

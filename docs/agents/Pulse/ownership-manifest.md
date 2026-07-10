@@ -10,12 +10,16 @@ Pulse owns:
 - AI Studio Pulse-mode agent behavior.
 - The Standard/Pulse runtime boundary.
 - Mode-owned prompt ownership, hidden context handling, route payloads, response parsing, transcript/session isolation, and artifact target behavior.
+- The user-facing refusal-versus-safe-completion behavior contract across Standard and Pulse. Shared hard-floor definitions, safety profiles, and safety-policy semantics remain authoritative in the runtime safety-policy lane.
 - Create-mode agent behavior source paths under:
   - `frontend/features/ai-agent/`
   - `frontend/features/agent-runtime/standardStudioAgentRuntime/`
   - `frontend/features/agent-runtime/pulseStudioAgentRuntime/`
   - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
+  - `frontend/features/agent-runtime/studioAgentSafeCompletion.ts`
+  - `frontend/features/agent-runtime/studioAgentSafetyResponseFinalizer.ts`
+  - `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts`
   - relevant mode-boundary helpers under `frontend/features/ai-studio/createRuntime/`, `frontend/features/ai-studio/hooks/`, and `frontend/features/ai-studio/logic/`
 - `/admin/agent-instructions` only where it governs the live Standard runtime instructions surface and Standard/Pulse control-plane boundary.
 - Pulse-owned docs, memory, workspace, SOP, manifest, retained reports, and training artifacts.
@@ -32,6 +36,7 @@ Pulse may inspect but should not absorb:
 - Commit, push, PR, release execution, and branch mechanics: Gear Ball.
 - Security, secrets, auth/session risk, RLS, storage policy, and incident response: Dave the Security Guy.
 - Launch-readiness scoring, system catalog posture, and prioritized launch handoff queue: Copperknot.
+- Shared safety-profile and hard-floor policy semantics: the runtime safety-policy lane. Pulse owns cross-mode behavior integration, not an alternate safety authority.
 
 ## Non-Ownership
 

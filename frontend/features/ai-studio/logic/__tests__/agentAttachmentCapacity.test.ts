@@ -10,6 +10,19 @@ const image = (index: number): AgentAttachment => ({
 });
 
 describe("agentAttachmentCapacity", () => {
+  it.each([0, 1, 3])("preserves the expected behavior with %i existing images", (count) => {
+    const attachments = Array.from({ length: count }, (_, index) => image(index + 1));
+    const result = planAgentAttachmentInsertion({
+      attachments,
+      attachment: image(count + 1),
+    });
+
+    expect(result.accepted).toBe(true);
+    expect(result.attachments.map((attachment) => attachment.id)).toEqual(
+      Array.from({ length: count + 1 }, (_, index) => `image-${index + 1}`)
+    );
+  });
+
   it("accepts ten images and rejects image eleven without eviction", () => {
     let attachments: AgentAttachment[] = [];
     for (let index = 1; index <= 10; index += 1) {

@@ -45,6 +45,13 @@ export const resolveSafeCompletionSystemInstruction = (
 ): string | null => (isSafeCompletionEnabled(env) ? SAFE_COMPLETION_SYSTEM_INSTRUCTION : null);
 
 /**
+ * Removes exact editable copies before the code-owned contract is appended.
+ * Only callers with Safe Completion enabled should use this normalization.
+ */
+export const stripEditableSafeCompletionSystemInstruction = (value: string): string =>
+  value.split(SAFE_COMPLETION_SYSTEM_INSTRUCTION).join("").trim();
+
+/**
  * Determines whether one model-authored refusal may receive an internal repair.
  * Missing safety evidence fails closed so recovery can never bypass hard floors.
  */

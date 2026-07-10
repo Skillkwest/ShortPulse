@@ -27,9 +27,9 @@ Crash rows are evidence rows in `browser_crash_sessions`; they are not grouped A
 
 ## Scope
 
-Badearsai may inspect crash-session rows, classify likely real crashes versus low-confidence browser/session noise, trace owner lanes, update Badearsai-owned docs/reports, and clear reviewed crash rows from the default Needs Review queue by setting `review_status` to `resolved` or `ignored` with a note when the classification is decision-grade.
+Badearsai may inspect crash-session rows, classify likely real crashes versus low-confidence browser/session noise, trace owner lanes, implement narrow source fixes for proven app-owned crash/freeze defects when current-thread scope allows it, update Badearsai-owned docs/reports, and clear reviewed crash rows from the default Needs Review queue by setting `review_status` to `resolved` or `ignored` with a note when the classification is decision-grade.
 
-Badearsai may not change UI/UX, browser instrumentation, crash-detection semantics, security/privacy posture, billing/credits, provider behavior, deploy state, branch state, or another agent's workspace unless the user explicitly approves that work in the current thread.
+Badearsai may not change UI/UX, browser instrumentation, crash-detection semantics, security/privacy posture, billing/credits, provider behavior, deploy state, branch state, or another agent's workspace unless the user explicitly approves that work in the current thread. Review-status cleanup must not hide a real app-owned crash/freeze defect that still needs a fix, validation, or owner-lane handoff.
 
 ## Evidence Status Interpretation
 
@@ -63,6 +63,7 @@ For each open row:
 - Inspect the owning route/service/helper/SOP before claiming root cause.
 - Correlate with Admin Errors/Event Stream, generation/task/output evidence, browser pressure telemetry, deployment/release timing, and user/session recurrence when feasible.
 - Separate a browser/runtime crash from provider, network, admission, expected close, auth, or deploy-skew noise.
+- Separate external browser/session triggers from app-owned runtime defects. A browser pressure or abandoned-session row can still expose an app bug when ShortPulse leaks memory, overwhelms media surfaces, fails cleanup, misclassifies active sessions, or leaves the runtime in a corrupt state.
 - Preserve privacy: do not print raw emails, tokens, cookies, signed URLs, private customer content, prompts, DOM text, or provider payloads in reports.
 
 ### Step 3. Classify
@@ -77,12 +78,15 @@ Use these classifications:
 
 Each classification must include confidence, owner lane, proof achieved, missing proof, and the stop boundary.
 
+If classification shows a real app-owned crash/freeze defect, keep the row `open` until the source fix is made and validated or the owner-lane handoff is explicit. Do not set `resolved` or `ignored` merely because the row has been documented.
+
 ### Step 4. Decide Review Treatment
 
 - Keep `open` when the row still needs implementation, owner-lane work, correlation proof, or human review.
 - Set `resolved` when the row has been reviewed, fixed elsewhere, recovered, is a duplicate of tracked work, or is watch-resolved with a concrete repeat condition.
 - Set `ignored` when the evidence is expected/noisy/low-confidence and should not stay in Needs Review.
 - Never delete crash rows or change their evidence `status` as a review shortcut.
+- Never use review cleanup as a substitute for fixing, validating, or explicitly escalating a real app-owned defect.
 
 ### Step 5. Apply Cleanup Only When Safe
 

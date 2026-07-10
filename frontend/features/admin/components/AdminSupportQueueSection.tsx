@@ -420,6 +420,12 @@ export function AdminSupportQueueSection({
     detail: string | null;
     toneClassName: string;
   };
+  type StatusSummaryPill = {
+    key: string;
+    label: string;
+    value: string;
+    tone: "critical" | "warning" | "issue";
+  };
 
   const selectedAccountSectionRef = useRef<HTMLElement | null>(null);
   const [ledgerUserId, setLedgerUserId] = useState<string | null>(null);
@@ -496,8 +502,9 @@ export function AdminSupportQueueSection({
   const pricingObservabilityCoverageLabel = pricingObservability
     ? `${pricingObservability.observedRows.reservations}/${pricingObservability.rowsScanned.reservations} reservation rows · ${pricingObservability.observedRows.ledgerEntries}/${pricingObservability.rowsScanned.ledgerEntries} ledger rows`
     : null;
-  const showPricingObservabilityCard =
-    pricingObservability != null && pricingObservability.mismatchCount > 0;
+  const pricingObservabilityMismatchCount = pricingObservability?.mismatchCount ?? 0;
+  const pricingObservabilityLastObservedAt = pricingObservability?.lastObservedAt ?? null;
+  const showPricingObservabilityCard = pricingObservabilityMismatchCount > 0;
   const snapshotStripeCustomerId = billingDiagnostics?.billingProfile?.stripeCustomerId ?? null;
   const snapshotStripeSubscriptionId =
     billingDiagnostics?.stripeSubscription?.subscriptionId ??
@@ -686,6 +693,66 @@ export function AdminSupportQueueSection({
             : styles.accountStatusRowNeutral,
         },
       ]
+    : [];
+  const statusSummaryPills: StatusSummaryPill[] = selectedUserId
+    ? [
+        billingDiagnosticsError
+          ? {
+              key: "billing-diagnostics-error",
+              label: "Error",
+              value: "Billing diagnostics unavailable",
+              tone: "critical" as const,
+            }
+          : null,
+        snapshotCancellationScheduled || snapshotBillingStateLabel !== "Active"
+          ? {
+              key: "billing-state",
+              label: "Warning",
+              value:
+                snapshotContractSource === "internal_comp"
+                  ? "Payment exempt"
+                  : snapshotBillingStateLabel,
+              tone: "warning" as const,
+            }
+          : null,
+        snapshotContractSource === "internal_comp" && snapshotStripeCustomerId
+          ? {
+              key: "billing-identity",
+              label: "Warning",
+              value: "Internal comp + Stripe customer",
+              tone: "warning" as const,
+            }
+          : null,
+        ...visibleBillingFindings.map((finding): StatusSummaryPill => {
+          const label =
+            finding.severity === "critical"
+              ? "Error"
+              : finding.severity === "warning"
+                ? "Warning"
+                : "Issue";
+          return {
+            key: `finding-${finding.code}`,
+            label,
+            value: finding.summary,
+            tone:
+              finding.severity === "critical"
+                ? "critical"
+                : finding.severity === "warning"
+                  ? "warning"
+                  : "issue",
+          };
+        }),
+        showPricingObservabilityCard
+          ? {
+              key: "pricing-observability",
+              label: "Pricing",
+              value: `${pricingObservabilityMismatchCount} mismatch${
+                pricingObservabilityMismatchCount === 1 ? "" : "es"
+              }`,
+              tone: "warning" as const,
+            }
+          : null,
+      ].filter((pill): pill is StatusSummaryPill => pill !== null)
     : [];
   const handleShowLedger = async () => {
     if (!selectedUserId) return;
@@ -1180,6 +1247,29 @@ export function AdminSupportQueueSection({
                   >
                     <span>
                       <span className={styles.panelTitle}>Status</span>
+                      {statusSummaryPills.length > 0 ? (
+                        <span
+                          className={styles.accountStatusSummaryPills}
+                          aria-label="Status items needing review"
+                        >
+                          {statusSummaryPills.map((pill) => (
+                            <span
+                              key={pill.key}
+                              className={`${styles.accountStatusSummaryPill} ${
+                                pill.tone === "critical"
+                                  ? styles.accountStatusSummaryPillCritical
+                                  : pill.tone === "warning"
+                                    ? styles.accountStatusSummaryPillWarning
+                                    : styles.accountStatusSummaryPillIssue
+                              }`}
+                              title={`${pill.label}: ${pill.value}`}
+                            >
+                              <span>{pill.label}</span>
+                              <strong>{pill.value}</strong>
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                     </span>
                     <CaretDown
                       size={16}
@@ -1246,7 +1336,7 @@ export function AdminSupportQueueSection({
                           {showPricingObservabilityCard ? (
                             <article
                               className={`${styles.accountStatusRow} ${
-                                pricingObservability.mismatchCount > 0
+                                pricingObservabilityMismatchCount > 0
                                   ? styles.accountStatusRowWarning
                                   : styles.accountStatusRowOk
                               }`}
@@ -1255,17 +1345,17 @@ export function AdminSupportQueueSection({
                               <span className={styles.accountStatusLabel}>Pricing</span>
                               <div className={styles.accountStatusCopy}>
                                 <strong className={styles.accountStatusValue}>
-                                  {pricingObservability.mismatchCount > 0
-                                    ? `${pricingObservability.mismatchCount} mismatch${
-                                        pricingObservability.mismatchCount === 1 ? "" : "es"
+                                  {pricingObservabilityMismatchCount > 0
+                                    ? `${pricingObservabilityMismatchCount} mismatch${
+                                        pricingObservabilityMismatchCount === 1 ? "" : "es"
                                       }`
                                     : "No recent mismatches"}
                                 </strong>
                                 <span className={styles.accountStatusDetail}>
                                   {pricingObservabilityCoverageLabel}
-                                  {pricingObservability.lastObservedAt
+                                  {pricingObservabilityLastObservedAt
                                     ? ` · last observed ${formatCompactDate(
-                                        pricingObservability.lastObservedAt
+                                        pricingObservabilityLastObservedAt
                                       )}`
                                     : " · no recent observed rows yet"}
                                 </span>

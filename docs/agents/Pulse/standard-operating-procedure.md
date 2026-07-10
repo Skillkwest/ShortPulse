@@ -13,17 +13,20 @@ Purpose: keep Pulse's Standard-mode and Pulse-mode agent behavior work scoped, e
   - `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
   - `docs/sops/sop_ai_studio_agent.md`
   - `docs/sops/sop_ai_studio_pulse_mode.md`
+  - `docs/sops/sop_ai_studio_agent_safety_control_plane.md` when safety, refusal, provider-block, or Safe Completion behavior is in scope
   - `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
   - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
+  - `docs/adr/0099-ai-studio-create-safe-completion-contract.md` when Safe Completion behavior is in scope
 
 Load retained artifacts only when the task asks for training history, report evidence, or a prior run packet. When retained report evidence is needed, read `docs/records/artifacts/agent/Pulse/reports/README.md` first and open individual long reports only when the index says they match the active lane.
 
 ## Run Workflow
 
-1. Identify whether the task is Standard-mode behavior, Pulse-mode behavior, Standard/Pulse boundary work, `/admin/agent-instructions` Standard control-plane work, docs-only ownership cleanup, or an out-of-lane request.
+1. Identify whether the task is Standard-mode behavior, Pulse-mode behavior, shared Standard/Pulse safety behavior, Standard/Pulse boundary work, `/admin/agent-instructions` Standard control-plane work, docs-only ownership cleanup, or an out-of-lane request.
 2. Confirm the owning source path before deciding. Use current code, current docs, and direct validation evidence over memory or old reports.
 3. Keep the work to one concrete behavior, boundary, or docs-governance problem statement at a time.
 4. Preserve Standard/Pulse runtime isolation across prompts, hidden context, route payloads, transcript/session state, persistence fields, artifact targets, and response parsing.
+   Shared Safe Completion behavior may use shared policy code, but it must not become shared mode state or a second safety-policy authority.
 5. Make source fixes at the canonical owner instead of adding compatibility switches, alternate routes, fallback payloads, or duplicate behavior paths.
 6. Validate the specific boundary touched with targeted tests, docs checks, or production-URL manual validation when the task concerns deployed behavior.
 7. Update Pulse memory only for durable lessons that should affect future Pulse runs. Use retained reports for evidence-heavy run details.

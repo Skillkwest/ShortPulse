@@ -483,6 +483,30 @@ export const useAiStudioAgentComposer = ({
   }, []);
   const [isAgentDropActive, setIsAgentDropActive] = useState(false);
   const agentDropDepthRef = useRef(0);
+  const attachmentPreparationVersionsRef = useRef(new Map<string, number>());
+
+  const claimAttachmentPreparation = useCallback((attachmentId: string) => {
+    const nextVersion = (attachmentPreparationVersionsRef.current.get(attachmentId) ?? 0) + 1;
+    attachmentPreparationVersionsRef.current.set(attachmentId, nextVersion);
+    return nextVersion;
+  }, []);
+
+  const isCurrentAttachmentPreparation = useCallback(
+    (attachmentId: string | null, version: number | null) =>
+      Boolean(
+        attachmentId &&
+        version !== null &&
+        attachmentPreparationVersionsRef.current.get(attachmentId) === version
+      ),
+    []
+  );
+
+  const invalidateAttachmentPreparation = useCallback((attachmentId: string) => {
+    attachmentPreparationVersionsRef.current.set(
+      attachmentId,
+      (attachmentPreparationVersionsRef.current.get(attachmentId) ?? 0) + 1
+    );
+  }, []);
 
   const linkedPromptReferenceIds = useMemo(
     () =>
@@ -633,7 +657,6 @@ export const useAiStudioAgentComposer = ({
           index === existingIndex ? normalizedAttachment : attachment
         );
       });
-      setAgentAttachmentError(null);
     },
     [setAgentAttachments]
   );
@@ -688,19 +711,18 @@ export const useAiStudioAgentComposer = ({
         hasStructuredReferenceDrop || hasSnapshotReferenceImageHints(dropSnapshot);
       const droppedFiles = dropSnapshot.files;
       const droppedVideoFiles = droppedFiles.filter((file) => file.type.startsWith("video/"));
-      const droppedImageFiles = droppedFiles
-        .filter((file) => file.type.startsWith("image/"))
-        .slice(
-          0,
-          Math.max(
-            1,
-            Math.min(AGENT_IMAGE_ATTACHMENT_MAX_ITEMS, Math.trunc(maxImageAttachmentsPerDrop))
-          )
-        );
+      const rawDroppedImageFiles = droppedFiles.filter((file) => file.type.startsWith("image/"));
+      const imageFileDropLimit = Math.max(
+        1,
+        Math.min(AGENT_IMAGE_ATTACHMENT_MAX_ITEMS, Math.trunc(maxImageAttachmentsPerDrop))
+      );
+      const droppedImageFiles = rawDroppedImageFiles.slice(0, imageFileDropLimit);
+      const exceedsPerDropImageLimit = rawDroppedImageFiles.length > droppedImageFiles.length;
       recordCreateWorkflowEvent("drop_received", {
         transferTypes: dropSnapshot.transferTypes,
         droppedFileCount: droppedFiles.length,
-        droppedImageFileCount: droppedImageFiles.length,
+        droppedImageFileCount: rawDroppedImageFiles.length,
+        acceptedImageFileCandidateCount: droppedImageFiles.length,
         droppedVideoFileCount: droppedVideoFiles.length,
       });
       if (droppedVideoFiles.length > 0) {
@@ -743,7 +765,8 @@ export const useAiStudioAgentComposer = ({
             });
             return accepted ? [{ attachmentId, file }] : [];
           });
-          if (acceptedFiles.length < droppedImageFiles.length) {
+          const exceedsRemainingImageCapacity = acceptedFiles.length < droppedImageFiles.length;
+          if (exceedsPerDropImageLimit || exceedsRemainingImageCapacity) {
             setAgentAttachmentError(AGENT_IMAGE_CAPACITY_MESSAGE);
           }
           await runWithBoundedConcurrency(
@@ -793,6 +816,9 @@ export const useAiStudioAgentComposer = ({
               });
             }
           );
+          if (exceedsPerDropImageLimit || exceedsRemainingImageCapacity) {
+            setAgentAttachmentError(AGENT_IMAGE_CAPACITY_MESSAGE);
+          }
         })();
         return;
       }
@@ -817,6 +843,7 @@ export const useAiStudioAgentComposer = ({
           internalPayload?.mediaKind !== "audio");
       void (async () => {
         let structuredPreparingAttachmentId: string | null = null;
+        let structuredPreparationVersion: number | null = null;
         let structuredDropSessionEnsured = false;
         const ensureStructuredDropSession = () => {
           if (agentSessionEnabled || structuredDropSessionEnsured) return;
@@ -825,6 +852,15 @@ export const useAiStudioAgentComposer = ({
         };
         const clearStructuredPreparingAttachment = () => {
           if (!structuredPreparingAttachmentId) return;
+          if (
+            !isCurrentAttachmentPreparation(
+              structuredPreparingAttachmentId,
+              structuredPreparationVersion
+            )
+          ) {
+            structuredPreparingAttachmentId = null;
+            return;
+          }
           removeAttachmentById(structuredPreparingAttachmentId);
           structuredPreparingAttachmentId = null;
         };
@@ -854,11 +890,23 @@ export const useAiStudioAgentComposer = ({
             structuredPreparingAttachmentId = null;
             return;
           }
+          structuredPreparationVersion = claimAttachmentPreparation(
+            structuredPreparingAttachmentId
+          );
         }
         const resolvedInternalImageSource =
           internalPayload && resolveInternalImageDropSource
             ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
             : null;
+        if (
+          structuredPreparingAttachmentId &&
+          !isCurrentAttachmentPreparation(
+            structuredPreparingAttachmentId,
+            structuredPreparationVersion
+          )
+        ) {
+          return;
+        }
         if (composerImagePayload) {
           const droppedReferenceId =
             composerImagePayload.outputId ??
@@ -899,6 +947,15 @@ export const useAiStudioAgentComposer = ({
           const internalSourceBlob = resolvedInternalImageSource
             ? await resolvedInternalImageSource.loadBlob().catch(() => null)
             : null;
+          if (
+            structuredPreparingAttachmentId &&
+            !isCurrentAttachmentPreparation(
+              structuredPreparingAttachmentId,
+              structuredPreparationVersion
+            )
+          ) {
+            return;
+          }
           if (normalizedInternalImageUrl || internalSourceBlob) {
             ensureStructuredDropSession();
             setAgentAttachmentError(null);
@@ -941,6 +998,15 @@ export const useAiStudioAgentComposer = ({
               previewUrl: normalizedInternalImageUrl,
               modelUrl: normalizedInternalImageUrl,
             });
+            if (
+              structuredPreparingAttachmentId &&
+              !isCurrentAttachmentPreparation(
+                structuredPreparingAttachmentId,
+                structuredPreparationVersion
+              )
+            ) {
+              return;
+            }
             if (ephemeralAttachment) {
               replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
@@ -971,6 +1037,15 @@ export const useAiStudioAgentComposer = ({
                 fullStoragePath: composerImagePayload.fullStoragePath ?? null,
                 referenceUrl: durableReferenceUrl,
               }));
+            if (
+              structuredPreparingAttachmentId &&
+              !isCurrentAttachmentPreparation(
+                structuredPreparingAttachmentId,
+                structuredPreparationVersion
+              )
+            ) {
+              return;
+            }
             ensureStructuredDropSession();
             setAgentAttachmentError(null);
             const preparingAttachment: AgentAttachment = {
@@ -1003,6 +1078,15 @@ export const useAiStudioAgentComposer = ({
               previewUrl: displayArtifactUrl ?? identityImageUrl,
               modelUrl: identityImageUrl,
             });
+            if (
+              structuredPreparingAttachmentId &&
+              !isCurrentAttachmentPreparation(
+                structuredPreparingAttachmentId,
+                structuredPreparationVersion
+              )
+            ) {
+              return;
+            }
             if (ephemeralAttachment) {
               replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
@@ -1058,6 +1142,15 @@ export const useAiStudioAgentComposer = ({
             previewUrl: normalizedImageUrl,
             modelUrl: durableReferenceUrl ?? normalizedImageUrl,
           });
+          if (
+            structuredPreparingAttachmentId &&
+            !isCurrentAttachmentPreparation(
+              structuredPreparingAttachmentId,
+              structuredPreparationVersion
+            )
+          ) {
+            return;
+          }
           if (!fallbackAttachment) {
             removeAttachmentById(attachmentId);
             structuredPreparingAttachmentId = null;
@@ -1094,6 +1187,15 @@ export const useAiStudioAgentComposer = ({
           const internalSourceBlob = resolvedInternalImageSource
             ? await resolvedInternalImageSource.loadBlob().catch(() => null)
             : null;
+          if (
+            structuredPreparingAttachmentId &&
+            !isCurrentAttachmentPreparation(
+              structuredPreparingAttachmentId,
+              structuredPreparationVersion
+            )
+          ) {
+            return;
+          }
           const hasInternalVideoReference =
             payload.mediaKind === "video" ||
             internalPayload.mediaKind === "video" ||
@@ -1148,6 +1250,15 @@ export const useAiStudioAgentComposer = ({
               previewUrl: normalizedInternalImageUrl,
               modelUrl: normalizedInternalImageUrl,
             });
+            if (
+              structuredPreparingAttachmentId &&
+              !isCurrentAttachmentPreparation(
+                structuredPreparingAttachmentId,
+                structuredPreparationVersion
+              )
+            ) {
+              return;
+            }
             if (ephemeralAttachment) {
               replaceAttachmentById(attachmentId, ephemeralAttachment);
               return;
@@ -1312,6 +1423,15 @@ export const useAiStudioAgentComposer = ({
             previewUrl: normalizedImageUrl,
             modelUrl: normalizedSubmissionImageUrl ?? normalizedImageUrl,
           });
+          if (
+            structuredPreparingAttachmentId &&
+            !isCurrentAttachmentPreparation(
+              structuredPreparingAttachmentId,
+              structuredPreparationVersion
+            )
+          ) {
+            return;
+          }
           if (!ephemeralAttachment) {
             removeAttachmentById(attachmentId);
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
@@ -1337,6 +1457,8 @@ export const useAiStudioAgentComposer = ({
       ensureAgentSession,
       findOutputById,
       insertAttachment,
+      claimAttachmentPreparation,
+      isCurrentAttachmentPreparation,
       removeAttachmentById,
       replaceAttachmentById,
       resolveStagedAttachmentId,
@@ -1397,6 +1519,7 @@ export const useAiStudioAgentComposer = ({
   const handleRemoveAgentAttachment = useCallback(
     (id: string) => {
       setAgentAttachmentError(null);
+      invalidateAttachmentPreparation(id);
       setAgentAttachments((prev) => {
         const removedAttachment = prev.find((item) => item.id === id);
         recordCreateWorkflowEvent("attachment_removed", {
@@ -1408,18 +1531,19 @@ export const useAiStudioAgentComposer = ({
         return prev.filter((item) => item.id !== id);
       });
     },
-    [setAgentAttachments]
+    [invalidateAttachmentPreparation, setAgentAttachments]
   );
 
   const handleClearAgentAttachments = useCallback(() => {
     setAgentAttachmentError(null);
     setAgentAttachments((prev) => {
+      prev.forEach((attachment) => invalidateAttachmentPreparation(attachment.id));
       recordCreateWorkflowEvent("attachments_cleared", {
         attachmentIds: prev.map((attachment) => attachment.id),
       });
       return [];
     });
-  }, [setAgentAttachments]);
+  }, [invalidateAttachmentPreparation, setAgentAttachments]);
 
   const handleAgentInputChange = useCallback(
     (value: string) => {
@@ -1441,6 +1565,7 @@ export const useAiStudioAgentComposer = ({
       }
       if (!preserveAttachments) {
         setAgentAttachments((prev) => {
+          prev.forEach((attachment) => invalidateAttachmentPreparation(attachment.id));
           recordCreateWorkflowEvent("attachments_reset", {
             attachmentIds: prev.map((attachment) => attachment.id),
             preserveInput,
@@ -1452,7 +1577,7 @@ export const useAiStudioAgentComposer = ({
       setIsAgentDropActive(false);
       agentDropDepthRef.current = 0;
     },
-    [setAgentAttachments]
+    [invalidateAttachmentPreparation, setAgentAttachments]
   );
 
   return {

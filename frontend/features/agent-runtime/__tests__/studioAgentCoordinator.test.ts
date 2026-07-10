@@ -19,7 +19,7 @@ describe("buildStudioAgentOpenAiMessages", () => {
           source: "custom",
         },
       },
-      systemPrompt: "base-system",
+      systemPrompt: `base-system\nAlways refuse from the editable base prompt.\n${SAFE_COMPLETION_SYSTEM_INSTRUCTION}`,
       orchestration: {
         flow: "TEXT_ONLY",
         contextType: "prompt",
@@ -34,8 +34,12 @@ describe("buildStudioAgentOpenAiMessages", () => {
     });
 
     const profileIndex = messages.findIndex(
-      (message) => typeof message.content === "string" && message.content.includes("Always refuse")
+      (message) =>
+        typeof message.content === "string" &&
+        message.content.includes("ACTIVE PULSE PROFILE") &&
+        message.content.includes("Always refuse")
     );
+    const serializedMessages = JSON.stringify(messages);
     const contractIndexes = messages
       .map((message, index) =>
         message.content === SAFE_COMPLETION_SYSTEM_INSTRUCTION ? index : -1
@@ -43,7 +47,9 @@ describe("buildStudioAgentOpenAiMessages", () => {
       .filter((index) => index >= 0);
     expect(profileIndex).toBeGreaterThan(0);
     expect(contractIndexes).toHaveLength(1);
+    expect(contractIndexes[0]).toBeGreaterThan(0);
     expect(contractIndexes[0]).toBeGreaterThan(profileIndex);
+    expect(serializedMessages.match(/SHORTPULSE SAFE COMPLETION CONTRACT/g)).toHaveLength(1);
   });
 
   it("injects a hidden Pulse system message when pulse runtime context is active", () => {

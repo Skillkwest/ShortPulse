@@ -5,6 +5,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buildAgentMachineOutcome } from "../agentMachineOutcome";
 import {
+  buildSafeCompletionTelemetryDisposition,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -67,9 +68,9 @@ import {
   type StandardWebSearchToolChoice,
 } from "../standardWebSearch";
 import {
-  SAFE_COMPLETION_CONTRACT_VERSION,
   resolveSafeCompletionRecoveryEligibility,
   resolveSafeCompletionSystemInstruction,
+  stripEditableSafeCompletionSystemInstruction,
   withSafeCompletionRecoveryInstruction,
   type SafeCompletionRecoveryOutcome,
   type SafeCompletionRecoverySkipReason,
@@ -423,10 +424,13 @@ const buildStandardOpenAiMessages = ({
     };
   });
   const normalizedSystemPrompt = typeof systemPrompt === "string" ? systemPrompt.trim() : "";
+  const canonicalSystemPrompt = safeCompletionInstruction
+    ? stripEditableSafeCompletionSystemInstruction(normalizedSystemPrompt)
+    : normalizedSystemPrompt;
   const runtimeContextBlock = buildStandardRuntimeContextBlock(context);
-  const effectiveSystemPrompt = normalizedSystemPrompt.length
+  const effectiveSystemPrompt = canonicalSystemPrompt.length
     ? [
-        normalizedSystemPrompt,
+        canonicalSystemPrompt,
         runtimeContextBlock,
         replyBehaviorBlock,
         STANDARD_RESPONSE_STYLE_GUIDANCE,
@@ -629,6 +633,21 @@ const executeStandardOpenAiWithRetry = async ({
           return { ok: true, response, retryCount, transport: "responses" };
         }
 
+        const responsesDetail = await response.text();
+        if (
+          isStudioAgentSafetyRefusalUpstreamError({
+            status: response.status,
+            detail: responsesDetail,
+          })
+        ) {
+          return {
+            ok: false,
+            status: response.status,
+            detail: responsesDetail,
+            retryCount,
+          };
+        }
+
         if (effectiveChatFallbackEnabled) {
           const fallbackResponse = await executeChatTurn();
           if (fallbackResponse.ok) {
@@ -654,10 +673,9 @@ const executeStandardOpenAiWithRetry = async ({
             };
           }
         } else {
-          const detail = await response.text();
           const failureClass = classifyStudioAgentFailure({
             status: response.status,
-            detail,
+            detail: responsesDetail,
           });
           if (
             !shouldRetryStudioAgentFailure({
@@ -669,7 +687,7 @@ const executeStandardOpenAiWithRetry = async ({
             return {
               ok: false,
               status: response.status,
-              detail,
+              detail: responsesDetail,
               retryCount,
             };
           }
@@ -1145,6 +1163,15 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       refusalField: precheckResult.scopeTelemetry.refusalField,
       rewrittenFields: precheckResult.scopeTelemetry.rewrittenFields,
       nonBlockingSignalCount: precheckResult.scopeTelemetry.nonBlockingSignalCount,
+      safeCompletionTelemetry:
+        precheckResult.outcome === "refusal"
+          ? buildSafeCompletionTelemetryDisposition({
+              enabled: safetyRuntimeConfig.safeCompletionEnabled,
+              recoverySkipReason: precheckResult.decision?.hardFloorViolation
+                ? "hard_floor"
+                : "policy_refusal",
+            })
+          : undefined,
     });
   }
   if (precheckResult.outcome === "refusal") {
@@ -1251,12 +1278,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
             modality: safetyModality,
             decisionAction: "refuse",
             providerBlocked: true,
-            safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
-            safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
-            recoveryEligible: false,
-            recoveryAttempted: false,
-            recoveryOutcome: "not_attempted",
-            recoverySkipReason: "not_model_refusal",
+            ...buildSafeCompletionTelemetryDisposition({
+              enabled: safetyRuntimeConfig.safeCompletionEnabled,
+              recoverySkipReason: "not_model_refusal",
+            }),
           },
         });
         return res.status(200).json(
@@ -1457,14 +1482,15 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       decisionSource: safetyFinalization.decisionSource,
       hardFloorViolation: safetyFinalization.hardFloorViolation,
       rollbackTriggered: safetyRollbackTriggered,
-      safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
-      safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
-      refusalSource: directResult.refusalSource,
-      recoveryEligible,
-      recoveryAttempted,
-      recoveryOutcome,
-      recoverySkipReason,
-      recoveryLatencyMs,
+      ...buildSafeCompletionTelemetryDisposition({
+        enabled: safetyRuntimeConfig.safeCompletionEnabled,
+        refusalSource: directResult.refusalSource,
+        recoveryEligible,
+        recoveryAttempted,
+        recoveryOutcome,
+        recoverySkipReason,
+        recoveryLatencyMs,
+      }),
     } as const;
 
     if (safetyFinalization.refusal) {

@@ -149,6 +149,7 @@ describe("useAiStudioAgentOrchestration", () => {
     const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
     const appendUserMessage = vi.fn(() => "msg-1");
     const getAgentContext = vi.fn(() => ({}));
+    const trackAgentUiEvent = vi.fn();
     const params = createParams({
       prompt: "   ",
       agentInput: "   ",
@@ -165,6 +166,7 @@ describe("useAiStudioAgentOrchestration", () => {
         },
       ],
       getAgentContext,
+      trackAgentUiEvent,
     });
 
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
@@ -208,6 +210,17 @@ describe("useAiStudioAgentOrchestration", () => {
         modeHint: "reference",
       })
     );
+    expect(trackAgentUiEvent).toHaveBeenCalledWith(
+      "studio_agent_attachment_payload_ready",
+      expect.objectContaining({
+        mode: "standard",
+        image_attachments: 1,
+        inline_image_attachments: 0,
+        inline_image_bytes: 0,
+        preparation_ms: expect.any(Number),
+      })
+    );
+    expect(JSON.stringify(trackAgentUiEvent.mock.calls)).not.toContain("cdn.test");
   });
 
   it("does not inject latest agent prompt context for true image-only sends", async () => {
@@ -930,6 +943,49 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setAgentInput).toHaveBeenCalledWith("bugs dark bugs");
   });
 
+  it("preserves attachments added after a Standard send starts", async () => {
+    const setAgentAttachments = vi.fn();
+    const sentAttachment: AgentAttachment = {
+      id: "img-sent",
+      kind: "image",
+      source: "ephemeral_local",
+      imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+      modelDataUrl: "data:image/jpeg;base64,bW9kZWw=",
+      deliveryStatus: "ready",
+    };
+    const lateAttachment: AgentAttachment = {
+      id: "img-late",
+      kind: "image",
+      source: "ephemeral_local",
+      imageUrl: "data:image/jpeg;base64,bGF0ZQ==",
+      modelDataUrl: "data:image/jpeg;base64,bGF0ZS1tb2RlbA==",
+      deliveryStatus: "ready",
+    };
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const params = createParams({
+      agentInput: "Use this image.",
+      agentAttachments: [sentAttachment],
+      setAgentAttachments: asDispatch<AgentAttachment[]>(setAgentAttachments),
+      sendToAgent,
+      runtimePolicy: standardRuntimePolicy(),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(setAgentAttachments).toHaveBeenCalledTimes(2);
+    const clearSentAttachments = setAgentAttachments.mock.calls[0]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+    const restoreSentAttachments = setAgentAttachments.mock.calls[1]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+    expect(clearSentAttachments([sentAttachment, lateAttachment])).toEqual([lateAttachment]);
+    expect(restoreSentAttachments([lateAttachment])).toEqual([sentAttachment, lateAttachment]);
+  });
+
   it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {
     const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
     const params = createParams({
@@ -1007,6 +1063,108 @@ describe("useAiStudioAgentOrchestration", () => {
         }),
       })
     );
+  });
+
+  it("marks a send-time failed Standard image on the retained composer card", async () => {
+    const setAgentAttachments = vi.fn();
+    const setAgentAttachmentError = vi.fn();
+    const failedAttachment: AgentAttachment = {
+      id: "local-img-missing",
+      kind: "image",
+      source: "ephemeral_local",
+      imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+      modelDataUrl: null,
+      deliveryStatus: "ready",
+      deliveryError: null,
+    };
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "unexpected" },
+      actions: undefined,
+    }));
+    const params = createParams({
+      agentInput: "analyze this",
+      agentAttachments: [failedAttachment],
+      setAgentAttachments: asDispatch<AgentAttachment[]>(setAgentAttachments),
+      setAgentAttachmentError: asDispatch<string | null>(setAgentAttachmentError),
+      sendToAgent,
+      runtimePolicy: standardRuntimePolicy(),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setAgentAttachments).toHaveBeenCalledOnce();
+    const markFailed = setAgentAttachments.mock.calls[0]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+    expect(markFailed([failedAttachment])).toEqual([
+      expect.objectContaining({
+        id: "local-img-missing",
+        deliveryStatus: "failed",
+        deliveryError: expect.stringContaining("Remove it"),
+      }),
+    ]);
+    expect(setAgentAttachmentError).toHaveBeenCalledWith(
+      "One or more attached images failed to prepare. Remove failed images and try again."
+    );
+  });
+
+  it("marks a send-time failed Pulse image on the retained composer card", async () => {
+    const setAgentAttachments = vi.fn();
+    const failedAttachment: AgentAttachment = {
+      id: "pulse-img-missing",
+      kind: "image",
+      source: "ephemeral_local",
+      imageUrl: "data:image/jpeg;base64,cHJldmlldw==",
+      modelDataUrl: null,
+      deliveryStatus: "ready",
+      deliveryError: null,
+    };
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "unexpected" },
+      actions: undefined,
+    }));
+    const params = createParams({
+      agentInput: "analyze this",
+      agentAttachments: [failedAttachment],
+      setAgentAttachments: asDispatch<AgentAttachment[]>(setAgentAttachments),
+      sendToAgent,
+      runtimePolicy: pulseRuntimePolicy("custom_storyboard"),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "custom_storyboard",
+          label: "Storyboard Pulse",
+          instructions: "Use attached images.",
+          pulseKind: "custom_gpt" as const,
+          runtimeMode: "custom_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "custom" as const,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setAgentAttachments).toHaveBeenCalledOnce();
+    const markFailed = setAgentAttachments.mock.calls[0]?.[0] as (
+      attachments: AgentAttachment[]
+    ) => AgentAttachment[];
+    expect(markFailed([failedAttachment])).toEqual([
+      expect.objectContaining({
+        id: "pulse-img-missing",
+        deliveryStatus: "failed",
+        deliveryError: expect.stringContaining("Remove it"),
+      }),
+    ]);
   });
 
   it("primes authoritative workflow session state immediately when a workflow pulse starts", async () => {

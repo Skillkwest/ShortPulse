@@ -7,6 +7,12 @@ import type {
   SafetyPolicyAction,
   SafetyProfileId,
 } from "./safetyPolicy/types";
+import {
+  SAFE_COMPLETION_CONTRACT_VERSION,
+  type SafeCompletionRecoveryOutcome,
+  type SafeCompletionRecoverySkipReason,
+  type SafeCompletionRefusalSource,
+} from "./studioAgentSafeCompletion";
 
 export type StudioAgentTelemetryStatus = "success" | "refuse" | "error";
 export type StudioAgentTelemetryOutcomeClass =
@@ -46,6 +52,46 @@ export type StudioAgentSafetyTelemetryFields = {
 
 export const STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
 
+/** Builds the shared privacy-safe Safe Completion disposition for route telemetry. */
+export const buildSafeCompletionTelemetryDisposition = ({
+  enabled,
+  refusalSource = null,
+  recoveryEligible = false,
+  recoveryAttempted = false,
+  recoveryOutcome = "not_attempted",
+  recoverySkipReason = null,
+  recoveryLatencyMs = null,
+}: {
+  enabled: boolean;
+  refusalSource?: SafeCompletionRefusalSource | null;
+  recoveryEligible?: boolean;
+  recoveryAttempted?: boolean;
+  recoveryOutcome?: SafeCompletionRecoveryOutcome;
+  recoverySkipReason?: SafeCompletionRecoverySkipReason | null;
+  recoveryLatencyMs?: number | null;
+}): Required<
+  Pick<
+    StudioAgentSafetyTelemetryFields,
+    | "safeCompletionVersion"
+    | "safeCompletionEnabled"
+    | "refusalSource"
+    | "recoveryEligible"
+    | "recoveryAttempted"
+    | "recoveryOutcome"
+    | "recoverySkipReason"
+    | "recoveryLatencyMs"
+  >
+> => ({
+  safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
+  safeCompletionEnabled: enabled,
+  refusalSource,
+  recoveryEligible,
+  recoveryAttempted,
+  recoveryOutcome,
+  recoverySkipReason,
+  recoveryLatencyMs,
+});
+
 export const emitStudioAgentTurnTelemetry = ({
   flow,
   path,
@@ -57,6 +103,7 @@ export const emitStudioAgentTurnTelemetry = ({
   retryCount,
   repairUsed,
   repairCount,
+  providerCallCount,
   reasonCode,
   totalLatencyMs,
   stageLatencyMs,
@@ -82,6 +129,7 @@ export const emitStudioAgentTurnTelemetry = ({
   retryCount?: number;
   repairUsed?: boolean;
   repairCount?: number;
+  providerCallCount?: number;
   reasonCode?: AgentReasonCode;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
@@ -117,6 +165,7 @@ export const emitStudioAgentTurnTelemetry = ({
       ...(typeof retryCount === "number" ? { retry_count: retryCount } : {}),
       repair_used: Boolean(repairUsed),
       repair_count: typeof repairCount === "number" ? repairCount : repairUsed ? 1 : 0,
+      ...(typeof providerCallCount === "number" ? { provider_call_count: providerCallCount } : {}),
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,
       ...(pulsePresetId ? { pulse_preset_id: pulsePresetId } : {}),
@@ -176,6 +225,7 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   refusalField,
   rewrittenFields,
   nonBlockingSignalCount,
+  safeCompletionTelemetry,
 }: {
   flow: string;
   outcome: "pass" | "rewritten" | "refusal";
@@ -194,6 +244,7 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
   refusalField?: StudioAgentSafetyInputPrecheckField | null;
   rewrittenFields?: StudioAgentSafetyInputPrecheckField[];
   nonBlockingSignalCount?: number;
+  safeCompletionTelemetry?: StudioAgentSafetyTelemetryFields;
 }) => {
   console.info(
     "[studio-agent][safety-input-precheck]",
@@ -217,6 +268,18 @@ export const emitStudioAgentInputPrecheckTelemetry = ({
       rewritten_fields: Array.isArray(rewrittenFields) ? rewrittenFields : [],
       non_blocking_signal_count:
         typeof nonBlockingSignalCount === "number" ? nonBlockingSignalCount : 0,
+      ...(safeCompletionTelemetry
+        ? {
+            safe_completion_contract_version: safeCompletionTelemetry.safeCompletionVersion ?? null,
+            safe_completion_enabled: safeCompletionTelemetry.safeCompletionEnabled ?? false,
+            refusal_source: safeCompletionTelemetry.refusalSource ?? null,
+            recovery_eligible: safeCompletionTelemetry.recoveryEligible ?? false,
+            recovery_attempted: safeCompletionTelemetry.recoveryAttempted ?? false,
+            recovery_outcome: safeCompletionTelemetry.recoveryOutcome ?? "not_attempted",
+            recovery_skip_reason: safeCompletionTelemetry.recoverySkipReason ?? null,
+            recovery_latency_ms: safeCompletionTelemetry.recoveryLatencyMs ?? null,
+          }
+        : {}),
     })
   );
 };
@@ -315,16 +378,10 @@ export const buildStudioAgentRouteFailurePayload = ({
 
 const SAFETY_STATUS_ALLOWLIST = new Set([400, 403, 422]);
 const SAFETY_DETAIL_PATTERNS: RegExp[] = [
-  /\bcontent[\s_-]*policy\b/i,
-  /\bpolicy[\s_-]*violation\b/i,
-  /\bsafety\b/i,
-  /\bmoderation\b/i,
-  /\bdisallowed\b/i,
-  /\bunsafe\b/i,
-  /\bviolence\b/i,
-  /\bself[\s_-]*harm\b/i,
-  /\bhate\b/i,
-  /\bsexual\b/i,
+  /\b(?:blocked?|rejected?|refused?|flagged?)\b.{0,80}\b(?:content[\s_-]*policy|safety[\s_-]*(?:policy|system|filter)|moderation)\b/i,
+  /\b(?:content[\s_-]*policy|safety[\s_-]*(?:policy|system|filter)|moderation)\b.{0,80}\b(?:blocked?|rejected?|refused?|flagged?|violation)\b/i,
+  /\b(?:content[\s_-]*filter|safety[\s_-]*violations?|responsibleai[\s_-]*policy[\s_-]*violation)\b/i,
+  /\b(?:disallowed|unsafe)\s+(?:content|request|prompt|input|output)\b/i,
 ];
 
 export const isStudioAgentSafetyRefusalUpstreamError = ({

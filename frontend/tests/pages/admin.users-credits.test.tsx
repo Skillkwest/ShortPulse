@@ -216,6 +216,21 @@ describe("Admin users and credits overview", () => {
                     pricingBreakdown: null,
                     createdAt: "2026-03-17T00:00:00.000Z",
                   },
+                  {
+                    id: "txn-2-older",
+                    userId: USER_2_ID,
+                    changeCents: -75,
+                    reason: "Older generation charge",
+                    source: "generation_charge",
+                    sourceRef: "ticket-old",
+                    pricingBreakdown: {
+                      billedCredits: 75,
+                      billedUsd: 2.5,
+                      rawCredits: 72,
+                      usdRaw: 1.5,
+                    },
+                    createdAt: "2025-04-10T00:00:00.000Z",
+                  },
                 ]
               : [
                   {
@@ -676,7 +691,8 @@ describe("Admin users and credits overview", () => {
     expect(screen.getAllByText("Access").length).toBeGreaterThan(0);
     expect(screen.getByRole("main")).toHaveClass(styles.adminSupportPageWide);
     expect(screen.getByTestId("admin-support-user-grid")).toBeInTheDocument();
-    expect(screen.getByText("Credit flags (1)")).toBeInTheDocument();
+    expect(screen.getByText("Subscribed")).toBeInTheDocument();
+    expect(screen.queryByText(/Credit flags/i)).not.toBeInTheDocument();
     expect(screen.getByText("Payment")).toBeInTheDocument();
     expect(screen.getByText("Renews / ends")).toBeInTheDocument();
     const userListSection = screen.getByRole("heading", { name: "User list" }).closest("section");
@@ -687,11 +703,11 @@ describe("Admin users and credits overview", () => {
     const supportGridText = screen.getByTestId("admin-support-user-grid").textContent ?? "";
     expect(supportGridText.indexOf("Copy")).toBeLessThan(supportGridText.indexOf("User"));
     expect(supportGridText.indexOf("User")).toBeLessThan(supportGridText.indexOf("Access"));
-    expect(supportGridText.indexOf("Access")).toBeLessThan(supportGridText.indexOf("Billing"));
-    expect(supportGridText.indexOf("Billing")).toBeLessThan(supportGridText.indexOf("Payment"));
+    expect(supportGridText.indexOf("Access")).toBeLessThan(supportGridText.indexOf("Status"));
+    expect(supportGridText.indexOf("Status")).toBeLessThan(supportGridText.indexOf("Payment"));
     expect(supportGridText.indexOf("Payment")).toBeLessThan(supportGridText.indexOf("Spendable"));
     expect(supportGridText.indexOf("Renews / ends")).toBeLessThan(
-      supportGridText.indexOf("Credit flags")
+      supportGridText.indexOf("Subscribed")
     );
     expect(userList.queryByText("Storage")).not.toBeInTheDocument();
     const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
@@ -702,10 +718,17 @@ describe("Admin users and credits overview", () => {
     );
     expect(alphaRow).toHaveTextContent("120");
     expect(alphaRow).toHaveTextContent("$10.00/mo");
-    expect(alphaRow).toHaveTextContent("Cancelling...");
+    expect(alphaRow).toHaveTextContent("Pending cancellation");
     expect(screen.getByTestId(`billing-status-${USER_1_ID}`)).toHaveAttribute(
       "data-billing-status-tone",
       "warning"
+    );
+    expect(screen.getByTestId(`subscribed-indicator-${USER_1_ID}`)).toHaveClass(
+      styles.adminSupportSubscribedYes
+    );
+    expect(screen.getByTestId(`subscribed-indicator-${USER_1_ID}`)).toHaveAttribute(
+      "aria-label",
+      "Subscribed"
     );
     expect(alphaRow).toHaveTextContent("Ends Apr 30, 2026");
     expect(alphaRow).not.toHaveTextContent("10 GB");
@@ -725,9 +748,19 @@ describe("Admin users and credits overview", () => {
       "data-billing-status-tone",
       "canceled"
     );
+    expect(screen.getByTestId(`subscribed-indicator-${USER_2_ID}`)).toHaveClass(
+      styles.adminSupportSubscribedNo
+    );
+    expect(screen.getByTestId(`subscribed-indicator-${USER_2_ID}`)).toHaveAttribute(
+      "aria-label",
+      "Not subscribed"
+    );
     expect(screen.getByTestId(`billing-status-${ADMIN_ID}`)).toHaveAttribute(
       "data-billing-status-tone",
       "active"
+    );
+    expect(screen.getByTestId(`subscribed-indicator-${ADMIN_ID}`)).toHaveClass(
+      styles.adminSupportSubscribedYes
     );
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
@@ -738,6 +771,9 @@ describe("Admin users and credits overview", () => {
     ]);
     await waitFor(() => expect(screen.getByTestId("snapshot-card-storage")).toBeInTheDocument());
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
+    expect(within(screen.getByTestId("snapshot-card-plan")).getByText("Business")).toHaveClass(
+      styles.accountSnapshotCardValuePlanBusiness
+    );
     expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
       "10,000 credits / month"
     );
@@ -752,10 +788,14 @@ describe("Admin users and credits overview", () => {
       "1,200 spent this cycle"
     );
     expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("None");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Account status");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Active");
+    expect(
+      within(screen.getByTestId("snapshot-card-billing-state")).getByText("Active")
+    ).toHaveClass(styles.adminSupportBillingStatusActive);
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
     expect(screen.getByTestId("snapshot-card-joined")).toHaveTextContent("Mar 2, 2026");
-    expect(screen.getByText("Status")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Status/ })).toBeInTheDocument();
     const selectedAccountSection = screen
       .getByRole("heading", { name: "Selected account" })
       .closest("section");
@@ -786,11 +826,51 @@ describe("Admin users and credits overview", () => {
     );
     fireEvent.click(creditsAccessToggle);
     expect(creditsAccessToggle).toHaveAttribute("aria-expanded", "true");
+    const adjustmentPresetLabels = [
+      "-1000",
+      "-500",
+      "-100",
+      "-10",
+      "-5",
+      "-1",
+      "+1",
+      "+5",
+      "+10",
+      "+100",
+      "+500",
+      "+1000",
+    ];
+    const adjustmentPresetButtons = adjustmentPresetLabels.map((label) =>
+      screen.getByRole("button", { name: label })
+    );
+    expect(adjustmentPresetButtons.map((button) => button.textContent)).toEqual(
+      adjustmentPresetLabels
+    );
     expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
     expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
-      `/api/admin/credits/ledger?userId=${ADMIN_ID}&limit=20`,
+      `/api/admin/credits/ledger?userId=${ADMIN_ID}&limit=all`,
       expect.anything()
+    );
+  });
+
+  it("requests sorted user pages from the admin users API", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
+    );
+
+    const sortSelect = screen.getByLabelText("Sort");
+    expect(sortSelect).toHaveValue("default");
+
+    fireEvent.change(sortSelect, { target: { value: "subscribed_first" } });
+
+    await waitFor(() =>
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/users?page=1&perPage=50&sort=subscribed_first",
+        expect.objectContaining({ method: "GET" })
+      )
     );
   });
 
@@ -814,15 +894,29 @@ describe("Admin users and credits overview", () => {
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=20`,
+        `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=all`,
         expect.objectContaining({ method: "GET" })
       )
     );
     const selectedAccountWorkspace = screen.getByTestId("selected-account-workspace");
     const creditLedgerPanel = screen.getByTestId("credit-ledger-panel");
-    expect(selectedAccountWorkspace).toHaveAttribute("data-credit-ledger-layout", "full-width");
-    expect(selectedAccountWorkspace).toContainElement(creditLedgerPanel);
+    const accountPrimaryPanel = selectedAccountWorkspace.firstElementChild as HTMLElement;
+    const creditsAccessToggle = screen.getByRole("button", { name: /Credits & access/i });
+    expect(selectedAccountWorkspace).toHaveAttribute(
+      "data-credit-ledger-layout",
+      "inline-before-credits-access"
+    );
+    expect(accountPrimaryPanel).toContainElement(creditLedgerPanel);
+    expect(
+      creditLedgerPanel.compareDocumentPosition(creditsAccessToggle) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getByTestId("credit-ledger-scroll")).toBeInTheDocument();
+    expect(screen.getAllByText("Billing cycle")).toHaveLength(2);
+    expect(screen.getByText("May 15, 2025 - May 15, 2026")).toBeInTheDocument();
+    expect(screen.getByText("May 15, 2024 - May 15, 2025")).toBeInTheDocument();
     expect(screen.getByText("ref: ticket-2")).toBeInTheDocument();
+    expect(screen.getByText("ref: ticket-old")).toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/yr");
     expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
@@ -839,7 +933,11 @@ describe("Admin users and credits overview", () => {
       "10,400 spent this cycle"
     );
     expect(screen.getByTestId("snapshot-card-expiring-credits")).toHaveTextContent("None");
-    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Inactive");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Account status");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Canceled");
+    expect(
+      within(screen.getByTestId("snapshot-card-billing-state")).getByText("Canceled")
+    ).toHaveClass(styles.adminSupportBillingStatusCanceled);
     expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
   });
 
@@ -864,7 +962,7 @@ describe("Admin users and credits overview", () => {
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Status/ }));
     expect(screen.getByTestId("account-status-billing-state")).toHaveTextContent(
-      "Cancellation scheduled"
+      "Pending cancellation"
     );
     expect(
       screen.getAllByText(
@@ -879,6 +977,9 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.queryByTestId("snapshot-status-badge")).not.toBeInTheDocument();
     expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("snapshot-card-plan")).getByText("Studio")).toHaveClass(
+      styles.accountSnapshotCardValuePlanStudio
+    );
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("5 GB");
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125 GB");
     expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(
@@ -898,9 +999,13 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-expiring-credits")).not.toHaveTextContent(
       "120 / Apr 20, 2026"
     );
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Account status");
     expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent(
-      "Cancellation scheduled"
+      "Pending cancellation"
     );
+    expect(
+      within(screen.getByTestId("snapshot-card-billing-state")).getByText("Pending cancellation")
+    ).toHaveClass(styles.adminSupportBillingStatusWarning);
     expect(screen.getByTestId("snapshot-card-billing-state")).not.toHaveTextContent(
       "Access ends Apr 30, 2026."
     );
@@ -941,7 +1046,7 @@ describe("Admin users and credits overview", () => {
       idempotencyKey: expect.any(String),
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=20`,
+      `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=all`,
       expect.objectContaining({ method: "GET" })
     );
   });

@@ -74,6 +74,7 @@ import {
   preparePromptReferenceDrag,
   prepareReferenceDrag,
 } from "../utils/dragDrop";
+import { readRememberedObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import type { CanvasTearOutComposerTargetRegistry } from "./useAiStudioCanvasTearOutTargets";
 import {
   CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE,
@@ -91,6 +92,7 @@ export { CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE };
 
 const SURFACE_DIRECT_DROP_PARTIAL_MESSAGE = "Some files could not be added. The rest were added.";
 const CANVAS_MEDIA_LIBRARY_BUCKET = "media_library";
+const VOICE_CHANGER_INTERNAL_REFERENCE_FETCH_TIMEOUT_MS = 30_000;
 
 type QuickSlotDropOptions = {
   targetId: string | null;
@@ -100,6 +102,44 @@ type QuickSlotDropOptions = {
 type DirectDroppedMediaFiles = {
   mediaFiles: File[];
   rejectedFileCount: number;
+};
+
+const readVoiceChangerInternalReferenceBlob = async (localUrl: string): Promise<Blob | null> => {
+  const rememberedBlob = localUrl.startsWith("blob:")
+    ? readRememberedObjectUrlBlob(localUrl)
+    : null;
+  if (rememberedBlob) return rememberedBlob;
+
+  const abortController = new AbortController();
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let timedOut = false;
+  const readPromise = (async () => {
+    const response = await fetch(localUrl, { signal: abortController.signal });
+    if (!response.ok) return null;
+    return await response.blob();
+  })();
+  const timeoutPromise = new Promise<Blob | null>((_resolve, reject) => {
+    timeoutHandle = globalThis.setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+      reject(new Error("voice_changer_internal_reference_fetch_timeout"));
+    }, VOICE_CHANGER_INTERNAL_REFERENCE_FETCH_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([readPromise, timeoutPromise]);
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(
+        "Voice changer local reference read timed out. Re-add the source and try again."
+      );
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
+  }
 };
 
 type UseAiStudioPageMediaReferenceRuntimeParams = {
@@ -622,9 +662,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
         if (!localUrl) return null;
 
         try {
-          const response = await fetch(localUrl);
-          if (!response.ok) return null;
-          const blob = await response.blob();
+          const blob = await readVoiceChangerInternalReferenceBlob(localUrl);
           if (!(blob instanceof Blob) || blob.size <= 0) return null;
           const mimeType =
             blob.type || output.mimeType || (kind === "audio" ? "audio/mpeg" : "video/mp4");

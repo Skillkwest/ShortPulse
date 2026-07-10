@@ -21,7 +21,11 @@ import {
   uploadReferenceVideoFileToStorage,
   type VideoUploadResult,
 } from "../utils/videoUpload";
-import { uploadAudioBlobToStorage, type AudioUploadResult } from "../utils/audioUpload";
+import {
+  readAudioUrlBlobForUpload,
+  uploadAudioBlobToStorage,
+  type AudioUploadResult,
+} from "../utils/audioUpload";
 import { readRememberedObjectUrlBlob } from "../utils/objectUrlBlobRegistry";
 import {
   createUploadedAudioInternalMediaRef,
@@ -241,8 +245,7 @@ export const stageSeedanceAudioSelection = async ({
     const rememberedBlob = normalizedUrl.startsWith("blob:")
       ? readRememberedObjectUrlBlob(normalizedUrl)
       : null;
-    const sourceBlob =
-      rememberedBlob ?? (await fetch(normalizedUrl).then((response) => response.blob()));
+    const sourceBlob = rememberedBlob ?? (await readAudioUrlBlobForUpload(normalizedUrl));
     if (!sourceBlob) return null;
     const uploaded = await uploadAudioBlobToStorage(sourceBlob, {
       sourceName: name,

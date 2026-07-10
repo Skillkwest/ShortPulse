@@ -38,6 +38,7 @@ export default function AdminDashboardPage() {
   });
   const {
     userSearch,
+    userSort,
     usersPagination,
     userSearchLimited,
     users,
@@ -67,6 +68,7 @@ export default function AdminDashboardPage() {
     loadUsers,
     loadCreditLedger,
     handleUserSearchChange,
+    handleUserSortChange,
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,
@@ -104,6 +106,7 @@ export default function AdminDashboardPage() {
     >
       <AdminSupportQueueSection
         userSearch={userSearch}
+        userSort={userSort}
         usersPagination={usersPagination}
         userSearchLimited={userSearchLimited}
         users={users}
@@ -136,6 +139,7 @@ export default function AdminDashboardPage() {
         loadUsers={loadUsers}
         loadCreditLedger={loadCreditLedger}
         handleUserSearchChange={handleUserSearchChange}
+        handleUserSortChange={handleUserSortChange}
         handlePreviousUsersPage={handlePreviousUsersPage}
         handleNextUsersPage={handleNextUsersPage}
         handleAdjustmentChange={handleAdjustmentChange}

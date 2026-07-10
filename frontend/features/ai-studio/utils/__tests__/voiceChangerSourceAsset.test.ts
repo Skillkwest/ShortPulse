@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
 const uploadToSignedUrlMock = vi.hoisted(() => vi.fn());
 const storageFromMock = vi.hoisted(() =>
   vi.fn(() => ({ uploadToSignedUrl: uploadToSignedUrlMock }))
@@ -15,13 +16,19 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
+}));
+
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: () => ensureSupabaseQueryClientMock(),
 }));
 
 import {
+  extractVoiceChangerVideoSource,
   resolveVoiceChangerMediaDurationMs,
   resolveVoiceChangerVideoAspect,
+  signVoiceSourceStoragePath,
   uploadVoiceChangerSourceFile,
   uploadVoiceCloneSourceFile,
 } from "../voiceChangerSourceAsset";
@@ -79,9 +86,11 @@ const createFakeMetadataProbeElement = (
 describe("voiceChangerSourceAsset upload helpers", () => {
   beforeEach(() => {
     fetchWithAuthMock.mockReset();
+    getSignedMediaUrlMock.mockReset();
     uploadToSignedUrlMock.mockReset();
     storageFromMock.mockClear();
     ensureSupabaseQueryClientMock.mockClear();
+    getSignedMediaUrlMock.mockResolvedValue("https://signed.example/source.wav");
     uploadToSignedUrlMock.mockResolvedValue({ data: { path: "uploaded" }, error: null });
   });
 
@@ -339,6 +348,111 @@ describe("voiceChangerSourceAsset upload helpers", () => {
     );
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(uploadToSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("times out and aborts voice changer upload preparation", async () => {
+    vi.useFakeTimers();
+    const capturedSignals: AbortSignal[] = [];
+    fetchWithAuthMock.mockImplementationOnce((_url, options: { signal?: AbortSignal } = {}) => {
+      if (options.signal) capturedSignals.push(options.signal);
+      return new Promise(() => undefined);
+    });
+
+    const file = new File(["wav!"], "sample.wav", { type: "audio/wav" });
+    const uploadPromise = uploadVoiceChangerSourceFile({ file, kind: "audio" });
+    const uploadExpectation = expect(uploadPromise).rejects.toThrow(
+      "voice source upload preparation timed out"
+    );
+
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    await uploadExpectation;
+    expect(capturedSignals[0]?.aborted).toBe(true);
+    expect(uploadToSignedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("times out voice changer storage uploads that never settle", async () => {
+    vi.useFakeTimers();
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        target: {
+          storagePath: "user-1/voice-changer/source-audio/sample.wav",
+          uploadToken: "token-1",
+          mimeType: "audio/wav",
+          name: "sample.wav",
+        },
+      }),
+    });
+    uploadToSignedUrlMock.mockImplementationOnce(() => new Promise(() => undefined));
+
+    const file = new File(["wav!"], "sample.wav", { type: "audio/wav" });
+    const uploadPromise = uploadVoiceChangerSourceFile({ file, kind: "audio" });
+    const uploadExpectation = expect(uploadPromise).rejects.toThrow(
+      "voice source storage upload timed out"
+    );
+
+    await vi.advanceTimersByTimeAsync(180_000);
+
+    await uploadExpectation;
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("times out and aborts direct voice clone source staging", async () => {
+    vi.useFakeTimers();
+    const capturedSignals: AbortSignal[] = [];
+    fetchWithAuthMock.mockImplementationOnce((_url, options: { signal?: AbortSignal } = {}) => {
+      if (options.signal) capturedSignals.push(options.signal);
+      return new Promise(() => undefined);
+    });
+
+    const file = new File(["wav!"], "sample.wav", { type: "audio/wav" });
+    const uploadPromise = uploadVoiceCloneSourceFile({ file });
+    const uploadExpectation = expect(uploadPromise).rejects.toThrow(
+      "voice clone source staging timed out"
+    );
+
+    await vi.advanceTimersByTimeAsync(180_000);
+
+    await uploadExpectation;
+    expect(capturedSignals[0]?.aborted).toBe(true);
+  });
+
+  it("times out and aborts voice changer video audio extraction", async () => {
+    vi.useFakeTimers();
+    const capturedSignals: AbortSignal[] = [];
+    fetchWithAuthMock.mockImplementationOnce((_url, options: { signal?: AbortSignal } = {}) => {
+      if (options.signal) capturedSignals.push(options.signal);
+      return new Promise(() => undefined);
+    });
+
+    const extractPromise = extractVoiceChangerVideoSource({
+      sourceName: "source.mp4",
+      sourceOrigin: "local",
+      sourceMimeType: "video/mp4",
+      sourceStoragePath: "user-1/voice-changer/source-video/source.mp4",
+      sourceUrl: null,
+    });
+    const extractExpectation = expect(extractPromise).rejects.toThrow(
+      "voice sample extraction timed out"
+    );
+
+    await vi.advanceTimersByTimeAsync(180_000);
+
+    await extractExpectation;
+    expect(capturedSignals[0]?.aborted).toBe(true);
+  });
+
+  it("times out stored voice source signing", async () => {
+    vi.useFakeTimers();
+    getSignedMediaUrlMock.mockImplementationOnce(() => new Promise(() => undefined));
+
+    const signPromise = signVoiceSourceStoragePath("user-1/voice-changer/source-audio/sample.wav");
+    const signExpectation = expect(signPromise).rejects.toThrow("voice source signing timed out");
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await signExpectation;
   });
 });
 

@@ -40,6 +40,17 @@ type FinalizeMediaUploadPayload = {
   details?: unknown;
 } | null;
 
+type AudioUploadStage =
+  | "fetch_local_audio"
+  | "prepare_audio_upload"
+  | "upload_audio_storage"
+  | "finalize_audio_upload";
+
+const AUDIO_UPLOAD_AUTH_TIMEOUT_MS = 12_000;
+const FETCH_LOCAL_AUDIO_TIMEOUT_MS = 30_000;
+const PREPARE_AUDIO_UPLOAD_TIMEOUT_MS = 20_000;
+const UPLOAD_AUDIO_STORAGE_TIMEOUT_MS = 180_000;
+const FINALIZE_AUDIO_UPLOAD_TIMEOUT_MS = 60_000;
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
@@ -132,6 +143,71 @@ const inferMimeTypeFromFilename = (value: string): string | null => {
   return null;
 };
 
+const resolveAudioUploadTimeoutLabel = (stage: AudioUploadStage): string => {
+  switch (stage) {
+    case "fetch_local_audio":
+      return "audio reference read";
+    case "prepare_audio_upload":
+      return "audio upload preparation";
+    case "upload_audio_storage":
+      return "audio storage upload";
+    case "finalize_audio_upload":
+      return "audio upload finalization";
+  }
+};
+
+const runAbortableAudioStep = async <T>({
+  stage,
+  timeoutMs,
+  run,
+}: {
+  stage: AudioUploadStage;
+  timeoutMs: number;
+  run: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> => {
+  const abortController = new AbortController();
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let timedOut = false;
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timeoutHandle = globalThis.setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+      reject(new Error(`${stage} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([run(abortController.signal), timeoutPromise]);
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(
+        `${resolveAudioUploadTimeoutLabel(stage)} timed out. Please retry with a smaller or local audio file.`
+      );
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
+  }
+};
+
+/**
+ * Reads a local/blob/data audio URL for upload through the bounded browser audio pipeline.
+ */
+export const readAudioUrlBlobForUpload = async (normalizedLocalAudioUrl: string): Promise<Blob> =>
+  await runAbortableAudioStep({
+    stage: "fetch_local_audio",
+    timeoutMs: FETCH_LOCAL_AUDIO_TIMEOUT_MS,
+    run: async (signal) => {
+      const response = await fetch(normalizedLocalAudioUrl, { signal });
+      if (!response.ok) {
+        throw new Error(`Unable to read local audio input (${response.status}).`);
+      }
+      return await response.blob();
+    },
+  });
+
 export const uploadAudioBlobToStorage = async (
   blob: Blob,
   options: AudioBlobUploadOptions = {}
@@ -145,16 +221,24 @@ export const uploadAudioBlobToStorage = async (
   const randomString = Math.random().toString(36).substring(7);
   const filename = `reference-audio-${timestamp}-${randomString}.${inferExtension(mimeType)}`;
 
-  const prepareResponse = await fetchWithAuth("/api/media/prepare-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      destinationTab: "uploaded_videos",
-      sourceMimeType: mimeType,
-      sourceName: filename,
-    }),
+  const prepareResponse = await runAbortableAudioStep({
+    stage: "prepare_audio_upload",
+    timeoutMs: PREPARE_AUDIO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/prepare-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          destinationTab: "uploaded_videos",
+          sourceMimeType: mimeType,
+          sourceName: filename,
+        }),
+        signal,
+        shortpulseAuthTimeoutMs: AUDIO_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
   const preparePayload = (await prepareResponse
     .json()
@@ -185,27 +269,38 @@ export const uploadAudioBlobToStorage = async (
   }
 
   const supabase = ensureSupabaseQueryClient();
-  const uploadToSignedUrlResult = await supabase.storage
-    .from(BUCKET)
-    .uploadToSignedUrl(storagePath, uploadToken, blob, {
-      contentType: preparedMimeType,
-      upsert: false,
-    });
+  const uploadToSignedUrlResult = await runAbortableAudioStep({
+    stage: "upload_audio_storage",
+    timeoutMs: UPLOAD_AUDIO_STORAGE_TIMEOUT_MS,
+    run: async () =>
+      await supabase.storage.from(BUCKET).uploadToSignedUrl(storagePath, uploadToken, blob, {
+        contentType: preparedMimeType,
+        upsert: false,
+      }),
+  });
   if (uploadToSignedUrlResult.error) {
     throw new Error(uploadToSignedUrlResult.error.message || "Audio upload failed");
   }
 
-  const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      destinationTab: "uploaded_videos",
-      sourceMimeType: preparedMimeType,
-      sourceName: preparedName,
-      sourceStoragePath: storagePath,
-    }),
+  const finalizeResponse = await runAbortableAudioStep({
+    stage: "finalize_audio_upload",
+    timeoutMs: FINALIZE_AUDIO_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/finalize-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          destinationTab: "uploaded_videos",
+          sourceMimeType: preparedMimeType,
+          sourceName: preparedName,
+          sourceStoragePath: storagePath,
+        }),
+        signal,
+        shortpulseAuthTimeoutMs: AUDIO_UPLOAD_AUTH_TIMEOUT_MS,
+        shortpulseRetryNetworkOnce: true,
+      }),
   });
 
   const payload = (await finalizeResponse.json().catch(() => null)) as FinalizeMediaUploadPayload;
@@ -237,11 +332,7 @@ export const uploadAudioAssetToStorage = async (
   const normalizedLocalAudioUrl = localAudioUrl.replace(/#audio=1$/i, "");
   const isLocalMemoryUrl = shouldUploadForProviderAccess(normalizedLocalAudioUrl);
   try {
-    const response = await fetch(normalizedLocalAudioUrl);
-    if (!response.ok) {
-      throw new Error(`Unable to read local audio input (${response.status}).`);
-    }
-    const blob = await response.blob();
+    const blob = await readAudioUrlBlobForUpload(normalizedLocalAudioUrl);
     return await uploadAudioBlobToStorage(blob, { sourceName: normalizedLocalAudioUrl });
   } catch (error) {
     console.error("Audio upload error:", error);

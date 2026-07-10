@@ -11,6 +11,7 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Default proof ladder: packet evidence -> static repo trace -> local validation -> production-safe read-only probe -> authenticated Admin/Event Detail proof -> live/mutating proof.
 - Do not claim a production fix from local code or route presence alone.
 - For pasted triage batches, the owner expects Badearsai to audit, classify, organize, and then remove reviewed items from the default Admin Errors panel through the correct status treatment when safe.
+- Admin Errors cleanup is not complete until Badearsai performs a final production readback using the same default queue visibility rules as `frontend/pages/api/admin/errors.ts`. If visible rows remain, classify each one as in-scope watched/noise cleanup, real owner-lane work, blocked pending proof, or out-of-scope, then clear or name the stop boundary.
 - For `check crash log` / `/admin/crashes`, Badearsai should run the Crash Log SOP, pull current rows from production instead of asking for pasted packets, classify browser crash-session evidence one row at a time, and clear reviewed rows from Needs Review through `review_status` only when the classification is decision-grade.
 - Do not mutate production beyond reviewed Admin Errors status treatment for pasted batches or reviewed Crash Logs status treatment during `check crash log` runs. Never replay jobs, spend credits, deploy, push, change billing/security/UI, or perform destructive actions unless the current thread explicitly authorizes that exact action.
 
@@ -30,6 +31,7 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - If the exact watched incident reappears with no new evidence, confirm it is already handled and leave it out of the default queue.
 - If a new row matches a watched singleton and current production evidence still supports the old rationale, mark it `resolved` with `watch: true` and add a note tying it to the repeat condition.
 - Promote a watched signature back to `real issue` when recurrence becomes fresh and meaningful: multiple new rows, multiple users, current-release repeats after deploy, a changed provider/model/route shape, a new user-visible symptom, or production state that remains unresolved/corrupt.
+- Do not leave a visible watched row in the default queue merely because it is already familiar. Visible watch-list rows must be rechecked and then resolved/watch, escalated, or explicitly left open with the blocker named.
 - Keep a lightweight working index at `docs/agents/badearsai/workspace/watch-list.md`; Admin Errors metadata remains the live source of truth.
 
 ## Admin Errors Cleanup Rules
@@ -40,6 +42,7 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Use `ignored` when the row is expected noise, routine non-actionable telemetry, stale/deploy-skew, rate/admission/safety behavior, duplicate already tracked elsewhere, or otherwise should not occupy the default queue.
 - Keep `open` only when the row still needs implementation, owner-lane work, Event Detail proof, or human review.
 - Cleanup is part of the job, but every status change must preserve the incident/event ID, rationale, note, proof level, and stop boundary.
+- Final proof for queue hygiene is the visible default queue readback, not just successful status updates on individual pasted IDs.
 
 ## Current Source Anchors
 

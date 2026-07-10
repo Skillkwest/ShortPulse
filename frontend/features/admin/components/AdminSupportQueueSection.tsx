@@ -4,10 +4,11 @@
  */
 import { type CSSProperties, useRef, useState } from "react";
 import Link from "next/link";
-import { CaretDown, Check, CopySimple } from "phosphor-react";
+import { CaretDown, Check, CopySimple, X } from "phosphor-react";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
-  ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
+  ADMIN_DASHBOARD_USER_SORT_OPTIONS,
+  type AdminDashboardUserSort,
 } from "../logic/useAdminUsersCreditsController";
 import { copyToClipboard } from "../logic/copyToClipboard";
 import { formatStorageBytes } from "../../billing/storage";
@@ -21,6 +22,7 @@ import styles from "../../../styles/admin.module.css";
 
 type AdminSupportQueueSectionProps = {
   userSearch: string;
+  userSort: AdminDashboardUserSort;
   usersPagination: AdminPagination;
   userSearchLimited: boolean;
   users: AdminUserRow[];
@@ -53,6 +55,7 @@ type AdminSupportQueueSectionProps = {
   loadUsers: () => Promise<void>;
   loadCreditLedger: () => Promise<void>;
   handleUserSearchChange: (value: string) => void;
+  handleUserSortChange: (value: AdminDashboardUserSort) => void;
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
@@ -67,6 +70,30 @@ type AdminSupportQueueSectionProps = {
   formatUsd: (value: number | null) => string;
 };
 
+type CreditLedgerCycleGroup = {
+  key: string;
+  label: string;
+  detail: string;
+  rows: AdminCreditLedgerRow[];
+  netChangeCents: number;
+};
+
+const USER_SORT_LABELS: Record<AdminDashboardUserSort, string> = {
+  default: "Default order",
+  email_asc: "Email A-Z",
+  email_desc: "Email Z-A",
+  subscribed_first: "Subscribed first",
+  unsubscribed_first: "Not subscribed first",
+  plan_tier: "Plan tier",
+  renewal_soon: "Renewal soonest",
+  renewal_latest: "Renewal latest",
+  spendable_low: "Spendable low",
+  spendable_high: "Spendable high",
+  empty_credits_first: "Empty credits first",
+  joined_newest: "Joined newest",
+  joined_oldest: "Joined oldest",
+};
+
 function formatStatusLabel(value: string | null | undefined): string {
   if (!value) return "Inactive";
   return value
@@ -79,7 +106,7 @@ function formatStatusLabel(value: string | null | undefined): string {
 function formatBillingStatusLabel(
   row: Pick<AdminUserRow, "subscriptionStatus" | "cancelAtPeriodEnd">
 ): string {
-  if (row.cancelAtPeriodEnd) return "Cancelling...";
+  if (row.cancelAtPeriodEnd) return "Pending cancellation";
   const status = String(row.subscriptionStatus ?? "")
     .trim()
     .toLowerCase();
@@ -99,6 +126,28 @@ function billingStatusTone(
   if (status === "active") return "active";
   if (status === "canceled" || status === "cancelled") return "canceled";
   return "neutral";
+}
+
+function hasActivePaidSubscription(
+  row: Pick<
+    AdminUserRow,
+    | "billingSource"
+    | "contractSource"
+    | "planId"
+    | "recurringPriceCents"
+    | "subscriptionStatus"
+    | "cancelAtPeriodEnd"
+  >
+): boolean {
+  if (row.contractSource === "internal_comp") return false;
+  if (row.billingSource !== "subscription_contract") return false;
+  if (row.planId === "free" || row.planId === "baseline" || !row.planId) return false;
+  if (row.recurringPriceCents == null || row.recurringPriceCents <= 0) return false;
+
+  const status = String(row.subscriptionStatus ?? "")
+    .trim()
+    .toLowerCase();
+  return row.cancelAtPeriodEnd || status === "active" || status === "trialing";
 }
 
 function accessPlanTone(
@@ -142,6 +191,119 @@ function formatCompactDate(value: string | null | undefined): string {
   });
 }
 
+function addMonthsUtc(value: Date, months: number): Date {
+  const target = new Date(
+    Date.UTC(
+      value.getUTCFullYear(),
+      value.getUTCMonth() + months,
+      1,
+      value.getUTCHours(),
+      value.getUTCMinutes(),
+      value.getUTCSeconds(),
+      value.getUTCMilliseconds()
+    )
+  );
+  const daysInTargetMonth = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+  target.setUTCDate(Math.min(value.getUTCDate(), daysInTargetMonth));
+  return target;
+}
+
+function formatLedgerCycleDetail(start: Date, endExclusive: Date): string {
+  const endInclusive = new Date(endExclusive.getTime() - 1);
+  return `${formatCompactDate(start.toISOString())} - ${formatCompactDate(
+    endInclusive.toISOString()
+  )}`;
+}
+
+function resolveLedgerCycleWindow(
+  createdAt: string | null,
+  selectedUser: AdminUserRow | null
+): { key: string; label: string; detail: string; sortAt: number } {
+  const createdDate = createdAt ? new Date(createdAt) : null;
+  const transactionDate =
+    createdDate && Number.isFinite(createdDate.getTime()) ? createdDate : new Date(0);
+  const renewalDate = selectedUser?.planRenewalAt ? new Date(selectedUser.planRenewalAt) : null;
+  const hasRenewalAnchor = renewalDate && Number.isFinite(renewalDate.getTime());
+
+  if (hasRenewalAnchor) {
+    const cycleMonths = selectedUser?.billingInterval === "year" ? 12 : 1;
+    let endExclusive = renewalDate;
+    let start = addMonthsUtc(endExclusive, -cycleMonths);
+
+    for (let index = 0; transactionDate >= endExclusive && index < 240; index += 1) {
+      start = endExclusive;
+      endExclusive = addMonthsUtc(endExclusive, cycleMonths);
+    }
+    for (let index = 0; transactionDate < start && index < 240; index += 1) {
+      endExclusive = start;
+      start = addMonthsUtc(endExclusive, -cycleMonths);
+    }
+
+    return {
+      key: `${start.toISOString()}::${endExclusive.toISOString()}`,
+      label: "Billing cycle",
+      detail: formatLedgerCycleDetail(start, endExclusive),
+      sortAt: start.getTime(),
+    };
+  }
+
+  const start = new Date(
+    Date.UTC(transactionDate.getUTCFullYear(), transactionDate.getUTCMonth(), 1)
+  );
+  const endExclusive = addMonthsUtc(start, 1);
+  return {
+    key: `${start.toISOString()}::${endExclusive.toISOString()}`,
+    label: transactionDate.toLocaleDateString(undefined, {
+      month: "long",
+      year: "numeric",
+    }),
+    detail: "Calendar-month group",
+    sortAt: start.getTime(),
+  };
+}
+
+function buildCreditLedgerCycleGroups(
+  rows: AdminCreditLedgerRow[],
+  selectedUser: AdminUserRow | null
+): CreditLedgerCycleGroup[] {
+  const groups = new Map<string, CreditLedgerCycleGroup & { sortAt: number }>();
+
+  for (const row of rows) {
+    const cycle = resolveLedgerCycleWindow(row.createdAt, selectedUser);
+    const existing = groups.get(cycle.key);
+    if (existing) {
+      existing.rows.push(row);
+      existing.netChangeCents += row.changeCents;
+      continue;
+    }
+
+    groups.set(cycle.key, {
+      key: cycle.key,
+      label: cycle.label,
+      detail: cycle.detail,
+      rows: [row],
+      netChangeCents: row.changeCents,
+      sortAt: cycle.sortAt,
+    });
+  }
+
+  return Array.from(groups.values())
+    .sort((left, right) => right.sortAt - left.sortAt)
+    .map((group) => ({
+      key: group.key,
+      label: group.label,
+      detail: group.detail,
+      netChangeCents: group.netChangeCents,
+      rows: [...group.rows].sort((left, right) => {
+        const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+        const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+        return rightTime - leftTime;
+      }),
+    }));
+}
+
 function formatExpiringCreditsSnapshot(
   row: Pick<AdminUserRow, "expiringCredits" | "nextExpiresAt">
 ): { value: string; helper?: string } {
@@ -177,11 +339,28 @@ function accountFindingToneClassName(
   return styles.accountStatusRowOk;
 }
 
+function accountSnapshotPlanValueClassName(tone: ReturnType<typeof accessPlanTone>): string {
+  if (tone === "baseline") return styles.accountSnapshotCardValuePlanBaseline;
+  if (tone === "starter") return styles.accountSnapshotCardValuePlanStarter;
+  if (tone === "media") return styles.accountSnapshotCardValuePlanMedia;
+  if (tone === "studio") return styles.accountSnapshotCardValuePlanStudio;
+  if (tone === "business") return styles.accountSnapshotCardValuePlanBusiness;
+  return styles.accountSnapshotCardValuePlanNeutral;
+}
+
+function accountSnapshotStatusValueClassName(tone: ReturnType<typeof billingStatusTone>): string {
+  if (tone === "active") return styles.adminSupportBillingStatusActive;
+  if (tone === "warning") return styles.adminSupportBillingStatusWarning;
+  if (tone === "canceled") return styles.adminSupportBillingStatusCanceled;
+  return styles.adminSupportBillingStatusNeutral;
+}
+
 /**
  * Renders the main admin support workflow without carrying unrelated incident/broadcast tooling.
  */
 export function AdminSupportQueueSection({
   userSearch,
+  userSort,
   usersPagination,
   userSearchLimited,
   users,
@@ -212,6 +391,7 @@ export function AdminSupportQueueSection({
   loadUsers,
   loadCreditLedger,
   handleUserSearchChange,
+  handleUserSortChange,
   handlePreviousUsersPage,
   handleNextUsersPage,
   handleAdjustmentChange,
@@ -231,16 +411,13 @@ export function AdminSupportQueueSection({
     label: string;
     helper?: string;
     testId: string;
+    valueClassName?: string;
   };
   type AccountStatusItem = {
     key: string;
     label: string;
     value: string;
     detail: string | null;
-    toneClassName: string;
-  };
-  type QueueSignal = {
-    label: string;
     toneClassName: string;
   };
 
@@ -256,6 +433,7 @@ export function AdminSupportQueueSection({
   const [supportFindingsExpanded, setSupportFindingsExpanded] = useState(false);
   const [creditsAccessExpanded, setCreditsAccessExpanded] = useState(false);
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
+  const creditLedgerCycleGroups = buildCreditLedgerCycleGroups(creditLedgerRows, selectedUser);
   const selectedUserPriceLabel = formatRecurringPriceLabel(
     selectedUser?.recurringPriceCents,
     selectedUser?.billingInterval,
@@ -295,13 +473,19 @@ export function AdminSupportQueueSection({
     billingDiagnostics?.currentPublicOffer?.monthlyCreditsCents ??
     selectedUser?.monthlyCreditsCents ??
     null;
-  const snapshotStatusLabel = formatStatusLabel(snapshotStatus);
+  const snapshotAccountStatus = selectedUser?.subscriptionStatus ?? snapshotStatus ?? null;
+  const snapshotStatusLabel = formatStatusLabel(snapshotAccountStatus);
   const snapshotCancellationScheduled = Boolean(
-    billingDiagnostics?.currentContract?.cancelAtPeriodEnd ?? selectedUser?.cancelAtPeriodEnd
+    selectedUser?.cancelAtPeriodEnd ?? billingDiagnostics?.currentContract?.cancelAtPeriodEnd
   );
   const snapshotBillingStateLabel = snapshotCancellationScheduled
-    ? "Cancellation scheduled"
+    ? "Pending cancellation"
     : snapshotStatusLabel;
+  const snapshotBillingStatusTone = billingStatusTone({
+    subscriptionStatus: snapshotAccountStatus,
+    cancelAtPeriodEnd: snapshotCancellationScheduled,
+  });
+  const selectedUserAccessPlanTone = accessPlanTone(selectedUser?.planId);
   const visibleBillingFindings = billingFindings.filter(
     (finding) => finding.code !== "internal_comp_contract"
   );
@@ -332,73 +516,73 @@ export function AdminSupportQueueSection({
     ? formatExpiringCreditsSnapshot(selectedUser)
     : { value: "None" };
   const snapshotCards: SnapshotCard[] = selectedUser
-    ? [
-        {
-          key: "plan",
-          label: "Access",
-          value: planLabel(selectedUser.planId),
-          testId: "snapshot-card-plan",
-        },
-        {
-          key: "subscription",
-          label: "Subscription",
-          value: snapshotPriceLabel ?? "—",
-          testId: "snapshot-card-price",
-        },
-        snapshotStorageLabel
-          ? {
-              key: "storage",
-              label: "Storage",
-              value: snapshotStorageUsedLabel ?? "—",
-              helper: `/ ${snapshotStorageLabel}`,
-              testId: "snapshot-card-storage",
-            }
-          : null,
-        {
-          key: "credits",
-          value: selectedUser.spendableCredits.toLocaleString(),
-          helper:
-            snapshotMonthlyCredits != null
-              ? `/ ${snapshotMonthlyCredits.toLocaleString()}`
-              : undefined,
-          label: "Spendable",
-          testId: "snapshot-card-credits",
-        },
-        {
-          key: "expiring-credits",
-          value: snapshotExpiringCredits.value,
-          helper: snapshotExpiringCredits.helper,
-          label: "Expiring credits",
-          testId: "snapshot-card-expiring-credits",
-        },
-        {
-          key: "billing-state",
-          label: "Billing state",
-          value:
-            snapshotContractSource === "internal_comp"
-              ? "Payment exempt"
-              : snapshotBillingStateLabel,
-          testId: "snapshot-card-billing-state",
-        },
-        {
-          key: "renewal",
-          label: snapshotCancellationScheduled ? "Access ends" : "Next renewal",
-          value: snapshotRenewalAt ? formatCompactDate(snapshotRenewalAt) : "No renewal",
-          testId: "snapshot-card-renewal",
-        },
-        {
-          key: "joined",
-          label: "Joined",
-          value: formatCompactDate(selectedUser.createdAt),
-          testId: "snapshot-card-joined",
-        },
-      ].filter((card): card is SnapshotCard => Boolean(card))
+    ? (
+        [
+          {
+            key: "plan",
+            label: "Access",
+            value: planLabel(selectedUser.planId),
+            testId: "snapshot-card-plan",
+            valueClassName: accountSnapshotPlanValueClassName(selectedUserAccessPlanTone),
+          },
+          {
+            key: "subscription",
+            label: "Subscription",
+            value: snapshotPriceLabel ?? "—",
+            testId: "snapshot-card-price",
+          },
+          snapshotStorageLabel
+            ? {
+                key: "storage",
+                label: "Storage",
+                value: snapshotStorageUsedLabel ?? "—",
+                helper: `/ ${snapshotStorageLabel}`,
+                testId: "snapshot-card-storage",
+              }
+            : null,
+          {
+            key: "credits",
+            value: selectedUser.spendableCredits.toLocaleString(),
+            helper:
+              snapshotMonthlyCredits != null
+                ? `/ ${snapshotMonthlyCredits.toLocaleString()}`
+                : undefined,
+            label: "Spendable",
+            testId: "snapshot-card-credits",
+          },
+          {
+            key: "expiring-credits",
+            value: snapshotExpiringCredits.value,
+            helper: snapshotExpiringCredits.helper,
+            label: "Expiring credits",
+            testId: "snapshot-card-expiring-credits",
+          },
+          {
+            key: "billing-state",
+            label: "Account status",
+            value:
+              snapshotContractSource === "internal_comp"
+                ? "Payment exempt"
+                : snapshotBillingStateLabel,
+            testId: "snapshot-card-billing-state",
+            valueClassName: accountSnapshotStatusValueClassName(snapshotBillingStatusTone),
+          },
+          {
+            key: "renewal",
+            label: snapshotCancellationScheduled ? "Access ends" : "Next renewal",
+            value: snapshotRenewalAt ? formatCompactDate(snapshotRenewalAt) : "No renewal",
+            testId: "snapshot-card-renewal",
+          },
+          {
+            key: "joined",
+            label: "Joined",
+            value: formatCompactDate(selectedUser.createdAt),
+            testId: "snapshot-card-joined",
+          },
+        ] as Array<SnapshotCard | null>
+      ).filter((card): card is SnapshotCard => card !== null)
     : [];
   const hasLoadedUsers = users.length > 0;
-  const emptyCreditFlagCount = users.reduce(
-    (count, row) => count + (row.spendableCredits <= 0 ? 1 : 0),
-    0
-  );
   const selectedAccountState = !selectedUserId
     ? usersError
       ? {
@@ -455,7 +639,7 @@ export function AdminSupportQueueSection({
     ? [
         {
           key: "billing-state",
-          label: "Billing state",
+          label: "Account status",
           value:
             snapshotContractSource === "internal_comp"
               ? "Payment exempt"
@@ -573,7 +757,7 @@ export function AdminSupportQueueSection({
       </div>
       <div
         className={styles.adminSelectedAccountWorkspace}
-        data-credit-ledger-layout="full-width"
+        data-credit-ledger-layout="inline-before-credits-access"
         data-testid="selected-account-workspace"
       >
         <section className={`${styles.adminSubpanel} ${styles.adminPrimaryPanel}`}>
@@ -644,13 +828,168 @@ export function AdminSupportQueueSection({
                       data-testid={card.testId}
                     >
                       <span className={styles.accountSnapshotCardLabel}>{card.label}</span>
-                      <span className={styles.accountSnapshotCardValue}>{card.value}</span>
+                      <span
+                        className={`${styles.accountSnapshotCardValue} ${
+                          card.valueClassName ?? ""
+                        }`.trim()}
+                      >
+                        {card.value}
+                      </span>
                       {card.helper ? (
                         <span className={styles.accountSnapshotCardHelper}>{card.helper}</span>
                       ) : null}
                     </article>
                   ))}
                 </div>
+              ) : null}
+
+              {ledgerVisible ? (
+                <section
+                  className={`${styles.creditLedgerPanel} ${styles.creditLedgerInlinePanel}`}
+                  data-testid="credit-ledger-panel"
+                >
+                  <div className={styles.adminSectionHead}>
+                    <div>
+                      <p className="eyebrow">Credit transaction log</p>
+                      <p className="tiny subdued">
+                        All transactions for the selected account, grouped by billing cycle.
+                      </p>
+                    </div>
+                    <div className={styles.tabRow}>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => void loadCreditLedger()}
+                        disabled={creditLedgerLoading || !selectedUserId}
+                      >
+                        {creditLedgerLoading ? "Refreshing…" : "Refresh log"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => setLedgerUserId(null)}
+                      >
+                        Hide
+                      </button>
+                    </div>
+                  </div>
+
+                  {creditLedgerError ||
+                  !selectedUserId ||
+                  !creditLedgerLoaded ||
+                  creditLedgerRows.length === 0 ? (
+                    <div className={`${styles.adminTable} ${styles.adminLedgerTable}`}>
+                      <div className={styles.adminLedgerHead}>
+                        <span>Time</span>
+                        <span>Source</span>
+                        <span>Change</span>
+                        <span>Pricing</span>
+                        <span>Reason / Ref</span>
+                      </div>
+                      <div className={styles.adminLedgerRow}>
+                        <span className="subdued">
+                          {creditLedgerError
+                            ? creditLedgerError
+                            : !selectedUserId
+                              ? "Pick a user to inspect transactions."
+                              : !creditLedgerLoaded
+                                ? "Load the full ledger for this user."
+                                : "No credit transactions found."}
+                        </span>
+                        <span className="subdued">—</span>
+                        <span className="subdued">—</span>
+                        <span className="subdued">—</span>
+                        <span className="subdued">—</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.creditLedgerScroll} data-testid="credit-ledger-scroll">
+                      {creditLedgerCycleGroups.map((group) => (
+                        <section key={group.key} className={styles.ledgerCycleGroup}>
+                          <div className={styles.ledgerCycleHeader}>
+                            <div>
+                              <p className={styles.ledgerCycleTitle}>{group.label}</p>
+                              <p className={styles.ledgerCycleDetail}>{group.detail}</p>
+                            </div>
+                            <div className={styles.ledgerCycleStats}>
+                              <span
+                                className={
+                                  group.netChangeCents < 0
+                                    ? styles.ledgerChangeDebit
+                                    : styles.ledgerChangeCredit
+                                }
+                              >
+                                Net {formatCreditDelta(group.netChangeCents)}
+                              </span>
+                              <span>
+                                {group.rows.length} transaction{group.rows.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={`${styles.adminTable} ${styles.adminLedgerTable}`}>
+                            <div className={styles.adminLedgerHead}>
+                              <span>Time</span>
+                              <span>Source</span>
+                              <span>Change</span>
+                              <span>Pricing</span>
+                              <span>Reason / Ref</span>
+                            </div>
+                            {group.rows.map((row) => (
+                              <div
+                                key={row.id}
+                                className={`${styles.adminLedgerRow} ${
+                                  row.changeCents < 0
+                                    ? styles.adminLedgerRowDebit
+                                    : styles.adminLedgerRowCredit
+                                }`}
+                              >
+                                <span className={styles.ledgerTime}>
+                                  {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
+                                </span>
+                                <span className={styles.ledgerSourceCell}>
+                                  <span className={`${styles.ledgerSource} mono`}>
+                                    {row.source}
+                                  </span>
+                                </span>
+                                <span
+                                  className={
+                                    row.changeCents < 0
+                                      ? styles.ledgerChangeDebit
+                                      : styles.ledgerChangeCredit
+                                  }
+                                >
+                                  {formatCreditDelta(row.changeCents)}
+                                </span>
+                                <span className={styles.ledgerPricing}>
+                                  {row.pricingBreakdown ? (
+                                    <>
+                                      <span className={styles.ledgerPricingLine}>
+                                        billed {row.pricingBreakdown.billedCredits ?? "—"} cr (
+                                        {formatUsd(row.pricingBreakdown.billedUsd)})
+                                      </span>
+                                      <span className={styles.ledgerPricingLine}>
+                                        raw {row.pricingBreakdown.rawCredits ?? "—"} cr (
+                                        {formatUsd(row.pricingBreakdown.usdRaw)})
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="subdued">—</span>
+                                  )}
+                                </span>
+                                <span className={styles.ledgerReason}>
+                                  <span>{row.reason || "—"}</span>
+                                  {row.sourceRef ? (
+                                    <span className={styles.ledgerRef}>ref: {row.sourceRef}</span>
+                                  ) : null}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </section>
               ) : null}
 
               <div className={styles.manualAdjustPanel}>
@@ -685,22 +1024,53 @@ export function AdminSupportQueueSection({
                           ) : null}
                         </div>
 
-                        <label
-                          className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
-                        >
-                          <input
-                            className={styles.searchInput}
-                            type="text"
-                            aria-label="Credit change"
-                            value={adjustment}
-                            pattern="[+-]?[0-9]*"
-                            inputMode="numeric"
-                            autoComplete="off"
-                            onChange={(event) => handleAdjustmentChange(event.target.value)}
-                            placeholder="+500 credits or -100 credits"
-                            disabled={!selectedUserId}
-                          />
-                        </label>
+                        <div className={styles.creditAdjustmentInputRow}>
+                          <label
+                            className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
+                          >
+                            <input
+                              className={styles.searchInput}
+                              type="text"
+                              aria-label="Credit change"
+                              value={adjustment}
+                              pattern="[+-]?[0-9]*"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              onChange={(event) => handleAdjustmentChange(event.target.value)}
+                              placeholder="+500 credits or -100 credits"
+                              disabled={!selectedUserId}
+                            />
+                          </label>
+
+                          <div className={styles.compactControlActions}>
+                            <button
+                              type="button"
+                              className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                              onClick={() => void handleCreditAdjust()}
+                              disabled={adjustSubmitting || !selectedUserId}
+                            >
+                              {adjustSubmitting ? "Saving…" : "Save credit change"}
+                            </button>
+                            {selectedUserId ? (
+                              <Link
+                                href={`/admin/user-health?lookup=${encodeURIComponent(
+                                  selectedUserId
+                                )}&lookupMode=user_id`}
+                                className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                              >
+                                Open account health
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                                disabled
+                              >
+                                Open account health
+                              </button>
+                            )}
+                          </div>
+                        </div>
 
                         <div className={styles.manualAdjustPresets}>
                           {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
@@ -714,35 +1084,6 @@ export function AdminSupportQueueSection({
                               {preset > 0 ? `+${preset}` : String(preset)}
                             </button>
                           ))}
-                        </div>
-
-                        <div className={styles.compactControlActions}>
-                          <button
-                            type="button"
-                            className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                            onClick={() => void handleCreditAdjust()}
-                            disabled={adjustSubmitting || !selectedUserId}
-                          >
-                            {adjustSubmitting ? "Saving…" : "Save credit change"}
-                          </button>
-                          {selectedUserId ? (
-                            <Link
-                              href={`/admin/user-health?lookup=${encodeURIComponent(
-                                selectedUserId
-                              )}&lookupMode=user_id`}
-                              className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                            >
-                              Open account health
-                            </Link>
-                          ) : (
-                            <button
-                              type="button"
-                              className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                              disabled
-                            >
-                              Open account health
-                            </button>
-                          )}
                         </div>
                       </div>
 
@@ -997,117 +1338,6 @@ export function AdminSupportQueueSection({
             </>
           )}
         </section>
-
-        {ledgerVisible ? (
-          <section className={styles.adminSubpanel} data-testid="credit-ledger-panel">
-            <div className={styles.adminSectionHead}>
-              <div>
-                <p className="eyebrow">Credit transaction log</p>
-                <p className="tiny subdued">
-                  Latest {ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT} rows for the selected account.
-                </p>
-              </div>
-              <div className={styles.tabRow}>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => void loadCreditLedger()}
-                  disabled={creditLedgerLoading || !selectedUserId}
-                >
-                  {creditLedgerLoading ? "Refreshing…" : "Refresh log"}
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => setLedgerUserId(null)}
-                >
-                  Hide
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.adminTable}>
-              <div className={styles.adminLedgerHead}>
-                <span>Time</span>
-                <span>Source</span>
-                <span>Change</span>
-                <span>Pricing</span>
-                <span>Reason / Ref</span>
-              </div>
-              {creditLedgerError ? (
-                <div className={styles.adminLedgerRow}>
-                  <span className="subdued">{creditLedgerError}</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                </div>
-              ) : !selectedUserId ? (
-                <div className={styles.adminLedgerRow}>
-                  <span className="subdued">Pick a user to inspect transactions.</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                </div>
-              ) : !creditLedgerLoaded ? (
-                <div className={styles.adminLedgerRow}>
-                  <span className="subdued">Load the recent ledger for this user.</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                </div>
-              ) : creditLedgerRows.length === 0 ? (
-                <div className={styles.adminLedgerRow}>
-                  <span className="subdued">No recent credit transactions.</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                  <span className="subdued">—</span>
-                </div>
-              ) : (
-                creditLedgerRows.map((row) => (
-                  <div key={row.id} className={styles.adminLedgerRow}>
-                    <span className="subdued">
-                      {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
-                    </span>
-                    <span className="mono">{row.source}</span>
-                    <span
-                      className={
-                        row.changeCents < 0 ? styles.ledgerChangeDebit : styles.ledgerChangeCredit
-                      }
-                    >
-                      {formatCreditDelta(row.changeCents)}
-                    </span>
-                    <span className={styles.ledgerPricing}>
-                      {row.pricingBreakdown ? (
-                        <>
-                          <span className={styles.ledgerPricingLine}>
-                            billed {row.pricingBreakdown.billedCredits ?? "—"} cr (
-                            {formatUsd(row.pricingBreakdown.billedUsd)})
-                          </span>
-                          <span className={styles.ledgerPricingLine}>
-                            raw {row.pricingBreakdown.rawCredits ?? "—"} cr (
-                            {formatUsd(row.pricingBreakdown.usdRaw)})
-                          </span>
-                        </>
-                      ) : (
-                        <span className="subdued">—</span>
-                      )}
-                    </span>
-                    <span className={styles.ledgerReason}>
-                      <span>{row.reason || "—"}</span>
-                      {row.sourceRef ? (
-                        <span className={styles.ledgerRef}>ref: {row.sourceRef}</span>
-                      ) : null}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        ) : null}
       </div>
 
       <section className={styles.adminSubpanel}>
@@ -1133,14 +1363,33 @@ export function AdminSupportQueueSection({
           <label htmlFor="user-search" className="tiny subdued">
             Search users
           </label>
-          <input
-            id="user-search"
-            className={styles.searchInput}
-            type="search"
-            value={userSearch}
-            onChange={(event) => handleUserSearchChange(event.target.value)}
-            placeholder="Search by email"
-          />
+          <div className={styles.userSearchControls}>
+            <input
+              id="user-search"
+              className={styles.searchInput}
+              type="search"
+              value={userSearch}
+              onChange={(event) => handleUserSearchChange(event.target.value)}
+              placeholder="Search by email"
+            />
+            <label className={styles.userSortField} htmlFor="user-sort">
+              <span>Sort</span>
+              <select
+                id="user-sort"
+                value={userSort}
+                onChange={(event) =>
+                  handleUserSortChange(event.target.value as AdminDashboardUserSort)
+                }
+                disabled={usersLoading}
+              >
+                {ADMIN_DASHBOARD_USER_SORT_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {USER_SORT_LABELS[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className={styles.adminTableScroller}>
@@ -1152,11 +1401,11 @@ export function AdminSupportQueueSection({
               <span>Copy</span>
               <span>User</span>
               <span>Access</span>
-              <span>Billing</span>
+              <span>Status</span>
               <span>Payment</span>
               <span>Spendable</span>
               <span>Renews / ends</span>
-              <span>Credit flags ({emptyCreditFlagCount})</span>
+              <span>Subscribed</span>
             </div>
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
@@ -1196,9 +1445,9 @@ export function AdminSupportQueueSection({
             ) : (
               users.map((row) => {
                 const rowLabel = row.email ?? row.id;
-                const queueSignals: QueueSignal[] = [];
                 const accessTone = accessPlanTone(row.planId);
                 const billingTone = billingStatusTone(row);
+                const isSubscribed = hasActivePaidSubscription(row);
                 const accessToneClass =
                   accessTone === "baseline"
                     ? styles.adminSupportQueueRowBaseline
@@ -1211,13 +1460,6 @@ export function AdminSupportQueueSection({
                           : accessTone === "business"
                             ? styles.adminSupportQueueRowBusiness
                             : styles.adminSupportQueueRowNeutral;
-                if (row.spendableCredits <= 0) {
-                  queueSignals.push({
-                    label: "Empty",
-                    toneClassName: styles.pillCritical,
-                  });
-                }
-
                 return (
                   <div
                     key={row.id}
@@ -1291,7 +1533,7 @@ export function AdminSupportQueueSection({
                       </span>
                       <span
                         className={`${styles.adminSupportQueueCell} subdued`}
-                        data-label="Billing"
+                        data-label="Status"
                       >
                         <span
                           className={`${styles.adminSupportBillingStatus} ${
@@ -1339,21 +1581,24 @@ export function AdminSupportQueueSection({
                             : formatCompactDate(row.planRenewalAt)}
                         </span>
                       </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Credit flags">
-                        {queueSignals.length > 0 ? (
-                          <span className={styles.adminSupportQueueSignalList}>
-                            {queueSignals.map((signal) => (
-                              <span
-                                key={`${row.id}-${signal.label}`}
-                                className={`${styles.pill} ${styles.adminSupportQueueSignalPill} ${signal.toneClassName}`}
-                              >
-                                {signal.label}
-                              </span>
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="subdued">—</span>
-                        )}
+                      <span className={styles.adminSupportQueueCell} data-label="Subscribed">
+                        <span
+                          className={
+                            isSubscribed
+                              ? styles.adminSupportSubscribedYes
+                              : styles.adminSupportSubscribedNo
+                          }
+                          data-testid={`subscribed-indicator-${row.id}`}
+                          title={isSubscribed ? "Subscribed" : "Not subscribed"}
+                          role="img"
+                          aria-label={isSubscribed ? "Subscribed" : "Not subscribed"}
+                        >
+                          {isSubscribed ? (
+                            <Check size={15} weight="bold" aria-hidden="true" />
+                          ) : (
+                            <X size={15} weight="bold" aria-hidden="true" />
+                          )}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -1368,7 +1613,7 @@ export function AdminSupportQueueSection({
             {usersLoading && users.length === 0
               ? "Loading user index…"
               : `Showing ${usersResultStart}-${usersResultEnd} of ${usersPagination.totalCount}${
-                  userSearchLimited ? " (search limited to the first 10,000 users scanned)" : ""
+                  userSearchLimited ? " (result set limited to the first 10,000 users scanned)" : ""
                 }`}
           </p>
           <div className={styles.tabRow}>

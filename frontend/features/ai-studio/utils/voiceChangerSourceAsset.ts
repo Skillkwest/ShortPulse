@@ -9,7 +9,21 @@ import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 
 const VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS = 8000;
 const VOICE_CHANGER_MEDIA_METADATA_TIMEOUT_MS = 8000;
+const SIGN_VOICE_CHANGER_SOURCE_TIMEOUT_MS = 10_000;
+const PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS = 20_000;
+const UPLOAD_VOICE_CHANGER_SOURCE_STORAGE_TIMEOUT_MS = 180_000;
+const FINALIZE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS = 60_000;
+const STAGE_VOICE_CLONE_SOURCE_TIMEOUT_MS = 180_000;
+const EXTRACT_VOICE_CHANGER_AUDIO_TIMEOUT_MS = 180_000;
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
+
+type VoiceChangerSourceStage =
+  | "sign_voice_source"
+  | "prepare_voice_source_upload"
+  | "upload_voice_source_storage"
+  | "finalize_voice_source_upload"
+  | "stage_voice_clone_source"
+  | "extract_voice_video_audio";
 
 const MIME_ALIAS_TO_CANONICAL: Record<string, string> = {
   "audio/m4a": "audio/mp4",
@@ -108,6 +122,61 @@ const resolveUploadSourceMimeType = (file: File, fallback: "audio" | "video"): s
   );
 };
 
+const resolveVoiceChangerSourceTimeoutLabel = (stage: VoiceChangerSourceStage): string => {
+  switch (stage) {
+    case "sign_voice_source":
+      return "voice source signing";
+    case "prepare_voice_source_upload":
+      return "voice source upload preparation";
+    case "upload_voice_source_storage":
+      return "voice source storage upload";
+    case "finalize_voice_source_upload":
+      return "voice source upload finalization";
+    case "stage_voice_clone_source":
+      return "voice clone source staging";
+    case "extract_voice_video_audio":
+      return "voice sample extraction";
+  }
+};
+
+const runAbortableVoiceChangerSourceStep = async <T>({
+  stage,
+  timeoutMs,
+  run,
+}: {
+  stage: VoiceChangerSourceStage;
+  timeoutMs: number;
+  run: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> => {
+  const abortController = new AbortController();
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let timedOut = false;
+  const timeoutPromise = new Promise<T>((_resolve, reject) => {
+    timeoutHandle = globalThis.setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+      reject(new Error(`${stage} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([run(abortController.signal), timeoutPromise]);
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(
+        `${resolveVoiceChangerSourceTimeoutLabel(
+          stage
+        )} timed out. Please retry with a smaller or local source file.`
+      );
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
+  }
+};
+
 const parseSupabaseSignedObjectRef = (
   url: string
 ): { bucket: string; storagePath: string } | null => {
@@ -153,10 +222,15 @@ export const resolveVoiceChangerSourceStoragePath = (
 };
 
 export const signVoiceSourceStoragePath = async (storagePath: string): Promise<string> => {
-  const signedUrl = await getSignedMediaUrl({
-    bucket: BUCKET,
-    storagePath,
-    forceRefresh: true,
+  const signedUrl = await runAbortableVoiceChangerSourceStep({
+    stage: "sign_voice_source",
+    timeoutMs: SIGN_VOICE_CHANGER_SOURCE_TIMEOUT_MS,
+    run: async () =>
+      await getSignedMediaUrl({
+        bucket: BUCKET,
+        storagePath,
+        forceRefresh: true,
+      }),
   });
   if (!signedUrl?.trim()) {
     throw new Error("Unable to sign the stored voice source.");
@@ -198,18 +272,24 @@ const uploadStagedVoiceSourceFile = async ({
   const mimeType = resolveUploadSourceMimeType(file, kind);
   const filename =
     file.name.trim() || `${filenameFallbackPrefix}.${inferExtensionFromMimeType(mimeType, kind)}`;
-  const prepareResponse = await fetchWithAuth("/api/media/prepare-voice-changer-source-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceKind: kind,
-      sourceMimeType: mimeType,
-      sourceName: filename,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+  const prepareResponse = await runAbortableVoiceChangerSourceStep({
+    stage: "prepare_voice_source_upload",
+    timeoutMs: PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/prepare-voice-changer-source-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceKind: kind,
+          sourceMimeType: mimeType,
+          sourceName: filename,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+      }),
   });
   const preparePayload = (await prepareResponse.json().catch(() => null)) as {
     target?: {
@@ -247,29 +327,38 @@ const uploadStagedVoiceSourceFile = async ({
   }
 
   const supabase = ensureSupabaseQueryClient();
-  const uploadResult = await supabase.storage
-    .from(BUCKET)
-    .uploadToSignedUrl(storagePath, uploadToken, file, {
-      contentType: preparedMimeType,
-      upsert: false,
-    });
+  const uploadResult = await runAbortableVoiceChangerSourceStep({
+    stage: "upload_voice_source_storage",
+    timeoutMs: UPLOAD_VOICE_CHANGER_SOURCE_STORAGE_TIMEOUT_MS,
+    run: async () =>
+      await supabase.storage.from(BUCKET).uploadToSignedUrl(storagePath, uploadToken, file, {
+        contentType: preparedMimeType,
+        upsert: false,
+      }),
+  });
   if (uploadResult.error) {
     throw new Error(uploadResult.error.message || stageError);
   }
 
-  const finalizeResponse = await fetchWithAuth("/api/media/stage-voice-changer-source", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceKind: kind,
-      sourceMimeType: preparedMimeType,
-      sourceName: preparedName,
-      sourceStoragePath: storagePath,
-    }),
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+  const finalizeResponse = await runAbortableVoiceChangerSourceStep({
+    stage: "finalize_voice_source_upload",
+    timeoutMs: FINALIZE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/stage-voice-changer-source", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceKind: kind,
+          sourceMimeType: preparedMimeType,
+          sourceName: preparedName,
+          sourceStoragePath: storagePath,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+      }),
   });
   const payload = (await finalizeResponse.json().catch(() => null)) as StagedVoiceSourcePayload;
   const previewUrl =
@@ -316,15 +405,21 @@ export const uploadVoiceCloneSourceFile = async ({ file }: { file: File }) =>
     const mimeType = resolveUploadSourceMimeType(file, "audio");
     const filename =
       file.name.trim() || `voice-clone-source.${inferExtensionFromMimeType(mimeType, "audio")}`;
-    const response = await fetchWithAuth("/api/media/stage-voice-clone-source", {
-      method: "POST",
-      headers: {
-        "Content-Type": mimeType,
-        "x-shortpulse-upload-filename": filename,
-      },
-      body: file,
-      shortpulseLogScope: "generation",
-      shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+    const response = await runAbortableVoiceChangerSourceStep({
+      stage: "stage_voice_clone_source",
+      timeoutMs: STAGE_VOICE_CLONE_SOURCE_TIMEOUT_MS,
+      run: async (signal) =>
+        await fetchWithAuth("/api/media/stage-voice-clone-source", {
+          method: "POST",
+          headers: {
+            "Content-Type": mimeType,
+            "x-shortpulse-upload-filename": filename,
+          },
+          body: file,
+          signal,
+          shortpulseLogScope: "generation",
+          shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+        }),
     });
 
     const payload = (await response.json().catch(() => null)) as StagedVoiceSourcePayload;
@@ -388,19 +483,26 @@ export const extractVoiceChangerVideoSource = async ({
   name: string;
   size: number;
 }> => {
-  const response = await fetchWithAuth("/api/media/extract-audio", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sourceName,
-      sourceOrigin,
-      sourceMimeType,
-      sourceStoragePath,
-      sourceUrl,
-    }),
-    shortpulseLogScope: "generation",
+  const response = await runAbortableVoiceChangerSourceStep({
+    stage: "extract_voice_video_audio",
+    timeoutMs: EXTRACT_VOICE_CHANGER_AUDIO_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/extract-audio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceName,
+          sourceOrigin,
+          sourceMimeType,
+          sourceStoragePath,
+          sourceUrl,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+      }),
   });
 
   const payload = (await response.json().catch(() => null)) as ExtractAudioResponse | null;

@@ -1798,14 +1798,14 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  --admin-support-user-col: minmax(260px, 1.45fr);
+  --admin-support-user-col: minmax(230px, 1.2fr);
   --admin-support-copy-col: 44px;
-  --admin-support-plan-col: minmax(96px, 0.48fr);
-  --admin-support-billing-col: minmax(150px, 0.72fr);
-  --admin-support-payment-col: minmax(118px, 0.58fr);
+  --admin-support-plan-col: minmax(86px, 0.34fr);
+  --admin-support-billing-col: minmax(132px, 0.5fr);
+  --admin-support-payment-col: minmax(104px, 0.42fr);
   --admin-support-spendable-col: minmax(112px, 0.54fr);
   --admin-support-renews-col: minmax(132px, 0.64fr);
-  --admin-support-flags-col: minmax(112px, 0.52fr);
+  --admin-support-subscribed-col: minmax(92px, 0.32fr);
   --admin-support-col-gap: 0;
   grid-template-columns:
     var(--admin-support-copy-col)
@@ -1815,7 +1815,7 @@
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
     var(--admin-support-renews-col)
-    var(--admin-support-flags-col);
+    var(--admin-support-subscribed-col);
   gap: var(--admin-support-col-gap);
 }
 
@@ -2042,7 +2042,7 @@
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
     var(--admin-support-renews-col)
-    var(--admin-support-flags-col);
+    var(--admin-support-subscribed-col);
   grid-column: 1 / -1;
   grid-row: 1;
   align-items: center;
@@ -2076,7 +2076,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.adminSupportQueueTable .adminSupportQueueCell[data-label="Credit flags"] {
+.adminSupportQueueTable .adminSupportQueueCell[data-label="Subscribed"] {
   justify-content: center;
 }
 
@@ -2153,15 +2153,15 @@
 }
 
 .adminSupportBillingStatusActive {
-  color: var(--admin-accent-text);
+  color: #64d0ff;
 }
 
 .adminSupportBillingStatusWarning {
-  color: var(--admin-warning-text);
+  color: #ffd23f;
 }
 
 .adminSupportBillingStatusCanceled {
-  color: #ffcfcf;
+  color: #ff4d57;
 }
 
 .adminSupportBillingStatusNeutral {
@@ -2205,54 +2205,215 @@
   color: var(--admin-text);
 }
 
-.adminSupportQueueSignalList {
-  display: flex;
-  flex-wrap: wrap;
+.adminSupportSubscribedYes,
+.adminSupportSubscribedNo {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 18px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+}
+
+.adminSupportSubscribedYes {
+  border: 1px solid rgba(82, 214, 139, 0.42);
+  background: rgba(82, 214, 139, 0.12);
+  color: #9de5c0;
+}
+
+.adminSupportSubscribedNo {
+  border: 1px solid rgba(255, 77, 87, 0.44);
+  background: rgba(255, 77, 87, 0.12);
+  color: #ff4d57;
+}
+
+.creditLedgerPanel {
+  background: #171d24;
+}
+
+.creditLedgerInlinePanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(184, 200, 218, 0.12);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(100, 208, 255, 0.04), rgba(17, 20, 23, 0)), rgba(17, 20, 23, 0.9);
+}
+
+.adminLedgerTable {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(184, 200, 218, 0.1);
+  border-radius: 16px;
+  background: #0d1116;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.creditLedgerScroll {
+  display: grid;
+  gap: 14px;
+  max-height: min(680px, 68vh);
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.ledgerCycleGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.ledgerCycleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(184, 200, 218, 0.1);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(100, 208, 255, 0.055), rgba(13, 17, 22, 0.76)), #0d1116;
+}
+
+.ledgerCycleTitle {
+  margin: 0;
+  color: var(--admin-text-strong);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.ledgerCycleDetail {
+  margin: 3px 0 0;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.ledgerCycleStats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.ledgerCycleStats span {
+  white-space: nowrap;
 }
 
 .adminLedgerHead,
 .adminLedgerRow {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 0.8fr 1.4fr 2fr;
-  gap: 8px;
+  grid-template-columns:
+    minmax(160px, 0.9fr) minmax(150px, 0.82fr) minmax(92px, 0.42fr) minmax(170px, 0.9fr)
+    minmax(280px, 1.7fr);
+  gap: 0;
   align-items: center;
 }
 
 .adminLedgerHead {
-  font-size: 12px;
+  min-height: 40px;
+  border-bottom: 1px solid rgba(184, 200, 218, 0.12);
+  background: #0b0f14;
   color: var(--admin-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+}
+
+.adminLedgerHead span,
+.adminLedgerRow > span {
+  min-height: 100%;
+  padding: 12px 14px;
+  border-right: 1px solid rgba(184, 200, 218, 0.055);
+}
+
+.adminLedgerHead span:last-child,
+.adminLedgerRow > span:last-child {
+  border-right: 0;
 }
 
 .adminLedgerRow {
-  padding: 10px 8px;
-  border-radius: 10px;
-  background: var(--admin-surface-3);
-  border: 1px solid var(--admin-border-soft);
+  --ledger-row-accent: rgba(184, 200, 218, 0.22);
+  min-height: 58px;
+  border-bottom: 1px solid rgba(184, 200, 218, 0.07);
+  background: #10161c;
+  box-shadow: inset 3px 0 0 var(--ledger-row-accent);
+}
+
+.adminLedgerRow:nth-child(odd) {
+  background: #131920;
+}
+
+.adminLedgerRow:last-child {
+  border-bottom: 0;
+}
+
+.adminLedgerRowCredit {
+  --ledger-row-accent: #9de5c0;
+}
+
+.adminLedgerRowDebit {
+  --ledger-row-accent: #ff4d57;
 }
 
 .adminLedgerRow span {
   font-size: 13px;
 }
 
+.ledgerTime {
+  color: var(--admin-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledgerSourceCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ledgerSource {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(184, 200, 218, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #dbe6f5;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ledgerChangeDebit {
-  color: #ffcfcf;
-  font-weight: 700;
+  color: #ff4d57;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
 }
 
 .ledgerChangeCredit {
-  color: #c7f2d3;
-  font-weight: 700;
+  color: #9de5c0;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
 }
 
 .ledgerPricing {
   display: grid;
   gap: 2px;
+  color: var(--admin-text-muted);
 }
 
 .ledgerPricingLine {
@@ -2263,12 +2424,15 @@
 
 .ledgerReason {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  color: var(--admin-text);
+  font-weight: 650;
 }
 
 .ledgerRef {
   font-size: 11px;
+  font-weight: 600;
   color: var(--admin-text-faint);
   word-break: break-all;
 }
@@ -2313,18 +2477,6 @@
   background: rgba(248, 78, 78, 0.26);
   color: #fff0f0;
   border: 1px solid rgba(248, 78, 78, 0.65);
-}
-
-.pill.adminSupportQueueSignalPill {
-  min-width: 0;
-  min-height: 18px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  font-size: 10px;
-  line-height: 1.1;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: nowrap;
 }
 
 .pulseLivePill {
@@ -2554,6 +2706,47 @@
   justify-content: space-between;
   gap: clamp(48px, 7vw, 120px);
   margin: 10px 0;
+}
+
+.userSearchControls {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.userSortField {
+  display: inline-flex;
+  flex: 0 0 220px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.userSortField select {
+  min-width: 0;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-1);
+  color: var(--admin-text-strong);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.userSortField select:focus {
+  outline: none;
+  border-color: var(--admin-focus);
 }
 
 .pricingWorkbookControls {
@@ -3846,6 +4039,30 @@
   letter-spacing: -0.015em;
 }
 
+.accountSnapshotCardValuePlanBaseline {
+  color: #9ca8b8;
+}
+
+.accountSnapshotCardValuePlanStarter {
+  color: #dbe6f5;
+}
+
+.accountSnapshotCardValuePlanMedia {
+  color: #4ea09e;
+}
+
+.accountSnapshotCardValuePlanStudio {
+  color: #64d0ff;
+}
+
+.accountSnapshotCardValuePlanBusiness {
+  color: #ffcb66;
+}
+
+.accountSnapshotCardValuePlanNeutral {
+  color: var(--admin-text-muted);
+}
+
 .accountSnapshotCardHelper {
   color: var(--admin-text-faint);
   font-size: 9.5px;
@@ -3893,66 +4110,76 @@
 
 .accountStatusList {
   display: grid;
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid rgba(184, 200, 218, 0.1);
-  border-radius: 12px;
-  background: #0d1116;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
 }
 
 .accountStatusRow {
   --account-status-color: var(--admin-text-muted);
+  --account-status-border: rgba(184, 200, 218, 0.12);
+  --account-status-bg: rgba(255, 255, 255, 0.018);
+  position: relative;
   display: grid;
-  grid-template-columns: 4px minmax(116px, 0.24fr) minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  min-height: 58px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(184, 200, 218, 0.07);
-  background: #11161c;
-}
-
-.accountStatusRow:nth-child(odd) {
-  background: #131920;
-}
-
-.accountStatusRow:last-child {
-  border-bottom: 0;
+  align-content: start;
+  gap: 9px;
+  min-height: 116px;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid var(--account-status-border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--account-status-bg), rgba(13, 17, 22, 0.82)), #0d1116;
 }
 
 .accountStatusRowActive {
-  --account-status-color: var(--admin-accent-text);
+  --account-status-color: #64d0ff;
+  --account-status-border: rgba(100, 208, 255, 0.28);
+  --account-status-bg: rgba(100, 208, 255, 0.08);
 }
 
 .accountStatusRowOk {
   --account-status-color: #9de5c0;
+  --account-status-border: rgba(157, 229, 192, 0.26);
+  --account-status-bg: rgba(157, 229, 192, 0.07);
 }
 
 .accountStatusRowWarning {
-  --account-status-color: var(--admin-warning-text);
+  --account-status-color: #ffd23f;
+  --account-status-border: rgba(255, 210, 63, 0.28);
+  --account-status-bg: rgba(255, 210, 63, 0.08);
 }
 
 .accountStatusRowCritical {
-  --account-status-color: #ffcfcf;
+  --account-status-color: #ff4d57;
+  --account-status-border: rgba(255, 77, 87, 0.32);
+  --account-status-bg: rgba(255, 77, 87, 0.08);
 }
 
 .accountStatusRowNeutral {
   --account-status-color: var(--admin-text-muted);
+  --account-status-border: rgba(184, 200, 218, 0.1);
+  --account-status-bg: rgba(184, 200, 218, 0.04);
 }
 
 .accountStatusRail {
-  align-self: stretch;
-  width: 4px;
-  border-radius: 999px;
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
   background: var(--account-status-color);
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .accountStatusLabel {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--account-status-border);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
   color: var(--account-status-color);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  line-height: 1;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -3964,7 +4191,7 @@
 
 .accountStatusValue {
   color: var(--admin-text-strong);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -3976,8 +4203,7 @@
 }
 
 .accountStatusActions {
-  grid-column: 3;
-  margin: 2px 0 0;
+  margin: 0;
   padding-left: 16px;
   display: grid;
   gap: 3px;
@@ -4111,8 +4337,8 @@
 
 .compactControlStack {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.6fr);
+  gap: 22px;
   align-items: start;
 }
 
@@ -4137,11 +4363,28 @@
   color: var(--admin-text-faint);
 }
 
+.creditAdjustmentInputRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) max-content;
+  gap: 10px;
+  align-items: stretch;
+}
+
 .compactControlActions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.creditAdjustmentInputRow .compactControlActions {
+  align-self: stretch;
+}
+
+.creditAdjustmentInputRow .manualAdjustPrimaryAction,
+.creditAdjustmentInputRow .manualAdjustSecondaryAction {
+  min-height: 100%;
+  white-space: nowrap;
 }
 
 .compactControlSection .controlFieldCompact {
@@ -5665,6 +5908,15 @@
     grid-template-columns: 1fr;
   }
 
+  .userSearchControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .userSortField {
+    flex-basis: auto;
+  }
+
   .manualAdjustActions {
     justify-content: flex-start;
   }
@@ -5690,6 +5942,14 @@
     padding-top: 16px;
     border-left: 0;
     border-top: 1px solid var(--admin-border-soft);
+  }
+
+  .creditAdjustmentInputRow {
+    grid-template-columns: 1fr;
+  }
+
+  .creditAdjustmentInputRow .compactControlActions {
+    justify-content: flex-start;
   }
 
   .controlFieldCompact {

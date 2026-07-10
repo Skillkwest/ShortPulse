@@ -224,7 +224,15 @@ const sortCanvasItemsForCap = (items: CanvasSceneItem[]): CanvasSceneItem[] =>
  */
 export const clampCanvasSceneItemsToHardCap = (items: CanvasSceneItem[]): CanvasSceneItem[] => {
   if (items.length <= AI_STUDIO_CANVAS_ITEM_HARD_CAP) return items;
-  return sortCanvasItemsForCap(items).slice(-AI_STUDIO_CANVAS_ITEM_HARD_CAP);
+  const sortedItems = sortCanvasItemsForCap(items);
+  const selectedItems = sortedItems.filter((item) => item.selected);
+  if (selectedItems.length >= AI_STUDIO_CANVAS_ITEM_HARD_CAP) {
+    return selectedItems.slice(-AI_STUDIO_CANVAS_ITEM_HARD_CAP);
+  }
+  const selectedIds = new Set(selectedItems.map((item) => item.id));
+  const ordinaryItems = sortedItems.filter((item) => !selectedIds.has(item.id));
+  const ordinarySlots = AI_STUDIO_CANVAS_ITEM_HARD_CAP - selectedItems.length;
+  return sortCanvasItemsForCap([...ordinaryItems.slice(-ordinarySlots), ...selectedItems]);
 };
 
 const sanitizeCanvasSceneItem = (

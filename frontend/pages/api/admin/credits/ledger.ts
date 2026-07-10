@@ -1,5 +1,5 @@
 /**
- * Admin API: recent credit ledger transactions for a specific user.
+ * Admin API: credit ledger transactions for a specific user.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const ALL_LEDGER_PAGE_SIZE = 1000;
 
 type LedgerRow = {
   id: string;
@@ -129,23 +130,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "userId is required." });
   }
 
-  const limit = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
+  const requestedLimit = asSingleString(req.query.limit).trim().toLowerCase();
+  const readAll = requestedLimit === "all";
+  const numericLimit = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
+  const limit = readAll ? null : numericLimit;
   const sourceFilter = normalizeSourceFilter(req.query.source);
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    let richQuery = supabaseAdmin
-      .from("ai_credit_ledger")
-      .select("id, user_id, change_cents, reason, source, source_ref, metadata, created_at")
-      .eq("user_id", userId);
-    if (sourceFilter) {
-      richQuery = richQuery.eq("source", sourceFilter);
-    }
-    const richResult = await richQuery.order("created_at", { ascending: false }).limit(limit);
+    let richRows: LedgerRow[] = [];
+    let richError: unknown = null;
 
-    const normalizedRichError = normalizeQueryError(richResult.error);
+    if (readAll) {
+      for (let offset = 0; ; offset += ALL_LEDGER_PAGE_SIZE) {
+        let richQuery = supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("id, user_id, change_cents, reason, source, source_ref, metadata, created_at")
+          .eq("user_id", userId);
+        if (sourceFilter) {
+          richQuery = richQuery.eq("source", sourceFilter);
+        }
+        const richResult = await richQuery
+          .order("created_at", { ascending: false })
+          .range(offset, offset + ALL_LEDGER_PAGE_SIZE - 1);
+        if (richResult.error) {
+          richError = richResult.error;
+          break;
+        }
+        const pageRows = (richResult.data ?? []) as LedgerRow[];
+        richRows = richRows.concat(pageRows);
+        if (pageRows.length < ALL_LEDGER_PAGE_SIZE) break;
+      }
+    } else {
+      let richQuery = supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("id, user_id, change_cents, reason, source, source_ref, metadata, created_at")
+        .eq("user_id", userId);
+      if (sourceFilter) {
+        richQuery = richQuery.eq("source", sourceFilter);
+      }
+      const richResult = await richQuery
+        .order("created_at", { ascending: false })
+        .limit(numericLimit);
+      richRows = (richResult.data ?? []) as LedgerRow[];
+      richError = richResult.error;
+    }
+
+    const normalizedRichError = normalizeQueryError(richError);
     if (!normalizedRichError) {
-      const transactions = ((richResult.data ?? []) as LedgerRow[]).map((row) => {
+      const transactions = richRows.map((row) => {
         const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : null;
         return {
           id: String(row.id),
@@ -161,7 +194,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({
         userId,
-        limit,
+        limit: limit ?? "all",
         source: sourceFilter || null,
         transactions,
       });
@@ -177,24 +210,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Legacy ledger schemas do not expose `source`; all legacy reads are treated as source=legacy.
       return res.status(200).json({
         userId,
-        limit,
+        limit: limit ?? "all",
         source: sourceFilter,
         transactions: [],
       });
     }
-    const legacyQuery = supabaseAdmin
-      .from("ai_credit_ledger")
-      .select("id, user_id, change_cents, reason, ref_id, created_at")
-      .eq("user_id", userId);
-    const legacyResult = await legacyQuery.order("created_at", { ascending: false }).limit(limit);
-    const normalizedLegacyError = normalizeQueryError(legacyResult.error);
+    let legacyRows: LegacyLedgerRow[] = [];
+    let legacyError: unknown = null;
+
+    if (readAll) {
+      for (let offset = 0; ; offset += ALL_LEDGER_PAGE_SIZE) {
+        const legacyResult = await supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("id, user_id, change_cents, reason, ref_id, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + ALL_LEDGER_PAGE_SIZE - 1);
+        if (legacyResult.error) {
+          legacyError = legacyResult.error;
+          break;
+        }
+        const pageRows = (legacyResult.data ?? []) as LegacyLedgerRow[];
+        legacyRows = legacyRows.concat(pageRows);
+        if (pageRows.length < ALL_LEDGER_PAGE_SIZE) break;
+      }
+    } else {
+      const legacyResult = await supabaseAdmin
+        .from("ai_credit_ledger")
+        .select("id, user_id, change_cents, reason, ref_id, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(numericLimit);
+      legacyRows = (legacyResult.data ?? []) as LegacyLedgerRow[];
+      legacyError = legacyResult.error;
+    }
+
+    const normalizedLegacyError = normalizeQueryError(legacyError);
     if (normalizedLegacyError) {
       return res.status(500).json({
         error: normalizedLegacyError.message || "Unable to load credit transactions.",
       });
     }
 
-    const transactions = ((legacyResult.data ?? []) as LegacyLedgerRow[]).map((row) => ({
+    const transactions = legacyRows.map((row) => ({
       id: String(row.id),
       userId: String(row.user_id),
       changeCents: Number(row.change_cents ?? 0),
@@ -205,7 +263,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       createdAt: row.created_at ?? null,
     }));
 
-    return res.status(200).json({ userId, limit, source: null, transactions });
+    return res.status(200).json({ userId, limit: limit ?? "all", source: null, transactions });
   } catch (error) {
     await logApiRouteException({
       req,
@@ -214,7 +272,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user: adminUser,
       metadata: {
         target_user_id: userId,
-        limit,
+        limit: limit ?? "all",
         source_filter: sourceFilter || null,
       },
     });

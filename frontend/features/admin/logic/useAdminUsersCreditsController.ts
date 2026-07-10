@@ -13,8 +13,26 @@ import type {
 } from "../types";
 
 export const ADMIN_DASHBOARD_USERS_PER_PAGE = 50;
-export const ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT = 20;
-export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [100, 500, 1000, -100, -500, -1000] as const;
+export const ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT = "all";
+export const ADMIN_DASHBOARD_USER_SORT_OPTIONS = [
+  "default",
+  "email_asc",
+  "email_desc",
+  "subscribed_first",
+  "unsubscribed_first",
+  "plan_tier",
+  "renewal_soon",
+  "renewal_latest",
+  "spendable_low",
+  "spendable_high",
+  "empty_credits_first",
+  "joined_newest",
+  "joined_oldest",
+] as const;
+export type AdminDashboardUserSort = (typeof ADMIN_DASHBOARD_USER_SORT_OPTIONS)[number];
+export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [
+  -1000, -500, -100, -10, -5, -1, 1, 5, 10, 100, 500, 1000,
+] as const;
 const SEARCH_DEBOUNCE_MS = 250;
 
 const createCreditAdjustmentIntentKey = (): string => {
@@ -49,6 +67,7 @@ type UseAdminUsersCreditsControllerParams = {
 
 type UseAdminUsersCreditsControllerResult = {
   userSearch: string;
+  userSort: AdminDashboardUserSort;
   usersPagination: AdminPagination;
   userSearchLimited: boolean;
   users: AdminUserRow[];
@@ -81,6 +100,7 @@ type UseAdminUsersCreditsControllerResult = {
   loadCreditLedger: () => Promise<void>;
   loadBillingDiagnostics: () => Promise<void>;
   handleUserSearchChange: (value: string) => void;
+  handleUserSortChange: (value: AdminDashboardUserSort) => void;
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
@@ -102,6 +122,7 @@ export const useAdminUsersCreditsController = ({
   currentAdminUserId,
 }: UseAdminUsersCreditsControllerParams): UseAdminUsersCreditsControllerResult => {
   const [userSearch, setUserSearch] = React.useState("");
+  const [userSort, setUserSort] = React.useState<AdminDashboardUserSort>("default");
   const [debouncedUserSearch, setDebouncedUserSearch] = React.useState("");
   const [usersPage, setUsersPage] = React.useState(1);
   const [usersPagination, setUsersPagination] = React.useState<AdminPagination>({
@@ -154,6 +175,9 @@ export const useAdminUsersCreditsController = ({
       if (debouncedUserSearch.trim()) {
         params.set("search", debouncedUserSearch.trim());
       }
+      if (userSort !== "default") {
+        params.set("sort", userSort);
+      }
 
       const response = await fetchWithAuth(`/api/admin/users?${params.toString()}`, {
         method: "GET",
@@ -186,7 +210,7 @@ export const useAdminUsersCreditsController = ({
     } finally {
       setUsersLoading(false);
     }
-  }, [debouncedUserSearch, usersPage]);
+  }, [debouncedUserSearch, userSort, usersPage]);
 
   const loadCreditLedger = React.useCallback(async () => {
     if (!selectedUserId) {
@@ -660,6 +684,11 @@ export const useAdminUsersCreditsController = ({
     setUsersPage(1);
   }, []);
 
+  const handleUserSortChange = React.useCallback((value: AdminDashboardUserSort) => {
+    setUserSort(value);
+    setUsersPage(1);
+  }, []);
+
   const handlePreviousUsersPage = React.useCallback(() => {
     setUsersPage((value) => Math.max(1, value - 1));
   }, []);
@@ -683,6 +712,7 @@ export const useAdminUsersCreditsController = ({
 
   return {
     userSearch,
+    userSort,
     usersPagination,
     userSearchLimited,
     users,
@@ -715,6 +745,7 @@ export const useAdminUsersCreditsController = ({
     loadCreditLedger,
     loadBillingDiagnostics,
     handleUserSearchChange,
+    handleUserSortChange,
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,

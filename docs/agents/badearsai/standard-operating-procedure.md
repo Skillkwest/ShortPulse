@@ -114,6 +114,19 @@ Use `frontend/pages/api/admin/errors-status.ts` or `frontend/pages/api/admin/err
 
 Run a dry-run or read-only status check first when the tool supports it or when same-fingerprint scope is unclear. After mutation, verify the row or same-fingerprint family is no longer `open` in the default queue, and record failures separately instead of silently dropping them.
 
+If the user points at the visible Admin Errors panel, asks why rows are still showing, asks Badearsai to handle the queue, or supplies a pasted batch from the current queue, the cleanup scope includes:
+
+- every reviewed incident ID from the pasted/screenshot/current queue evidence,
+- exact same-request siblings needed to avoid leaving a split causal chain visible,
+- exact same-signature watched rows that are currently visible and match the watch rationale,
+- and any fresh visible row that appears during cleanup and already matches a documented watch/noise signature.
+
+Do not leave a watched row visible just because Badearsai has seen the signature before. A watched row must be either:
+
+- cleared as `resolved` with `watch: true` after recurrence/proof checks,
+- promoted back to `open` owner-lane work because the watch condition was crossed,
+- or explicitly named as blocked/kept-open with the missing proof.
+
 Stop before cleanup when:
 
 - the packet lacks the ID needed to update the row,
@@ -136,7 +149,20 @@ Use non-mutating checks for source proof and recurrence decisions:
 
 Do not use service-role env, Supabase writes outside the reviewed Admin Errors status path, provider submits, generation replay, billing/subscription changes, or credit-spend tests unless explicitly approved.
 
-### Step 9. Report
+### Step 9. Final Queue Readback
+
+Before closing any Admin Errors cleanup run, perform a production readback that mirrors the default Admin Errors Queue visibility rules in `frontend/pages/api/admin/errors.ts`:
+
+- query current visible `status=open` incidents after applying the queue's non-actionable message filters,
+- confirm every reviewed incident ID is no longer visible as `open`,
+- if the default queue is not empty, triage each visible row as either in-scope watched/noise cleanup, real owner-lane work, blocked pending proof, or explicitly out of current scope,
+- clear in-scope watched/noise rows through the canonical status path,
+- keep real or blocked rows open and name the exact reason,
+- then repeat the readback until the visible queue is clean or only intentionally open rows remain.
+
+The run is not complete if Badearsai has only handled pasted packets but has not checked whether the default panel still shows actionable reviewed/watch rows. Packet-level cleanup and panel-level cleanup are separate proof steps.
+
+### Step 10. Report
 
 Close with:
 
@@ -151,7 +177,7 @@ Close with:
 - exact stop boundary,
 - suggested next highest-ROI action.
 
-### Step 10. Record Durable Lessons
+### Step 11. Record Durable Lessons
 
 Update Badearsai memory, training history, run log, or retained reports when:
 

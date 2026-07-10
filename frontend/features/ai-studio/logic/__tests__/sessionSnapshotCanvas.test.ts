@@ -51,6 +51,28 @@ describe("sessionSnapshotCanvas", () => {
     expect(capped.at(-1)?.id).toBe(`item-${AI_STUDIO_CANVAS_ITEM_HARD_CAP + 5}`);
   });
 
+  it("preserves selected live-session items when hard-cap trimming applies", () => {
+    const items = Array.from({ length: AI_STUDIO_CANVAS_ITEM_HARD_CAP + 1 }, (_, index) => ({
+      id: `item-${index + 1}`,
+      kind: "text" as const,
+      x: index,
+      y: index,
+      z: index + 1,
+      selected: index === 0,
+      outputId: null,
+      sourceSurface: null,
+      text: `Text ${index + 1}`,
+      width: 260,
+      height: 120,
+    }));
+
+    const capped = clampCanvasSceneItemsToHardCap(items);
+    expect(capped).toHaveLength(AI_STUDIO_CANVAS_ITEM_HARD_CAP);
+    expect(capped.some((item) => item.id === "item-1" && item.selected)).toBe(true);
+    expect(capped.some((item) => item.id === "item-2")).toBe(false);
+    expect(capped.at(-1)?.id).toBe(`item-${AI_STUDIO_CANVAS_ITEM_HARD_CAP + 1}`);
+  });
+
   it("serializes durable canvas state and drops non-durable image URLs", () => {
     const state = createCanvasState(AI_STUDIO_CANVAS_ITEM_HARD_CAP + 1);
     const renderImageUrl =

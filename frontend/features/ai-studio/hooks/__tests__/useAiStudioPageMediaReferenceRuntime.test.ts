@@ -13,6 +13,7 @@ import {
   CANVAS_VIDEO_POSTER_REPAIR_BATCH_SIZE,
   useAiStudioPageMediaReferenceRuntime,
 } from "../useAiStudioPageMediaReferenceRuntime";
+import { forgetObjectUrlBlob, rememberObjectUrlBlob } from "../../utils/objectUrlBlobRegistry";
 
 const restoreSigningMocks = vi.hoisted(() => ({
   resolveSessionRestoreSignedMediaAuthorityByMediaId: vi.fn(),
@@ -201,6 +202,7 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     global.fetch = originalFetch;
     document.body.innerHTML = "";
   });
@@ -438,6 +440,84 @@ describe("useAiStudioPageMediaReferenceRuntime", () => {
     expect(resolved?.file).toBeInstanceOf(File);
     expect(resolved?.file?.name).toBe("Local clip.mp4");
     expect(resolved?.file?.type).toBe("video/mp4");
+  });
+
+  it("resolves remembered local voice changer blobs without refetching object URLs", async () => {
+    const localUrl = "blob:https://shortpulse.test/remembered-local-video-1";
+    const output = makeOutput({
+      id: "output-remembered-video-1",
+      prompt: "Remembered clip",
+      durationMs: 6_000,
+      mimeType: "video/mp4",
+      localObjectUrl: localUrl,
+      previewUrl: localUrl,
+      savedMediaIds: ["media-remembered-video-1"],
+    });
+    rememberObjectUrlBlob(localUrl, new Blob(["remembered-video"], { type: "video/mp4" }));
+    global.fetch = vi.fn() as typeof fetch;
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const resolved = await result.current.resolveVoiceChangerInternalReferenceSource(
+      makePayload({
+        outputId: output.id,
+        referenceId: output.id,
+        referenceUrl: localUrl,
+        referenceRenderUrl: localUrl,
+      })
+    );
+
+    forgetObjectUrlBlob(localUrl);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(resolved?.file).toBeInstanceOf(File);
+    expect(resolved?.file?.name).toBe("Remembered clip.mp4");
+    expect(resolved?.file?.type).toBe("video/mp4");
+  });
+
+  it("aborts slow local voice changer reference reads", async () => {
+    vi.useFakeTimers();
+    const localUrl = "blob:https://shortpulse.test/slow-local-video-1";
+    const output = makeOutput({
+      id: "output-slow-video-1",
+      prompt: "Slow clip",
+      durationMs: 6_000,
+      mimeType: "video/mp4",
+      localObjectUrl: localUrl,
+      previewUrl: localUrl,
+      savedMediaIds: ["media-slow-video-1"],
+    });
+    const capturedSignals: AbortSignal[] = [];
+    global.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal instanceof AbortSignal) capturedSignals.push(init.signal);
+      return new Promise(() => undefined);
+    }) as typeof fetch;
+
+    const { result } = renderHook(() =>
+      useAiStudioPageMediaReferenceRuntime({
+        ...defaultParams,
+        getOutputById: (outputId) => (outputId === output.id ? output : null),
+      })
+    );
+
+    const resolvedPromise = result.current.resolveVoiceChangerInternalReferenceSource(
+      makePayload({
+        outputId: output.id,
+        referenceId: output.id,
+        referenceUrl: localUrl,
+        referenceRenderUrl: localUrl,
+      })
+    );
+    const resolvedExpectation = expect(resolvedPromise).resolves.toBeNull();
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await resolvedExpectation;
+    expect(capturedSignals[0]?.aborted).toBe(true);
   });
 
   it("marks the right-rail canvas draggable and exports text notes as prompt drags on Shift drag", () => {

@@ -128,6 +128,7 @@ A Badearsai triage run is done when:
 - real issues have an owner lane and next highest-ROI proof/fix step,
 - reviewed items have an Admin Errors or Crash Logs treatment: keep open/escalate, resolve, ignore, mark resolved as watch, or stop pending missing proof,
 - status mutations have been performed through the canonical Admin status path when authorized and safe, then verified out of the default errors panel,
+- Admin Errors cleanup runs include a final production readback using the default queue visibility rules, with any remaining visible rows either cleared, escalated, blocked with proof named, or explicitly out of current scope,
 - unknowns and stop boundaries are explicit,
 - no unrelated implementation work is started by adjacency.
 

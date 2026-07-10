@@ -2,7 +2,7 @@
  * Upload helper tests for AI Studio audio references.
  * Verifies local Lip Sync files can upload from the original File/Blob without refetching object URLs.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const uploadToSignedUrlMock = vi.hoisted(() => vi.fn());
@@ -21,7 +21,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
   }),
 }));
 
-import { uploadAudioBlobToStorage } from "../audioUpload";
+import { readAudioUrlBlobForUpload, uploadAudioBlobToStorage } from "../audioUpload";
 
 const jsonResponse = (payload: unknown, status = 200): Response =>
   new Response(JSON.stringify(payload), {
@@ -34,6 +34,11 @@ describe("audioUpload", () => {
     fetchWithAuthMock.mockReset();
     uploadToSignedUrlMock.mockReset();
     uploadToSignedUrlMock.mockResolvedValue({ error: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("uploads local audio from the original File object through the direct media upload path", async () => {
@@ -77,6 +82,9 @@ describe("audioUpload", () => {
         headers: expect.objectContaining({
           "Content-Type": "application/json",
         }),
+        signal: expect.any(Object),
+        shortpulseAuthTimeoutMs: 12_000,
+        shortpulseRetryNetworkOnce: true,
       })
     );
     expect(JSON.parse(String(fetchWithAuthMock.mock.calls[0]?.[1]?.body))).toEqual({
@@ -106,7 +114,50 @@ describe("audioUpload", () => {
           sourceName: "reference.mp3",
           sourceStoragePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
         }),
+        signal: expect.any(Object),
+        shortpulseAuthTimeoutMs: 12_000,
+        shortpulseRetryNetworkOnce: true,
       })
+    );
+  });
+
+  it("times out stalled audio storage uploads", async () => {
+    vi.useFakeTimers();
+    const file = new File(["voice"], "voice-sample.mp3", { type: "audio/mpeg" });
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        target: {
+          storagePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
+          uploadToken: "upload-token",
+          mimeType: "audio/mpeg",
+          name: "reference.mp3",
+        },
+      })
+    );
+    uploadToSignedUrlMock.mockReturnValueOnce(new Promise(() => undefined));
+
+    const uploadPromise = uploadAudioBlobToStorage(file, {
+      sourceName: file.name,
+      mimeType: file.type,
+    });
+    const rejectionAssertion = expect(uploadPromise).rejects.toThrow(
+      "audio storage upload timed out. Please retry with a smaller or local audio file."
+    );
+
+    await vi.advanceTimersByTimeAsync(180_000);
+    await rejectionAssertion;
+  });
+
+  it("reads local audio URLs with an abortable timeout", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(new Blob(["voice"], { type: "audio/mpeg" })));
+
+    const blob = await readAudioUrlBlobForUpload("blob:local-audio");
+    expect(blob.size).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "blob:local-audio",
+      expect.objectContaining({ signal: expect.any(Object) })
     );
   });
 });

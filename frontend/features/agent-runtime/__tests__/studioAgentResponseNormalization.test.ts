@@ -2,11 +2,38 @@ import { describe, expect, it } from "vitest";
 import {
   buildStudioAgentSemanticResponse,
   ensureStudioAgentApplyPromptContract,
+  extractStudioAgentProviderCompletion,
   parseStudioAgentJsonWithStatus,
   parseStudioAgentSemanticOutput,
 } from "../studioAgentResponseNormalization";
 
 describe("studioAgentResponseNormalization", () => {
+  it("extracts message-level typed refusals separately from completion text", () => {
+    expect(
+      extractStudioAgentProviderCompletion({
+        content: "",
+        refusal: "I cannot help with that request.",
+      })
+    ).toEqual({
+      text: "",
+      typedRefusal: "I cannot help with that request.",
+    });
+  });
+
+  it("extracts typed refusal content parts alongside ordinary text parts", () => {
+    expect(
+      extractStudioAgentProviderCompletion({
+        content: [
+          { type: "output_text", text: "Partial response." },
+          { type: "refusal", refusal: "I cannot complete the rest." },
+        ],
+      })
+    ).toEqual({
+      text: "Partial response.",
+      typedRefusal: "I cannot complete the rest.",
+    });
+  });
+
   it("parses strict semantic JSON output", () => {
     const parsed = parseStudioAgentSemanticOutput(
       '{"status":"ready","prompt_text":"cinematic portrait in soft window light"}'

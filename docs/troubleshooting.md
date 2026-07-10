@@ -1031,6 +1031,14 @@ Mitigation:
 
 ## AI Studio safety behavior differs from expected mode
 
+Expected Create behavior:
+
+- Standard, custom Pulse, and built-in guided workflows use the shared Safe Completion Contract from ADR 0099.
+- If the active server policy permits a meaningful safe transformation, the agent should finish the work in the same response using minimum safe substitutions. It should not ask the user to resubmit, request an SFW version, or merely offer to write a safer version later.
+- A local/server policy refusal, immutable hard floor, ambiguous-age sexual signal, provider HTTP safety block, output-safety refusal, malformed output, or route/configuration error is not eligible for recovery.
+- An eligible model-authored refusal may receive one internal recovery attempt. A recovery refusal/error is terminal and must not loop.
+- Final refusal/error messages remain readable but must not be draggable or expose Use, Apply, or Generate behavior.
+
 Checklist:
 
 - Verify runtime safety profile mode:
@@ -1042,6 +1050,27 @@ Checklist:
 - Verify provider-error normalization mode:
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=production_normalized` keeps user-lane errors normalized.
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=development_verbatim` allows detailed hard-error payloads for debugging.
+- Verify Safe Completion mode:
+  - `STUDIO_AGENT_SAFE_COMPLETION_ENABLED` defaults to `true`.
+  - Setting it to `false` disables only the shared instruction and eligible model-refusal recovery; input safety, hard floors, provider-block handling, and output safety remain enabled.
+- Inspect the fresh `[studio-agent][telemetry]` row for the affected route and trace:
+  - `safe_completion_contract_version`
+  - `safe_completion_enabled`
+  - `refusal_source`
+  - `recovery_eligible`
+  - `recovery_attempted`
+  - `recovery_outcome`
+  - `recovery_skip_reason`
+  - `recovery_latency_ms`
+- Interpret recovery outcomes:
+  - `not_attempted`: request was not a model refusal or failed an eligibility gate.
+  - `recovered`: the one internal repair produced a response that passed output safety.
+  - `refused`: recovery also refused; the visible final refusal is terminal.
+  - `error`: recovery failed; do not retry automatically or synthesize a user turn.
+- Interpret final refusal classes:
+  - `outcome_class=refusal_model` with `reason_code=PROVIDER_SAFETY_REFUSAL`: the model-authored refusal remained terminal after eligible recovery.
+  - `outcome_class=refusal_safety`: local/input/output policy enforcement or hard-floor refusal.
+- If Standard behaves differently from Pulse, confirm both routes resolved the same safety profile/policy version and Safe Completion contract version before changing prompt text.
 - Verify auto-rollback gate behavior:
   - `STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED=true` enables policy-only rollback when production hard-floor incidents are detected.
   - `STUDIO_AGENT_SAFETY_ROLLBACK_COOLDOWN_HOURS` controls cooldown lock duration (bounded `1..168`, default `24`).
@@ -1049,6 +1078,8 @@ Checklist:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE=prod_safe_v1`
   - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED=false`
   - `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE=production_normalized`
+
+Do not repair Safe Completion incidents by editing every built-in/custom prompt, expanding lexical replacement rules into a creative rewriter, restoring legacy V2, or adding a client `Make safe` resubmission. Fix the shared runtime contract or eligibility/classification source.
 
 ## Admin credit adjustments fail with missing ledger columns
 

@@ -6,8 +6,18 @@ import type {
 } from "../../prefabs/agent";
 import {
   AGENT_MEDIA_MAX_ITEMS,
+  isSafeAgentImageMediaUrl,
   pickSafeAgentImageMediaUrls,
 } from "../../prefabs/agent/mediaUrlPolicy";
+import {
+  AGENT_REFERENCE_MAX_ITEMS,
+  AGENT_SELECTED_REFERENCE_MAX_ITEMS,
+} from "../../prefabs/agent/attachmentPolicy";
+import {
+  AGENT_MIXED_REQUEST_MAX_BYTES,
+  AGENT_TEXT_REQUEST_MAX_BYTES,
+  resolveAgentRequestMaxBytes,
+} from "../../prefabs/agent/requestPolicy";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 
 const MAX_MESSAGES = 24;
@@ -20,8 +30,8 @@ const DEFAULT_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
 const DEFAULT_PULSE_OUTPUT_MODE = "chat_reply" as const;
 const DEFAULT_PULSE_SCHEMA_VERSION = 2 as const;
 
-export const STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES = 512 * 1024;
-export const STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES = 1536 * 1024;
+export const STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES = AGENT_TEXT_REQUEST_MAX_BYTES;
+export const STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES = AGENT_MIXED_REQUEST_MAX_BYTES;
 export const STUDIO_AGENT_SESSION_KEY_MAX_CHARS = 160;
 export const STUDIO_AGENT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 export const STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS = 24;
@@ -80,9 +90,77 @@ export const resolveStudioAgentMaxRequestBytes = (body: unknown): number => {
   const candidate = body as { context?: { media?: unknown[] } } | undefined;
   const hasMediaPayload =
     Array.isArray(candidate?.context?.media) && candidate.context.media.length > 0;
-  return hasMediaPayload
-    ? STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES
-    : STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES;
+  return resolveAgentRequestMaxBytes(hasMediaPayload);
+};
+
+export type StudioAgentMediaValidationResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "TOO_MANY_MEDIA_ITEMS" | "INVALID_MEDIA_ITEM";
+      message: string;
+      details: Record<string, unknown>;
+    };
+
+/**
+ * Validates the product media envelope before sanitization so a visible image
+ * is never silently sliced or discarded at the server boundary.
+ */
+export const validateStudioAgentMediaContext = (
+  body: unknown
+): StudioAgentMediaValidationResult => {
+  const candidate = body as { context?: { media?: unknown } } | undefined;
+  const rawMedia = candidate?.context?.media;
+  if (rawMedia === undefined) return { ok: true };
+  if (!Array.isArray(rawMedia)) {
+    return {
+      ok: false,
+      code: "INVALID_MEDIA_ITEM",
+      message: "context.media must be an array of image media items",
+      details: { maxItems: AGENT_MEDIA_MAX_ITEMS },
+    };
+  }
+  if (rawMedia.length > AGENT_MEDIA_MAX_ITEMS) {
+    return {
+      ok: false,
+      code: "TOO_MANY_MEDIA_ITEMS",
+      message: `Create agent requests support up to ${AGENT_MEDIA_MAX_ITEMS} images`,
+      details: { maxItems: AGENT_MEDIA_MAX_ITEMS, actualItems: rawMedia.length },
+    };
+  }
+  const invalidIndex = rawMedia.findIndex((item) => {
+    if (!item || typeof item !== "object") return true;
+    const media = item as { id?: unknown; kind?: unknown; url?: unknown };
+    return (
+      typeof media.id !== "string" ||
+      (media.kind !== undefined && media.kind !== "image") ||
+      typeof media.url !== "string" ||
+      !isSafeAgentImageMediaUrl(media.url)
+    );
+  });
+  if (invalidIndex >= 0) {
+    return {
+      ok: false,
+      code: "INVALID_MEDIA_ITEM",
+      message: "Create agent image media must use safe HTTPS or bounded image data URLs",
+      details: { index: invalidIndex, maxItems: AGENT_MEDIA_MAX_ITEMS },
+    };
+  }
+  const picked = pickSafeAgentImageMediaUrls(
+    rawMedia.map((item) => {
+      const media = item as { id: string; url: string; thumbnailAlt?: string | null };
+      return { id: media.id, url: media.url, thumbnailAlt: media.thumbnailAlt };
+    })
+  );
+  if (picked.length !== rawMedia.length) {
+    return {
+      ok: false,
+      code: "INVALID_MEDIA_ITEM",
+      message: "Create agent inline image media exceeds the aggregate byte budget",
+      details: { acceptedItems: picked.length, actualItems: rawMedia.length },
+    };
+  }
+  return { ok: true };
 };
 
 export const parseStudioAgentSessionKey = (
@@ -325,7 +403,7 @@ export const sanitizeStudioAgentContext = (
     mode: context.mode,
     creditBalance: context.creditBalance ?? null,
     references: Array.isArray(context.references)
-      ? context.references.slice(0, 24).map((reference) => ({
+      ? context.references.slice(0, AGENT_REFERENCE_MAX_ITEMS).map((reference) => ({
           ...reference,
           promptSnippet: removeAspectRatioLanguage(reference.promptSnippet ?? null),
           caption: removeAspectRatioLanguage(reference.caption ?? null),
@@ -333,7 +411,7 @@ export const sanitizeStudioAgentContext = (
       : [],
     media,
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
-      ? context.selectedReferenceIds.slice(0, 8)
+      ? context.selectedReferenceIds.slice(0, AGENT_SELECTED_REFERENCE_MAX_ITEMS)
       : [],
     focusedSource: normalizeFocusedSource(context.focusedSource),
     focusedReferenceId: context.focusedReferenceId ?? null,

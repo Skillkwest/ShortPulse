@@ -9,6 +9,7 @@ import {
   isSafeAgentImageMediaUrl,
   measureAgentMediaStringBytes,
 } from "../../../prefabs/agent/mediaUrlPolicy";
+import { AGENT_INLINE_MEDIA_TARGET_TOTAL_BYTES } from "../../../prefabs/agent/requestPolicy";
 
 const EPHEMERAL_PREVIEW_MAX_WIDTH_PX = 184;
 const EPHEMERAL_PREVIEW_MAX_HEIGHT_PX = 230;
@@ -16,6 +17,8 @@ const EPHEMERAL_MODEL_MAX_DIMENSION_PX = 768;
 const EPHEMERAL_PREVIEW_QUALITY = 0.72;
 const EPHEMERAL_MODEL_QUALITY_STEPS = [0.82, 0.72, 0.62, 0.52] as const;
 const EPHEMERAL_MODEL_DIMENSION_STEPS = [768, 640, 512] as const;
+const EPHEMERAL_SEND_DIMENSION_STEPS = [768, 640, 512, 448, 384, 320, 256] as const;
+const EPHEMERAL_SEND_QUALITY_STEPS = [0.72, 0.62, 0.52, 0.42, 0.32] as const;
 
 export const EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE =
   "That image is too large to attach here. Try a smaller image or screenshot.";
@@ -184,4 +187,68 @@ export const stripEphemeralLocalImageModelPayload = (
 export const resolveEphemeralLocalImageModelUrl = (attachment: AgentAttachment): string | null => {
   if (!isEphemeralLocalImageAttachment(attachment)) return null;
   return isSafeAgentImageMediaUrl(attachment.modelDataUrl) ? attachment.modelDataUrl : null;
+};
+
+const compactEphemeralImageDataUrl = async (
+  dataUrl: string,
+  targetBytes: number
+): Promise<string> => {
+  if (measureAgentMediaStringBytes(dataUrl) <= targetBytes) return dataUrl;
+  if (!canUseCanvasImagePipeline()) {
+    throw new Error(EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+  }
+  const image = await loadImageElement(dataUrl);
+  for (const maxDimension of EPHEMERAL_SEND_DIMENSION_STEPS) {
+    for (const quality of EPHEMERAL_SEND_QUALITY_STEPS) {
+      const resized = resizeLoadedImage(image, {
+        maxWidth: maxDimension,
+        maxHeight: maxDimension,
+        quality,
+      });
+      if (
+        isAgentImageDataUrl(resized.dataUrl) &&
+        measureAgentMediaStringBytes(resized.dataUrl) <= targetBytes
+      ) {
+        return resized.dataUrl;
+      }
+    }
+  }
+  throw new Error(EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+};
+
+/**
+ * Fits all inline model images into one conservative request budget while
+ * leaving existing safe HTTPS media untouched.
+ */
+export const fitEphemeralImageUrlsToSendBudget = async (
+  urlsByAttachmentId: Map<string, string>
+): Promise<Map<string, string>> => {
+  const inlineEntries = Array.from(urlsByAttachmentId.entries()).filter(([, url]) =>
+    isAgentImageDataUrl(url)
+  );
+  if (!inlineEntries.length) return new Map(urlsByAttachmentId);
+  const perImageTargetBytes = Math.min(
+    AGENT_EPHEMERAL_IMAGE_MAX_BYTES,
+    Math.floor(AGENT_INLINE_MEDIA_TARGET_TOTAL_BYTES / inlineEntries.length)
+  );
+  const compactedInlineUrls = new Map<string, string>();
+  for (const [attachmentId, dataUrl] of inlineEntries) {
+    compactedInlineUrls.set(
+      attachmentId,
+      await compactEphemeralImageDataUrl(dataUrl, perImageTargetBytes)
+    );
+  }
+  const totalInlineBytes = Array.from(compactedInlineUrls.values()).reduce(
+    (total, url) => total + measureAgentMediaStringBytes(url),
+    0
+  );
+  if (totalInlineBytes > AGENT_INLINE_MEDIA_TARGET_TOTAL_BYTES) {
+    throw new Error(EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+  }
+  return new Map(
+    Array.from(urlsByAttachmentId.entries()).map(([attachmentId, url]) => [
+      attachmentId,
+      compactedInlineUrls.get(attachmentId) ?? url,
+    ])
+  );
 };

@@ -22,6 +22,7 @@ import {
   readStudioAgentRequestBodyBytes,
   resolveStudioAgentMaxRequestBytes,
   sanitizeStudioAgentContext,
+  validateStudioAgentMediaContext,
 } from "./studioAgentRequestGuards";
 
 export type StudioAgentErrorCode =
@@ -30,6 +31,8 @@ export type StudioAgentErrorCode =
   | "INVALID_REQUEST"
   | "INVALID_SESSION_KEY"
   | "INVALID_MESSAGE_ROLE"
+  | "TOO_MANY_MEDIA_ITEMS"
+  | "INVALID_MEDIA_ITEM"
   | "REQUEST_BODY_TOO_LARGE"
   | "RATE_LIMITED"
   | "MESSAGES_REQUIRED"
@@ -156,6 +159,20 @@ export const parseStudioAgentRequestEnvelope = ({
           maxBytes: maxRequestBytes,
           actualBytes: bodyBytes,
         },
+        traceId,
+      },
+    };
+  }
+
+  const mediaValidation = validateStudioAgentMediaContext(req.body);
+  if (!mediaValidation.ok) {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        code: mediaValidation.code,
+        message: mediaValidation.message,
+        details: mediaValidation.details,
         traceId,
       },
     };

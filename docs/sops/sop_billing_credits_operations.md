@@ -154,6 +154,7 @@ Primary path:
 
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
+- `/admin` full credit-log billing-cycle groups start collapsed; select a billing-cycle summary row to expand or collapse only that cycle's transactions.
 - `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for auth-vs-Stripe identity checks, current profile/contract/offer drift checks, live Stripe customer + subscription reconciliation, and grandfathered-price support context.
 - `/admin` Stripe customer repair -> `/api/admin/billing/customer-sync` so operators can repair selected-account Stripe customer email/name drift without impersonating the user.
 - `/admin` Stripe billing handoff -> `/api/admin/billing/portal` so operators can open the selected account directly in Stripe for billed subscription changes, payment-method updates, and invoice review after customer identity has been synced.

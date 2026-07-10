@@ -153,6 +153,7 @@ Primary entry docs:
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`
 - `docs/planning/ai-studio-video-lip-sync-remediation-plan-2026-06-10.md`
+- `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/routes.md`

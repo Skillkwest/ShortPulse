@@ -3,6 +3,7 @@
  * Ensures dragged/selected references are prioritized deterministically.
  */
 import type { AgentContext, AgentReferenceSummary } from "../../../prefabs/agent";
+import { AGENT_SELECTED_REFERENCE_MAX_ITEMS } from "../../../prefabs/agent/attachmentPolicy";
 
 export type ThinkerSelectedReference = {
   id: string;
@@ -50,5 +51,5 @@ export const pickSelectedReferencesForThinker = (
     prioritized = references.slice(0, 4);
   }
 
-  return prioritized.slice(0, 8).map(toSelectedReference);
+  return prioritized.slice(0, AGENT_SELECTED_REFERENCE_MAX_ITEMS).map(toSelectedReference);
 };

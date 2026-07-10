@@ -45,8 +45,17 @@ describe("agentPromptsConfig", () => {
     );
   });
 
-  it("preserves refusal wording constraints", () => {
+  it("defers transformable content to Safe Completion and preserves terminal refusal wording", () => {
+    expect(agentPrompts.STUDIO_AGENT_SYSTEM).toContain(
+      "code-owned platform safety contract injected by the runtime"
+    );
+    expect(agentPrompts.STUDIO_AGENT_WORKFLOW_SYSTEM).toContain(
+      "code-owned platform safety contract injected by the runtime"
+    );
     expect(agentPrompts.STUDIO_AGENT_SYSTEM).toContain("Refusal text must be exactly:");
+    expect(agentPrompts.STUDIO_AGENT_WORKFLOW_SYSTEM).toContain(
+      "Terminal refusal text must be exactly:"
+    );
     expect(agentPrompts.STUDIO_AGENT_SYSTEM).toContain("I cannot describe this.");
     expect(agentPrompts.OPENAI_PROMPT_SYSTEM).toContain('"I cannot rewrite this."');
   });

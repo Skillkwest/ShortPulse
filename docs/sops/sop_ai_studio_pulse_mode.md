@@ -54,7 +54,8 @@ Custom Pulses should behave like user-authored GPT profiles. Built-ins may still
 behave like guided workflow tools.
 
 - The active Pulse system instructions define the agent's role, workflow,
-  questions, constraints, and output expectations.
+  questions, constraints, and output expectations below the non-editable platform
+  safety and Safe Completion contracts in ADR 0099.
 - The user should not need to understand runtime modes, namespaces, model routing,
   workflow sessions, or internal orchestration.
 - Starting a Pulse should feel immediate: click the Pulse, see the first useful
@@ -130,7 +131,9 @@ behave like guided workflow tools.
 ### 3. Active session behavior
 
 - Every Pulse should follow its own saved instructions as the authority for turn
-  order, input requirements, safety constraints, and output shape.
+  order, input requirements, and output shape. Saved instructions may be stricter
+  about style or workflow, but cannot weaken hard floors or replace an eligible
+  same-turn safe completion with an SFW/resubmission workaround.
 - A custom Pulse may ask questions, answer directly, or produce reusable prompt
   output according to its saved instructions. It must not be coerced into
   step-by-step workflow behavior unless the instructions themselves call for it.
@@ -211,6 +214,9 @@ Custom Pulses must not rely on persisted workflow metadata such as
 guided runtime fields. If a user wants reusable prompt or artifact behavior, the
 Pulse instructions must ask for it directly.
 
+The runtime injects the code-owned Safe Completion Contract after custom Pulse
+instructions. Custom records are not rewritten or copied to implement this rule.
+
 ### Built-in guided workflow contract
 
 Built-in guided workflows remain admin-owned compatibility-path presets. They
@@ -224,6 +230,10 @@ operator-owned authority. SQL repair migrations may repair only untouched
 system-seeded rows and must not replace admin-saved labels, descriptions,
 system instructions, starter messages, or workflow hints by matching hidden
 seeded preset ids.
+
+The same runtime contract is injected after built-in instructions. Admin-owned
+built-in records remain the workflow/content authority below platform policy and
+are not programmatically mutated by Safe Completion.
 
 Retired Pulse metadata such as `prompt_editor`, `activate_only`, and
 `apply_prompt` is not part of the active custom Pulse contract.
@@ -469,6 +479,8 @@ A Pulse turn is acceptable when it:
 
 - follows the active Pulse system instructions rather than generic Standard agent
   behavior,
+- completes platform-transformable creative requests in the same turn using the
+  smallest safe substitutions, without asking for an SFW resubmission,
 - asks for one useful next input, gives the next required workflow instruction,
   or answers directly when that is what the active Pulse instructions call for,
 - stays concise unless the Pulse instructions require a longer structured output,
@@ -480,7 +492,8 @@ A Pulse turn is acceptable when it:
   has been collected,
 - routes built-in workflow artifacts according to `artifactTarget`,
 - preserves active Pulse state across retryable failures,
-- refuses or redirects unsafe requests without losing workflow state.
+- refuses only when the server safety policy does not permit meaningful safe
+  completion, without losing workflow state or exposing a reusable artifact.
 
 Minimum eval scenarios before major Pulse runtime changes:
 
@@ -488,6 +501,11 @@ Minimum eval scenarios before major Pulse runtime changes:
   follows the saved instructions without guided scaffolding.
 - Start each built-in guided workflow from an empty session and verify the first
   assistant step matches the workflow instructions.
+- Run the approved mixed-content fixture through one custom Pulse and each
+  published built-in; require a same-turn safe completion that preserves the
+  active workflow/output contract.
+- Verify hard-floor refusals make no recovery call, while an eligible simulated
+  model refusal receives at most one internal recovery and never loops.
 - Complete the happy path for each built-in guided workflow and verify final artifact
   target routing.
 - Interrupt each built-in guided workflow mid-workflow with an unrelated message and verify

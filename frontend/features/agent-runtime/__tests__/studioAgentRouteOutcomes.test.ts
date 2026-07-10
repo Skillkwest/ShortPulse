@@ -56,6 +56,47 @@ describe("studioAgentRouteOutcomes", () => {
     infoSpy.mockRestore();
   });
 
+  it("emits bounded Safe Completion disposition without content payloads", () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    emitStudioAgentTurnTelemetry({
+      flow: "TEXT_ONLY",
+      path: "standard_agent",
+      status: "success",
+      model: "gpt-default",
+      outcomeClass: "success_prompt",
+      retryUsed: false,
+      totalLatencyMs: 42,
+      stageLatencyMs: {},
+      safetyTelemetry: {
+        safeCompletionVersion: "2026-07-10.v1",
+        safeCompletionEnabled: true,
+        refusalSource: "typed_model",
+        recoveryEligible: true,
+        recoveryAttempted: true,
+        recoveryOutcome: "recovered",
+        recoveryLatencyMs: 12,
+      },
+    });
+    const payload = JSON.parse(String(infoSpy.mock.calls[0]?.[1] ?? "{}")) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        safe_completion_contract_version: "2026-07-10.v1",
+        safe_completion_enabled: true,
+        refusal_source: "typed_model",
+        recovery_eligible: true,
+        recovery_attempted: true,
+        recovery_outcome: "recovered",
+        recovery_latency_ms: 12,
+      })
+    );
+    expect(JSON.stringify(payload)).not.toContain("prompt_text");
+    expect(JSON.stringify(payload)).not.toContain("user_email");
+    infoSpy.mockRestore();
+  });
+
   it("resolves policy versions from profile ids", () => {
     expect(resolvePolicyVersionFromProfileId("prod_safe_v1")).toBe(1);
     expect(resolvePolicyVersionFromProfileId("staging_lenient")).toBeNull();

@@ -94,10 +94,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Growth telemetry remains telemetry-only in `app_error_events`; it does not create grouped incidents in `app_error_logs`.
 - Project workspace `repair_pending` telemetry also remains telemetry-only in `app_error_events`; operators should use the Admin Event Stream signal filter instead of looking for grouped incidents.
 
-## AI Studio Pulse runtime monitoring
+## AI Studio Create agent runtime monitoring
 
-- Pulse runtime quality is monitored through Pulse-owned studio-agent route telemetry plus authoritative `pulseWorkflowSession` state. Standard and Pulse use separate route/runtime labels; do not aggregate custom Pulse state into Standard telemetry.
-- Route-level studio-agent telemetry is emitted by `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` as `[studio-agent][telemetry]` and is the primary signal for Pulse request outcomes.
+- Create agent quality is monitored through mode-owned studio-agent route telemetry plus authoritative `pulseWorkflowSession` state for guided Pulse. Standard and Pulse use separate route/runtime labels; do not aggregate Pulse state into Standard telemetry.
+- Route-level studio-agent telemetry is emitted by `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` as `[studio-agent][telemetry]` and is the primary signal for Standard/Pulse request outcomes.
 - Mode-owned route labels are part of the monitoring contract:
   - Standard Create: `/api/ai/studio-agent-standard`, `runtime_scope_key` rooted in `studio-agent-standard`.
   - Pulse Create: `/api/ai/studio-agent-pulse`, `runtime_scope_key` rooted in `route:studio-agent-pulse`.
@@ -106,12 +106,15 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - Standard traffic carrying `context.pulse`,
   - Pulse traffic missing a Pulse session namespace,
   - Pulse traffic rejected because the namespace preset segment differs from `context.pulse.presetId`.
-- Treat these telemetry fields as the Pulse runtime outcome contract:
+- Treat these telemetry fields as the Create agent runtime outcome contract:
   - routing: `flow`, `path`, `model`
   - outcome: `status`, `decision`, `outcome_class`, `reason_code`, `retryable`
   - resilience: `retry_used`, `retry_count`, `repair_used`, `repair_count`, `fallback_reason`
   - latency: `latency_ms_total`, `latency_ms_stage`
   - safety: `safety_outcome`, `safety_source`, `safety_fallback`, `policy_version`, `policy_schema_version`, `prompt_template_version`, `runtime_scope_key`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`
+  - Safe Completion: `safe_completion_contract_version`, `safe_completion_enabled`, `refusal_source`, `recovery_eligible`, `recovery_attempted`, `recovery_outcome`, `recovery_skip_reason`, `recovery_latency_ms`
+- Safe Completion telemetry is classification-only. Raw prompts, outputs, user identifiers, emails, and reference URLs must not be emitted.
+- High-signal Safe Completion regressions include more than one recovery attempt; recovery after a policy refusal, hard floor, provider HTTP safety block, output-safety refusal, malformed output, or route/configuration error; an unsafe recovered output; an SFW/resubmission response for an approved transformable fixture; or a refusal/error response exposing reusable prompt actions.
 - Guided Pulse model/runtime knobs are separate from generic agent turns:
   - `STUDIO_AGENT_PULSE_MODEL` inherits `OPENAI_MODEL` when unset.
   - `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` inherits `STUDIO_AGENT_TURN_TIMEOUT_MS` when unset.
@@ -121,8 +124,14 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `outcome_class=upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure classes to monitor for Pulse regressions.
 - Standard-specific interpretation:
   - `outcome_class=success_prompt` is the expected success class for generation-ready Standard turns because the route emits a reusable prompt artifact for drag/reuse flows.
-  - `outcome_class=refusal_safety` should remain the visible refusal contract for Standard provider-output refusals.
+  - `outcome_class=refusal_model` with `reason_code=PROVIDER_SAFETY_REFUSAL` is the terminal model-authored refusal class when an eligible recovery also refuses.
+  - `outcome_class=refusal_safety` is reserved for local/input/output safety enforcement such as policy and hard-floor refusals.
   - A sudden shift of Standard success traffic from `success_prompt` back to `success_message` is a high-signal regression for Create prompt reuse.
+- Safe Completion interpretation:
+  - `recovery_outcome=not_attempted` is expected for normal successes and ineligible final refusals.
+  - `recovery_outcome=recovered` must pair with `recovery_attempted=true`, one bounded additional provider call, and a success that passed output safety.
+  - `recovery_outcome=refused|error` is terminal for the turn and must not trigger another recovery.
+  - `STUDIO_AGENT_SAFE_COMPLETION_ENABLED=false` is an incident-containment posture, not evidence that safety enforcement is disabled.
 - Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
   - `presetId`
   - `status`
@@ -135,6 +144,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Operationally, use Pulse runtime telemetry and workflow-session state together:
   - route telemetry tells you whether a Pulse turn succeeded, refused, or failed,
   - workflow session state tells you whether a workflow Pulse is active, awaiting input, still running, or completed with a reusable artifact.
+
+Release boundary: local tests and static telemetry contracts are implementation proof only. After separately approved commit and deployment, validate bounded authenticated turns at `https://www.shortpulse.ai` in Standard, one custom Pulse, and every published built-in before making a production-readiness claim. Compare first-turn usable completion, hard-floor correctness, refusal/recovery rates, recovery latency, and mode-isolation fields. Do not publish, deploy, mutate live prompts/catalogs, or promote release state from this monitoring step without the appropriate owner approval.
 
 ## AI Studio Pulse eval posture
 

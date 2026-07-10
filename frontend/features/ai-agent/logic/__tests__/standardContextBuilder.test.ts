@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { buildStandardCreateAgentContext } from "../standardContextBuilder";
 
 describe("buildStandardCreateAgentContext", () => {
+  it("rejects an eleventh image instead of silently truncating media", () => {
+    expect(() =>
+      buildStandardCreateAgentContext({
+        mode: "image",
+        media: Array.from({ length: 11 }, (_, index) => ({
+          id: `image-${index + 1}`,
+          kind: "image" as const,
+          url: `https://cdn.example.com/${index + 1}.jpg`,
+        })),
+      })
+    ).toThrow("support up to 10 images");
+  });
+
   it("omits Pulse context from Standard Create payloads", () => {
     expect(() =>
       buildStandardCreateAgentContext({

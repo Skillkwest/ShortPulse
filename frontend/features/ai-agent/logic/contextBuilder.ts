@@ -10,7 +10,11 @@ import type {
   AgentPulseRuntimeContext,
   AgentReferenceSummary,
 } from "../../../prefabs/agent";
-import { pickSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
+import { requireSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
+import {
+  AGENT_REFERENCE_MAX_ITEMS,
+  AGENT_SELECTED_REFERENCE_MAX_ITEMS,
+} from "../../../prefabs/agent/attachmentPolicy";
 
 const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
 const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
@@ -30,7 +34,7 @@ const normalizePulseArtifactTarget = (
 
 const pickMediaPreviews = (media?: AgentContext["media"]): AgentApiMediaPreview[] => {
   if (!media || !media.length) return [];
-  return pickSafeAgentImageMediaUrls(
+  return requireSafeAgentImageMediaUrls(
     media
       // Videos are not processed by the agent; exclude them from vision payloads.
       .filter((item) => item.kind === "image" && typeof item.url === "string")
@@ -152,11 +156,11 @@ export const buildAgentContext = (context: AgentContext): AgentApiContext => {
     mode: context.mode,
     creditBalance: context.creditBalance ?? null,
     references: Array.isArray(context.references)
-      ? (context.references as AgentReferenceSummary[]).slice(0, 24)
+      ? (context.references as AgentReferenceSummary[]).slice(0, AGENT_REFERENCE_MAX_ITEMS)
       : [],
     media: pickMediaPreviews(context.media),
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
-      ? context.selectedReferenceIds.slice(0, 8)
+      ? context.selectedReferenceIds.slice(0, AGENT_SELECTED_REFERENCE_MAX_ITEMS)
       : [],
     focusedSource: context.focusedSource ?? undefined,
     focusedReferenceId: context.focusedReferenceId ?? null,

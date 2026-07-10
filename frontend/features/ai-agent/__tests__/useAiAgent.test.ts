@@ -776,7 +776,7 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
-  it("sends Standard input through without local rewrite", async () => {
+  it("preserves raw Standard UI history while sanitizing only the provider-bound payload", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({ message: "safe rewrite pass" }),
@@ -793,8 +793,14 @@ describe("useCreateAgentStateCore", () => {
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
     const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
     const bodyText = String(requestInit?.body ?? "");
-    expect(bodyText.toLowerCase()).toContain("topless");
-    expect(bodyText.toLowerCase()).toContain("lingerie");
+    expect(bodyText.toLowerCase()).not.toContain("topless");
+    expect(bodyText.toLowerCase()).not.toContain("lingerie");
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        role: "user",
+        content: "a sexy topless model in lingerie",
+      })
+    );
   });
 
   it("skips client precheck when disabled and sends original payload", async () => {

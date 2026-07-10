@@ -704,10 +704,11 @@ describe("Admin users and credits overview", () => {
     expect(supportGridText.indexOf("Copy")).toBeLessThan(supportGridText.indexOf("User"));
     expect(supportGridText.indexOf("User")).toBeLessThan(supportGridText.indexOf("Access"));
     expect(supportGridText.indexOf("Access")).toBeLessThan(supportGridText.indexOf("Status"));
-    expect(supportGridText.indexOf("Status")).toBeLessThan(supportGridText.indexOf("Payment"));
+    expect(supportGridText.indexOf("Status")).toBeLessThan(supportGridText.indexOf("Subscribed"));
+    expect(supportGridText.indexOf("Subscribed")).toBeLessThan(supportGridText.indexOf("Payment"));
     expect(supportGridText.indexOf("Payment")).toBeLessThan(supportGridText.indexOf("Spendable"));
-    expect(supportGridText.indexOf("Renews / ends")).toBeLessThan(
-      supportGridText.indexOf("Subscribed")
+    expect(supportGridText.indexOf("Spendable")).toBeLessThan(
+      supportGridText.indexOf("Renews / ends")
     );
     expect(userList.queryByText("Storage")).not.toBeInTheDocument();
     const alphaRow = screen.getByRole("button", { name: "Select alpha@example.com" }).parentElement;
@@ -915,8 +916,29 @@ describe("Admin users and credits overview", () => {
     expect(screen.getAllByText("Billing cycle")).toHaveLength(2);
     expect(screen.getByText("May 15, 2025 - May 15, 2026")).toBeInTheDocument();
     expect(screen.getByText("May 15, 2024 - May 15, 2025")).toBeInTheDocument();
+    const currentCycleToggle = screen.getByRole("button", {
+      name: /May 15, 2025 - May 15, 2026/,
+    });
+    const previousCycleToggle = screen.getByRole("button", {
+      name: /May 15, 2024 - May 15, 2025/,
+    });
+    expect(currentCycleToggle).toHaveAttribute("aria-expanded", "false");
+    expect(previousCycleToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("ref: ticket-2")).not.toBeInTheDocument();
+    expect(screen.queryByText("ref: ticket-old")).not.toBeInTheDocument();
+
+    fireEvent.click(currentCycleToggle);
+    expect(currentCycleToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("ref: ticket-2")).toBeInTheDocument();
+    expect(screen.queryByText("ref: ticket-old")).not.toBeInTheDocument();
+
+    fireEvent.click(previousCycleToggle);
+    expect(previousCycleToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("ref: ticket-old")).toBeInTheDocument();
+
+    fireEvent.click(currentCycleToggle);
+    expect(currentCycleToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("ref: ticket-2")).not.toBeInTheDocument();
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/yr");
     expect(screen.getByTestId("snapshot-card-price")).not.toHaveTextContent(

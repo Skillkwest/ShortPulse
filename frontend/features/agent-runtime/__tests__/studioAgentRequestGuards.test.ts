@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  STUDIO_AGENT_MAX_MEDIA,
   STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES,
   STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES,
   STUDIO_AGENT_RATE_LIMIT_MAX_REQUESTS,
@@ -11,6 +10,7 @@ import {
   readStudioAgentRequestBodyBytes,
   resolveStudioAgentMaxRequestBytes,
   sanitizeStudioAgentContext,
+  validateStudioAgentMediaContext,
 } from "../studioAgentRequestGuards";
 
 describe("studioAgentRequestGuards", () => {
@@ -84,9 +84,9 @@ describe("studioAgentRequestGuards", () => {
     });
 
     expect(context.references).toHaveLength(24);
-    expect(context.selectedReferenceIds).toHaveLength(8);
-    expect(context.media).toHaveLength(STUDIO_AGENT_MAX_MEDIA);
-    expect(context.media?.map((item) => item.id)).toEqual(["m-1", "m-4", "m-5"]);
+    expect(context.selectedReferenceIds).toHaveLength(12);
+    expect(context.media).toHaveLength(4);
+    expect(context.media?.map((item) => item.id)).toEqual(["m-1", "m-4", "m-5", "m-6"]);
     expect(context.media?.every((item) => item.kind === "image")).toBe(true);
   });
 
@@ -308,5 +308,27 @@ describe("studioAgentRequestGuards", () => {
       expect(isStudioAgentRateLimited(userId)).toBe(false);
     }
     expect(isStudioAgentRateLimited(userId)).toBe(true);
+  });
+
+  it("accepts exactly ten safe images and rejects image eleven", () => {
+    const media = Array.from({ length: 10 }, (_, index) => ({
+      id: `image-${index + 1}`,
+      kind: "image" as const,
+      url: `https://example.test/${index + 1}.png`,
+    }));
+    expect(validateStudioAgentMediaContext({ context: { media } })).toEqual({ ok: true });
+    expect(validateStudioAgentMediaContext({ context: { media: [...media, media[0]] } })).toEqual(
+      expect.objectContaining({ ok: false, code: "TOO_MANY_MEDIA_ITEMS" })
+    );
+  });
+
+  it("rejects unsafe media instead of silently removing it", () => {
+    expect(
+      validateStudioAgentMediaContext({
+        context: {
+          media: [{ id: "image-1", kind: "image", url: "http://example.test/image.png" }],
+        },
+      })
+    ).toEqual(expect.objectContaining({ ok: false, code: "INVALID_MEDIA_ITEM" }));
   });
 });

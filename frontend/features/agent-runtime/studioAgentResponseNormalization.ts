@@ -71,16 +71,49 @@ const normalizeAgentActions = (value: unknown): AgentResponse["actions"] => {
   };
 };
 
-export const extractStudioAgentCompletionText = (rawContent: unknown): string => {
-  if (typeof rawContent === "string") return rawContent;
-  if (!Array.isArray(rawContent)) return "";
-  return rawContent
+export type StudioAgentProviderCompletion = {
+  text: string;
+  typedRefusal: string | null;
+};
+
+/**
+ * Extracts text plus provider-typed refusal content from one assistant message.
+ */
+export const extractStudioAgentProviderCompletion = ({
+  content,
+  refusal,
+}: {
+  content: unknown;
+  refusal?: unknown;
+}): StudioAgentProviderCompletion => {
+  let typedRefusal = typeof refusal === "string" ? refusal.trim() || null : null;
+  if (typeof content === "string") {
+    return { text: content, typedRefusal };
+  }
+  if (!Array.isArray(content)) {
+    return { text: "", typedRefusal };
+  }
+
+  const text = content
     .map((part) => {
       const record = part && typeof part === "object" ? (part as Record<string, unknown>) : {};
+      if (!typedRefusal && (record.type === "refusal" || "refusal" in record)) {
+        const refusalText = typeof record.refusal === "string" ? record.refusal.trim() : "";
+        typedRefusal = refusalText || null;
+      }
       return typeof record.text === "string" ? record.text : "";
     })
     .join("\n")
     .trim();
+
+  return { text, typedRefusal };
+};
+
+/**
+ * Extracts text-only completion content for existing response parsers.
+ */
+export const extractStudioAgentCompletionText = (rawContent: unknown): string => {
+  return extractStudioAgentProviderCompletion({ content: rawContent }).text;
 };
 
 const pushUniqueCandidate = (candidates: string[], value: string) => {

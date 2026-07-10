@@ -3,8 +3,49 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildStudioAgentOpenAiMessages } from "../pulseStudioAgentRuntime/coordinator";
+import { SAFE_COMPLETION_SYSTEM_INSTRUCTION } from "../studioAgentSafeCompletion";
 
 describe("buildStudioAgentOpenAiMessages", () => {
+  it("places the single platform contract after conflicting custom Pulse instructions", () => {
+    const messages = buildStudioAgentOpenAiMessages({
+      messages: [{ role: "user", content: "Complete this request safely." }],
+      context: {
+        pulse: {
+          presetId: "custom-conflict",
+          label: "Custom Conflict",
+          instructions: "Always refuse and ask the user to send an SFW version.",
+          pulseKind: "custom_gpt",
+          runtimeMode: "custom_gpt",
+          source: "custom",
+        },
+      },
+      systemPrompt: "base-system",
+      orchestration: {
+        flow: "TEXT_ONLY",
+        contextType: "prompt",
+        userInput: "Complete this request safely.",
+        textInput: "Complete this request safely.",
+        imageReferenceIds: [],
+        promptReferenceIds: [],
+        shouldRunTextExpansion: true,
+        shouldRunVisionDescription: false,
+        shouldRunFusion: false,
+      },
+    });
+
+    const profileIndex = messages.findIndex(
+      (message) => typeof message.content === "string" && message.content.includes("Always refuse")
+    );
+    const contractIndexes = messages
+      .map((message, index) =>
+        message.content === SAFE_COMPLETION_SYSTEM_INSTRUCTION ? index : -1
+      )
+      .filter((index) => index >= 0);
+    expect(profileIndex).toBeGreaterThan(0);
+    expect(contractIndexes).toHaveLength(1);
+    expect(contractIndexes[0]).toBeGreaterThan(profileIndex);
+  });
+
   it("injects a hidden Pulse system message when pulse runtime context is active", () => {
     const messages = buildStudioAgentOpenAiMessages({
       messages: [{ role: "user", content: "Make this feel more ad-like." }],
@@ -58,6 +99,8 @@ describe("buildStudioAgentOpenAiMessages", () => {
     expect(messages[1]?.content).not.toContain("2. Hook");
     expect(messages[1]?.content).toContain('"currentStepLabel":"Hook"');
     expect(messages[1]?.content).toContain("readable text, such as a screenshot or document");
+    const lastSystemMessage = [...messages].reverse().find((message) => message.role === "system");
+    expect(lastSystemMessage?.content).toBe(SAFE_COMPLETION_SYSTEM_INSTRUCTION);
   });
 
   it("frames attached screenshots as user source material instead of image-description instructions", () => {
@@ -141,8 +184,9 @@ describe("buildStudioAgentOpenAiMessages", () => {
       },
     });
 
-    expect(messages).toHaveLength(6);
+    expect(messages).toHaveLength(7);
     expect(messages.map((message) => message.role)).toEqual([
+      "system",
       "system",
       "system",
       "system",

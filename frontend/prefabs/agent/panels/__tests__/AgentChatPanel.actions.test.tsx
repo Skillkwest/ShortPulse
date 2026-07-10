@@ -263,6 +263,7 @@ describe("AgentChatPanel prompt actions", () => {
 
   it("does not expose generate controls for non-prompt assistant messages", () => {
     const onGenerateOutputPrompt = vi.fn();
+    const onAssistantMessageEdit = vi.fn(() => true);
 
     render(
       <AgentChatPanel
@@ -279,13 +280,17 @@ describe("AgentChatPanel prompt actions", () => {
         onInputChange={vi.fn()}
         onSend={vi.fn()}
         onGenerateOutputPrompt={onGenerateOutputPrompt}
+        onAssistantMessageEdit={onAssistantMessageEdit}
       />
     );
 
     expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
     const message = screen.getByText("I can't process that request right now. Please try again.");
     const dragSurface = message.closest(".agent-message-prompt-drag-surface") as HTMLElement;
-    expect(dragSurface).toBeTruthy();
+    expect(dragSurface).toBeNull();
+    expect(message.closest(".agent-message")).not.toHaveClass("is-draggable");
+    fireEvent.doubleClick(message);
+    expect(onAssistantMessageEdit).not.toHaveBeenCalled();
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
   });
 
@@ -339,6 +344,41 @@ describe("AgentChatPanel prompt actions", () => {
     fireEvent.dragEnd(dragSurface);
     expect(messageBubble.classList.contains("is-dragging")).toBe(false);
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
+  });
+
+  it("keeps successful message-only replies draggable and editable even without prompt metadata", () => {
+    const onAssistantMessageEdit = vi.fn(() => true);
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "success-message-1",
+            role: "assistant",
+            content: "A concise successful chat reply.",
+            canUseAsPrompt: false,
+            outcomeClass: "success_message",
+            decision: "allow",
+          },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onAssistantMessageEdit={onAssistantMessageEdit}
+      />
+    );
+
+    const message = screen.getByText("A concise successful chat reply.");
+    expect(message.closest(".agent-message-prompt-drag-surface")).toHaveAttribute(
+      "draggable",
+      "true"
+    );
+    fireEvent.doubleClick(message);
+    const editor = screen.getByLabelText("Edit assistant message");
+    fireEvent.change(editor, {
+      target: { value: "Edited successful chat reply." },
+    });
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onAssistantMessageEdit).toHaveBeenCalled();
   });
 
   it("renders pulse-guided assistant replies without redundant step labels", () => {

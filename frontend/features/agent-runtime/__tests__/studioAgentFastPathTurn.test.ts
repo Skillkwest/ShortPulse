@@ -739,4 +739,44 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
     expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));
   });
+
+  it("preserves a typed refusal returned by the bounded parse-repair call", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "Summary: transformed the prompt with richer descriptive detail.",
+              },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "", refusal: "I cannot help with that request." } }],
+        }),
+      });
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: "base canonical",
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage: vi.fn(),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.refusal).toBe(true);
+    expect(result.result.refusalSource).toBe("typed_model");
+    expect(result.result.parsed.actions).toBeUndefined();
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+  });
 });

@@ -6,6 +6,7 @@ import {
   FAMILY_EXPLICIT_PATTERNS,
   FAMILY_SUGGESTIVE_PATTERNS,
   SFW_REPLACEMENTS,
+  hasAmbiguousAgeSexualSignal,
 } from "./textSafetyLexicon";
 import type {
   SafetyCategoryId,
@@ -26,6 +27,15 @@ export type StudioAgentSafetyDecisionMeta = {
 };
 
 const MAX_TEXT_LENGTH = 4000;
+const NEGATED_EXPLICIT_CONSTRAINT_PATTERNS = [/\bno\s+gore\b/gi, /\bwithout\s+gore\b/gi];
+
+const maskNegatedExplicitConstraints = (value: string): string => {
+  let masked = value;
+  for (const pattern of NEGATED_EXPLICIT_CONSTRAINT_PATTERNS) {
+    masked = masked.replace(pattern, "non-graphic");
+  }
+  return masked;
+};
 
 export const normalizeStudioAgentSafetyText = (value: string): string =>
   value.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
@@ -40,13 +50,15 @@ export const classifyStudioAgentSafetyText = ({
   const normalized = text.trim();
   if (!normalized.length) return "safe";
   if (refusalMessage && normalized === refusalMessage) return "safe";
+  if (hasAmbiguousAgeSexualSignal(normalized)) return "sexual_explicit";
+  const classificationText = maskNegatedExplicitConstraints(normalized);
   for (const familyPatterns of FAMILY_EXPLICIT_PATTERNS) {
-    if (familyPatterns.patterns.some((pattern) => pattern.test(normalized))) {
+    if (familyPatterns.patterns.some((pattern) => pattern.test(classificationText))) {
       return familyPatterns.category;
     }
   }
   for (const familyPatterns of FAMILY_SUGGESTIVE_PATTERNS) {
-    if (familyPatterns.patterns.some((pattern) => pattern.test(normalized))) {
+    if (familyPatterns.patterns.some((pattern) => pattern.test(classificationText))) {
       return familyPatterns.category;
     }
   }

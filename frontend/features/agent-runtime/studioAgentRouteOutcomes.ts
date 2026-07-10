@@ -34,6 +34,14 @@ export type StudioAgentSafetyTelemetryFields = {
   providerBlocked?: boolean;
   hardFloorViolation?: boolean;
   rollbackTriggered?: boolean;
+  safeCompletionVersion?: string | null;
+  safeCompletionEnabled?: boolean;
+  refusalSource?: "typed_model" | "semantic_model" | "lexical_model" | null;
+  recoveryEligible?: boolean;
+  recoveryAttempted?: boolean;
+  recoveryOutcome?: "not_attempted" | "recovered" | "refused" | "error";
+  recoverySkipReason?: string | null;
+  recoveryLatencyMs?: number | null;
 };
 
 export const STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE = "I cannot describe this.";
@@ -135,6 +143,14 @@ export const emitStudioAgentTurnTelemetry = ({
       provider_blocked: safetyTelemetry?.providerBlocked ?? false,
       hard_floor_violation: safetyTelemetry?.hardFloorViolation ?? false,
       rollback_triggered: safetyTelemetry?.rollbackTriggered ?? false,
+      safe_completion_contract_version: safetyTelemetry?.safeCompletionVersion ?? null,
+      safe_completion_enabled: safetyTelemetry?.safeCompletionEnabled ?? false,
+      refusal_source: safetyTelemetry?.refusalSource ?? null,
+      recovery_eligible: safetyTelemetry?.recoveryEligible ?? false,
+      recovery_attempted: safetyTelemetry?.recoveryAttempted ?? false,
+      recovery_outcome: safetyTelemetry?.recoveryOutcome ?? "not_attempted",
+      recovery_skip_reason: safetyTelemetry?.recoverySkipReason ?? null,
+      recovery_latency_ms: safetyTelemetry?.recoveryLatencyMs ?? null,
       ...(safetyDebugEnabled && safetyDebugReason
         ? { safety_debug_reason: safetyDebugReason }
         : {}),
@@ -328,13 +344,15 @@ export const buildStudioAgentSafetyRefusalPayload = ({
   traceId,
   canonicalPrompt,
   reasonCode = "SAFETY_OUTPUT_REFUSAL",
+  outcomeClass = "refusal_safety",
 }: {
   traceId: string;
   canonicalPrompt: string | null;
   reasonCode?: "SAFETY_INPUT_REFUSAL" | "SAFETY_OUTPUT_REFUSAL" | "PROVIDER_SAFETY_REFUSAL";
+  outcomeClass?: "refusal_safety" | "refusal_model";
 }) => ({
   ...buildAgentMachineOutcome({
-    outcomeClass: "refusal_safety",
+    outcomeClass,
     reasonCode,
   }),
   message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,

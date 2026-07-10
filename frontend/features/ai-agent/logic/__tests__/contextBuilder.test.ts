@@ -5,14 +5,13 @@ import { describe, expect, it } from "vitest";
 import { buildAgentContext } from "../contextBuilder";
 
 describe("buildAgentContext media filtering", () => {
-  it("keeps https image media and capped image data URLs", () => {
+  it("keeps supported image media and ignores non-image context", () => {
     const context = buildAgentContext({
       mode: "image",
       media: [
         { id: "https-img", kind: "image", url: "https://cdn.example.com/a.jpg" },
         { id: "data-img", kind: "image", url: "data:image/png;base64,YWJjMTIz" },
         { id: "video", kind: "video", url: "https://cdn.example.com/clip.mp4" },
-        { id: "blob-like", kind: "image", url: "blob:abc123" },
       ],
     });
 
@@ -22,19 +21,26 @@ describe("buildAgentContext media filtering", () => {
     ]);
   });
 
-  it("caps image media entries to three", () => {
-    const context = buildAgentContext({
-      mode: "image",
-      media: [
-        { id: "1", kind: "image", url: "https://cdn.example.com/1.jpg" },
-        { id: "2", kind: "image", url: "https://cdn.example.com/2.jpg" },
-        { id: "3", kind: "image", url: "https://cdn.example.com/3.jpg" },
-        { id: "4", kind: "image", url: "https://cdn.example.com/4.jpg" },
-      ],
-    });
+  it("rejects unsupported image media instead of silently dropping it", () => {
+    expect(() =>
+      buildAgentContext({
+        mode: "image",
+        media: [{ id: "blob-like", kind: "image", url: "blob:abc123" }],
+      })
+    ).toThrow("unsupported media URL");
+  });
 
-    expect(context.media).toHaveLength(3);
-    expect(context.media?.map((item) => item.id)).toEqual(["1", "2", "3"]);
+  it("rejects an eleventh image instead of silently truncating media", () => {
+    expect(() =>
+      buildAgentContext({
+        mode: "image",
+        media: Array.from({ length: 11 }, (_, index) => ({
+          id: String(index + 1),
+          kind: "image" as const,
+          url: `https://cdn.example.com/${index + 1}.jpg`,
+        })),
+      })
+    ).toThrow("support up to 10 images");
   });
 
   it("passes through guided workflow pulse metadata", () => {

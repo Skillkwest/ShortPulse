@@ -3,8 +3,43 @@ import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,
 } from "../studioAgentSafetyInputPrecheck";
+import { SAFE_COMPLETION_CORPUS } from "../../../tests/support/safeCompletionCases";
 
 describe("studioAgentSafetyInputPrecheck", () => {
+  it("enforces the shared corpus provider boundary for deterministic policy cases", () => {
+    for (const testCase of SAFE_COMPLETION_CORPUS.cases) {
+      const result = runStudioAgentSafetyInputPrecheck({
+        enabled: true,
+        messages: [{ role: "user", content: testCase.input }],
+        context: {},
+        canonicalPrompt: null,
+        modality: "text",
+        environment: "production",
+        profileId: "prod_safe_v1",
+        rewriteRecheckMode: "allow_or_rewrite",
+      });
+      expect(result.providerCallSkipped, testCase.id).toBe(!testCase.expected.providerCallAllowed);
+      expect(result.decision?.category, testCase.id).toBe(testCase.safetyCategory);
+      expect(result.decision?.action, testCase.id).toBe(
+        testCase.policyClass === "allow"
+          ? "allow"
+          : testCase.policyClass === "transform"
+            ? "rewrite"
+            : "refuse"
+      );
+      expect(result.outcome, testCase.id).toBe(
+        testCase.policyClass === "allow"
+          ? "pass"
+          : testCase.policyClass === "transform"
+            ? "rewritten"
+            : "refusal"
+      );
+      if (!testCase.expected.providerCallAllowed) {
+        expect(result.outcome, testCase.id).toBe("refusal");
+      }
+    }
+  });
+
   it("passes safe input unchanged", () => {
     const result = runStudioAgentSafetyInputPrecheck({
       enabled: true,
@@ -210,5 +245,21 @@ describe("studioAgentSafetyInputPrecheck", () => {
     expect(result.providerCallSkipped).toBe(false);
     expect(result.decision?.action).toBe("rewrite");
     expect(result.messages[0]?.content.toLowerCase()).not.toContain("armed");
+  });
+
+  it("treats an explicit no-gore constraint as non-graphic instead of a gore request", () => {
+    const result = runStudioAgentSafetyInputPrecheck({
+      enabled: true,
+      messages: [{ role: "user", content: "An armed detective in a rainy alley, with no gore." }],
+      context: {},
+      canonicalPrompt: null,
+      modality: "text",
+      environment: "production",
+      profileId: "prod_safe_v1",
+      rewriteRecheckMode: "allow_or_rewrite",
+    });
+
+    expect(result.providerCallSkipped).toBe(false);
+    expect(result.outcome).toBe("rewritten");
   });
 });

@@ -17,6 +17,7 @@ import type {
   AgentContext,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
+import { AGENT_IMAGE_ATTACHMENT_MAX_ITEMS } from "../../../prefabs/agent/attachmentPolicy";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { pulseCreateAgentRuntimeBinding } from "../hooks/createAgentRuntime/pulseCreateAgentRuntimeBinding";
@@ -191,7 +192,7 @@ export const usePulseCreateAgentRuntime = ({
     findOutputById,
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
     resolveInternalImageDropSource,
-    maxImageAttachmentsPerDrop: 3,
+    maxImageAttachmentsPerDrop: AGENT_IMAGE_ATTACHMENT_MAX_ITEMS,
   });
   const linkedPromptReferenceIds = useMemo(
     () => resolveLinkedPromptReferenceIds(agentAttachments),

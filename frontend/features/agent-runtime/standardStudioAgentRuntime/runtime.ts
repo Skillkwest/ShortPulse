@@ -8,7 +8,9 @@ import {
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
+  emitStudioAgentInputPrecheckTelemetry,
   emitStudioAgentTurnTelemetry,
+  isStudioAgentSafetyRefusalUpstreamError,
 } from "../studioAgentRouteOutcomes";
 import {
   isStudioAgentFeatureEnabled,
@@ -30,7 +32,7 @@ import {
   readStudioAgentClientSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
 import {
-  extractStudioAgentCompletionText,
+  extractStudioAgentProviderCompletion,
   isStudioAgentRefusalResponse,
   parseStudioAgentJsonWithStatus,
 } from "../studioAgentResponseNormalization";
@@ -43,14 +45,13 @@ import {
 import {
   MISSING_PROVIDER_API_KEY_MESSAGE,
   resolveProviderErrorHandling,
-  resolveProviderErrorNormalizationMode,
 } from "../safetyPolicy/providerErrorPolicy";
 import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import {
   buildOpenAiResponsesInput,
-  extractOpenAiResponsesOutputText,
+  extractOpenAiResponsesOutput,
   fetchOpenAiResponse,
   type OpenAiChatMessage,
 } from "../../../lib/server/api/openAiCompat";
@@ -65,6 +66,27 @@ import {
   resolveStandardWebSearchToolChoice,
   type StandardWebSearchToolChoice,
 } from "../standardWebSearch";
+import {
+  SAFE_COMPLETION_CONTRACT_VERSION,
+  resolveSafeCompletionRecoveryEligibility,
+  resolveSafeCompletionSystemInstruction,
+  withSafeCompletionRecoveryInstruction,
+  type SafeCompletionRecoveryOutcome,
+  type SafeCompletionRecoverySkipReason,
+  type SafeCompletionRefusalSource,
+} from "../studioAgentSafeCompletion";
+import { resolveStudioAgentSafetyRuntimeConfig } from "../studioAgentSafetyRuntimeConfig";
+import {
+  resolveStudioAgentSafetyInputPrecheckFieldModes,
+  runStudioAgentSafetyInputPrecheck,
+} from "../studioAgentSafetyInputPrecheck";
+import { resolveSafetyModality } from "../safetyPolicy/decisionEngine";
+import {
+  buildPromptCompilerCacheScopeKey,
+  resolvePromptTemplateVersion,
+} from "../promptCompilerCacheScopeKey";
+import { finalizeStudioAgentResponseSafety } from "../studioAgentSafetyResponseFinalizer";
+import { maybeTriggerSafetyIncidentAutoRollback } from "../safetyPolicy/incidentAutoRollback";
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
@@ -340,12 +362,14 @@ const buildStandardOpenAiMessages = ({
   systemPrompt,
   imageDetail = "high",
   webSearchToolChoice,
+  safeCompletionInstruction,
 }: {
   messages: AgentMessage[];
   context: AgentContext;
   systemPrompt?: string | null;
   imageDetail?: StandardOpenAiImageDetail;
   webSearchToolChoice?: StandardWebSearchToolChoice | null;
+  safeCompletionInstruction?: string | null;
 }): OpenAiChatMessage[] => {
   const latestUserText = resolveLatestStandardUserText(messages);
   const promptReferenceSnippets = resolveStandardPromptReferenceSnippets({
@@ -406,10 +430,16 @@ const buildStandardOpenAiMessages = ({
         runtimeContextBlock,
         replyBehaviorBlock,
         STANDARD_RESPONSE_STYLE_GUIDANCE,
+        safeCompletionInstruction,
       ]
         .filter(Boolean)
         .join("\n\n")
-    : [runtimeContextBlock, replyBehaviorBlock, STANDARD_RESPONSE_STYLE_GUIDANCE]
+    : [
+        runtimeContextBlock,
+        replyBehaviorBlock,
+        STANDARD_RESPONSE_STYLE_GUIDANCE,
+        safeCompletionInstruction,
+      ]
         .filter(Boolean)
         .join("\n\n");
   return [{ role: "system", content: effectiveSystemPrompt }, ...conversationMessages];
@@ -739,13 +769,30 @@ const extractStandardOpenAiResponse = ({
 }): {
   response: AgentResponse;
   refusal: boolean;
+  refusalSource: SafeCompletionRefusalSource | null;
 } | null => {
   if (!payload || typeof payload !== "object") return null;
-  const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
-  const raw = choices?.[0]?.message?.content;
+  const choices = (
+    payload as {
+      choices?: Array<{ message?: { content?: unknown; refusal?: unknown } }>;
+    }
+  ).choices;
+  const message = choices?.[0]?.message;
+  const completion = extractStudioAgentProviderCompletion({
+    content: message?.content,
+    refusal: message?.refusal,
+  });
+  if (completion.typedRefusal) {
+    return {
+      response: { message: completion.typedRefusal, actions: undefined },
+      refusal: true,
+      refusalSource: "typed_model",
+    };
+  }
+  const raw = completion.text;
   const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
   if (!parsed) {
-    const directMessage = extractStudioAgentCompletionText(raw);
+    const directMessage = completion.text;
     if (typeof directMessage !== "string" || directMessage.trim().length === 0) {
       return null;
     }
@@ -759,6 +806,9 @@ const extractStandardOpenAiResponse = ({
         status: null,
         response,
       }),
+      refusalSource: isStudioAgentRefusalResponse({ status: null, response })
+        ? "lexical_model"
+        : null,
     };
   }
 
@@ -774,6 +824,7 @@ const extractStandardOpenAiResponse = ({
         actions: undefined,
       },
       refusal: true,
+      refusalSource: "semantic_model",
     };
   }
 
@@ -783,6 +834,7 @@ const extractStandardOpenAiResponse = ({
       fallbackPrompt: parsed.response.message || fallbackPrompt,
     }),
     refusal: false,
+    refusalSource: null,
   };
 };
 
@@ -795,10 +847,19 @@ const extractStandardOpenAiResponsesResult = ({
 }): {
   response: AgentResponse;
   refusal: boolean;
+  refusalSource: SafeCompletionRefusalSource | null;
 } | null => {
   if (!payload || typeof payload !== "object") return null;
   const payloadRecord = payload as Record<string, unknown>;
-  const raw = extractOpenAiResponsesOutputText(payloadRecord);
+  const completion = extractOpenAiResponsesOutput(payloadRecord);
+  if (completion.refusal) {
+    return {
+      response: { message: completion.refusal, actions: undefined, conversationState: null },
+      refusal: true,
+      refusalSource: "typed_model",
+    };
+  }
+  const raw = completion.text;
   const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
   if (!parsed) {
     const directMessage = raw.trim();
@@ -821,6 +882,9 @@ const extractStandardOpenAiResponsesResult = ({
         status: null,
         response,
       }),
+      refusalSource: isStudioAgentRefusalResponse({ status: null, response })
+        ? "lexical_model"
+        : null,
     };
   }
 
@@ -836,6 +900,7 @@ const extractStandardOpenAiResponsesResult = ({
         actions: undefined,
       },
       refusal: true,
+      refusalSource: "semantic_model",
     };
   }
 
@@ -848,6 +913,7 @@ const extractStandardOpenAiResponsesResult = ({
       conversationState: null,
     },
     refusal: false,
+    refusalSource: null,
   };
 };
 
@@ -982,8 +1048,9 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   }
 
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
-  const messages = requestEnvelope.value.messages;
-  const context = requestEnvelope.value.context;
+  let messages = requestEnvelope.value.messages;
+  let context = requestEnvelope.value.context;
+  const originalLatestUserText = resolveLatestStandardUserText(messages);
   const flow = resolveStandardFlow(context);
   let resolvedSystemPrompt: RequiredRuntimeAgentPromptResolution;
   const runtimePromptResolutionStartedAt = Date.now();
@@ -1027,10 +1094,70 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     });
   }
 
+  const safetyRuntimeConfig = await resolveStudioAgentSafetyRuntimeConfig(process.env);
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
-  const providerErrorNormalizationMode = resolveProviderErrorNormalizationMode(
-    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
-  );
+  const providerErrorNormalizationMode = safetyRuntimeConfig.providerErrorMode;
+  const safeCompletionInstruction = resolveSafeCompletionSystemInstruction(process.env);
+  const promptTemplateVersion = resolvePromptTemplateVersion({
+    route: "studio-agent",
+    prompts: [resolvedSystemPrompt.promptBody, safeCompletionInstruction ?? "disabled"],
+  });
+  const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
+    route: "studio-agent",
+    promptTemplateVersion,
+    policySchemaVersion: safetyRuntimeConfig.policySchemaVersion,
+    controlPlanePolicyVersion: safetyRuntimeConfig.profile.policyVersion,
+  });
+  const safetyModality = resolveSafetyModality({ route: "studio-agent", flow });
+  const precheckResult = runStudioAgentSafetyInputPrecheck({
+    enabled: safetyRuntimeConfig.inputPrecheckEnabled,
+    messages,
+    context,
+    canonicalPrompt: null,
+    modality: safetyModality,
+    profileId: safetyRuntimeConfig.profileId,
+    environment: safetyRuntimeConfig.environment,
+    devAbsoluteZeroEnabled: safetyRuntimeConfig.devAbsoluteZeroEnabled,
+    policyDocument: safetyRuntimeConfig.policyDocument,
+    rewriteRecheckMode: "allow_or_rewrite",
+    fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+      sharedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+      scopedRawValue: process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+    }),
+  });
+  const safetyTelemetryProfileId = safetyRuntimeConfig.profileId;
+  if (precheckResult.outcome !== "pass") {
+    emitStudioAgentInputPrecheckTelemetry({
+      flow,
+      outcome: precheckResult.outcome,
+      rewrittenFieldCount: precheckResult.rewrittenFieldCount,
+      providerCallSkipped: precheckResult.providerCallSkipped,
+      policyVersion: safetyRuntimeConfig.profile.policyVersion,
+      policySchemaVersion: safetyRuntimeConfig.policySchemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
+      profileId: safetyTelemetryProfileId,
+      modality: precheckResult.decision?.modality ?? safetyModality,
+      category: precheckResult.decision?.category ?? null,
+      decisionAction: precheckResult.decision?.action ?? null,
+      decisionSource: precheckResult.decision?.source ?? null,
+      hardFloorViolation: precheckResult.decision?.hardFloorViolation ?? false,
+      refusalField: precheckResult.scopeTelemetry.refusalField,
+      rewrittenFields: precheckResult.scopeTelemetry.rewrittenFields,
+      nonBlockingSignalCount: precheckResult.scopeTelemetry.nonBlockingSignalCount,
+    });
+  }
+  if (precheckResult.outcome === "refusal") {
+    return res.status(200).json(
+      buildStudioAgentSafetyRefusalPayload({
+        traceId,
+        canonicalPrompt: null,
+        reasonCode: "SAFETY_INPUT_REFUSAL",
+      })
+    );
+  }
+  messages = precheckResult.messages;
+  context = precheckResult.context;
   const textPayloadChars = measureStandardTextPayloadChars({ messages, context });
   const textPayloadSummary = summarizeStandardTextPayload({ messages, context });
   const executionProfile = resolveStandardOpenAiExecutionProfile({
@@ -1055,6 +1182,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     systemPrompt: resolvedSystemPrompt.promptBody,
     imageDetail: executionProfile.imageDetail,
     webSearchToolChoice,
+    safeCompletionInstruction,
   });
   try {
     const directResponseResult = await executeStandardOpenAiWithRetry({
@@ -1080,9 +1208,16 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
 
     if (!directResponseResult.ok) {
+      const safetyRefusal =
+        typeof directResponseResult.status === "number" &&
+        isStudioAgentSafetyRefusalUpstreamError({
+          status: directResponseResult.status,
+          detail: directResponseResult.detail,
+        });
       const providerErrorHandling = resolveProviderErrorHandling({
         status: directResponseResult.status,
         detail: directResponseResult.detail,
+        safetyRefusal,
         normalizationMode: providerErrorNormalizationMode,
       });
       if (directResponseResult.error) {
@@ -1091,6 +1226,45 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
             ? directResponseResult.error
             : new Error(directResponseResult.detail),
           { retryCount: directResponseResult.retryCount }
+        );
+      }
+
+      if (providerErrorHandling.failureResolution === "canonical_refusal") {
+        emitStudioAgentTurnTelemetry({
+          flow,
+          path: STANDARD_TELEMETRY_PATH,
+          status: "refuse",
+          traceId,
+          model: standardModel,
+          outcomeClass: "refusal_safety",
+          retryUsed: directResponseResult.retryCount > 0,
+          retryCount: directResponseResult.retryCount,
+          reasonCode: "PROVIDER_SAFETY_REFUSAL",
+          totalLatencyMs: Date.now() - requestStartedAt,
+          stageLatencyMs,
+          safetyTelemetry: {
+            policyVersion: safetyRuntimeConfig.profile.policyVersion,
+            policySchemaVersion: safetyRuntimeConfig.policySchemaVersion,
+            promptTemplateVersion,
+            runtimeScopeKey,
+            profileId: safetyTelemetryProfileId,
+            modality: safetyModality,
+            decisionAction: "refuse",
+            providerBlocked: true,
+            safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
+            safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
+            recoveryEligible: false,
+            recoveryAttempted: false,
+            recoveryOutcome: "not_attempted",
+            recoverySkipReason: "not_model_refusal",
+          },
+        });
+        return res.status(200).json(
+          buildStudioAgentSafetyRefusalPayload({
+            traceId,
+            canonicalPrompt: null,
+            reasonCode: "PROVIDER_SAFETY_REFUSAL",
+          })
         );
       }
 
@@ -1155,29 +1329,181 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       );
     }
 
+    let resolvedDirectResult = directResult;
+    let recoveryEligible = false;
+    let recoveryAttempted = false;
+    let recoveryOutcome: SafeCompletionRecoveryOutcome = "not_attempted";
+    let recoverySkipReason: SafeCompletionRecoverySkipReason | null = null;
+    let recoveryLatencyMs: number | null = null;
+
     if (directResult.refusal) {
+      const eligibility = resolveSafeCompletionRecoveryEligibility({
+        enabled: safetyRuntimeConfig.safeCompletionEnabled,
+        inputPrecheckEnabled: safetyRuntimeConfig.inputPrecheckEnabled,
+        decision: precheckResult.decision,
+        latestUserText: originalLatestUserText,
+        refusalSource: directResult.refusalSource,
+        hasUnclassifiedMedia: flow === "MIXED",
+      });
+      recoveryEligible = eligibility.eligible;
+      recoverySkipReason = eligibility.eligible ? null : eligibility.skipReason;
+      if (eligibility.eligible) {
+        recoveryAttempted = true;
+        const recoveryStartedAt = Date.now();
+        try {
+          const recoveryResponseResult = await executeStandardOpenAiWithRetry({
+            apiKey,
+            openAiUrl: openAiConfig.openAiUrl,
+            model: standardModel,
+            messages: withSafeCompletionRecoveryInstruction(standardOpenAiMessages),
+            timeoutMs: executionProfile.timeoutMs,
+            maxAttempts: 1,
+            retryBaseDelayMs: openAiConfig.upstreamRetryBaseDelayMs,
+            retryMaxDelayMs: openAiConfig.upstreamRetryMaxDelayMs,
+            responsesEnabled: directResponseResult.transport === "responses",
+            chatFallbackEnabled: false,
+            webSearchToolChoice: null,
+            env: {
+              ...process.env,
+              SHORTPULSE_OPENAI_RESPONSES_ENABLED:
+                directResponseResult.transport === "responses" ? "true" : "false",
+              SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: "false",
+            },
+          });
+          if (recoveryResponseResult.ok) {
+            const recoveryPayload = await recoveryResponseResult.response.json();
+            const recoveryResult =
+              recoveryResponseResult.transport === "responses"
+                ? extractStandardOpenAiResponsesResult({
+                    payload: recoveryPayload,
+                    fallbackPrompt: originalLatestUserText,
+                  })
+                : extractStandardOpenAiResponse({
+                    payload: recoveryPayload,
+                    fallbackPrompt: originalLatestUserText,
+                  });
+            if (recoveryResult && !recoveryResult.refusal) {
+              resolvedDirectResult = recoveryResult;
+              recoveryOutcome = "recovered";
+            } else if (recoveryResult?.refusal) {
+              recoveryOutcome = "refused";
+            } else {
+              recoveryOutcome = "error";
+            }
+          } else {
+            recoveryOutcome = "error";
+          }
+        } catch {
+          recoveryOutcome = "error";
+        } finally {
+          recoveryLatencyMs = Date.now() - recoveryStartedAt;
+          markStage("safe_completion_recovery", recoveryStartedAt);
+        }
+      }
+    }
+
+    const safetyFinalization = await finalizeStudioAgentResponseSafety({
+      response: resolvedDirectResult.response,
+      refusal: resolvedDirectResult.refusal,
+      canonicalPrompt: null,
+      fallbackCanonicalPrompt: null,
+      route: "studio-agent",
+      flow,
+      mode: safetyRuntimeConfig.postProcessMode,
+      debug: safetyRuntimeConfig.debugEnabled,
+      traceId,
+      profileId: safetyRuntimeConfig.profileId,
+      environment: safetyRuntimeConfig.environment,
+      devAbsoluteZeroEnabled: safetyRuntimeConfig.devAbsoluteZeroEnabled,
+      modality: safetyModality,
+      policyDocument: safetyRuntimeConfig.policyDocument,
+    });
+    let safetyRollbackTriggered = false;
+    if (safetyFinalization.hardFloorViolation) {
+      try {
+        const rollbackResult = await maybeTriggerSafetyIncidentAutoRollback({
+          environment: safetyRuntimeConfig.environment,
+          autoRollbackEnabled: safetyRuntimeConfig.autoRollbackEnabled,
+          hardFloorViolation: true,
+          actorUserId: user.id,
+          actorEmail: user.email ?? null,
+          source: "studio_agent_standard_runtime_hard_floor",
+          reason: "Standard studio agent runtime hard-floor incident.",
+        });
+        safetyRollbackTriggered = rollbackResult.rollbackTriggered;
+      } catch (error) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: STANDARD_ROUTE_LABEL,
+          metadata: {
+            trace_id: traceId,
+            user_id: user.id,
+            conversation_id: normalizedConversationId,
+            stage: "safety_auto_rollback",
+          },
+        });
+      }
+    }
+    const safeCompletionTelemetry = {
+      policyVersion: safetyRuntimeConfig.profile.policyVersion,
+      policySchemaVersion: safetyRuntimeConfig.policySchemaVersion,
+      promptTemplateVersion,
+      runtimeScopeKey,
+      profileId: safetyTelemetryProfileId,
+      modality: safetyModality,
+      category: safetyFinalization.decisionCategory,
+      decisionAction: safetyFinalization.decisionAction,
+      decisionSource: safetyFinalization.decisionSource,
+      hardFloorViolation: safetyFinalization.hardFloorViolation,
+      rollbackTriggered: safetyRollbackTriggered,
+      safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
+      safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
+      refusalSource: directResult.refusalSource,
+      recoveryEligible,
+      recoveryAttempted,
+      recoveryOutcome,
+      recoverySkipReason,
+      recoveryLatencyMs,
+    } as const;
+
+    if (safetyFinalization.refusal) {
       emitStudioAgentTurnTelemetry({
         flow,
         path: STANDARD_TELEMETRY_PATH,
         status: "refuse",
         traceId,
         model: standardModel,
-        outcomeClass: "refusal_safety",
+        outcomeClass: safetyFinalization.forcedRefusal ? "refusal_safety" : "refusal_model",
         retryUsed: directResponseResult.retryCount > 0,
         retryCount: directResponseResult.retryCount,
-        reasonCode: "SAFETY_OUTPUT_REFUSAL",
+        reasonCode: safetyFinalization.forcedRefusal
+          ? "SAFETY_OUTPUT_REFUSAL"
+          : "PROVIDER_SAFETY_REFUSAL",
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
-        safetyTelemetry: {
-          runtimeScopeKey: "studio-agent-standard",
-        },
+        safetyOutcome:
+          safetyFinalization.outcome === "pass" ? undefined : safetyFinalization.outcome,
+        safetySource: safetyFinalization.outcome === "pass" ? undefined : "model_output",
+        safetyFallback:
+          safetyFinalization.outcome === "pass" ? undefined : safetyFinalization.fallbackUsed,
+        safetyDebugReason: safetyFinalization.debugReason,
+        safetyDebugEnabled: safetyRuntimeConfig.debugEnabled,
+        safetyTelemetry: safeCompletionTelemetry,
       });
-      return res
-        .status(200)
-        .json(buildStudioAgentSafetyRefusalPayload({ traceId, canonicalPrompt: null }));
+      return res.status(200).json(
+        buildStudioAgentSafetyRefusalPayload({
+          traceId,
+          canonicalPrompt: null,
+          reasonCode: safetyFinalization.forcedRefusal
+            ? "SAFETY_OUTPUT_REFUSAL"
+            : "PROVIDER_SAFETY_REFUSAL",
+          outcomeClass: safetyFinalization.forcedRefusal ? "refusal_safety" : "refusal_model",
+        })
+      );
     }
 
-    const successOutcome = resolveStandardSuccessOutcomeClass(directResult.response);
+    const successOutcome = resolveStandardSuccessOutcomeClass(safetyFinalization.response);
 
     emitStudioAgentTurnTelemetry({
       flow,
@@ -1191,12 +1517,16 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       reasonCode: successOutcome.reasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
-      safetyTelemetry: {
-        runtimeScopeKey: "studio-agent-standard",
-      },
+      safetyOutcome: safetyFinalization.outcome === "pass" ? undefined : safetyFinalization.outcome,
+      safetySource: safetyFinalization.outcome === "pass" ? undefined : "model_output",
+      safetyFallback:
+        safetyFinalization.outcome === "pass" ? undefined : safetyFinalization.fallbackUsed,
+      safetyDebugReason: safetyFinalization.debugReason,
+      safetyDebugEnabled: safetyRuntimeConfig.debugEnabled,
+      safetyTelemetry: safeCompletionTelemetry,
     });
     return res.status(200).json({
-      ...directResult.response,
+      ...safetyFinalization.response,
       ...buildAgentMachineOutcome({
         outcomeClass: successOutcome.outcomeClass,
         reasonCode: successOutcome.reasonCode,

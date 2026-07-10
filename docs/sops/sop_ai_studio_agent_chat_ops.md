@@ -10,23 +10,24 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## UI entry points
 
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. In Standard Create, generation uses only the text currently visible in the composer.
-- Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`. Its raw-pass runtime contract is intentionally frozen until a future dedicated change.
+- Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`. It preserves raw visible conversation behavior while the server applies the shared safety and Safe Completion contracts to provider-bound execution.
 - Standard chat response color semantics: Standard is now a raw assistant-text lane. Ordinary replies remain in the neutral chat text treatment and stay in outbound Standard history. Prompt movement must happen through explicit UI actions such as dragging assistant prompt text into the composer, not hidden Standard route shaping.
 - Retired expanded column: the right-side Agent Chat rail is removed. Agent conversation UI now stays inside the active Create composer so Standard/Pulse runtime state does not leave the mode-owned Create surface.
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Primary Generate controls: Standard uses the composer-row `Generate` button. It uses the visible composer-owned prompt, and assistant responses become generation input by being dragged into the composer.
 - Prompt save: Save buttons persist the current prompt (including text dragged from agent responses into the composer) to the reference grid.
 - Reference Grid prompt cards: no per-card Generate CTA; cards are for selection/drag/save/remove while generation runs from primary Generate controls.
-- Describe & Text actions: “Describe” on a reference and “Refine prompt” use the runtime-specific studio-agent transport. Standard uses `/api/ai/studio-agent-standard` as a raw model pass-through; Pulse uses `/api/ai/studio-agent-pulse` as the guided/runtime-owned lane.
+- Describe & Text actions: “Describe” on a reference and “Refine prompt” use the runtime-specific studio-agent transport. Standard uses `/api/ai/studio-agent-standard`; Pulse uses `/api/ai/studio-agent-pulse`. Each keeps its mode-owned behavior while sharing platform safety and Safe Completion.
 
 ## System prerequisites & gates
 
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (Standard studio-agent default `gpt-5.5`), optional `STUDIO_AGENT_PULSE_MODEL` (guided Pulse workflow model; inherits `OPENAI_MODEL` when unset), optional `OPENAI_API_BASE`.
 - Timeout budgets: `STUDIO_AGENT_TIMEOUT_MS` as shared default; optional `STUDIO_AGENT_VISION_TIMEOUT_MS`, `STUDIO_AGENT_TURN_TIMEOUT_MS`, and `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` split vision-summary, generic generation-turn, and guided/long-turn agent budgets. Unset split values inherit the nearest shared budget. Standard mixed/image turns now use the larger of Standard turn, vision, and long-turn agent budgets so attached-image describe/refine turns are not prematurely aborted by the generic text-turn ceiling.
 - Runtime path: Standard and Pulse each use one mode-owned route. The removed direct-bypass, generic-route, text fast-path, and legacy V2 fallback switches are not valid controls for Create agents.
-- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided/server-owned lanes such as Pulse), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on for retained image-analysis lanes), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided client pre-send lanes). Standard bypasses the local Standard precheck path.
+- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for both Create server routes), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on for retained image-analysis lanes), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for both Create client pre-send mirrors). Standard preserves raw visible history while the mirror rewrites only the provider-bound copy.
+- Safe Completion: `STUDIO_AGENT_SAFE_COMPLETION_ENABLED` defaults on. Both Create routes use server-authoritative input safety and both clients mirror that policy for provider-bound payloads. One eligible model-authored refusal may receive one internal recovery attempt, and all recovered output is safety-finalized.
 - Flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI and baseline server enablement (`undefined` or `true` = enabled, `false` = disabled); `STUDIO_AGENT_ENABLED=true|false` explicitly overrides server enablement.
-- Payload guardrails: max 3 images, safe image media URLs only (`https://` or bounded `data:image/*`), request body cap 512 KB (text) / 1.5 MB (mixed/image), API parser cap `2mb`.
+- Payload guardrails: max 10 images, safe image media URLs only (`https://` or bounded `data:image/*`), a 900 KiB client target across inline local images, request body cap 512 KB (text) / 1.5 MB (mixed/image), and API parser cap `2mb`. Image 11 is rejected explicitly; existing attachments are never evicted to make room.
 - Media transport rule: Create composer image attachments are chat-only ephemeral inputs. Local files and Reference Grid image drops are reduced to small preview/model data URLs when possible, or use an existing safe signed/public `https://` model URL. They are not uploaded or persisted just to support agent vision.
 
 ## Data flow (chat send)
@@ -37,12 +38,12 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 3. `getAgentContext` (in `useAiStudioState`) builds a focused base context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
 4. Staged attachments are merged into context before send:
    - prompt attachments become `context.references` entries (`kind: "prompt"`),
-   - image attachments become both `context.references` + `context.media` (up to 3),
+   - image attachments become both `context.references` + `context.media` (up to 10),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5. `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6. Standard sends raw user/assistant turns through the Standard transport with no local Standard rewrite/precheck/canonical loop. That is an explicit current product decision, not an accidental gap. Pulse still runs the guided pre-send/runtime safety pipeline.
+6. Standard keeps raw visible user/assistant history while its client mirror rewrites only the outbound provider-bound copy when required; the Standard server re-evaluates those fields authoritatively, injects the shared Safe Completion contract, and keeps the hidden canonical loop retired.
 7. The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
-8. Pulse runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Standard bypasses the local Standard precheck path by design.
+8. Standard and Pulse run client-mirror and server-authoritative pre-provider safety before provider execution. Server policy is the final authority.
 9. Mixed/image Pulse turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
 10. Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance; Standard responses must not include `workflowSession`.
 11. Canonical runtime response is lane-owned:
@@ -84,8 +85,10 @@ Prompt ownership rule:
 ## Safeguards & drift control
 
 - Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + clientSessionKey`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
-- Pre-provider safety gate: guided/server-owned lanes such as Pulse evaluate provider-bound input text before execution and can deterministically rewrite or refuse without calling OpenAI. Standard does not.
-- Client pre-send gate mirrors the same logic for guided lanes, but server remains authoritative there. Standard does not use the local mirror gate.
+- Pre-provider safety gate: both Create routes evaluate provider-bound text before execution and can deterministically rewrite or refuse without calling OpenAI.
+- Client pre-send gate mirrors the same logic for both Create lanes, but the server remains authoritative. Standard rewrites only the provider-bound copy and preserves raw visible conversation history.
+- Safe Completion contract: Standard, custom Pulse, and built-in guided workflows receive one code-owned instruction at final platform-policy precedence. Eligible model refusals recover at most once; hard floors, policy refusals, provider HTTP safety blocks, output-safety refusals, malformed output, and route/configuration errors never recover.
+- Reuse contract: typed refusals and errors remain readable but expose no drag, Use, Apply, or Generate behavior. Successful assistant text and prompt artifacts retain their existing explicit reuse paths.
 - Canonical read/write continuity is a guided-lane concern; Standard no longer uses the hidden canonical prompt loop.
 - Single-stage Pulse path: one model call handles text-only and mixed/image turns in the canonical Pulse path; legacy V2 rollback fallback is removed from Create agents.
 - Right-column drop payload precedence is `internal -> files -> text -> media`; mixed payloads that include prompt text plus media URL hints resolve as prompt text.
@@ -104,7 +107,9 @@ Prompt ownership rule:
 - ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent-standard` returns usable raw assistant text that can be dragged into the composer or saved explicitly.
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: in Standard, confirm the second turn includes prior assistant text in outbound history with no hidden canonical rewrite. In Pulse, confirm guided continuity still behaves as expected.
-- ✅ Refusal path: validate on Pulse/guided lanes; Standard no longer injects the local refusal path.
+- ✅ Safe completion: use the approved mixed basketball fixture in Standard, one custom Pulse, and each published built-in; require completed safe work without an SFW/resubmit turn.
+- ✅ Refusal path: validate hard-floor refusal on both routes, require empty actions and zero recovery calls, and confirm the bubble is non-reusable.
+- ✅ Recovery path: simulate an eligible model refusal, require exactly one recovery and safety-finalized output; a recovery refusal/error must not loop.
 - ✅ Runtime error path: force provider 503/timeout and confirm the route returns an explicit error payload and the prompt remains unchanged.
 
 ## Known gaps / follow-ups

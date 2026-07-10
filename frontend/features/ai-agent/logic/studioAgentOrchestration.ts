@@ -3,6 +3,10 @@
  * Classifies each turn into TEXT_ONLY, IMAGE_ONLY, or MIXED before thinker/formatter prompts.
  */
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
+import {
+  AGENT_THINKER_MAX_IMAGE_REFERENCES,
+  AGENT_THINKER_MAX_PROMPT_REFERENCES,
+} from "../../../prefabs/agent/attachmentPolicy";
 import type { ThinkerSelectedReference } from "./studioAgentReferenceSelection";
 
 export type StudioAgentFlow = "TEXT_ONLY" | "IMAGE_ONLY" | "MIXED";
@@ -102,8 +106,14 @@ export const buildStudioAgentOrchestration = ({
       ?.filter((reference) => reference.kind === "prompt")
       .map((reference) => reference.id) ?? [];
 
-  const imageReferenceIds = dedupeStrings([...selectedImageIds, ...contextImageIds]).slice(0, 8);
-  const promptReferenceIds = dedupeStrings([...selectedPromptIds, ...contextPromptIds]).slice(0, 8);
+  const imageReferenceIds = dedupeStrings([...selectedImageIds, ...contextImageIds]).slice(
+    0,
+    AGENT_THINKER_MAX_IMAGE_REFERENCES
+  );
+  const promptReferenceIds = dedupeStrings([...selectedPromptIds, ...contextPromptIds]).slice(
+    0,
+    AGENT_THINKER_MAX_PROMPT_REFERENCES
+  );
 
   const hasImageContext = (context.media?.length ?? 0) > 0 || imageReferenceIds.length > 0;
   const hasPromptContext = Boolean(canonicalPrompt || activePrompt || promptSeed);

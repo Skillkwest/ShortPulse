@@ -183,30 +183,55 @@ const toResponsesTextFormat = (
   };
 };
 
-export const extractOpenAiResponsesOutputText = (payload: Record<string, unknown>): string => {
-  const directOutputText = asString(payload.output_text);
-  if (directOutputText) return directOutputText;
+export type OpenAiResponsesOutput = {
+  text: string;
+  refusal: string | null;
+};
 
+/**
+ * Extracts text and typed refusal content from an OpenAI Responses payload.
+ */
+export const extractOpenAiResponsesOutput = (
+  payload: Record<string, unknown>
+): OpenAiResponsesOutput => {
+  const directOutputText = asString(payload.output_text);
   const output = Array.isArray(payload.output) ? payload.output : [];
-  const textParts: string[] = [];
+  const textParts: string[] = directOutputText ? [directOutputText] : [];
+  const collectNestedText = !directOutputText;
+  let refusal = asString(payload.refusal);
 
   for (const rawItem of output) {
     const item = asObject(rawItem);
     const itemText = asString(item.text);
-    if (itemText) textParts.push(itemText);
+    if (collectNestedText && itemText) textParts.push(itemText);
+    if (!refusal) {
+      refusal = asString(item.refusal);
+    }
 
     const content = Array.isArray(item.content) ? item.content : [];
     for (const rawContent of content) {
       const contentRecord = asObject(rawContent);
       const text = asString(contentRecord.text);
-      if (text) {
+      if (collectNestedText && text) {
         textParts.push(text);
+      }
+      if (!refusal && (contentRecord.type === "refusal" || "refusal" in contentRecord)) {
+        refusal = asString(contentRecord.refusal);
       }
     }
   }
 
-  return textParts.join("\n").trim();
+  return {
+    text: textParts.join("\n").trim(),
+    refusal,
+  };
 };
+
+/**
+ * Extracts text-only output for callers that do not need typed refusal metadata.
+ */
+export const extractOpenAiResponsesOutputText = (payload: Record<string, unknown>): string =>
+  extractOpenAiResponsesOutput(payload).text;
 
 const toChatCompletionCompatiblePayload = ({
   payload,
@@ -216,6 +241,7 @@ const toChatCompletionCompatiblePayload = ({
   model: string;
 }): Record<string, unknown> => {
   const usage = asObject(payload.usage);
+  const output = extractOpenAiResponsesOutput(payload);
   const promptTokens = asNumber(usage.input_tokens) ?? asNumber(usage.prompt_tokens);
   const completionTokens = asNumber(usage.output_tokens) ?? asNumber(usage.completion_tokens);
   const totalTokens =
@@ -233,7 +259,8 @@ const toChatCompletionCompatiblePayload = ({
         index: 0,
         message: {
           role: "assistant",
-          content: extractOpenAiResponsesOutputText(payload),
+          content: output.text,
+          ...(output.refusal ? { refusal: output.refusal } : {}),
         },
         finish_reason: "stop",
       },

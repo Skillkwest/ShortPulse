@@ -1,5 +1,8 @@
 import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
-import type { OpenAiChatResponseFormat } from "../../lib/server/api/openAiCompat";
+import type {
+  OpenAiChatMessage,
+  OpenAiChatResponseFormat,
+} from "../../lib/server/api/openAiCompat";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import {
   fetchStudioAgentChatCompletion,
@@ -7,7 +10,8 @@ import {
 } from "./studioAgentOpenAiGateway";
 import {
   buildStudioAgentSemanticResponse,
-  extractStudioAgentCompletionText,
+  extractStudioAgentProviderCompletion,
+  isStudioAgentRefusalResponse,
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
 } from "./studioAgentResponseNormalization";
@@ -16,6 +20,11 @@ import {
   resolveStudioAgentPulseKind,
 } from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
+import {
+  withSafeCompletionRecoveryInstruction,
+  type SafeCompletionRecoveryOutcome,
+  type SafeCompletionRefusalSource,
+} from "./studioAgentSafeCompletion";
 
 type StageMarker = (stage: string, startedAt: number) => void;
 
@@ -33,6 +42,10 @@ type StudioAgentFastPathSuccess = {
     resolvedCanonical: string | null;
     semanticStatus: string | null;
     repairUsed: boolean;
+    refusalSource: SafeCompletionRefusalSource | null;
+    safeCompletionRecoveryAttempted: boolean;
+    safeCompletionRecoveryOutcome: SafeCompletionRecoveryOutcome;
+    safeCompletionRecoveryLatencyMs: number | null;
     usage: {
       inputTokens?: number;
       outputTokens?: number;
@@ -103,14 +116,57 @@ const safeReadFastPathErrorDetail = async (response: Response): Promise<string> 
   }
 };
 
-const extractFirstChoiceMessageContent = (data: Record<string, unknown>): unknown => {
+const extractFirstChoiceMessage = (
+  data: Record<string, unknown>
+): { content?: unknown; refusal?: unknown } => {
   const choices = data.choices;
-  if (!Array.isArray(choices)) return null;
+  if (!Array.isArray(choices)) return {};
   const firstChoice = choices[0];
-  if (!firstChoice || typeof firstChoice !== "object") return null;
+  if (!firstChoice || typeof firstChoice !== "object") return {};
   const message = (firstChoice as Record<string, unknown>).message;
-  if (!message || typeof message !== "object") return null;
-  return (message as Record<string, unknown>).content;
+  if (!message || typeof message !== "object") return {};
+  const record = message as Record<string, unknown>;
+  return { content: record.content, refusal: record.refusal };
+};
+
+const parseFastPathCompletion = ({
+  data,
+  pulseActive,
+}: {
+  data: Record<string, unknown>;
+  pulseActive: boolean;
+}): {
+  contentText: string;
+  typedRefusal: string | null;
+  parsedWithStatus: { response: AgentResponse; status: string | null } | null;
+} => {
+  const message = extractFirstChoiceMessage(data);
+  const completion = extractStudioAgentProviderCompletion({
+    content: message.content,
+    refusal: message.refusal,
+  });
+  if (completion.typedRefusal) {
+    return {
+      contentText: completion.text,
+      typedRefusal: completion.typedRefusal,
+      parsedWithStatus: {
+        response: { message: completion.typedRefusal, actions: undefined },
+        status: "refuse",
+      },
+    };
+  }
+  const semanticParsed = pulseActive ? null : parseStudioAgentSemanticOutput(completion.text);
+  const parsedWithStatus = semanticParsed
+    ? (() => {
+        const semanticResponse = buildStudioAgentSemanticResponse({ semantic: semanticParsed });
+        return { response: semanticResponse.parsed, status: semanticResponse.status };
+      })()
+    : parseStudioAgentJsonWithStatus(completion.text, { allowUnstructured: !pulseActive });
+  return {
+    contentText: completion.text,
+    typedRefusal: null,
+    parsedWithStatus,
+  };
 };
 
 const extractUsageTokens = (
@@ -266,16 +322,18 @@ export const executeStudioAgentFastPathTurn = async ({
   context,
   messages,
   markStage,
+  safeCompletionRecoveryEligible = false,
 }: {
   apiKey: string;
   openAiUrl: string;
   model: string;
-  openAiMessages: unknown[];
+  openAiMessages: OpenAiChatMessage[];
   timeoutMs: number;
   effectiveCanonical: string | null;
   context: AgentContext;
   messages: AgentMessage[];
   markStage: StageMarker;
+  safeCompletionRecoveryEligible?: boolean;
 }): Promise<StudioAgentFastPathTurnResult> => {
   const fastPathStartedAt = Date.now();
   const pulseKind = resolveStudioAgentPulseKind(context.pulse);
@@ -319,21 +377,12 @@ export const executeStudioAgentFastPathTurn = async ({
       detail: formatStudioAgentErrorMessage(error),
     };
   }
-  const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
-  const semanticParsed = pulseActive ? null : parseStudioAgentSemanticOutput(contentText);
-  let parsedWithStatus = semanticParsed
-    ? (() => {
-        const semanticResponse = buildStudioAgentSemanticResponse({
-          semantic: semanticParsed,
-        });
-        return {
-          response: semanticResponse.parsed,
-          status: semanticResponse.status,
-        };
-      })()
-    : parseStudioAgentJsonWithStatus(contentText, {
-        allowUnstructured: !pulseActive,
-      });
+  const initialCompletion = parseFastPathCompletion({ data, pulseActive });
+  const contentText = initialCompletion.contentText;
+  let parsedWithStatus = initialCompletion.parsedWithStatus;
+  let refusalSource: SafeCompletionRefusalSource | null = initialCompletion.typedRefusal
+    ? "typed_model"
+    : null;
   let repairUsed = false;
   const shouldRepairRepeatedGuidedStep = isGuidedWorkflowRepeatAfterUserInput({
     context,
@@ -398,23 +447,9 @@ export const executeStudioAgentFastPathTurn = async ({
         detail: formatStudioAgentErrorMessage(error),
       };
     }
-    const repairedText = extractStudioAgentCompletionText(
-      extractFirstChoiceMessageContent(repairData)
-    );
-    const repairedSemantic = pulseActive ? null : parseStudioAgentSemanticOutput(repairedText);
-    parsedWithStatus = repairedSemantic
-      ? (() => {
-          const semanticResponse = buildStudioAgentSemanticResponse({
-            semantic: repairedSemantic,
-          });
-          return {
-            response: semanticResponse.parsed,
-            status: semanticResponse.status,
-          };
-        })()
-      : parseStudioAgentJsonWithStatus(repairedText, {
-          allowUnstructured: !pulseActive,
-        });
+    const repairedCompletion = parseFastPathCompletion({ data: repairData, pulseActive });
+    parsedWithStatus = repairedCompletion.parsedWithStatus;
+    if (repairedCompletion.typedRefusal) refusalSource = "typed_model";
     repairUsed = hasUsableFastPathPayload(parsedWithStatus?.response ?? null);
     if (!repairUsed) {
       return {
@@ -439,6 +474,58 @@ export const executeStudioAgentFastPathTurn = async ({
       status: 502,
       detail: "Fast-path output parse/repair failed",
     };
+  }
+
+  const initialResponseRefusal = isStudioAgentRefusalResponse({
+    status: parsedWithStatus.status,
+    response: parsedWithStatus.response,
+  });
+  if (initialResponseRefusal && !refusalSource) {
+    refusalSource = parsedWithStatus.status === "refuse" ? "semantic_model" : "lexical_model";
+  }
+  let safeCompletionRecoveryAttempted = false;
+  let safeCompletionRecoveryOutcome: SafeCompletionRecoveryOutcome = "not_attempted";
+  let safeCompletionRecoveryLatencyMs: number | null = null;
+  if (initialResponseRefusal && safeCompletionRecoveryEligible) {
+    safeCompletionRecoveryAttempted = true;
+    const recoveryStartedAt = Date.now();
+    try {
+      const recoveryResponse = await fetchStudioAgentChatCompletion({
+        apiKey,
+        openAiUrl,
+        model,
+        messages: withSafeCompletionRecoveryInstruction(openAiMessages),
+        timeoutMs,
+        responseFormat: pulseActive ? STUDIO_AGENT_PULSE_RESPONSE_FORMAT : undefined,
+      });
+      if (recoveryResponse.ok) {
+        const recoveryData = (await recoveryResponse.json()) as Record<string, unknown>;
+        const recoveryCompletion = parseFastPathCompletion({ data: recoveryData, pulseActive });
+        const recovered = recoveryCompletion.parsedWithStatus;
+        if (
+          recovered &&
+          hasUsableFastPathPayload(recovered.response) &&
+          !isStudioAgentRefusalResponse({ status: recovered.status, response: recovered.response })
+        ) {
+          parsedWithStatus = recovered;
+          safeCompletionRecoveryOutcome = "recovered";
+        } else if (
+          recovered &&
+          isStudioAgentRefusalResponse({ status: recovered.status, response: recovered.response })
+        ) {
+          safeCompletionRecoveryOutcome = "refused";
+        } else {
+          safeCompletionRecoveryOutcome = "error";
+        }
+      } else {
+        safeCompletionRecoveryOutcome = "error";
+      }
+    } catch {
+      safeCompletionRecoveryOutcome = "error";
+    } finally {
+      safeCompletionRecoveryLatencyMs = Date.now() - recoveryStartedAt;
+      markStage("safe_completion_recovery", recoveryStartedAt);
+    }
   }
 
   let parsed = parsedWithStatus.response;
@@ -467,6 +554,10 @@ export const executeStudioAgentFastPathTurn = async ({
       resolvedCanonical,
       semanticStatus: parsedWithStatus?.status ?? null,
       repairUsed,
+      refusalSource,
+      safeCompletionRecoveryAttempted,
+      safeCompletionRecoveryOutcome,
+      safeCompletionRecoveryLatencyMs,
       usage: extractUsageTokens(data),
     },
   };

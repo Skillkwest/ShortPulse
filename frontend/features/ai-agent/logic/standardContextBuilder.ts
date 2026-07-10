@@ -8,11 +8,15 @@ import type {
   AgentContext,
   AgentReferenceSummary,
 } from "../../../prefabs/agent";
-import { pickSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
+import { requireSafeAgentImageMediaUrls } from "../../../prefabs/agent/mediaUrlPolicy";
+import {
+  AGENT_REFERENCE_MAX_ITEMS,
+  AGENT_SELECTED_REFERENCE_MAX_ITEMS,
+} from "../../../prefabs/agent/attachmentPolicy";
 
 const pickMediaPreviews = (media?: AgentContext["media"]): AgentApiMediaPreview[] => {
   if (!media || !media.length) return [];
-  return pickSafeAgentImageMediaUrls(
+  return requireSafeAgentImageMediaUrls(
     media
       .filter((item) => item.kind === "image" && typeof item.url === "string")
       .map((item) => ({
@@ -38,11 +42,11 @@ export const buildStandardCreateAgentContext = (context: AgentContext): AgentApi
     mode: context.mode,
     creditBalance: context.creditBalance ?? null,
     references: Array.isArray(context.references)
-      ? (context.references as AgentReferenceSummary[]).slice(0, 24)
+      ? (context.references as AgentReferenceSummary[]).slice(0, AGENT_REFERENCE_MAX_ITEMS)
       : [],
     media: pickMediaPreviews(context.media),
     selectedReferenceIds: Array.isArray(context.selectedReferenceIds)
-      ? context.selectedReferenceIds.slice(0, 8)
+      ? context.selectedReferenceIds.slice(0, AGENT_SELECTED_REFERENCE_MAX_ITEMS)
       : [],
     focusedSource: context.focusedSource ?? undefined,
     focusedReferenceId: context.focusedReferenceId ?? null,

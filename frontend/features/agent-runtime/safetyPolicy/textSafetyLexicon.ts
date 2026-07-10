@@ -3,6 +3,15 @@
  */
 import type { SafetyCategoryId } from "./types";
 
+const AMBIGUOUS_AGE_PATTERN =
+  /\b(?:teen(?:ager)?|school\s*girl|schoolgirl|school\s*boy|schoolboy|young[-\s]?looking|underage|minor|child)\b/i;
+const SEXUAL_SIGNAL_PATTERN =
+  /\b(?:sexual(?:ized)?|sexy|sensual|seductive|provocative|erotic|lingerie|nude|naked|topless|porn(?:ographic)?|genitals?|intercourse)\b/i;
+
+/** Detects sexualized age ambiguity that must fail closed as explicit sexual content. */
+export const hasAmbiguousAgeSexualSignal = (text: string): boolean =>
+  AMBIGUOUS_AGE_PATTERN.test(text) && SEXUAL_SIGNAL_PATTERN.test(text);
+
 export const FAMILY_EXPLICIT_PATTERNS: Array<{ category: SafetyCategoryId; patterns: RegExp[] }> = [
   {
     category: "sexual_explicit",
@@ -50,6 +59,8 @@ export const FAMILY_SUGGESTIVE_PATTERNS: Array<{ category: SafetyCategoryId; pat
         /\b(?:lingerie|cleavage)\b/i,
         /\b(?:sexy|sexualized|sensual|seductive|provocative|erotic)\b/i,
         /\b(?:scantily\s+clad|revealing\s+outfit)\b/i,
+        /\b(?:twerk(?:s|ed|ing)?|headlock\s+between\s+(?:her|his|their)\s+thighs)\b/i,
+        /\bwraps?\s+(?:her|his|their)\s+legs\s+around\s+(?:a\s+)?(?:defender'?s?|player'?s?)\s+head\b/i,
       ],
     },
     {
@@ -57,6 +68,9 @@ export const FAMILY_SUGGESTIVE_PATTERNS: Array<{ category: SafetyCategoryId; pat
       patterns: [
         /\b(?:kill|murder|stab|shoot|violent|violence|assault|attack|ambush|gunfire)\b/i,
         /\b(?:blood|weapon|gun|knife|pistol|rifle|handgun|shotgun|firearm|armed|fight|brawl)\b/i,
+        /\b(?:ragdolls?|head\s+whips?\s+back)\b/i,
+        /\b(?:hits?|strikes?|throws?).{0,35}\b(?:in|into)\s+(?:the\s+)?face\b/i,
+        /\belbows?.{0,30}\b(?:launch|launched|hit|struck)\b/i,
       ],
     },
     {
@@ -76,6 +90,32 @@ export const FAMILY_SUGGESTIVE_PATTERNS: Array<{ category: SafetyCategoryId; pat
   ];
 
 export const SFW_REPLACEMENTS: Array<[RegExp, string]> = [
+  [
+    /\bwraps?\s+(?:her|his|their)\s+legs\s+around\s+(?:a\s+)?(?:defender'?s?|player'?s?)\s+head\b/gi,
+    "moves past the final defender with a clean spin",
+  ],
+  [
+    /\btraps?\s+(?:him|her|them)\s+in\s+a\s+headlock\s+between\s+(?:her|his|their)\s+thighs\b/gi,
+    "outplays the defender cleanly",
+  ],
+  [/\bheadlock\s+between\s+(?:her|his|their)\s+thighs\b/gi, "clean spin move"],
+  [/\btwerk(?:s|ed|ing)?\b/gi, "celebrates"],
+  [
+    /\btoss(?:es|ed|ing)?\s+(?:players|defenders)\s+like\s+ragdolls?\b/gi,
+    "sends defenders stumbling",
+  ],
+  [/\bragdolls?\b/gi, "stumbling defenders"],
+  [
+    /\belbows?\s+one\s+so\s+(?:he|she|they)\s+launch(?:es|ed)?\s+away\b/gi,
+    "uses a clean screen to send one defender off balance",
+  ],
+  [
+    /\bthrows?\s+the\s+basketball\s+(?:directly\s+)?(?:at|into)\s+(?:another\s+)?player'?s?\s+face(?:\s+so\s+(?:his|her|their)\s+head\s+whips?\s+back)?\b/gi,
+    "fires a sharp pass past another defender",
+  ],
+  [/\bhits?\s+(?:a\s+)?defender\s+in\s+the\s+face\b/gi, "jukes a defender cleanly"],
+  [/\bhead\s+whips?\s+back\b/gi, "defender spins out"],
+  [/\baggressively\s+destroys?\s+the\s+defen[cs]e\b/gi, "decisively outplays the defense"],
   [/\bnsfw\b/gi, "safe-for-work"],
   [/\b(?:nude|naked|topless)\b/gi, "fully clothed"],
   [/\blingerie\b/gi, "outfit"],

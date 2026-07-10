@@ -38,8 +38,18 @@ const resolveAssistantPromptArtifactText = (message: AgentMessage): string | nul
   return outputPrompt.length > 0 ? outputPrompt : null;
 };
 
+const isAssistantMachineFailure = (message: AgentMessage): boolean =>
+  message.role === "assistant" &&
+  (message.decision === "refuse" ||
+    message.decision === "error" ||
+    message.outcomeClass === "refusal_safety" ||
+    message.outcomeClass === "refusal_model" ||
+    message.outcomeClass === "upstream_error" ||
+    message.outcomeClass === "route_error");
+
 const resolveAssistantDraggableText = (message: AgentMessage): string | null => {
   if (message.role !== "assistant") return null;
+  if (isAssistantMachineFailure(message)) return null;
   const promptArtifactText = resolveAssistantPromptArtifactText(message);
   if (promptArtifactText) return promptArtifactText;
   const visibleMessageText = typeof message.content === "string" ? message.content.trim() : "";
@@ -383,6 +393,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     (message: AgentMessage) => {
       if (!onAssistantMessageEdit) return;
       if (message.role !== "assistant") return;
+      if (isAssistantMachineFailure(message)) return;
       const messageId = message.id?.trim();
       if (!messageId) return;
       const sourceTextNode = assistantMessageTextNodesRef.current.get(messageId) ?? null;
@@ -658,6 +669,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   Boolean(editingMessageId) && editingMessageId === resolvedMessageId;
                 const assistantPromptText = resolveAssistantPromptArtifactText(message);
                 const assistantDraggableText = resolveAssistantDraggableText(message);
+                const canEditAssistantMessage =
+                  message.role === "assistant" && !isAssistantMachineFailure(message);
                 const isAssistantPromptOutput = Boolean(assistantPromptText);
                 const canUseMessageAsPrompt =
                   message.role === "assistant" ? Boolean(assistantPromptText) : true;
@@ -715,7 +728,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         : undefined
                     }
                     onDoubleClick={
-                      !isEditingMessage ? () => startAssistantMessageEdit(message) : undefined
+                      !isEditingMessage && canEditAssistantMessage
+                        ? () => startAssistantMessageEdit(message)
+                        : undefined
                     }
                     onKeyDown={
                       isClickable && !isEditingMessage

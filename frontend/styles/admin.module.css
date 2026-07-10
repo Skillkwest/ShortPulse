@@ -1812,10 +1812,10 @@
     var(--admin-support-user-col)
     var(--admin-support-plan-col)
     var(--admin-support-billing-col)
+    var(--admin-support-subscribed-col)
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-renews-col)
-    var(--admin-support-subscribed-col);
+    var(--admin-support-renews-col);
   gap: var(--admin-support-col-gap);
 }
 
@@ -2039,10 +2039,10 @@
     var(--admin-support-user-col)
     var(--admin-support-plan-col)
     var(--admin-support-billing-col)
+    var(--admin-support-subscribed-col)
     var(--admin-support-payment-col)
     var(--admin-support-spendable-col)
-    var(--admin-support-renews-col)
-    var(--admin-support-subscribed-col);
+    var(--admin-support-renews-col);
   grid-column: 1 / -1;
   grid-row: 1;
   align-items: center;
@@ -2271,10 +2271,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
   padding: 12px 14px;
   border: 1px solid rgba(184, 200, 218, 0.1);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(100, 208, 255, 0.055), rgba(13, 17, 22, 0.76)), #0d1116;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.ledgerCycleHeader:hover {
+  border-color: rgba(100, 208, 255, 0.28);
+}
+
+.ledgerCycleHeader:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
 .ledgerCycleTitle {
@@ -2304,6 +2321,15 @@
 
 .ledgerCycleStats span {
   white-space: nowrap;
+}
+
+.ledgerCycleToggleIcon {
+  flex: 0 0 auto;
+  transition: transform 0.16s ease;
+}
+
+.ledgerCycleToggleIconExpanded {
+  transform: rotate(180deg);
 }
 
 .adminLedgerHead,

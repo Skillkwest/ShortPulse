@@ -16,7 +16,8 @@ import type {
   AgentAttachment,
   AgentMessage,
 } from "../../../../prefabs/agent";
-import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
+import { AgentComposerAttachmentStrip } from "./AgentComposerAttachmentStrip";
+import { AGENT_IMAGE_ATTACHMENT_MAX_ITEMS } from "../../../../prefabs/agent/attachmentPolicy";
 import type { PromptStepPulseLoadingState } from "./types";
 
 type PulsePromptStepChatSurfaceProps = {
@@ -244,46 +245,10 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       {...inputDropHandlers}
     >
       {showComposerAttachments ? (
-        <div
-          className="agent-composer-attachment-strip"
-          aria-label="Attached references for next message"
-        >
-          <div className="agent-attachment-card-list agent-attachment-card-list--composer">
-            {stagedAttachments.map((attachment) => {
-              const isLinkedPromptRef =
-                attachment.kind === "prompt" && Boolean(attachment.referenceId);
-              const attachmentStatusClass =
-                attachment.kind === "image" ? `is-${attachment.deliveryStatus ?? "pending"}` : "";
-              return (
-                <div
-                  key={attachment.id}
-                  className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
-                >
-                  {attachment.kind === "image" ? (
-                    <AgentComposerAttachmentImage attachment={attachment} />
-                  ) : (
-                    <div className="agent-attachment-card-prompt" aria-hidden="true">
-                      <span className="agent-attachment-card-prompt-marker">T</span>
-                    </div>
-                  )}
-                  {isLinkedPromptRef ? (
-                    <span className="agent-attachment-link-dot" aria-hidden="true" />
-                  ) : null}
-                  {onRemoveAgentAttachment ? (
-                    <button
-                      type="button"
-                      className="agent-attachment-remove agent-attachment-remove--card"
-                      aria-label="Remove attachment"
-                      onClick={() => onRemoveAgentAttachment(attachment.id)}
-                    >
-                      ×
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <AgentComposerAttachmentStrip
+          attachments={stagedAttachments}
+          onRemoveAttachment={onRemoveAgentAttachment}
+        />
       ) : null}
       <AgentInputBar
         ref={agentInputRef}
@@ -457,7 +422,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
             ? `, ${imageAttachmentCounts.preparing} preparing`
             : ""}
           {imageAttachmentCounts.failed > 0 ? `, ${imageAttachmentCounts.failed} failed` : ""}. Max
-          3 sent per message.
+          {AGENT_IMAGE_ATTACHMENT_MAX_ITEMS} sent per message.
         </p>
       ) : null}
     </>

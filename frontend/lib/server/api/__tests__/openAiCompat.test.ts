@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildOpenAiResponsesInput, fetchOpenAiCompatibleChatCompletion } from "../openAiCompat";
+import {
+  buildOpenAiResponsesInput,
+  extractOpenAiResponsesOutput,
+  fetchOpenAiCompatibleChatCompletion,
+} from "../openAiCompat";
 
 describe("openAiCompat", () => {
   afterEach(() => {
@@ -93,6 +97,90 @@ describe("openAiCompat", () => {
         prompt_tokens: 11,
         completion_tokens: 7,
       },
+    });
+  });
+
+  it("extracts typed refusal content without treating it as empty output", () => {
+    expect(
+      extractOpenAiResponsesOutput({
+        output: [
+          {
+            content: [
+              {
+                type: "refusal",
+                refusal: "I cannot help with that request.",
+              },
+            ],
+          },
+        ],
+      })
+    ).toEqual({
+      text: "",
+      refusal: "I cannot help with that request.",
+    });
+  });
+
+  it("does not duplicate nested text when Responses output_text is present", () => {
+    expect(
+      extractOpenAiResponsesOutput({
+        output_text: "Canonical response text.",
+        output: [
+          {
+            content: [{ type: "output_text", text: "Canonical response text." }],
+          },
+        ],
+      })
+    ).toEqual({
+      text: "Canonical response text.",
+      refusal: null,
+    });
+  });
+
+  it("preserves Responses typed refusals in the chat-compatible message", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: "resp_refusal",
+            model: "gpt-5.4-nano",
+            output: [
+              {
+                content: [
+                  {
+                    type: "refusal",
+                    refusal: "I cannot help with that request.",
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await fetchOpenAiCompatibleChatCompletion({
+      apiKey: "test-key",
+      model: "gpt-5.4-nano",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      timeoutMs: 20000,
+      env: {
+        NODE_ENV: "test",
+        SHORTPULSE_OPENAI_RESPONSES_ENABLED: "true",
+        SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: "false",
+      } as unknown as NodeJS.ProcessEnv,
+      messages: [{ role: "user", content: "hi" }],
+    });
+
+    await expect(response.json()).resolves.toMatchObject({
+      choices: [
+        {
+          message: {
+            content: "",
+            refusal: "I cannot help with that request.",
+          },
+        },
+      ],
     });
   });
 

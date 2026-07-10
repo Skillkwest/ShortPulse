@@ -8,10 +8,10 @@ import type {
   AgentMediaPreview,
   AgentReferenceSummary,
 } from "../../../../prefabs/agent";
-
-const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
-const MAX_AGENT_REFERENCE_ATTACHMENTS = 24;
-const MAX_SELECTED_REFERENCE_IDS = 8;
+import {
+  AGENT_REFERENCE_MAX_ITEMS,
+  AGENT_SELECTED_REFERENCE_MAX_ITEMS,
+} from "../../../../prefabs/agent/attachmentPolicy";
 
 /**
  * Merge attachment metadata and prepared media URLs into the agent context.
@@ -76,7 +76,7 @@ export const mergeAttachmentContext = ({
   );
   const mergedSelectedReferenceIds = Array.from(
     new Set([...(baseContext.selectedReferenceIds ?? []), ...selectedAttachmentIds])
-  ).slice(0, MAX_SELECTED_REFERENCE_IDS);
+  ).slice(0, AGENT_SELECTED_REFERENCE_MAX_ITEMS);
   const hasImageAttachments = attachmentMedia.length > 0;
   const hasCanonicalPromptContext = Boolean(
     baseContext.activePrompt?.trim() || baseContext.lastAssistantMessage?.trim()
@@ -89,8 +89,8 @@ export const mergeAttachmentContext = ({
 
   return {
     ...baseContext,
-    references: dedupedRefs.slice(0, MAX_AGENT_REFERENCE_ATTACHMENTS),
-    media: dedupedMedia.slice(0, MAX_AGENT_IMAGE_ATTACHMENTS),
+    references: dedupedRefs.slice(0, AGENT_REFERENCE_MAX_ITEMS),
+    media: dedupedMedia,
     selectedReferenceIds: mergedSelectedReferenceIds,
     focusedSource: nextFocusedSource,
     focusedReferenceId:

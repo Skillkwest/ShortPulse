@@ -64,6 +64,8 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 ### Program 4: Workflows And Product Surfaces
 
+- `docs/planning/ai-studio-create-agent-ten-image-attachments-buildout-plan-2026-07-10.md`
+- `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`

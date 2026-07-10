@@ -272,4 +272,51 @@ describe("prepareAgentImageAttachments", () => {
       },
     });
   });
+
+  it("prepares ten images with at most three active preparations and preserves order", async () => {
+    let activePreparations = 0;
+    let maxActivePreparations = 0;
+    const releases: Array<() => void> = [];
+    prepareImageUrlForSubmissionMock.mockImplementation(
+      (url: string | null) =>
+        new Promise<string>((resolve) => {
+          activePreparations += 1;
+          maxActivePreparations = Math.max(maxActivePreparations, activePreparations);
+          releases.push(() => {
+            activePreparations -= 1;
+            resolve(url ?? "");
+          });
+        })
+    );
+    const attachments = Array.from({ length: 10 }, (_, index) => ({
+      id: `img-${index + 1}`,
+      kind: "image" as const,
+      imageUrl: `https://cdn.test/image-${index + 1}.png`,
+      text: null,
+      aspect: null,
+    }));
+
+    const preparation = prepareAgentImageAttachments({
+      attachments,
+      preparedImageUrlCache: new Map(),
+    });
+
+    for (const expectedCalls of [3, 6, 9, 10]) {
+      await vi.waitFor(() => {
+        expect(prepareImageUrlForSubmissionMock).toHaveBeenCalledTimes(expectedCalls);
+      });
+      const releaseCount = expectedCalls === 10 ? 1 : 3;
+      releases.splice(0, releaseCount).forEach((release) => release());
+    }
+
+    const result = await preparation;
+    expect(maxActivePreparations).toBe(3);
+    expect(result).toEqual({
+      ok: true,
+      imageAttachmentIds: attachments.map((attachment) => attachment.id),
+      preparedImageUrls: new Map(
+        attachments.map((attachment) => [attachment.id, attachment.imageUrl])
+      ),
+    });
+  });
 });

@@ -114,3 +114,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0096-google-oauth-signup-intent-match.md`
 - `docs/adr/0097-google-signup-account-chooser-independence.md`
 - `docs/adr/0098-media-storage-lifecycle-stewardship.md`
+- `docs/adr/0099-ai-studio-create-safe-completion-contract.md`

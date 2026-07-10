@@ -55,6 +55,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0096-google-oauth-signup-intent-match.md`
 - `docs/adr/0097-google-signup-account-chooser-independence.md`
 - `docs/adr/0098-media-storage-lifecycle-stewardship.md`
+- `docs/adr/0099-ai-studio-create-safe-completion-contract.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/ux-decision-framework.md`
@@ -384,6 +385,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/README.md`
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
+- `docs/planning/ai-studio-create-agent-ten-image-attachments-buildout-plan-2026-07-10.md`
+- `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/edit-panel-canvas-tear-out-buildout-plan-2026-06-08.md`
 - `docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`

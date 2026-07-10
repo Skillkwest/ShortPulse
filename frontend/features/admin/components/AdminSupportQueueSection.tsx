@@ -432,6 +432,9 @@ export function AdminSupportQueueSection({
   const [stripeBillingExpanded, setStripeBillingExpanded] = useState(false);
   const [supportFindingsExpanded, setSupportFindingsExpanded] = useState(false);
   const [creditsAccessExpanded, setCreditsAccessExpanded] = useState(false);
+  const [expandedLedgerCycleKeys, setExpandedLedgerCycleKeys] = useState<Set<string>>(
+    () => new Set()
+  );
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
   const creditLedgerCycleGroups = buildCreditLedgerCycleGroups(creditLedgerRows, selectedUser);
   const selectedUserPriceLabel = formatRecurringPriceLabel(
@@ -686,6 +689,7 @@ export function AdminSupportQueueSection({
     : [];
   const handleShowLedger = async () => {
     if (!selectedUserId) return;
+    setExpandedLedgerCycleKeys(new Set());
     setLedgerUserId(selectedUserId);
     if (!creditLedgerLoaded && !creditLedgerLoading) {
       await loadCreditLedger();
@@ -742,8 +746,21 @@ export function AdminSupportQueueSection({
     setStripeBillingExpanded(false);
     setSupportFindingsExpanded(false);
     setCreditsAccessExpanded(false);
+    setExpandedLedgerCycleKeys(new Set());
     setSelectedUserId(userId);
     scrollSelectedAccountIntoView();
+  };
+
+  const handleLedgerCycleToggle = (cycleKey: string) => {
+    setExpandedLedgerCycleKeys((current) => {
+      const next = new Set(current);
+      if (next.has(cycleKey)) {
+        next.delete(cycleKey);
+      } else {
+        next.add(cycleKey);
+      }
+      return next;
+    });
   };
 
   return (
@@ -904,89 +921,117 @@ export function AdminSupportQueueSection({
                     </div>
                   ) : (
                     <div className={styles.creditLedgerScroll} data-testid="credit-ledger-scroll">
-                      {creditLedgerCycleGroups.map((group) => (
-                        <section key={group.key} className={styles.ledgerCycleGroup}>
-                          <div className={styles.ledgerCycleHeader}>
-                            <div>
-                              <p className={styles.ledgerCycleTitle}>{group.label}</p>
-                              <p className={styles.ledgerCycleDetail}>{group.detail}</p>
-                            </div>
-                            <div className={styles.ledgerCycleStats}>
-                              <span
-                                className={
-                                  group.netChangeCents < 0
-                                    ? styles.ledgerChangeDebit
-                                    : styles.ledgerChangeCredit
-                                }
-                              >
-                                Net {formatCreditDelta(group.netChangeCents)}
-                              </span>
-                              <span>
-                                {group.rows.length} transaction{group.rows.length === 1 ? "" : "s"}
-                              </span>
-                            </div>
-                          </div>
-                          <div className={`${styles.adminTable} ${styles.adminLedgerTable}`}>
-                            <div className={styles.adminLedgerHead}>
-                              <span>Time</span>
-                              <span>Source</span>
-                              <span>Change</span>
-                              <span>Pricing</span>
-                              <span>Reason / Ref</span>
-                            </div>
-                            {group.rows.map((row) => (
-                              <div
-                                key={row.id}
-                                className={`${styles.adminLedgerRow} ${
-                                  row.changeCents < 0
-                                    ? styles.adminLedgerRowDebit
-                                    : styles.adminLedgerRowCredit
-                                }`}
-                              >
-                                <span className={styles.ledgerTime}>
-                                  {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
-                                </span>
-                                <span className={styles.ledgerSourceCell}>
-                                  <span className={`${styles.ledgerSource} mono`}>
-                                    {row.source}
-                                  </span>
-                                </span>
+                      {creditLedgerCycleGroups.map((group, groupIndex) => {
+                        const isExpanded = expandedLedgerCycleKeys.has(group.key);
+                        const cycleContentId = `credit-ledger-cycle-${groupIndex}`;
+                        return (
+                          <section key={group.key} className={styles.ledgerCycleGroup}>
+                            <button
+                              type="button"
+                              className={styles.ledgerCycleHeader}
+                              onClick={() => handleLedgerCycleToggle(group.key)}
+                              aria-expanded={isExpanded}
+                              aria-controls={cycleContentId}
+                            >
+                              <div>
+                                <p className={styles.ledgerCycleTitle}>{group.label}</p>
+                                <p className={styles.ledgerCycleDetail}>{group.detail}</p>
+                              </div>
+                              <div className={styles.ledgerCycleStats}>
                                 <span
                                   className={
-                                    row.changeCents < 0
+                                    group.netChangeCents < 0
                                       ? styles.ledgerChangeDebit
                                       : styles.ledgerChangeCredit
                                   }
                                 >
-                                  {formatCreditDelta(row.changeCents)}
+                                  Net {formatCreditDelta(group.netChangeCents)}
                                 </span>
-                                <span className={styles.ledgerPricing}>
-                                  {row.pricingBreakdown ? (
-                                    <>
-                                      <span className={styles.ledgerPricingLine}>
-                                        billed {row.pricingBreakdown.billedCredits ?? "—"} cr (
-                                        {formatUsd(row.pricingBreakdown.billedUsd)})
-                                      </span>
-                                      <span className={styles.ledgerPricingLine}>
-                                        raw {row.pricingBreakdown.rawCredits ?? "—"} cr (
-                                        {formatUsd(row.pricingBreakdown.usdRaw)})
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span className="subdued">—</span>
-                                  )}
+                                <span>
+                                  {group.rows.length} transaction
+                                  {group.rows.length === 1 ? "" : "s"}
                                 </span>
-                                <span className={styles.ledgerReason}>
-                                  <span>{row.reason || "—"}</span>
-                                  {row.sourceRef ? (
-                                    <span className={styles.ledgerRef}>ref: {row.sourceRef}</span>
-                                  ) : null}
-                                </span>
+                                <CaretDown
+                                  size={16}
+                                  weight="bold"
+                                  className={`${styles.ledgerCycleToggleIcon} ${
+                                    isExpanded ? styles.ledgerCycleToggleIconExpanded : ""
+                                  }`}
+                                  aria-hidden="true"
+                                />
                               </div>
-                            ))}
-                          </div>
-                        </section>
-                      ))}
+                            </button>
+                            {isExpanded ? (
+                              <div
+                                id={cycleContentId}
+                                className={`${styles.adminTable} ${styles.adminLedgerTable}`}
+                              >
+                                <div className={styles.adminLedgerHead}>
+                                  <span>Time</span>
+                                  <span>Source</span>
+                                  <span>Change</span>
+                                  <span>Pricing</span>
+                                  <span>Reason / Ref</span>
+                                </div>
+                                {group.rows.map((row) => (
+                                  <div
+                                    key={row.id}
+                                    className={`${styles.adminLedgerRow} ${
+                                      row.changeCents < 0
+                                        ? styles.adminLedgerRowDebit
+                                        : styles.adminLedgerRowCredit
+                                    }`}
+                                  >
+                                    <span className={styles.ledgerTime}>
+                                      {row.createdAt
+                                        ? new Date(row.createdAt).toLocaleString()
+                                        : "—"}
+                                    </span>
+                                    <span className={styles.ledgerSourceCell}>
+                                      <span className={`${styles.ledgerSource} mono`}>
+                                        {row.source}
+                                      </span>
+                                    </span>
+                                    <span
+                                      className={
+                                        row.changeCents < 0
+                                          ? styles.ledgerChangeDebit
+                                          : styles.ledgerChangeCredit
+                                      }
+                                    >
+                                      {formatCreditDelta(row.changeCents)}
+                                    </span>
+                                    <span className={styles.ledgerPricing}>
+                                      {row.pricingBreakdown ? (
+                                        <>
+                                          <span className={styles.ledgerPricingLine}>
+                                            billed {row.pricingBreakdown.billedCredits ?? "—"} cr (
+                                            {formatUsd(row.pricingBreakdown.billedUsd)})
+                                          </span>
+                                          <span className={styles.ledgerPricingLine}>
+                                            raw {row.pricingBreakdown.rawCredits ?? "—"} cr (
+                                            {formatUsd(row.pricingBreakdown.usdRaw)})
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span className="subdued">—</span>
+                                      )}
+                                    </span>
+                                    <span className={styles.ledgerReason}>
+                                      <span>{row.reason || "—"}</span>
+                                      {row.sourceRef ? (
+                                        <span className={styles.ledgerRef}>
+                                          ref: {row.sourceRef}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </section>
+                        );
+                      })}
                     </div>
                   )}
                 </section>
@@ -1402,10 +1447,10 @@ export function AdminSupportQueueSection({
               <span>User</span>
               <span>Access</span>
               <span>Status</span>
+              <span>Subscribed</span>
               <span>Payment</span>
               <span>Spendable</span>
               <span>Renews / ends</span>
-              <span>Subscribed</span>
             </div>
             {usersError ? (
               <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
@@ -1551,6 +1596,25 @@ export function AdminSupportQueueSection({
                           {formatBillingStatusLabel(row)}
                         </span>
                       </span>
+                      <span className={styles.adminSupportQueueCell} data-label="Subscribed">
+                        <span
+                          className={
+                            isSubscribed
+                              ? styles.adminSupportSubscribedYes
+                              : styles.adminSupportSubscribedNo
+                          }
+                          data-testid={`subscribed-indicator-${row.id}`}
+                          title={isSubscribed ? "Subscribed" : "Not subscribed"}
+                          role="img"
+                          aria-label={isSubscribed ? "Subscribed" : "Not subscribed"}
+                        >
+                          {isSubscribed ? (
+                            <Check size={15} weight="bold" aria-hidden="true" />
+                          ) : (
+                            <X size={15} weight="bold" aria-hidden="true" />
+                          )}
+                        </span>
+                      </span>
                       <span
                         className={`${styles.adminSupportQueueCell} subdued`}
                         data-label="Payment"
@@ -1579,25 +1643,6 @@ export function AdminSupportQueueSection({
                           {row.cancelAtPeriodEnd && row.planRenewalAt
                             ? `Ends ${formatCompactDate(row.planRenewalAt)}`
                             : formatCompactDate(row.planRenewalAt)}
-                        </span>
-                      </span>
-                      <span className={styles.adminSupportQueueCell} data-label="Subscribed">
-                        <span
-                          className={
-                            isSubscribed
-                              ? styles.adminSupportSubscribedYes
-                              : styles.adminSupportSubscribedNo
-                          }
-                          data-testid={`subscribed-indicator-${row.id}`}
-                          title={isSubscribed ? "Subscribed" : "Not subscribed"}
-                          role="img"
-                          aria-label={isSubscribed ? "Subscribed" : "Not subscribed"}
-                        >
-                          {isSubscribed ? (
-                            <Check size={15} weight="bold" aria-hidden="true" />
-                          ) : (
-                            <X size={15} weight="bold" aria-hidden="true" />
-                          )}
                         </span>
                       </span>
                     </div>

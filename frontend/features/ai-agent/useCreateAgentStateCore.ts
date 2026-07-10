@@ -203,9 +203,9 @@ export const useCreateAgentStateCore = ({
 
       try {
         const payloadCandidate = payloadTrimmed || trimmed;
-        const shouldBypassStandardLocalProcessing = requestRuntimeMode === "standard";
+        const shouldPreserveStandardPromptSemantics = requestRuntimeMode === "standard";
         const cleanedUserPayload =
-          shouldBypassStandardLocalProcessing || !payloadCandidate
+          shouldPreserveStandardPromptSemantics || !payloadCandidate
             ? payloadCandidate
             : (removeAspectRatioLanguage(payloadCandidate) ?? payloadCandidate);
         const userPayloadForApi = cleanedUserPayload || (allowContextOnlyTurn ? " " : trimmed);
@@ -226,26 +226,22 @@ export const useCreateAgentStateCore = ({
         clientSessionKeyRef.current = clientSessionKey;
         const safeContext = context ? await buildAgentContext(context) : undefined;
         const precheckContext: AgentApiContext = safeContext ?? {};
-        const inputPrecheckResult = shouldBypassStandardLocalProcessing
-          ? null
-          : runStudioAgentSafetyInputPrecheck({
-              enabled: isClientInputPrecheckEnabled(),
-              messages: apiMessages,
-              context: precheckContext,
-              canonicalPrompt: requestCanonicalPrompt,
-              modality: resolveClientSafetyModality(safeContext),
-              profileId: resolveClientSafetyProfileId(),
-              environment: resolveSafetyEnvironment(process.env.NODE_ENV),
-              devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
-              rewriteRecheckMode: "allow_or_rewrite",
-              fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
-                sharedRawValue:
-                  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
-                scopedRawValue:
-                  process.env
-                    .NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
-              }),
-            });
+        const inputPrecheckResult = runStudioAgentSafetyInputPrecheck({
+          enabled: isClientInputPrecheckEnabled(),
+          messages: apiMessages,
+          context: precheckContext,
+          canonicalPrompt: requestCanonicalPrompt,
+          modality: resolveClientSafetyModality(safeContext),
+          profileId: resolveClientSafetyProfileId(),
+          environment: resolveSafetyEnvironment(process.env.NODE_ENV),
+          devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
+          rewriteRecheckMode: "allow_or_rewrite",
+          fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+            sharedRawValue: process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+            scopedRawValue:
+              process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+          }),
+        });
         if (inputPrecheckResult?.outcome === "refusal") {
           restorePreviousSessionIdentity();
           const nextAssistantMessages = appendAssistantMessage(
@@ -292,7 +288,7 @@ export const useCreateAgentStateCore = ({
           conversationId: clientSessionKey,
           traceId: `agent-${randomId()}`,
           canonicalPrompt:
-            shouldBypassStandardLocalProcessing || requestRuntimeMode === "pulse"
+            shouldPreserveStandardPromptSemantics || requestRuntimeMode === "pulse"
               ? null
               : (inputPrecheckResult?.canonicalPrompt ?? null),
           runtimeMode: requestRuntimeMode,

@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import pulseStudioAgentHandler from "../../pages/api/ai/studio-agent-pulse";
 import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
 import { resolveStandardOpenAiExecutionProfile } from "../../features/agent-runtime/standardStudioAgentRuntime/runtime";
+import {
+  SAFE_COMPLETION_CORPUS,
+  assertNoSafeCompletionDeadEndMeta,
+  assertSafeCompletionExcludes,
+  assertSafeCompletionPreserves,
+} from "../support/safeCompletionCases";
 
 const requireApiUserMock = vi.fn();
 const runThinkerFormatterTurnMock = vi.fn();
@@ -1190,19 +1196,33 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("maps Standard provider refusals to the safety refusal contract", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        choices: [
-          {
-            message: {
-              content: "I cannot help with that request due to safety policy.",
+  it("makes one bounded Standard recovery attempt for an eligible model refusal", async () => {
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "I cannot help with that request due to safety policy.",
+              },
             },
-          },
-        ],
-      }),
-    });
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  "A polished basketball sequence with playful energy and a clean final dunk.",
+              },
+            },
+          ],
+        }),
+      });
     const req = { method: "POST", body: createBaseRequestBody() };
     const res = createMockResponse();
 
@@ -1212,11 +1232,38 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
       expect.objectContaining({
+        message: "A polished basketball sequence with playful energy and a clean final dunk.",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+        canonicalPrompt: null,
+      })
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("never loops when the bounded Standard recovery refuses again", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          { message: { content: "I cannot help with that request due to safety policy." } },
+        ],
+      }),
+    });
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
         message: "I cannot describe this.",
         actions: undefined,
-        outcome_class: "refusal_safety",
-        reason_code: "SAFETY_OUTPUT_REFUSAL",
-        canonicalPrompt: null,
+        outcome_class: "refusal_model",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
       })
     );
   });
@@ -1552,7 +1599,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
-  it("uses the Standard mixed-turn vision model profile for image attachments", async () => {
+  it("sends ten Standard images in one mixed-turn vision request", async () => {
     process.env.OPENAI_MODEL = "gpt-standard";
     process.env.OPENAI_VISION_MODEL = "gpt-vision";
     process.env.STUDIO_AGENT_TURN_TIMEOUT_MS = "20000";
@@ -1575,14 +1622,12 @@ describe("AI Studio Create agent runtime boundaries", () => {
         ...createBaseRequestBody(),
         context: {
           modeHint: "reference",
-          media: [
-            {
-              id: "img-1",
-              kind: "image",
-              url: "https://cdn.test/reference.png",
-              thumbnailAlt: "Reference image",
-            },
-          ],
+          media: Array.from({ length: 10 }, (_, index) => ({
+            id: `img-${index + 1}`,
+            kind: "image",
+            url: `https://cdn.test/reference-${index + 1}.png`,
+            thumbnailAlt: `Reference image ${index + 1}`,
+          })),
         },
       },
     };
@@ -1600,19 +1645,23 @@ describe("AI Studio Create agent runtime boundaries", () => {
         })
       : null;
     expect(requestPayload?.model).toBe("gpt-vision");
+    expect(fetch).toHaveBeenCalledTimes(1);
     const latestUserMessage = [...(requestPayload?.messages ?? [])]
       .reverse()
       .find((message) => message.role === "user");
-    expect(latestUserMessage?.content).toEqual([
-      { type: "text", text: "Improve this prompt." },
-      {
+    const content = latestUserMessage?.content as
+      | Array<{ type: string; text?: string; image_url?: { url: string; detail: string } }>
+      | undefined;
+    expect(content?.[0]).toEqual({ type: "text", text: "Improve this prompt." });
+    expect(content?.slice(1)).toEqual(
+      Array.from({ length: 10 }, (_, index) => ({
         type: "image_url",
         image_url: {
-          url: "https://cdn.test/reference.png",
+          url: `https://cdn.test/reference-${index + 1}.png`,
           detail: "auto",
         },
-      },
-    ]);
+      }))
+    );
   });
 
   it("fails closed when the Standard runtime prompt is missing", async () => {
@@ -1720,6 +1769,163 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(fetch).not.toHaveBeenCalled();
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers one eligible Pulse model refusal without losing workflow state", async () => {
+    const testCase = SAFE_COMPLETION_CORPUS.cases.find(
+      (entry) => entry.id === "mixed_basketball_safe_completion"
+    );
+    const safeRepair = testCase?.safeRepairFixture ?? "";
+    (fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "refuse",
+                  message: "I cannot describe this.",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+          usage: {},
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "ready",
+                  message: safeRepair,
+                  actions: {
+                    applyPrompt: safeRepair,
+                  },
+                }),
+              },
+            },
+          ],
+          usage: {},
+        }),
+      });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        messages: [{ role: "user", content: testCase?.input ?? "" }],
+        context: createPulseContext(),
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        message: safeRepair,
+        actions: { applyPrompt: safeRepair },
+        outcome_class: "success_prompt",
+        workflowSession: expect.objectContaining({
+          presetId: "story_builder",
+          status: "completed",
+        }),
+      })
+    );
+    const payload = res.json.mock.calls[0]?.[0] as {
+      message?: string;
+      actions?: { applyPrompt?: string };
+    };
+    const output = `${payload.message ?? ""}\n${payload.actions?.applyPrompt ?? ""}`;
+    assertSafeCompletionPreserves(output, testCase?.expected.mustPreserve ?? []);
+    assertSafeCompletionExcludes(output, testCase?.expected.mustExclude ?? []);
+    assertNoSafeCompletionDeadEndMeta(output);
+  });
+
+  it("blocks a Pulse hard-floor input before provider dispatch", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        messages: [
+          {
+            role: "user",
+            content: "Write graphic explicit sexual intercourse with visible genitals.",
+          },
+        ],
+        context: createPulseContext(),
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        outcome_class: "refusal_safety",
+        reason_code: "SAFETY_INPUT_REFUSAL",
+      })
+    );
+  });
+
+  it("does not recover a Pulse provider HTTP safety block", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => "blocked by safety policy",
+    });
+    const req = {
+      method: "POST",
+      body: { ...createPulseRequestBody(), context: createPulseContext() },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        outcome_class: "refusal_safety",
+        reason_code: "PROVIDER_SAFETY_REFUSAL",
+      })
+    );
+  });
+
+  it("does not recover a Pulse model refusal with unclassified attached media", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "", refusal: "I cannot help with that image." } }],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          ...createPulseContext(),
+          media: [{ id: "image-1", kind: "image", url: "https://example.test/image.png" }],
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ outcome_class: "refusal_model" })
+    );
   });
 
   it("strips generic last-assistant context before Pulse provider execution", async () => {

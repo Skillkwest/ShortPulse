@@ -339,10 +339,17 @@
 
 .agent-attachment-card-list--composer {
   justify-content: flex-start;
+  flex-wrap: nowrap;
   gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 6px;
+  scrollbar-width: thin;
 }
 
 .agent-attachment-card--composer {
+  flex: 0 0 auto;
   width: 56px;
   border-radius: 8px;
 }
@@ -360,11 +367,16 @@
 }
 
 .agent-attachment-card--composer .agent-attachment-remove--card {
-  top: 4px;
-  right: 4px;
-  width: 16px;
-  height: 16px;
-  font-size: 12px;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+}
+
+.agent-attachment-card--composer .agent-attachment-remove--card:focus-visible {
+  outline: 2px solid rgba(126, 229, 255, 0.96);
+  outline-offset: 1px;
 }
 
 .agent-composer-hint {

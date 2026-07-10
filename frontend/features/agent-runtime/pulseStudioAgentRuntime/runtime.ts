@@ -13,12 +13,8 @@ import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,
 } from "../studioAgentSafetyInputPrecheck";
-import { resolveSafetyEnvironment, resolveSafetyModality } from "../safetyPolicy/decisionEngine";
-import { resolveSafetyPolicyDocument } from "../safetyPolicy/policyDocument";
-import {
-  MISSING_PROVIDER_API_KEY_MESSAGE,
-  resolveProviderErrorNormalizationMode,
-} from "../safetyPolicy/providerErrorPolicy";
+import { resolveSafetyModality } from "../safetyPolicy/decisionEngine";
+import { MISSING_PROVIDER_API_KEY_MESSAGE } from "../safetyPolicy/providerErrorPolicy";
 import {
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentSafetyRefusalPayload,
@@ -52,11 +48,16 @@ import {
 } from "../promptCompilerCacheScopeKey";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
 import {
   isAuthoritativeCreatePulseBuiltInCatalogResolution,
   resolveRuntimeCreatePulseBuiltInCatalog,
 } from "../../../lib/server/api/createPulseBuiltInControlPlane";
+import {
+  SAFE_COMPLETION_CONTRACT_VERSION,
+  resolveSafeCompletionRecoveryEligibility,
+  resolveSafeCompletionSystemInstruction,
+} from "../studioAgentSafeCompletion";
+import { resolveStudioAgentSafetyRuntimeConfig } from "../studioAgentSafetyRuntimeConfig";
 
 const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
 const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
@@ -171,6 +172,11 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
   let messages = requestEnvelope.value.messages;
   let context = requestEnvelope.value.context;
+  const originalLatestUserText =
+    [...messages]
+      .reverse()
+      .find((message) => message.role === "user" && message.content.trim().length > 0)
+      ?.content.trim() ?? "";
   if (!context.pulse) {
     return sendStudioAgentError(res, 400, {
       code: "INVALID_REQUEST",
@@ -232,39 +238,25 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     };
   }
   context = { ...context, lastAssistantMessage: undefined };
-  const safetyInputPrecheckEnabled =
-    process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
-  const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
-  const safetyProfile = await resolveRuntimeSafetyProfile({
-    envProfileId: process.env.STUDIO_AGENT_SAFETY_PROFILE_ACTIVE ?? null,
-  });
-  const safetyProfileId = safetyProfile.profileId;
-  const safetyPolicyDocument = resolveSafetyPolicyDocument({
-    activePolicy: safetyProfile.activePolicy,
+  const safetyRuntimeConfig = await resolveStudioAgentSafetyRuntimeConfig(process.env);
+  const {
+    inputPrecheckEnabled: safetyInputPrecheckEnabled,
+    debugEnabled: safetyDebugEnabled,
+    profile: safetyProfile,
     profileId: safetyProfileId,
-  });
-  const safetyPolicySchemaVersion = safetyPolicyDocument.schemaVersion;
-  const safetyEnvironment = resolveSafetyEnvironment(process.env.NODE_ENV);
-  const safetyDevAbsoluteZeroEnabled =
-    process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
+    policyDocument: safetyPolicyDocument,
+    policySchemaVersion: safetyPolicySchemaVersion,
+    environment: safetyEnvironment,
+    devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+    postProcessMode: safetyPostProcessMode,
+    providerErrorMode: safetyProviderErrorMode,
+    autoRollbackEnabled: safetyAutoRollbackEnabled,
+  } = safetyRuntimeConfig;
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const { openAiUrl, turnTimeoutMs } = openAiConfig;
   const pulseRouteActive = Boolean(context.pulse);
 
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
-  const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
-    .trim()
-    .toLowerCase();
-  const safetyPostProcessMode =
-    envPostprocessMode === "enforce" || envPostprocessMode === "off"
-      ? envPostprocessMode
-      : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
-        ? "off"
-        : safetyPolicyDocument.postprocess.mode;
-  const safetyProviderErrorMode = resolveProviderErrorNormalizationMode(
-    process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
-  );
-  const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
   const workflowSystemPrompt = loadAgentPrompt(
     "STUDIO_AGENT_WORKFLOW_SYSTEM",
     process.env.STUDIO_AGENT_WORKFLOW_SYSTEM
@@ -291,7 +283,14 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const systemPrompt = workflowSystemPrompt;
   const promptTemplateVersion = resolvePromptTemplateVersion({
     route: PULSE_PROMPT_CACHE_ROUTE,
-    prompts: [systemPrompt, thinkerPrompt ?? "", formatterPrompt ?? "", imageDescribePrompt ?? ""],
+    prompts: [
+      systemPrompt,
+      thinkerPrompt ?? "",
+      formatterPrompt ?? "",
+      imageDescribePrompt ?? "",
+      SAFE_COMPLETION_CONTRACT_VERSION,
+      resolveSafeCompletionSystemInstruction(process.env) ?? "disabled",
+    ],
   });
   const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
     route: PULSE_PROMPT_CACHE_ROUTE,
@@ -379,6 +378,14 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   messages = precheckResult.messages;
   context = precheckResult.context;
   effectiveCanonical = precheckResult.canonicalPrompt;
+  const safeCompletionRecoveryEligibility = resolveSafeCompletionRecoveryEligibility({
+    enabled: safetyRuntimeConfig.safeCompletionEnabled,
+    inputPrecheckEnabled: safetyRuntimeConfig.inputPrecheckEnabled,
+    decision: precheckResult.decision,
+    latestUserText: originalLatestUserText,
+    refusalSource: "semantic_model",
+    hasUnclassifiedMedia: orchestrationBeforePrecheck.flow !== "TEXT_ONLY",
+  });
 
   const selectedReferencesBeforeVision = pickSelectedReferencesForThinker(context);
   const orchestrationBeforeVision = buildStudioAgentOrchestration({
@@ -488,6 +495,11 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     safetyDevAbsoluteZeroEnabled,
     safetyProviderErrorMode,
     safetyAutoRollbackEnabled,
+    safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
+    safeCompletionRecoveryEligible: safeCompletionRecoveryEligibility.eligible,
+    safeCompletionRecoverySkipReason: safeCompletionRecoveryEligibility.eligible
+      ? null
+      : safeCompletionRecoveryEligibility.skipReason,
     routeLabel: PULSE_ROUTE_LABEL,
     safetyRoute: PULSE_PROMPT_CACHE_ROUTE,
   });

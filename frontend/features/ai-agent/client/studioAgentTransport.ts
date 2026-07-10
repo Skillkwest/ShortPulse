@@ -9,6 +9,8 @@ import type {
   AgentOutcomeClass,
   AgentReasonCode,
 } from "../../../prefabs/agent/outcomeContract";
+import { measureAgentMediaStringBytes } from "../../../prefabs/agent/mediaUrlPolicy";
+import { resolveAgentRequestMaxBytes } from "../../../prefabs/agent/requestPolicy";
 
 export type StudioAgentTransportErrorPayload = {
   code?: string;
@@ -103,10 +105,30 @@ export const sendStudioAgentTurnToEndpoint = async (
   endpoint: "/api/ai/studio-agent-standard" | "/api/ai/studio-agent-pulse",
   body: AgentApiRequest
 ): Promise<StudioAgentTransportResult> => {
+  const serializedBody = JSON.stringify(body);
+  const bodyBytes = measureAgentMediaStringBytes(serializedBody);
+  const hasMedia = Array.isArray(body.context?.media) && body.context.media.length > 0;
+  const maxBytes = resolveAgentRequestMaxBytes(hasMedia);
+  if (bodyBytes > maxBytes) {
+    const parsedError: StudioAgentTransportErrorPayload = {
+      code: "REQUEST_BODY_TOO_LARGE",
+      message:
+        "Attached images exceed the agent request size limit. Remove an image and try again.",
+      details: { maxBytes, actualBytes: bodyBytes },
+    };
+    const rawBody = JSON.stringify(parsedError);
+    return {
+      ok: false,
+      status: 413,
+      detail: parsedError.message ?? "Agent request is too large",
+      rawBody,
+      parsedError,
+    };
+  }
   const response = await fetchWithAuth(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: serializedBody,
   });
 
   if (!response.ok) {

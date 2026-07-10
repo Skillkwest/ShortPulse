@@ -1,6 +1,10 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
 import {
+  isAgentImageDataUrl,
+  measureAgentMediaStringBytes,
+} from "../../../../prefabs/agent/mediaUrlPolicy";
+import {
   resolveStandardWebSearchToolChoice,
   resolveStandardWebSearchUiMode,
 } from "../../../agent-runtime/standardWebSearch";
@@ -9,7 +13,11 @@ import {
   recordCreateWorkflowEvent,
   summarizeCreateWorkflowUrl,
 } from "../../logic/createWorkflowDebug";
-import { stripEphemeralLocalImageModelPayload } from "../../logic/ephemeralComposerImage";
+import {
+  EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE,
+  fitEphemeralImageUrlsToSendBudget,
+  stripEphemeralLocalImageModelPayload,
+} from "../../logic/ephemeralComposerImage";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
 import {
@@ -222,6 +230,7 @@ export const runStandardCreateAgentSend = async ({
     removeMessageById(optimisticUserMessageId);
   };
   try {
+    const attachmentPreparationStartedAt = Date.now();
     const {
       imageAttachmentIds,
       durableImageAttachments,
@@ -229,7 +238,24 @@ export const runStandardCreateAgentSend = async ({
       ephemeralImageUrls,
       failedEphemeralImageIds,
     } = splitAgentImageAttachmentsForSend(outboundAttachments);
-    const preparedImageUrls = new Map<string, string>(ephemeralImageUrls);
+    let preparedImageUrls: Map<string, string>;
+    try {
+      preparedImageUrls = await fitEphemeralImageUrlsToSendBudget(ephemeralImageUrls);
+    } catch {
+      const failedIds = Array.from(ephemeralImageUrls.keys());
+      updateOptimisticAttachmentDelivery(failedIds, "failed", EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
+      setAgentAttachmentError(
+        "Attached images could not fit within the agent request limit. Remove an image and try again."
+      );
+      trackAgentUiEvent("studio_agent_attachment_prepare_failed", {
+        failed_image_attachments: failedIds.length,
+        attempted_image_attachments: imageAttachmentIds.length,
+        failure_kind: "ephemeral_send_budget",
+      });
+      discardOptimisticUserMessage();
+      restoreComposerDraft();
+      return;
+    }
     if (imageAttachmentIds.length > 0) {
       if (failedEphemeralImageIds.length > 0) {
         updateOptimisticAttachmentDelivery(
@@ -306,6 +332,18 @@ export const runStandardCreateAgentSend = async ({
       preparedImageUrls,
     });
     if (imageAttachmentIds.length > 0) {
+      const imageMedia = (requestContext.media ?? []).filter((media) => media.kind === "image");
+      const inlineImageMedia = imageMedia.filter((media) => isAgentImageDataUrl(media.url));
+      trackAgentUiEvent("studio_agent_attachment_payload_ready", {
+        mode: "standard",
+        image_attachments: imageMedia.length,
+        inline_image_attachments: inlineImageMedia.length,
+        inline_image_bytes: inlineImageMedia.reduce(
+          (total, media) => total + measureAgentMediaStringBytes(media.url ?? ""),
+          0
+        ),
+        preparation_ms: Date.now() - attachmentPreparationStartedAt,
+      });
       recordCreateWorkflowEvent("agent_send_payload_ready", {
         mode: "standard",
         imageAttachmentIds,

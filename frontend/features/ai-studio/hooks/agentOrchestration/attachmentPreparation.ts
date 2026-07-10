@@ -12,6 +12,35 @@ import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../..
 
 const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_PREPARED_IMAGE_URL_CACHE_ENTRIES = 64;
+const AGENT_IMAGE_PREPARATION_CONCURRENCY = 3;
+
+const settleWithBoundedConcurrency = async <T, R>({
+  items,
+  concurrency,
+  worker,
+}: {
+  items: T[];
+  concurrency: number;
+  worker: (item: T) => Promise<R>;
+}): Promise<Array<PromiseSettledResult<R>>> => {
+  const results = new Array<PromiseSettledResult<R>>(items.length);
+  let nextIndex = 0;
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      try {
+        results[index] = { status: "fulfilled", value: await worker(items[index] as T) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, () => runWorker())
+  );
+  return results;
+};
 
 export type PrepareImageAttachmentsResult =
   | {
@@ -121,8 +150,10 @@ export const prepareAgentImageAttachments = async ({
   const summarizeAttachmentFailure = (errors: string[]): string =>
     errors.find(Boolean) ?? "Image upload/preparation failed.";
 
-  const preparedResults = await Promise.allSettled(
-    imageAttachments.map(async (attachment) => {
+  const preparedResults = await settleWithBoundedConcurrency({
+    items: imageAttachments,
+    concurrency: AGENT_IMAGE_PREPARATION_CONCURRENCY,
+    worker: async (attachment) => {
       const sourceUrls = await resolveAgentAttachmentSubmissionCandidates(attachment);
       recordCreateWorkflowEvent("attachment_send_prepare_started", {
         attachmentId: attachment.id,
@@ -165,8 +196,8 @@ export const prepareAgentImageAttachments = async ({
         missingUrl: false,
         failureMessage: safeUrl ? null : summarizeAttachmentFailure(errors),
       };
-    })
-  );
+    },
+  });
 
   const preparedImageUrls = new Map<string, string>();
   const missingUrlAttachmentIds: string[] = [];

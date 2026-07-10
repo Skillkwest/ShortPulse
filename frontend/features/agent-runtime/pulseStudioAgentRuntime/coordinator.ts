@@ -20,12 +20,8 @@ import {
   resolveProviderErrorHandling,
   type ProviderErrorNormalizationMode,
 } from "../safetyPolicy/providerErrorPolicy";
-import {
-  postProcessStudioAgentSafetyText,
-  type StudioAgentSafetyDecisionMeta,
-  type StudioAgentSafetyPostProcessOutcome,
-  type StudioAgentSafetyRoute,
-} from "../studioAgentSafetyPostProcess";
+import { type StudioAgentSafetyRoute } from "../studioAgentSafetyPostProcess";
+import { finalizeStudioAgentResponseSafety } from "../studioAgentSafetyResponseFinalizer";
 import { maybeTriggerSafetyIncidentAutoRollback } from "../safetyPolicy/incidentAutoRollback";
 import { resolveSafetyModality } from "../safetyPolicy/decisionEngine";
 import type {
@@ -40,7 +36,6 @@ import {
   buildStudioAgentUpstreamErrorPayload,
   emitStudioAgentTurnTelemetry,
   isStudioAgentSafetyRefusalUpstreamError,
-  STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
 } from "../studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome } from "../agentMachineOutcome";
 import {
@@ -50,6 +45,11 @@ import {
   isStudioAgentWorkflowPulse,
   resolveLatestStudioAgentUserInput,
 } from "../studioAgentPulseRuntime";
+import {
+  SAFE_COMPLETION_CONTRACT_VERSION,
+  resolveSafeCompletionSystemInstruction,
+  type SafeCompletionRecoverySkipReason,
+} from "../studioAgentSafeCompletion";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -92,11 +92,13 @@ export const buildStudioAgentOpenAiMessages = ({
   context,
   systemPrompt,
   orchestration,
+  safeCompletionInstruction = resolveSafeCompletionSystemInstruction(process.env),
 }: {
   messages: AgentMessage[];
   context: AgentContext;
   systemPrompt: string;
   orchestration: StudioAgentOrchestration;
+  safeCompletionInstruction?: string | null;
 }): OpenAIChatMessage[] => {
   const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
   const pulseTurnStateMessage = buildStudioAgentPulseTurnStateMessage({
@@ -109,6 +111,9 @@ export const buildStudioAgentOpenAiMessages = ({
     ...(pulseTurnStateMessage ? [{ role: "system" as const, content: pulseTurnStateMessage }] : []),
     { role: "system", content: `CONTEXT:\n${stringifyPulseContextForTextPrompt(context)}` },
     { role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` },
+    ...(safeCompletionInstruction
+      ? [{ role: "system" as const, content: safeCompletionInstruction }]
+      : []),
   ];
 
   if (context.media && context.media.length) {
@@ -179,6 +184,9 @@ export const executeStudioAgentCoordinator = async ({
   safetyDevAbsoluteZeroEnabled,
   safetyProviderErrorMode,
   safetyAutoRollbackEnabled,
+  safeCompletionEnabled,
+  safeCompletionRecoveryEligible,
+  safeCompletionRecoverySkipReason,
   routeLabel = "ai/studio-agent",
   safetyRoute = "studio-agent",
 }: {
@@ -217,6 +225,9 @@ export const executeStudioAgentCoordinator = async ({
   safetyDevAbsoluteZeroEnabled: boolean;
   safetyProviderErrorMode: ProviderErrorNormalizationMode;
   safetyAutoRollbackEnabled: boolean;
+  safeCompletionEnabled: boolean;
+  safeCompletionRecoveryEligible: boolean;
+  safeCompletionRecoverySkipReason: SafeCompletionRecoverySkipReason | null;
   routeLabel?: string;
   safetyRoute?: StudioAgentSafetyRoute;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
@@ -243,15 +254,6 @@ export const executeStudioAgentCoordinator = async ({
     safetyProfileId === "dev_absolute_zero"
       ? safetyProfileId
       : null;
-
-  const mergeSafetyOutcome = (
-    current: StudioAgentSafetyPostProcessOutcome,
-    next: StudioAgentSafetyPostProcessOutcome
-  ): StudioAgentSafetyPostProcessOutcome => {
-    if (current === "refusal" || next === "refusal") return "refusal";
-    if (current === "rewritten" || next === "rewritten") return "rewritten";
-    return "pass";
-  };
 
   const resolveFailureResponse = ({
     status,
@@ -398,6 +400,10 @@ export const executeStudioAgentCoordinator = async ({
     repairCount,
     path,
     writeFailureStage,
+    refusalSource,
+    safeCompletionRecoveryAttempted,
+    safeCompletionRecoveryOutcome,
+    safeCompletionRecoveryLatencyMs,
   }: {
     parsed: Record<string, unknown>;
     refusal: boolean;
@@ -411,123 +417,44 @@ export const executeStudioAgentCoordinator = async ({
     repairCount: number;
     path: string;
     writeFailureStage: "canonical_write_pulse_agent";
+    refusalSource: StudioAgentFastPathSuccessTurn["result"]["refusalSource"];
+    safeCompletionRecoveryAttempted: boolean;
+    safeCompletionRecoveryOutcome: StudioAgentFastPathSuccessTurn["result"]["safeCompletionRecoveryOutcome"];
+    safeCompletionRecoveryLatencyMs: number | null;
   }): Promise<{ status: number; payload: Record<string, unknown> }> => {
-    let finalParsed = parsed as AgentResponse;
-    let finalRefusal = refusal;
-    let finalResolvedCanonical = resolvedCanonical;
-    let safetyOutcome: StudioAgentSafetyPostProcessOutcome = "pass";
-    let safetyFallback = false;
-    let safetyForcedRefusal = false;
-    let safetyDebugReason: string | undefined;
-    let safetyDecisionAction: StudioAgentSafetyDecisionMeta["action"] | null = null;
-    let safetyDecisionCategory: StudioAgentSafetyDecisionMeta["category"] | null = null;
-    let safetyDecisionSource: StudioAgentSafetyDecisionMeta["source"] | null = null;
-    let safetyHardFloorViolation = false;
+    const safetyFinalization = await finalizeStudioAgentResponseSafety({
+      response: parsed as AgentResponse,
+      refusal,
+      canonicalPrompt: resolvedCanonical,
+      fallbackCanonicalPrompt: effectiveCanonical,
+      route: safetyRoute,
+      flow: orchestration.flow,
+      mode: safetyPostProcessMode,
+      debug: safetyDebugEnabled,
+      traceId,
+      profileId: safetyProfileId,
+      environment: safetyEnvironment,
+      devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
+      modality: safetyModality,
+      policyDocument: safetyPolicyDocument,
+    });
+    let finalParsed = safetyFinalization.response;
+    const finalRefusal = safetyFinalization.refusal;
+    let finalResolvedCanonical = safetyFinalization.canonicalPrompt;
+    const safetyOutcome = safetyFinalization.outcome;
+    const safetyFallback = safetyFinalization.fallbackUsed;
+    const safetyForcedRefusal = safetyFinalization.forcedRefusal;
+    const safetyDebugReason = safetyFinalization.debugReason;
+    const safetyDecisionAction = safetyFinalization.decisionAction;
+    const safetyDecisionCategory = safetyFinalization.decisionCategory;
+    const safetyDecisionSource = safetyFinalization.decisionSource;
+    const safetyHardFloorViolation = safetyFinalization.hardFloorViolation;
     let safetyRollbackTriggered = false;
 
-    const registerSafetyResult = (result: {
-      outcome: StudioAgentSafetyPostProcessOutcome;
-      fallbackUsed: boolean;
-      debugReason?: string;
-      decision?: StudioAgentSafetyDecisionMeta;
-    }) => {
-      safetyOutcome = mergeSafetyOutcome(safetyOutcome, result.outcome);
-      safetyFallback = safetyFallback || result.fallbackUsed;
-      if (result.decision) {
-        if (result.decision.action !== "allow" || !safetyDecisionAction) {
-          safetyDecisionAction = result.decision.action;
-        }
-        if (result.decision.category !== "safe" || !safetyDecisionCategory) {
-          safetyDecisionCategory = result.decision.category;
-        }
-        if (result.decision.source !== "profile" || !safetyDecisionSource) {
-          safetyDecisionSource = result.decision.source;
-        }
-        safetyHardFloorViolation = safetyHardFloorViolation || result.decision.hardFloorViolation;
-      }
-      if (safetyDebugEnabled && result.debugReason) {
-        safetyDebugReason = result.debugReason;
-      }
-    };
-
-    if (!finalRefusal && safetyPostProcessMode !== "off") {
-      const applyPromptValue =
-        typeof finalParsed.actions?.applyPrompt === "string" ? finalParsed.actions.applyPrompt : "";
-      if (applyPromptValue) {
-        const applyPromptSafety = await postProcessStudioAgentSafetyText({
-          text: applyPromptValue,
-          route: safetyRoute,
-          flow: orchestration.flow,
-          source: "model_output",
-          mode: safetyPostProcessMode,
-          debug: safetyDebugEnabled,
-          traceId,
-          profileId: safetyProfileId,
-          environment: safetyEnvironment,
-          devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
-          modality: safetyModality,
-          policyDocument: safetyPolicyDocument,
-        });
-        registerSafetyResult(applyPromptSafety);
-        if (applyPromptSafety.outcome === "refusal") {
-          finalRefusal = true;
-          safetyForcedRefusal = true;
-        } else if (applyPromptSafety.outcome === "rewritten") {
-          finalParsed = {
-            ...finalParsed,
-            actions: {
-              ...(finalParsed.actions ?? {}),
-              applyPrompt: applyPromptSafety.text,
-            },
-            message: applyPromptSafety.text,
-          };
-          finalResolvedCanonical = applyPromptSafety.text;
-        }
-      }
-
-      if (!finalRefusal) {
-        const messageSafety = await postProcessStudioAgentSafetyText({
-          text: finalParsed.message,
-          route: safetyRoute,
-          flow: orchestration.flow,
-          source: "model_output",
-          mode: safetyPostProcessMode,
-          debug: safetyDebugEnabled,
-          traceId,
-          profileId: safetyProfileId,
-          environment: safetyEnvironment,
-          devAbsoluteZeroEnabled: safetyDevAbsoluteZeroEnabled,
-          modality: safetyModality,
-          policyDocument: safetyPolicyDocument,
-        });
-        registerSafetyResult(messageSafety);
-        if (messageSafety.outcome === "refusal") {
-          finalRefusal = true;
-          safetyForcedRefusal = true;
-        } else if (messageSafety.outcome === "rewritten") {
-          finalParsed = {
-            ...finalParsed,
-            message: messageSafety.text,
-          };
-        }
-      }
-
-      const finalApplyPrompt = finalParsed.actions?.applyPrompt;
-      if (!finalRefusal && finalApplyPrompt && !workflowPulseActive) {
-        finalParsed = {
-          ...finalParsed,
-          message: finalApplyPrompt,
-        };
-        finalResolvedCanonical = finalApplyPrompt;
-      }
-    }
-
-    if (finalRefusal && safetyForcedRefusal) {
-      finalParsed = {
-        message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
-        actions: undefined,
-      };
-      finalResolvedCanonical = effectiveCanonical;
+    const finalApplyPrompt = finalParsed.actions?.applyPrompt;
+    if (!finalRefusal && finalApplyPrompt && !workflowPulseActive) {
+      finalParsed = { ...finalParsed, message: finalApplyPrompt };
+      finalResolvedCanonical = finalApplyPrompt;
     }
 
     if (safetyHardFloorViolation) {
@@ -646,6 +573,20 @@ export const executeStudioAgentCoordinator = async ({
         providerBlocked: false,
         hardFloorViolation: safetyHardFloorViolation,
         rollbackTriggered: safetyRollbackTriggered,
+        safeCompletionVersion: SAFE_COMPLETION_CONTRACT_VERSION,
+        safeCompletionEnabled,
+        refusalSource,
+        recoveryEligible:
+          safeCompletionRecoveryEligible &&
+          (safeCompletionRecoveryAttempted || refusalSource !== null),
+        recoveryAttempted: safeCompletionRecoveryAttempted,
+        recoveryOutcome: safeCompletionRecoveryOutcome,
+        recoverySkipReason: safeCompletionRecoveryAttempted
+          ? null
+          : refusalSource
+            ? safeCompletionRecoverySkipReason
+            : "not_model_refusal",
+        recoveryLatencyMs: safeCompletionRecoveryLatencyMs,
       },
     });
     return {
@@ -693,6 +634,7 @@ export const executeStudioAgentCoordinator = async ({
       context,
       messages,
       markStage,
+      safeCompletionRecoveryEligible,
     });
 
     while (!turn.ok) {
@@ -734,6 +676,7 @@ export const executeStudioAgentCoordinator = async ({
         context,
         messages,
         markStage,
+        safeCompletionRecoveryEligible,
       });
     }
 
@@ -767,6 +710,12 @@ export const executeStudioAgentCoordinator = async ({
       repairCount: singleStageResult.repairCount,
       path: runtimePath,
       writeFailureStage: "canonical_write_pulse_agent",
+      refusalSource: singleStageResult.turn.result.refusalSource,
+      safeCompletionRecoveryAttempted:
+        singleStageResult.turn.result.safeCompletionRecoveryAttempted,
+      safeCompletionRecoveryOutcome: singleStageResult.turn.result.safeCompletionRecoveryOutcome,
+      safeCompletionRecoveryLatencyMs:
+        singleStageResult.turn.result.safeCompletionRecoveryLatencyMs,
     });
   } catch (error) {
     const failureDetail = formatStudioAgentErrorMessage(error);

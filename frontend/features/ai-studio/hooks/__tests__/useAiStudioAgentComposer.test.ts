@@ -16,6 +16,7 @@ import {
 } from "../../utils/dragDrop";
 import { uploadImageAssetToStorage } from "../../utils/imageUpload";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
+import { AGENT_IMAGE_CAPACITY_MESSAGE } from "../../../../prefabs/agent/attachmentPolicy";
 
 vi.mock("../../utils/dragDrop", async () => {
   const actual =
@@ -551,65 +552,54 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
-  it("caps image attachments to the most recent three entries", async () => {
-    extractDragDropPayloadMock
-      .mockReturnValueOnce({
-        imageUrl: "https://example.com/1.png",
+  it("keeps ten images and rejects image eleven without evicting the oldest", async () => {
+    let dropIndex = 0;
+    extractDragDropPayloadMock.mockImplementation(() => {
+      dropIndex += 1;
+      return {
+        imageUrl: `https://example.com/${dropIndex}.png`,
         promptText: null,
-        referenceId: "out-1",
+        referenceId: `out-${dropIndex}`,
         fromFile: false,
-      })
-      .mockReturnValueOnce({
-        imageUrl: "https://example.com/2.png",
-        promptText: null,
-        referenceId: "out-2",
-        fromFile: false,
-      })
-      .mockReturnValueOnce({
-        imageUrl: "https://example.com/3.png",
-        promptText: null,
-        referenceId: "out-3",
-        fromFile: false,
-      })
-      .mockReturnValueOnce({
-        imageUrl: "https://example.com/4.png",
-        promptText: null,
-        referenceId: "out-4",
-        fromFile: false,
-      });
+      };
+    });
+    const outputs = Array.from({ length: 11 }, (_, index) => makeOutput(`out-${index + 1}`));
 
     const { result } = renderHook(() =>
       useAiStudioAgentComposer({
         agentSessionEnabled: true,
         ensureAgentSession: vi.fn(),
-        findOutputById: createFindOutputById([
-          makeOutput("out-1"),
-          makeOutput("out-2"),
-          makeOutput("out-3"),
-          makeOutput("out-4"),
-        ]),
+        findOutputById: createFindOutputById(outputs),
         resolveOutputPreviewUrlById: () => null,
       })
     );
 
-    await dropAndWaitForAttachments(result);
-    await dropAndWaitForAttachments(result, makeDragEvent(), 2);
-    await dropAndWaitForAttachments(result, makeDragEvent(), 3);
+    for (let count = 1; count <= 10; count += 1) {
+      await dropAndWaitForAttachments(result, makeDragEvent(), count);
+    }
     act(() => {
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
     await waitFor(() => {
-      expect(result.current.agentAttachments).toHaveLength(3);
+      expect(result.current.agentAttachments).toHaveLength(10);
+      expect(result.current.agentAttachmentError).toBe(AGENT_IMAGE_CAPACITY_MESSAGE);
     });
     expect(result.current.agentAttachments.map((attachment) => attachment.referenceId)).toEqual([
+      "out-1",
       "out-2",
       "out-3",
       "out-4",
+      "out-5",
+      "out-6",
+      "out-7",
+      "out-8",
+      "out-9",
+      "out-10",
     ]);
   });
 
-  it("defaults desktop image-file drops to a single attachment", async () => {
+  it("defaults desktop image-file drops to the shared multi-image limit", async () => {
     const files = [
       new File(["one"], "one.png", { type: "image/png" }),
       new File(["two"], "two.png", { type: "image/png" }),
@@ -640,9 +630,18 @@ describe("useAiStudioAgentComposer", () => {
           deliveryStatus: "ready",
           deliveryError: null,
         }),
+        expect.objectContaining({
+          kind: "image",
+          source: "ephemeral_local",
+          imageUrl: "data:image/png;base64,cHJldmlldw==",
+          modelDataUrl: "data:image/png;base64,bW9kZWw=",
+          submissionImageUrl: null,
+          deliveryStatus: "ready",
+          deliveryError: null,
+        }),
       ]);
     });
-    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(1);
+    expect(createEphemeralComposerImageDataMock).toHaveBeenCalledTimes(2);
     expect(uploadImageAssetToStorageMock).not.toHaveBeenCalled();
   });
 
@@ -1402,8 +1401,8 @@ describe("useAiStudioAgentComposer", () => {
       source: "ephemeral_local",
       referenceId: "out-1",
       mediaId: "media-1",
-      imageUrl: expect.stringMatching(/^(blob:|data:image\/)/),
-      modelDataUrl: "data:image/png;base64,bW9kZWw=",
+      imageUrl: "https://signed.example.com/stable-preview.png",
+      modelDataUrl: "https://signed.example.com/stable-preview.png",
       submissionImageUrl: null,
       referenceUrl: null,
       referenceRenderUrl: null,

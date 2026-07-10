@@ -254,6 +254,7 @@ export function AdminSupportQueueSection({
   } | null>(null);
   const [stripeBillingExpanded, setStripeBillingExpanded] = useState(false);
   const [supportFindingsExpanded, setSupportFindingsExpanded] = useState(false);
+  const [creditsAccessExpanded, setCreditsAccessExpanded] = useState(false);
   const ledgerVisible = Boolean(selectedUserId) && ledgerUserId === selectedUserId;
   const selectedUserPriceLabel = formatRecurringPriceLabel(
     selectedUser?.recurringPriceCents,
@@ -556,6 +557,7 @@ export function AdminSupportQueueSection({
   const handleSelectUserRow = (userId: string) => {
     setStripeBillingExpanded(false);
     setSupportFindingsExpanded(false);
+    setCreditsAccessExpanded(false);
     setSelectedUserId(userId);
     scrollSelectedAccountIntoView();
   };
@@ -652,111 +654,133 @@ export function AdminSupportQueueSection({
               ) : null}
 
               <div className={styles.manualAdjustPanel}>
-                <div className={styles.panelHeaderRow}>
-                  <h3 className={styles.panelTitle}>Credits & access</h3>
-                </div>
+                <button
+                  type="button"
+                  className={styles.adminStripeBillingToggle}
+                  onClick={() => setCreditsAccessExpanded((current) => !current)}
+                  aria-expanded={creditsAccessExpanded}
+                  aria-controls="admin-credits-access-details"
+                >
+                  <span>
+                    <span className={styles.panelTitle}>Credits & access</span>
+                  </span>
+                  <CaretDown
+                    size={16}
+                    weight="bold"
+                    className={`${styles.adminStripeBillingToggleIcon} ${
+                      creditsAccessExpanded ? styles.adminStripeBillingToggleIconExpanded : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
 
-                <div className={styles.compactControlStack}>
-                  <div className={styles.compactControlSection}>
-                    <div className={styles.panelHeaderRow}>
-                      <h4 className={styles.compactControlTitle}>Credits</h4>
-                      {adjustResult ? (
-                        <span className={styles.inlineResult}>{adjustResult}</span>
-                      ) : null}
-                    </div>
+                {creditsAccessExpanded ? (
+                  <div id="admin-credits-access-details" className={styles.adminStripeBillingBody}>
+                    <div className={styles.compactControlStack}>
+                      <div className={styles.compactControlSection}>
+                        <div className={styles.panelHeaderRow}>
+                          <h4 className={styles.compactControlTitle}>Credits</h4>
+                          {adjustResult ? (
+                            <span className={styles.inlineResult}>{adjustResult}</span>
+                          ) : null}
+                        </div>
 
-                    <label className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}>
-                      <input
-                        className={styles.searchInput}
-                        type="text"
-                        aria-label="Credit change"
-                        value={adjustment}
-                        pattern="[+-]?[0-9]*"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        onChange={(event) => handleAdjustmentChange(event.target.value)}
-                        placeholder="+500 credits or -100 credits"
-                        disabled={!selectedUserId}
-                      />
-                    </label>
-
-                    <div className={styles.manualAdjustPresets}>
-                      {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
-                          onClick={() => applyAdjustmentPreset(preset)}
-                          disabled={adjustSubmitting || !selectedUserId}
+                        <label
+                          className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
                         >
-                          {preset > 0 ? `+${preset}` : String(preset)}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className={styles.compactControlActions}>
-                      <button
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                        onClick={() => void handleCreditAdjust()}
-                        disabled={adjustSubmitting || !selectedUserId}
-                      >
-                        {adjustSubmitting ? "Saving…" : "Save credit change"}
-                      </button>
-                      {selectedUserId ? (
-                        <Link
-                          href={`/admin/user-health?lookup=${encodeURIComponent(
-                            selectedUserId
-                          )}&lookupMode=user_id`}
-                          className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                        >
-                          Open account health
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                          disabled
-                        >
-                          Open account health
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={styles.compactControlSection}>
-                    <div className={styles.panelHeaderRow}>
-                      <h4 className={styles.compactControlTitle}>Payment exempt</h4>
-                      {billingOverrideResult ? (
-                        <span className={styles.inlineResult}>{billingOverrideResult}</span>
-                      ) : null}
-                    </div>
-
-                    <div className={styles.compactToggleRow}>
-                      <label className={`${styles.controlToggleCard} tiny subdued`}>
-                        <span className={styles.controlToggleTitle}>Payment exempt</span>
-                        <span className={styles.controlToggleInput}>
                           <input
-                            type="checkbox"
-                            aria-label="Payment exempt"
-                            checked={paymentExemptEnabled}
-                            onChange={(event) => {
-                              void handlePaymentExemptToggle(event.target.checked);
-                            }}
-                            disabled={!selectedUserId || billingOverrideSubmitting}
-                          />{" "}
-                          {billingOverrideSubmitting
-                            ? "Saving…"
-                            : paymentExemptEnabled
-                              ? "Enabled"
-                              : "Disabled"}
-                        </span>
-                      </label>
-                    </div>
+                            className={styles.searchInput}
+                            type="text"
+                            aria-label="Credit change"
+                            value={adjustment}
+                            pattern="[+-]?[0-9]*"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            onChange={(event) => handleAdjustmentChange(event.target.value)}
+                            placeholder="+500 credits or -100 credits"
+                            disabled={!selectedUserId}
+                          />
+                        </label>
 
-                    <p className={styles.controlNote}>{paymentExemptNote}</p>
+                        <div className={styles.manualAdjustPresets}>
+                          {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
+                              onClick={() => applyAdjustmentPreset(preset)}
+                              disabled={adjustSubmitting || !selectedUserId}
+                            >
+                              {preset > 0 ? `+${preset}` : String(preset)}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className={styles.compactControlActions}>
+                          <button
+                            type="button"
+                            className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                            onClick={() => void handleCreditAdjust()}
+                            disabled={adjustSubmitting || !selectedUserId}
+                          >
+                            {adjustSubmitting ? "Saving…" : "Save credit change"}
+                          </button>
+                          {selectedUserId ? (
+                            <Link
+                              href={`/admin/user-health?lookup=${encodeURIComponent(
+                                selectedUserId
+                              )}&lookupMode=user_id`}
+                              className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                            >
+                              Open account health
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                              disabled
+                            >
+                              Open account health
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={styles.compactControlSection}>
+                        <div className={styles.panelHeaderRow}>
+                          <h4 className={styles.compactControlTitle}>Payment exempt</h4>
+                          {billingOverrideResult ? (
+                            <span className={styles.inlineResult}>{billingOverrideResult}</span>
+                          ) : null}
+                        </div>
+
+                        <div className={styles.compactToggleRow}>
+                          <label className={`${styles.controlToggleCard} tiny subdued`}>
+                            <span className={styles.controlToggleTitle}>Payment exempt</span>
+                            <span className={styles.controlToggleInput}>
+                              <input
+                                type="checkbox"
+                                aria-label="Payment exempt"
+                                checked={paymentExemptEnabled}
+                                onChange={(event) => {
+                                  void handlePaymentExemptToggle(event.target.checked);
+                                }}
+                                disabled={!selectedUserId || billingOverrideSubmitting}
+                              />{" "}
+                              {billingOverrideSubmitting
+                                ? "Saving…"
+                                : paymentExemptEnabled
+                                  ? "Enabled"
+                                  : "Disabled"}
+                            </span>
+                          </label>
+                        </div>
+
+                        <p className={styles.controlNote}>{paymentExemptNote}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
 
               {selectedUserId ? (

@@ -760,16 +760,18 @@ describe("Admin users and credits overview", () => {
       .getByRole("heading", { name: "Selected account" })
       .closest("section");
     expect(selectedAccountSection).not.toBeNull();
-    const creditsAccessHeading = screen.getByRole("heading", { name: "Credits & access" });
+    const creditsAccessToggle = screen.getByRole("button", { name: /Credits & access/ });
     const statusToggle = screen.getByRole("button", { name: /Status/ });
     const stripeBillingToggle = screen.getByRole("button", { name: /Stripe billing/ });
+    expect(creditsAccessToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "+100" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Customer analytics/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open analytics" })).toHaveAttribute(
       "href",
       `/admin/stats?customerId=${ADMIN_ID}`
     );
     expect(
-      creditsAccessHeading.compareDocumentPosition(statusToggle) & Node.DOCUMENT_POSITION_FOLLOWING
+      creditsAccessToggle.compareDocumentPosition(statusToggle) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
       statusToggle.compareDocumentPosition(stripeBillingToggle) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -782,6 +784,8 @@ describe("Admin users and credits overview", () => {
       `/api/admin/users/${ADMIN_ID}/analytics`,
       expect.anything()
     );
+    fireEvent.click(creditsAccessToggle);
+    expect(creditsAccessToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
     expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
@@ -915,6 +919,7 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: /Credits & access/ }));
     fireEvent.change(screen.getByPlaceholderText("+500 credits or -100 credits"), {
       target: { value: "+500" },
     });
@@ -949,6 +954,7 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: /Credits & access/ }));
     fireEvent.click(screen.getByLabelText("Payment exempt"));
 
     await waitFor(() =>

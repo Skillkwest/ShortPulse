@@ -10,6 +10,7 @@ import {
 } from "./pricingGridBilledCredits";
 import type { ModelPricingPolicyDocument } from "./pricingPolicy";
 import type { PricingParams } from "./pricingTypes";
+import { shouldExpandVideoInputPricingVariants } from "./pricingGridVariantRules";
 
 export type VideoBilledCreditLookup = {
   modelId: string;
@@ -37,9 +38,10 @@ export const supportsCanonicalVideoBilledPricing = (
  * Normalizes video pricing params before both display and debit lookup.
  */
 export const normalizeVideoBilledPricingParams = (
-  _modelId: string,
+  modelId: string,
   params: Omit<PricingParams, "modelId"> = {}
 ): Omit<PricingParams, "modelId"> => {
+  const config = getModelConfig(modelId);
   const normalized: Omit<PricingParams, "modelId"> = {
     ...params,
     variantBaseId: params.variantBaseId ?? "default",
@@ -50,6 +52,8 @@ export const normalizeVideoBilledPricingParams = (
     Number.isFinite(normalized.inputVideoCount)
   ) {
     normalized.inputVideoCount = Math.max(0, Math.trunc(normalized.inputVideoCount));
+  } else if (shouldExpandVideoInputPricingVariants(config?.pricingStrategy)) {
+    normalized.inputVideoCount = 0;
   }
   if (
     typeof normalized.inputVideoDurationSeconds === "number" &&

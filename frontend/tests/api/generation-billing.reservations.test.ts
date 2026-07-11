@@ -271,6 +271,74 @@ describe("generationBilling reservation RPC handling", () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
+  it("normalizes prompt-only Seedance pricing evidence onto the no-video-input row", async () => {
+    const policy = getDefaultModelPricingPolicyDocument();
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 9,
+      activePolicyVersionId: "policy-version-9",
+      source: "control_plane",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: [{ status: "reserved", source_ref: "req-seedance-variant-label", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const payload = {
+      prompt: "wide cinematic product reveal",
+      duration_seconds: 5,
+      resolution: "480p",
+      aspect_ratio: "16:9",
+      generate_audio: true,
+    };
+    const lookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: buildPricingParams(KIE_SEEDANCE_2_MODEL_ID, payload),
+      pricingPolicy: materializeImageBilledCreditPolicy(policy),
+    });
+    const activeVariantId = lookup.breakdown?.variantId;
+    expect(activeVariantId).toBe("default|res:480p|aspect:16:9|audio:on|video_input:none");
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-seedance-variant-label" },
+      url: "/api/fal/kie-seedance-2-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "video",
+          mode: "video",
+          displayed_pricing_policy_version: 9,
+          displayed_pricing_variant_id: activeVariantId,
+          displayed_billed_credits: lookup.breakdown?.credits,
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      payload,
+      reason: "Kie Seedance 2 generation",
+    });
+
+    expect(charge).not.toBeNull();
+    expect(res.status).not.toHaveBeenCalledWith(409);
+    expect(logGenerationFailureMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_pricing_policy_conflict",
+      })
+    );
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: lookup.breakdown?.credits,
+        p_source_ref: "req-seedance-variant-label",
+      })
+    );
+  });
+
   it("requires displayed pricing evidence from trusted image workflows even when client context omits the billing lane", async () => {
     const policy = getDefaultModelPricingPolicyDocument();
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
@@ -1261,7 +1329,7 @@ describe("generationBilling reservation RPC handling", () => {
 
     expect(charge).not.toBeNull();
     expect(expectedBreakdown).toMatchObject({
-      variantId: "default|res:720p|aspect:16:9|audio:on",
+      variantId: "default|res:720p|aspect:16:9|audio:on|video_input:none",
     });
     expect(rpcMock).toHaveBeenCalledWith(
       "admit_and_reserve_generation_credits",

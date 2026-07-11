@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { buildPricingParams } from "../../server/api/generationBilling/pricingParams";
 import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../falModelIds";
 import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../klingMotionControlPricing";
-import { KIE_KLING_30_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID } from "../providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../providerModelIds";
 import { resolvePricingGridCostBreakdown } from "../pricingGridBilledCredits";
 import {
   getDefaultModelPricingPolicyDocument,
@@ -154,6 +158,24 @@ describe("videoBilledCredits", () => {
       credits: 44,
       variantId: "default|res:720p|aspect:16:9|audio:on|video_input:with",
     });
+  });
+
+  it("normalizes prompt-only Seedance lookup to the explicit no-video-input row", () => {
+    const params = {
+      aspect: "16:9",
+      durationSeconds: 5,
+      resolution: "480p",
+    };
+    const lookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params,
+      pricingPolicy,
+    });
+
+    expect(lookup.params.inputVideoCount).toBe(0);
+    expect(lookup.breakdown?.variantId).toBe(
+      "default|res:480p|aspect:16:9|audio:on|video_input:none"
+    );
   });
 
   it("keeps Seedance client lookup and server debit lookup on the video-input row", () => {

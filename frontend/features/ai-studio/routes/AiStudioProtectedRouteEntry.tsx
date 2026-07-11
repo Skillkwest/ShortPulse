@@ -51,26 +51,8 @@ const RUNTIME_LAYER_VISIBLE_STYLE: CSSProperties = {
   display: "contents",
 };
 
-const RESTORE_CHECK_RUNTIME_MASK_STYLE: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  visibility: "hidden",
-  pointerEvents: "none",
-};
-
-const RuntimePreservationLayer = ({
-  children,
-  masked,
-}: {
-  children: ReactNode;
-  masked: boolean;
-}) => (
-  <div
-    aria-hidden={masked ? "true" : undefined}
-    style={masked ? RESTORE_CHECK_RUNTIME_MASK_STYLE : RUNTIME_LAYER_VISIBLE_STYLE}
-  >
-    {children}
-  </div>
+const RuntimePreservationLayer = ({ children }: { children: ReactNode }) => (
+  <div style={RUNTIME_LAYER_VISIBLE_STYLE}>{children}</div>
 );
 
 const AiStudioRouteApp = dynamic(loadAiStudioRouteApp, {
@@ -441,7 +423,7 @@ export default function AiStudioProtectedRouteEntry({
       !mediaCompliance.initialized ||
       mediaCompliance.status === "loading");
   const runtimeTree = runtimeSessionAuthority ? (
-    <RuntimePreservationLayer masked={shouldPreserveRuntimeForTransientGate}>
+    <RuntimePreservationLayer>
       <ProtectedRouteSessionProvider
         session={runtimeSessionAuthority.session}
         user={runtimeSessionAuthority.user}
@@ -453,12 +435,7 @@ export default function AiStudioProtectedRouteEntry({
 
   if (restoreGuard.checking || loading || !session) {
     if (shouldPreserveRuntimeForTransientGate && runtimeTree) {
-      return (
-        <>
-          {runtimeTree}
-          {sessionRestoreLoadingFrame}
-        </>
-      );
+      return <>{runtimeTree}</>;
     }
 
     return sessionRestoreLoadingFrame;
@@ -466,12 +443,7 @@ export default function AiStudioProtectedRouteEntry({
 
   if (!mediaCompliance.initialized || mediaCompliance.status === "loading") {
     if (shouldPreserveRuntimeForTransientGate && runtimeTree) {
-      return (
-        <>
-          {runtimeTree}
-          {mediaComplianceLoadingFrame}
-        </>
-      );
+      return <>{runtimeTree}</>;
     }
 
     return mediaComplianceLoadingFrame;

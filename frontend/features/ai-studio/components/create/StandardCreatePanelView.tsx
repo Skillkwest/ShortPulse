@@ -54,6 +54,9 @@ type StandardCreatePanelViewProps = {
   createModeToggle?: React.ReactNode;
 };
 
+const BLOCKED_MEDIA_DROP_GUIDANCE_DRAG_IDLE_TIMEOUT_MS = 1400;
+const BLOCKED_MEDIA_DROP_GUIDANCE_DROP_LINGER_MS = 5000;
+
 export function StandardCreatePanelView({
   promptStepProps,
   canvasTearOutTargetRegistry,
@@ -130,11 +133,19 @@ export function StandardCreatePanelView({
     []
   );
 
+  const hideBlockedMediaDropGuidance = React.useCallback(() => {
+    if (blockedMediaDropGuidanceTimerRef.current) {
+      clearTimeout(blockedMediaDropGuidanceTimerRef.current);
+      blockedMediaDropGuidanceTimerRef.current = null;
+    }
+    setBlockedMediaDropGuidanceVisible(false);
+  }, []);
+
   React.useEffect(() => {
     if (promptStepProps.chatModeEnabled !== false) {
-      setBlockedMediaDropGuidanceVisible(false);
+      hideBlockedMediaDropGuidance();
     }
-  }, [promptStepProps.chatModeEnabled]);
+  }, [hideBlockedMediaDropGuidance, promptStepProps.chatModeEnabled]);
 
   const showBlockedMediaDropGuidance = React.useCallback((lingerAfterDrop = false) => {
     if (blockedMediaDropGuidanceTimerRef.current) {
@@ -142,13 +153,47 @@ export function StandardCreatePanelView({
       blockedMediaDropGuidanceTimerRef.current = null;
     }
     setBlockedMediaDropGuidanceVisible(true);
-    if (lingerAfterDrop) {
-      blockedMediaDropGuidanceTimerRef.current = setTimeout(() => {
+    blockedMediaDropGuidanceTimerRef.current = setTimeout(
+      () => {
         setBlockedMediaDropGuidanceVisible(false);
         blockedMediaDropGuidanceTimerRef.current = null;
-      }, 5000);
-    }
+      },
+      lingerAfterDrop
+        ? BLOCKED_MEDIA_DROP_GUIDANCE_DROP_LINGER_MS
+        : BLOCKED_MEDIA_DROP_GUIDANCE_DRAG_IDLE_TIMEOUT_MS
+    );
   }, []);
+
+  React.useEffect(() => {
+    if (!blockedMediaDropGuidanceVisible || typeof window === "undefined") return;
+    const handleDragSessionEnd = () => {
+      hideBlockedMediaDropGuidance();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hideBlockedMediaDropGuidance();
+      }
+    };
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        hideBlockedMediaDropGuidance();
+      }
+    };
+    window.addEventListener("drop", handleDragSessionEnd, true);
+    window.addEventListener("dragend", handleDragSessionEnd, true);
+    window.addEventListener("blur", handleDragSessionEnd);
+    window.addEventListener("pointerdown", handleDragSessionEnd, true);
+    window.addEventListener("keydown", handleEscapeKey, true);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("drop", handleDragSessionEnd, true);
+      window.removeEventListener("dragend", handleDragSessionEnd, true);
+      window.removeEventListener("blur", handleDragSessionEnd);
+      window.removeEventListener("pointerdown", handleDragSessionEnd, true);
+      window.removeEventListener("keydown", handleEscapeKey, true);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [blockedMediaDropGuidanceVisible, hideBlockedMediaDropGuidance]);
 
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
@@ -308,9 +353,10 @@ export function StandardCreatePanelView({
   );
   const handlePanelMediaDropCapture = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      handleComposerInputBlockedMediaDrag(event, true);
+      if (handleComposerInputBlockedMediaDrag(event, true)) return;
+      hideBlockedMediaDropGuidance();
     },
-    [handleComposerInputBlockedMediaDrag]
+    [handleComposerInputBlockedMediaDrag, hideBlockedMediaDropGuidance]
   );
   const handlePanelMediaDragLeave = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -318,13 +364,18 @@ export function StandardCreatePanelView({
       if (blockedMediaDropGuidanceVisible) {
         const nextTarget = event.relatedTarget;
         if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-          setBlockedMediaDropGuidanceVisible(false);
+          hideBlockedMediaDropGuidance();
         }
       }
       if (!promptStepProps.agentDropActive) return;
       promptStepProps.onAgentAttachmentDragLeave?.(event);
     },
-    [blockedMediaDropGuidanceVisible, isTargetInsideComposerInputShell, promptStepProps]
+    [
+      blockedMediaDropGuidanceVisible,
+      hideBlockedMediaDropGuidance,
+      isTargetInsideComposerInputShell,
+      promptStepProps,
+    ]
   );
   const handlePanelMediaDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {

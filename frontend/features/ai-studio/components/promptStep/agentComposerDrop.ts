@@ -1,4 +1,12 @@
 import { useEffect } from "react";
+import {
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
+} from "../../../../lib/internalReferenceDragSession";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 import {
   extractDragDropPayload,
@@ -123,6 +131,35 @@ const MEDIA_HINT_TRANSFER_TYPES = new Set([
 ]);
 
 const PROMPT_HINT_TRANSFER_TYPES = new Set(["text/prompt", "text/plain", "text"]);
+const INTERNAL_REFERENCE_DRAG_TOKEN_TRANSFER_TYPES = new Set([
+  INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+]);
+const PROMPT_REFERENCE_DRAG_TOKEN_TRANSFER_TYPES = new Set([
+  PROMPT_REFERENCE_DRAG_SESSION_TYPE,
+  PROMPT_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+]);
+const EXPLICIT_MEDIA_TRANSFER_TYPES = new Set([
+  "files",
+  "image/url",
+  "text/reference-url",
+  "text/reference-render-url",
+  "text/uri-list",
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  "application/x-shortpulse-composer-image-drop",
+  "text/reference-composer-image-payload",
+]);
+
+const hasTransferType = (types: string[], candidates: Set<string>): boolean =>
+  types.some((type) => candidates.has(type));
+
+const hasProtectedPromptReferenceHint = (types: string[]): boolean => {
+  if (hasTransferType(types, PROMPT_REFERENCE_DRAG_TOKEN_TRANSFER_TYPES)) return true;
+  if (!hasTransferType(types, INTERNAL_REFERENCE_DRAG_TOKEN_TRANSFER_TYPES)) return false;
+  if (!hasTransferType(types, PROMPT_HINT_TRANSFER_TYPES)) return false;
+  return !hasTransferType(types, EXPLICIT_MEDIA_TRANSFER_TYPES);
+};
 
 export const insertDroppedPromptTextAtSelection = ({
   composerText,
@@ -254,14 +291,15 @@ export const resolveAgentComposerPanelDropKind = (
   transfer: DataTransfer | null | undefined
 ): AgentComposerPanelDropKind => {
   if (!transfer) return "none";
+  const normalizedTransferTypes = getNormalizedTransferTypes(transfer);
 
   if (resolveAgentComposerTextDrop(transfer)) return "text";
+  if (hasProtectedPromptReferenceHint(normalizedTransferTypes)) return "text";
 
   const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
   if (mediaLibraryPayload?.kind === "libraryMedia") return "media";
   if (mediaLibraryPayload?.kind === "libraryPrompt") return "text";
 
-  const normalizedTransferTypes = getNormalizedTransferTypes(transfer);
   const hasStrongMediaTransferHints = normalizedTransferTypes.some((type) =>
     MEDIA_HINT_TRANSFER_TYPES.has(type)
   );

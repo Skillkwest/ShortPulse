@@ -193,7 +193,7 @@ describe("AiStudioProtectedRouteEntry", () => {
     expect(screen.queryByTestId("ai-studio-runtime")).not.toBeInTheDocument();
   });
 
-  it("preserves the mounted AI Studio runtime while browser restore auth revalidates after startup", () => {
+  it("keeps the mounted AI Studio runtime visible while browser restore auth revalidates after startup", () => {
     const mountSpy = vi.fn();
     const unmountSpy = vi.fn();
     const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
@@ -211,12 +211,11 @@ describe("AiStudioProtectedRouteEntry", () => {
     rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
 
     expect(
-      screen.getByText("Checking your session before project restore continues.")
-    ).toBeInTheDocument();
+      screen.queryByText("Checking your session before project restore continues.")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "true"
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).not.toHaveAttribute(
+      "aria-hidden"
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();
@@ -225,7 +224,7 @@ describe("AiStudioProtectedRouteEntry", () => {
     });
   });
 
-  it("preserves the mounted AI Studio runtime while protected auth loading briefly returns after startup", () => {
+  it("keeps the mounted AI Studio runtime visible while protected auth loading briefly returns after startup", () => {
     const mountSpy = vi.fn();
     const unmountSpy = vi.fn();
     const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
@@ -244,18 +243,17 @@ describe("AiStudioProtectedRouteEntry", () => {
     rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
 
     expect(
-      screen.getByText("Checking your session before project restore continues.")
-    ).toBeInTheDocument();
+      screen.queryByText("Checking your session before project restore continues.")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "true"
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).not.toHaveAttribute(
+      "aria-hidden"
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();
   });
 
-  it("preserves the mounted AI Studio runtime while the protected session is transiently missing after startup", () => {
+  it("keeps the mounted AI Studio runtime visible while the protected session is transiently missing after startup", () => {
     const mountSpy = vi.fn();
     const unmountSpy = vi.fn();
     const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
@@ -274,18 +272,17 @@ describe("AiStudioProtectedRouteEntry", () => {
     rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
 
     expect(
-      screen.getByText("Checking your session before project restore continues.")
-    ).toBeInTheDocument();
+      screen.queryByText("Checking your session before project restore continues.")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "true"
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).not.toHaveAttribute(
+      "aria-hidden"
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();
   });
 
-  it("preserves the mounted AI Studio runtime while media compliance is transiently loading after startup", () => {
+  it("keeps the mounted AI Studio runtime visible while media compliance is transiently loading after startup", () => {
     const mountSpy = vi.fn();
     const unmountSpy = vi.fn();
     const StatefulRuntime = createStatefulRuntime(mountSpy, unmountSpy);
@@ -305,12 +302,11 @@ describe("AiStudioProtectedRouteEntry", () => {
     rerender(<AiStudioProtectedRouteEntry RuntimeComponent={StatefulRuntime} />);
 
     expect(
-      screen.getByText("Checking your media agreement before project restore continues.")
-    ).toBeInTheDocument();
+      screen.queryByText("Checking your media agreement before project restore continues.")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("ai-studio-runtime")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-studio-runtime").parentElement).toHaveAttribute(
-      "aria-hidden",
-      "true"
+    expect(screen.getByTestId("ai-studio-runtime").parentElement).not.toHaveAttribute(
+      "aria-hidden"
     );
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(unmountSpy).not.toHaveBeenCalled();

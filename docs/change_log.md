@@ -50,6 +50,8 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Updated AI Studio Create composer input drop handling so blocked media drops over the prompt box also surface Chat Mode guidance instead of silently falling through.
 - Updated AI Studio Create composer Chat Mode guidance styling so the blocked-drop highlight targets the intended prompt-row control more precisely.
 - Updated AI Studio Create composer Chat Mode guidance styling to keep the blocked-drop highlight visible without overpowering the composer.
+- Updated AI Studio Create composer drag handling so Chat Mode guidance clears reliably after canceled media drags and text references can still drop into the prompt box while Chat Mode is off.
+- Updated AI Studio restore/loading gates so an already-mounted workspace stays visible during transient auth or media-compliance rechecks instead of flashing a hidden preserved runtime.
 - Recorded the latest Gear Ball SOP score and improvement note for this production batch.
 
 ### Fixed

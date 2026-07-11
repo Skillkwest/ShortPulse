@@ -79,10 +79,32 @@ const createMutableTransfer = () => {
   } as unknown as DataTransfer;
 };
 
+const createProtectedMutableTransfer = () => {
+  const store = new Map<string, string>();
+  let protectedMode = false;
+  return {
+    files: { length: 0, item: () => null } as unknown as FileList,
+    get types() {
+      return Array.from(store.keys());
+    },
+    getData: (type: string) => (protectedMode ? "" : (store.get(type) ?? "")),
+    setData: (type: string, value: string) => {
+      store.set(type, value);
+    },
+    setDragImage: vi.fn(),
+    setProtectedMode: (value: boolean) => {
+      protectedMode = value;
+    },
+    dropEffect: "copy",
+    effectAllowed: "all",
+  } as unknown as DataTransfer & { setProtectedMode: (value: boolean) => void };
+};
+
 describe("StandardCreatePanelView", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -219,6 +241,218 @@ describe("StandardCreatePanelView", () => {
     expect(dropResult).toBe(false);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+  });
+
+  it("does not show or stick Chat Mode guidance for text references dropped into the composer while Chat Mode is off", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onPromptChange = vi.fn();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+          prompt: "Existing prompt",
+          onPromptChange,
+          onAgentAttachmentDrop,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const fullPrompt = `Full text reference prompt. ${"Specific creative direction. ".repeat(20)}`;
+    const shortenedPrompt = fullPrompt.slice(0, 180);
+    const token = registerInternalReferenceDragSession({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "text-reference-card",
+      outputId: "text-reference-card",
+      imageIndex: 0,
+      mediaId: null,
+      mediaKind: "text",
+      promptText: fullPrompt,
+      referenceUrl: null,
+      sourceSurface: "all-refs",
+    });
+    const textTransfer = createProtectedMutableTransfer();
+    textTransfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, token);
+    textTransfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, token);
+    textTransfer.setData("text/reference-media-kind", "text");
+    textTransfer.setData("text/prompt", shortenedPrompt);
+    textTransfer.setData("text/plain", shortenedPrompt);
+
+    try {
+      textTransfer.setProtectedMode(true);
+      fireEvent.dragEnter(inputShell as Element, { dataTransfer: textTransfer });
+      fireEvent.dragOver(inputShell as Element, { dataTransfer: textTransfer });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
+
+      textTransfer.setProtectedMode(false);
+      fireEvent.drop(inputShell as Element, { dataTransfer: textTransfer });
+
+      expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+      expect(onPromptChange).toHaveBeenCalledWith(fullPrompt.trim());
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
+    } finally {
+      clearInternalReferenceDragSession(token);
+    }
+  });
+
+  it("clears blocked Chat Mode guidance when a media drag session ends without a panel drop", () => {
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer: mediaTransfer });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Turn on chat mode to upload references.");
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+
+    fireEvent.dragEnd(window);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
+  });
+
+  it("clears blocked Chat Mode guidance after media drag events stop arriving", () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer: mediaTransfer });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
+  });
+
+  it("keeps blocked Chat Mode guidance alive while media dragover events continue", () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer: mediaTransfer });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    fireEvent.dragOver(inputShell as Element, { dataTransfer: mediaTransfer });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
+  });
+
+  it("clears blocked Chat Mode guidance when the drag is canceled with Escape", () => {
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer: mediaTransfer });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
   });
 
   it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {

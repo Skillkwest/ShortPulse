@@ -35,6 +35,35 @@ import {
 
 type ImageVariantBase = { editLike: boolean };
 
+export class IncompletePublishedPricingPolicyError extends Error {
+  readonly missingPublishedRows: string[];
+  readonly missingCustomRows: string[];
+
+  constructor({
+    missingPublishedRows,
+    missingCustomRows,
+  }: {
+    missingPublishedRows: string[];
+    missingCustomRows: string[];
+  }) {
+    super(
+      [
+        missingPublishedRows.length
+          ? `Missing published pricing rows for: ${missingPublishedRows.join(", ")}.`
+          : null,
+        missingCustomRows.length
+          ? `Missing published custom pricing rows for: ${missingCustomRows.join(", ")}.`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+    this.name = "IncompletePublishedPricingPolicyError";
+    this.missingPublishedRows = missingPublishedRows;
+    this.missingCustomRows = missingCustomRows;
+  }
+}
+
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];
   if (values.some((value) => value === defaultValue)) {
@@ -545,18 +574,10 @@ export const materializeImageBilledCreditPolicy = (
           .map((row) => `${modelId}:${row.displayRowId}`)
     );
     if (missingPublishedRows.length || missingCustomRows.length) {
-      throw new Error(
-        [
-          missingPublishedRows.length
-            ? `Missing published pricing rows for: ${missingPublishedRows.join(", ")}.`
-            : null,
-          missingCustomRows.length
-            ? `Missing published custom pricing rows for: ${missingCustomRows.join(", ")}.`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" ")
-      );
+      throw new IncompletePublishedPricingPolicyError({
+        missingPublishedRows,
+        missingCustomRows,
+      });
     }
   }
   return publishedPolicy;

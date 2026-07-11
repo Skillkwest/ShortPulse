@@ -18,6 +18,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Added
 
+- Added an admin-only model-pricing dry-run endpoint so pricing policy publication can be reviewed with deterministic rule changes and an artifact hash before activation.
 - Added media-upload intent hardening, generation ownership SQL migrations, GitHub hosted-SQL workflow contract tests, and an architecture-audit handoff packet for follow-up production hardening work.
 - Added launch-week production-operations guidance so ShortPulse work now centers on protecting live customer use, investigating production reports, and shipping small evidence-backed fixes on `production`.
 - Added OpenAI internal capacity-admission tracking and related SQL checks so agent/runtime capacity pressure can be audited instead of treated as opaque provider noise.
@@ -27,6 +28,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Changed
 
+- Updated model-pricing billed-credit resolution so published fixed and quantity rules can act as runtime billing authority even when no provider-cost calculator exists for the row.
 - Updated model-pricing policy handling so pricing-grid rows, custom row materialization, admin pricing controls, billing reservations, and AI Studio pricing displays share a stricter billed-credit authority path.
 - Updated hosted SQL apply workflows, runtime SQL security checks, database docs, and schema snapshots for the latest production migration and control-plane delivery posture.
 - Updated AI Studio media/reference handling, audio uploads, adaptive pressure tracking, and provider proxy tests to better preserve safe media authority across upload, staging, reload, and provider-submit paths.
@@ -39,6 +41,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Fixed
 
+- Fixed pricing and generation edge cases so pre-provider pricing rejection does not dispatch a provider request, Kie status aborts remain nonterminal/transient, orphaned optimistic debits are removed after local rejection, and Seedance rerolls require duration evidence when video references are present.
 - Fixed Seedance 2 video re-roll billing evidence so restored reference videos keep duration metadata, pricing evidence is verified before re-roll submission, and over-limit reference-video runs are blocked before credits are reserved.
 - Fixed prompt-only Seedance 2 billing evidence so production reservations use the explicit no-video-input pricing row instead of conflicting with the displayed pricing variant.
 - Improved Pulse/Standard agent runtime handling for fast-path turns, vision summaries, capacity admission, and route outcome parity.

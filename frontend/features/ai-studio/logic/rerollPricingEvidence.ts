@@ -174,6 +174,9 @@ const buildVideoPricingEvidence = ({
           ],
         })
       : null;
+  if (isSeedance2Model && seedanceVideoReferences.length > 0 && inputVideoDurationSeconds == null) {
+    return null;
+  }
   const params: Omit<PricingParams, "modelId"> = buildDefaultPricingParams(modelId, {
     aspect: payload.aspect,
     ...(durationSeconds != null ? { durationSeconds } : {}),

@@ -36,8 +36,8 @@ export type ChargeResult = {
     variantId?: string | null;
     pricingPolicySource: string | null;
     pricingPolicyVersion: number | null;
-    rawCredits: number;
-    usdRaw: number;
+    rawCredits: number | null;
+    usdRaw: number | null;
   };
   pricingParams: JsonObject;
   markSubmitted: (providerRequestId: string, extra?: JsonObject) => Promise<ChargeSubmitLinkResult>;

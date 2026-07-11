@@ -12,7 +12,10 @@ import {
   resolveEditImageBilledCreditLookup,
   supportsCanonicalEditImageBilledPricing,
 } from "../../model-runtime/editImageBilledCredits";
-import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
+import {
+  resolvePricingGridCostBreakdown,
+  type PricingGridCostBreakdown,
+} from "../../model-runtime/pricingGridBilledCredits";
 import { resolveVideoBilledCreditLookup } from "../../model-runtime/videoBilledCredits";
 import { requireApiUser } from "./auth";
 import { requireMediaComplianceAccepted } from "./mediaComplianceGuard";
@@ -201,7 +204,7 @@ const shouldResolveEditImagePricing = ({
 type CanonicalPricingCandidate = {
   workflow: "create_image" | "edit_image" | "video" | "audio";
   params: Omit<PricingParams, "modelId">;
-  breakdown: NonNullable<ReturnType<typeof computeCostForModel>> & { variantId?: string | null };
+  breakdown: PricingGridCostBreakdown;
 };
 
 const selectCanonicalPricingCandidate = ({

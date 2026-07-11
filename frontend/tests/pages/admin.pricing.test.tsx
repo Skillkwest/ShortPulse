@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminCatalogPage from "../../pages/admin/catalog";
 import AdminPricingPage from "../../pages/admin/pricing";
 import type { AdminPricingStateResponse } from "../../features/admin/types";
+import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
@@ -658,15 +659,18 @@ describe("Admin pricing page", () => {
       },
     };
     let currentState = buildPricingState();
-    fetchWithAuthMock.mockImplementationOnce(async (_url, options) => ({
-      ok: true,
-      json: vi.fn(async () => ({
+    fetchWithAuthMock.mockImplementationOnce(async (_url, options) => {
+      const body = JSON.parse(String(options?.body ?? "{}"));
+      return {
         ok: true,
-        activePolicyVersion: 4,
-        activePolicy: JSON.parse(String(options?.body ?? "{}")).policy,
-        activeCustomRows: JSON.parse(String(options?.body ?? "{}")).customRows,
-      })),
-    }));
+        json: vi.fn(async () => ({
+          ok: true,
+          activePolicyVersion: 4,
+          activePolicy: materializeImageBilledCreditPolicy(body.policy, body.customRows),
+          activeCustomRows: body.customRows,
+        })),
+      };
+    });
     useAdminPricingControllerMock.mockImplementation(() => ({
       pricingState: currentState,
       pricingLoading: false,

@@ -68,6 +68,9 @@ type GuardedNextApiResponse = NextApiResponse & {
   __shortpulseResponseCommitted?: boolean;
 };
 
+const isAbortError = (error: unknown): boolean =>
+  Boolean(error && typeof error === "object" && "name" in error && error.name === "AbortError");
+
 const sendJsonResponse = ({
   res,
   statusCode,
@@ -874,14 +877,14 @@ export const createFalStatusHandler = ({
               hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
             };
             return { probe, response, data };
-          } catch {
-            return null;
+          } catch (error) {
+            return { error } as const;
           }
         })
       );
 
       for (const statusProbeResult of statusProbeResults) {
-        if (!statusProbeResult) continue;
+        if ("error" in statusProbeResult) continue;
         const { probe, response, data } = statusProbeResult;
         statusCandidates.push({ probe, response, data });
       }
@@ -902,10 +905,11 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp || !statusData) {
-        if (
-          !statusProbeResults.some((result) => result !== null) &&
-          statusTransientFailuresEnabled
-        ) {
+        const allKieStatusProbesAborted =
+          providerKey === "kie" &&
+          statusProbeResults.length > 0 &&
+          statusProbeResults.every((result) => "error" in result && isAbortError(result.error));
+        if (statusTransientFailuresEnabled || allKieStatusProbesAborted) {
           return respondTransientWithTelemetry({
             source: "telemetry.fal.status.transient.transport",
             stage: "status",
@@ -1147,18 +1151,29 @@ export const createFalStatusHandler = ({
               hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
             };
             return { probe, response, data };
-          } catch {
-            return null;
+          } catch (error) {
+            return { error } as const;
           }
         })
       );
       for (const resultProbeResult of resultProbeResults) {
-        if (!resultProbeResult) continue;
+        if ("error" in resultProbeResult) continue;
         const { probe, response, data } = resultProbeResult;
         resultCandidates.push({ probe, response, data });
       }
 
       if (!resultCandidates.length) {
+        const allKieResultProbesAborted =
+          providerKey === "kie" &&
+          resultProbeResults.length > 0 &&
+          resultProbeResults.every((result) => "error" in result && isAbortError(result.error));
+        if (allKieResultProbesAborted) {
+          return respondTransientWithTelemetry({
+            source: "telemetry.fal.status.transient.transport",
+            stage: "result",
+            detail: "all_result_aliases_aborted",
+          });
+        }
         return respondErrorWithLogging({
           requestId,
           error: `${routeLabel} result request failed`,
@@ -1414,7 +1429,7 @@ export const createFalStatusHandler = ({
         }),
       });
     } catch (error) {
-      if (statusTransientFailuresEnabled) {
+      if (statusTransientFailuresEnabled || (providerKey === "kie" && isAbortError(error))) {
         return respondTransientWithTelemetry({
           source: "telemetry.fal.status.transient.transport",
           stage: "status",

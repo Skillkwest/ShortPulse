@@ -17,7 +17,16 @@ import {
 } from "../../features/admin/pricingWorkbookMath";
 import type { AdminCreditPricingBreakdown } from "../../features/admin/types";
 
-export type PricingGridCostBreakdown = CostBreakdown & {
+type PublishedPricingGridCostBreakdown = Pick<CostBreakdown, "credits" | "usd"> & {
+  rawCredits: number | null;
+  usdRaw: number | null;
+  megapixels: number | null;
+  width: number | null;
+  height: number | null;
+  variantId: string;
+};
+
+export type PricingGridCostBreakdown = (CostBreakdown | PublishedPricingGridCostBreakdown) & {
   variantId: string;
 };
 
@@ -50,6 +59,18 @@ const resolveUsageRateMultiplier = (
 
 const roundPublishedCredits = (credits: number, increment: number): number =>
   Math.ceil(Number(credits.toFixed(12)) / Math.max(1, increment)) * Math.max(1, increment);
+
+const resolveProviderObservabilityBreakdown = (
+  modelId: string,
+  params: Omit<PricingParams, "modelId">,
+  pricingPolicy: ModelPricingPolicyDocument | null
+): CostBreakdown | null => {
+  try {
+    return computeCostForModel(modelId, params, pricingPolicy);
+  } catch {
+    return null;
+  }
+};
 
 const resolvePublishedQuantity = (
   basis: "per_second" | "per_1k_chars",
@@ -138,7 +159,25 @@ const normalizePricingGridParams = (
   return normalizedParams;
 };
 
-export const resolvePricingGridCostBreakdown = ({
+export function resolvePricingGridCostBreakdown(input: {
+  modelId: string;
+  params?: Omit<PricingParams, "modelId">;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
+  requirePublishedBillingRule: true;
+}): PublishedPricingGridCostBreakdown | null;
+export function resolvePricingGridCostBreakdown(input: {
+  modelId: string;
+  params?: Omit<PricingParams, "modelId">;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
+  requirePublishedBillingRule?: false;
+}): (CostBreakdown & { variantId: string }) | null;
+export function resolvePricingGridCostBreakdown(input: {
+  modelId: string;
+  params?: Omit<PricingParams, "modelId">;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
+  requirePublishedBillingRule?: boolean;
+}): PricingGridCostBreakdown | null;
+export function resolvePricingGridCostBreakdown({
   modelId,
   params = {},
   pricingPolicy = null,
@@ -148,11 +187,8 @@ export const resolvePricingGridCostBreakdown = ({
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   requirePublishedBillingRule?: boolean;
-}): PricingGridCostBreakdown | null => {
+}): PricingGridCostBreakdown | null {
   const normalizedParams = normalizePricingGridParams(modelId, params);
-  const breakdown = computeCostForModel(modelId, normalizedParams, pricingPolicy);
-  if (!breakdown) return null;
-
   const variantId = resolveModelPricingVariantId({
     modelId,
     ...normalizedParams,
@@ -171,6 +207,11 @@ export const resolvePricingGridCostBreakdown = ({
   }
 
   if (resolvedPolicy.billedCreditsOverride != null) {
+    const providerObservability = resolveProviderObservabilityBreakdown(
+      modelId,
+      normalizedParams,
+      pricingPolicy
+    );
     const outputCount =
       typeof normalizedParams.generationCount === "number" &&
       Number.isFinite(normalizedParams.generationCount)
@@ -178,9 +219,13 @@ export const resolvePricingGridCostBreakdown = ({
         : 1;
     const billedCredits = resolvedPolicy.billedCreditsOverride * outputCount;
     return {
-      ...breakdown,
       credits: billedCredits,
       usd: billedCredits / resolvedPolicy.creditUsdScale,
+      rawCredits: providerObservability?.rawCredits ?? null,
+      usdRaw: providerObservability?.usdRaw ?? null,
+      megapixels: providerObservability?.megapixels ?? null,
+      width: providerObservability?.width ?? null,
+      height: providerObservability?.height ?? null,
       variantId,
     };
   }
@@ -196,10 +241,19 @@ export const resolvePricingGridCostBreakdown = ({
       creditsAtCost * (1 + quantityRule.markupBps / 10_000),
       quantityRule.roundingIncrement
     );
+    const providerObservability = resolveProviderObservabilityBreakdown(
+      modelId,
+      normalizedParams,
+      pricingPolicy
+    );
     return {
-      ...breakdown,
       credits: billedCredits,
       usd: billedCredits / resolvedPolicy.creditUsdScale,
+      rawCredits: providerObservability?.rawCredits ?? creditsAtCost,
+      usdRaw: providerObservability?.usdRaw ?? creditsAtCost / resolvedPolicy.creditUsdScale,
+      megapixels: providerObservability?.megapixels ?? null,
+      width: providerObservability?.width ?? null,
+      height: providerObservability?.height ?? null,
       variantId,
     };
   }
@@ -207,6 +261,9 @@ export const resolvePricingGridCostBreakdown = ({
   if (requirePublishedBillingRule) {
     return null;
   }
+
+  const breakdown = computeCostForModel(modelId, normalizedParams, pricingPolicy);
+  if (!breakdown) return null;
 
   if (pricingAuthority !== SHARED_POLICY_PRICING_AUTHORITY) {
     return {
@@ -250,7 +307,7 @@ export const resolvePricingGridCostBreakdown = ({
     usd: billedUsd,
     variantId,
   };
-};
+}
 
 export const resolvePricingGridBilledCredits = (input: {
   modelId: string;

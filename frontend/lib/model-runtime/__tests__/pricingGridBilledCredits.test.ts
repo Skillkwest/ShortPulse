@@ -156,6 +156,78 @@ describe("pricingGridBilledCredits", () => {
     });
   });
 
+  it("resolves strict fixed published credits without a provider calculator", () => {
+    const policy = {
+      ...pricingGridPolicy,
+      perModel: {
+        ...pricingGridPolicy.perModel,
+        "test/published-only-fixed": {
+          variants: {
+            default: { billedCreditsOverride: 9 },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "test/published-only-fixed",
+        pricingPolicy: policy,
+        requirePublishedBillingRule: true,
+      })
+    ).toEqual({
+      credits: 9,
+      usd: 0.3,
+      rawCredits: null,
+      usdRaw: null,
+      megapixels: null,
+      width: null,
+      height: null,
+      variantId: "default",
+    });
+  });
+
+  it("resolves strict quantity rules without a provider calculator and still requires quantity", () => {
+    const policy = {
+      ...pricingGridPolicy,
+      perModel: {
+        ...pricingGridPolicy.perModel,
+        "test/published-only-quantity": {
+          variants: {
+            default: {
+              billedCreditsQuantityRule: {
+                costCreditsPerUnit: 2,
+                markupBps: 5_000,
+                roundingIncrement: 5,
+                quantityBasis: "per_second" as const,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "test/published-only-quantity",
+        params: { durationSeconds: 2 },
+        pricingPolicy: policy,
+        requirePublishedBillingRule: true,
+      })
+    ).toMatchObject({
+      credits: 10,
+      rawCredits: 4,
+      variantId: "default",
+    });
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "test/published-only-quantity",
+        pricingPolicy: policy,
+        requirePublishedBillingRule: true,
+      })
+    ).toBeNull();
+  });
+
   it("scales the published per-output Billed Credits row by requested output count", () => {
     const single = resolvePricingGridCostBreakdown({
       modelId: "fal-ai/nano-banana-2",

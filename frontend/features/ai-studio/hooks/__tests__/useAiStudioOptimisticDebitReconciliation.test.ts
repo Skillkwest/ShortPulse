@@ -107,6 +107,25 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     expect(removedFailure).toBe(true);
   });
 
+  it("removes an assigned optimistic debit when pre-provider rejection removes its output", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    renderHook(() =>
+      useAiStudioOptimisticDebitReconciliation({
+        outputs: [],
+        optimisticDebitEntries: [{ credits: 5, outputId: "out-rejected", createdAtMs: Date.now() }],
+        setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(setOptimisticDebitEntries),
+        refreshBalance: vi.fn(async () => 20),
+        setDetailOutputId: asDispatch<string | null>(vi.fn()),
+      })
+    );
+
+    await waitFor(() => expect(setOptimisticDebitEntries).toHaveBeenCalled());
+    const removedOrphan = updaterFns(setOptimisticDebitEntries).some(
+      (updater) => updater([{ credits: 5, outputId: "out-rejected" }]).length === 0
+    );
+    expect(removedOrphan).toBe(true);
+  });
+
   it("settles successful outputs after balance refresh", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const refreshBalance = vi.fn(async () => 50);

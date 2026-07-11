@@ -221,6 +221,20 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   }, [dismissedFailureIds, failedOutputIdsKey, failureCards]);
 
   useEffect(() => {
+    const visibleOutputIds = new Set(effectiveOutputLite.map((output) => output.id));
+    const hasOrphanedAssignedEntry = optimisticDebitEntries.some(
+      (entry) => entry.outputId != null && !visibleOutputIds.has(entry.outputId)
+    );
+    if (!hasOrphanedAssignedEntry) return;
+    setOptimisticDebitEntries((prev) => {
+      const next = prev.filter(
+        (entry) => entry.outputId == null || visibleOutputIds.has(entry.outputId)
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [effectiveOutputLite, optimisticDebitEntries, setOptimisticDebitEntries]);
+
+  useEffect(() => {
     const newlySeenOutputIds: string[] = [];
     effectiveOutputLite.forEach((output) => {
       if (!seenOutputIdsRef.current.has(output.id)) {

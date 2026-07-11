@@ -2635,6 +2635,42 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("keeps Kie status polling nonterminal when the server timeout aborts transport", async () => {
+    process.env.SHORTPULSE_KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    const fetchMock = vi.fn().mockRejectedValueOnce(new DOMException("Aborted", "AbortError"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/seedance-2",
+      queueBaseUrl: "https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}",
+      routeLabel: "Kie Seedance 2",
+      timeoutMs: 15000,
+    });
+    const res = createMockResponse();
+
+    await handler(
+      { method: "POST", body: { requestId: "req-kie-abort" }, headers: {} } as never,
+      res as never
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        request_id: "req-kie-abort",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+        }),
+      })
+    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+  });
+
   it("treats non-JSON status responses as transient when status transient failures are enabled", async () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     const fetchMock = vi.fn().mockResolvedValueOnce(

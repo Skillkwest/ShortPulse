@@ -297,6 +297,29 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("never dispatches the provider when canonical pricing rejects before reservation", async () => {
+    chargeGenerationRequestMock.mockResolvedValueOnce(null);
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
+    });
+    const res = createMockResponse();
+
+    await handler(
+      {
+        method: "POST",
+        body: { prompt: "portrait" },
+        headers: {},
+        url: "/api/fal/nano-banana-2-submit",
+      } as never,
+      res as never
+    );
+
+    expect(chargeGenerationRequestMock).toHaveBeenCalledTimes(1);
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+  });
+
   it("submits Fal video routes directly when the model has an inline submit target", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/bytedance/omnihuman/v1.5",

@@ -86,7 +86,11 @@ import {
   getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
 import { resolveSeedanceElementProviderEligibility } from "../logic/klingElements";
-import { resolveSeedanceInputVideoDurationSeconds } from "../logic/seedanceVideoPricing";
+import {
+  resolveSeedanceInputVideoDurationSeconds,
+  resolveSeedanceVideoReferenceDurationLimitError,
+  resolveSeedanceVideoReferenceDurations,
+} from "../logic/seedanceVideoPricing";
 import type { GenerationFailureContext } from "./generationFailureReporting";
 import type {
   AiStudioTaskSubmissionOptions,
@@ -199,6 +203,8 @@ export const useAiStudioTaskSubmission = ({
         options?.seedance2ReferenceImageUrlsOverride ?? seedance2ReferenceImageUrls;
       const effectiveSeedance2ReferenceVideoUrls =
         options?.seedance2ReferenceVideoUrlsOverride ?? seedance2ReferenceVideoUrls;
+      const effectiveSeedance2ReferenceVideoDurations =
+        options?.seedance2ReferenceVideoDurationsOverride ?? [];
       const effectiveSeedance2ReferenceAudioUrls =
         options?.seedance2ReferenceAudioUrlsOverride ?? seedance2ReferenceAudioUrls;
       const effectiveSeedance2ReturnLastFrame =
@@ -247,7 +253,18 @@ export const useAiStudioTaskSubmission = ({
       const seedance2InputVideoDurationSeconds = resolveSeedanceInputVideoDurationSeconds({
         referenceVideoUrls: seedance2SubmitReferenceVideoUrls,
         outputs,
+        persistedVideoReferences: effectiveSeedance2ReferenceVideoDurations,
       });
+      const seedance2ReferenceVideoDurations =
+        effectiveSeedance2ReferenceVideoDurations.length > 0
+          ? effectiveSeedance2ReferenceVideoDurations
+          : resolveSeedanceVideoReferenceDurations({
+              referenceVideoUrls: effectiveSeedance2ReferenceVideoUrls,
+              outputs,
+            });
+      const seedance2ReferenceVideoDurationLimitError = isSeedance2Submission
+        ? resolveSeedanceVideoReferenceDurationLimitError(seedance2InputVideoDurationSeconds)
+        : null;
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
           ...(options?.internalMediaRefsOverride ?? []),
@@ -288,6 +305,11 @@ export const useAiStudioTaskSubmission = ({
       if (submissionStartUiError) {
         removeOptimisticPlaceholder();
         setUiError(submissionStartUiError);
+        return;
+      }
+      if (seedance2ReferenceVideoDurationLimitError) {
+        removeOptimisticPlaceholder();
+        setUiError(seedance2ReferenceVideoDurationLimitError);
         return;
       }
       if (!finalModel) {
@@ -541,6 +563,7 @@ export const useAiStudioTaskSubmission = ({
               seedance2InputMode: effectiveSeedance2InputMode,
               seedance2ReferenceImageUrls: effectiveSeedance2ReferenceImageUrls,
               seedance2ReferenceVideoUrls: effectiveSeedance2ReferenceVideoUrls,
+              seedance2ReferenceVideoDurations,
               seedance2ReferenceAudioUrls: effectiveSeedance2ReferenceAudioUrls,
               seedance2ReturnLastFrame: effectiveSeedance2ReturnLastFrame,
               seedance2WebSearch: effectiveSeedance2WebSearch,

@@ -212,6 +212,43 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
     );
   });
 
+  it("blocks reroll before submit when pricing evidence cannot be reconstructed", () => {
+    findOutputByIdMock.mockReturnValue(
+      makeGeneratedImageOutput("out-reroll-unpriced", {
+        generationReplay: {
+          version: 1,
+          mode: "image",
+          submitTool: "create",
+          modelId: "fal-ai/nano-banana-2",
+          displayPrompt: "Visible prompt",
+          submissionPrompt: "Submission prompt",
+          aspect: "1:1",
+          imageResolution: "1K",
+          referenceInputs: [],
+          capturedAt: "2026-07-11T00:00:00.000Z",
+        },
+      })
+    );
+    const resolveRerollPricingEvidence = vi.fn(() => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioState({
+        resolveRerollPricingEvidence,
+      })
+    );
+
+    act(() => {
+      result.current.rerollOutputFromReplay("out-reroll-unpriced");
+    });
+
+    expect(submitTaskMock).not.toHaveBeenCalled();
+    expect(vi.mocked(addBreadcrumb)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "reroll_blocked_missing_pricing_evidence",
+      })
+    );
+  });
+
   it("submits direct saved-media reroll without requiring output lookup", () => {
     const mediaLibraryOutput = makeGeneratedImageOutput("media-library:media-1", {
       generationReplay: {
@@ -370,7 +407,7 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
         display: "Visible video prompt",
         submission: "Submission video prompt with style",
       },
-      model: { id: "kie-ai/kling-3.0" },
+      model: { id: "kie-ai/seedance-2" },
       payload: {
         kind: "video",
         aspect: "9:16",
@@ -385,9 +422,16 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
         videoReferences: {
           version: 1,
           firstFrame: { sourceUrl: "https://cdn.test/first-frame.png" },
+          seedance2ReferenceVideos: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://cdn.test/reference-video.mp4",
+              durationMs: 8_000,
+            },
+          ],
         },
         seedance2ReferenceImageUrls: [],
-        seedance2ReferenceVideoUrls: [],
+        seedance2ReferenceVideoUrls: ["https://cdn.test/reference-video.mp4"],
         seedance2ReferenceAudioUrls: [],
         seedance2ReturnLastFrame: false,
         seedance2WebSearch: false,
@@ -398,7 +442,7 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
     findOutputByIdMock.mockReturnValue(
       makeGeneratedImageOutput("out-reroll-video", {
         mode: "video",
-        modelId: "kie-ai/kling-3.0",
+        modelId: "kie-ai/seedance-2",
         previewUrl: "https://cdn.test/generated-video.mp4",
         workflowReload: workflowReload ?? undefined,
       })
@@ -416,7 +460,14 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
       expect.objectContaining({
         modeOverride: "video",
         selectedToolOverride: "video",
-        modelIdOverride: "kie-ai/kling-3.0",
+        seedance2ReferenceVideoDurationsOverride: [
+          {
+            slotIndex: 0,
+            sourceUrl: "https://cdn.test/reference-video.mp4",
+            durationMs: 8_000,
+          },
+        ],
+        modelIdOverride: "kie-ai/seedance-2",
         aspectOverride: "9:16",
         videoReferenceModeOverride: "standard",
         videoReferenceImageUrlOverride: "https://cdn.test/first-frame.png",

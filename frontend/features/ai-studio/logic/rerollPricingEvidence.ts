@@ -21,6 +21,7 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromInputs,
 } from "./referenceInputs";
+import { resolveSeedanceInputVideoDurationSeconds } from "./seedanceVideoPricing";
 import type { WorkflowReloadConfigV1 } from "../types";
 
 export type RerollPricingEvidence = {
@@ -158,6 +159,13 @@ const buildVideoPricingEvidence = ({
   const seedanceVideoReferences = collectSeedanceRerollVideoReferences(payload);
   const isSeedance2Model =
     modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const inputVideoDurationSeconds =
+    isSeedance2Model && seedanceVideoReferences.length > 0
+      ? resolveSeedanceInputVideoDurationSeconds({
+          referenceVideoUrls: seedanceVideoReferences,
+          persistedVideoReferences: payload.videoReferences?.seedance2ReferenceVideos,
+        })
+      : null;
   const params: Omit<PricingParams, "modelId"> = buildDefaultPricingParams(modelId, {
     aspect: payload.aspect,
     ...(durationSeconds != null ? { durationSeconds } : {}),
@@ -167,8 +175,7 @@ const buildVideoPricingEvidence = ({
     ...(isSeedance2Model
       ? {
           inputVideoCount: seedanceVideoReferences.length,
-          // Reroll metadata does not persist source-video duration; when unavailable,
-          // let the canonical resolver fail closed rather than inventing evidence.
+          ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
         }
       : {}),
   });

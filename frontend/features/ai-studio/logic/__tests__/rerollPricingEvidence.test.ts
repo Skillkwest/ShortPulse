@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import { buildDefaultPricingParams } from "../../../../lib/model-runtime/pricing";
 import {
   getDefaultModelPricingPolicyDocument,
@@ -124,5 +127,109 @@ describe("resolveRerollPricingEvidence", () => {
       displayedPricingPolicyVersion: 23,
       displayedPricingVariantId: expectedBreakdown?.variantId,
     });
+  });
+
+  it("reconstructs Seedance video-reference pricing from persisted durations", () => {
+    const config: WorkflowReloadConfigV1 = {
+      ...baseConfig,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: KIE_SEEDANCE_2_MODEL_ID },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 5,
+        resolution: "720p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: [],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          seedance2ReferenceVideos: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://cdn.shortpulse.test/reference.mp4",
+              durationMs: 8_000,
+            },
+          ],
+        },
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: ["https://cdn.shortpulse.test/reference.mp4"],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingElements: [],
+      },
+    };
+    const expectedBreakdown = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: buildDefaultPricingParams(KIE_SEEDANCE_2_MODEL_ID, {
+        aspect: "16:9",
+        durationSeconds: 5,
+        resolution: "720p",
+        audio: true,
+        inputVideoCount: 1,
+        inputVideoDurationSeconds: 8,
+      }),
+      pricingPolicy,
+    }).breakdown;
+
+    expect(
+      resolveRerollPricingEvidence({
+        config,
+        pricingPolicy,
+        activePricingPolicyVersion: 23,
+      })
+    ).toEqual({
+      displayedBilledCredits: expectedBreakdown?.credits,
+      displayedPricingPolicyVersion: 23,
+      displayedPricingVariantId: expectedBreakdown?.variantId,
+    });
+  });
+
+  it("fails closed when legacy Seedance reroll data lacks a video duration", () => {
+    const config: WorkflowReloadConfigV1 = {
+      ...baseConfig,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: KIE_SEEDANCE_2_MODEL_ID },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 5,
+        resolution: "720p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: [],
+        internalMediaRefs: [],
+        videoReferences: {
+          version: 1,
+          seedance2ReferenceVideos: [
+            { slotIndex: 0, sourceUrl: "https://cdn.shortpulse.test/reference.mp4" },
+          ],
+        },
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: ["https://cdn.shortpulse.test/reference.mp4"],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingElements: [],
+      },
+    };
+
+    expect(
+      resolveRerollPricingEvidence({
+        config,
+        pricingPolicy,
+        activePricingPolicyVersion: 23,
+      })
+    ).toBeNull();
   });
 });

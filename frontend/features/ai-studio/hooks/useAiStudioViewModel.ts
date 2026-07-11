@@ -46,7 +46,10 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromFrameInputs,
 } from "../logic/referenceInputs";
-import { resolveSeedanceInputVideoDurationSeconds } from "../logic/seedanceVideoPricing";
+import {
+  resolveSeedanceInputVideoDurationSeconds,
+  resolveSeedanceVideoReferenceDurationLimitError,
+} from "../logic/seedanceVideoPricing";
 import {
   resolveEffectiveEditSubmitModelId,
   normalizeEditSubmitIntent,
@@ -285,6 +288,13 @@ export const useAiStudioViewModel = ({
         outputs,
       }),
     [outputs, seedance2PricingReferenceVideoUrls]
+  );
+  const seedance2ReferenceVideoDurationGuardrail = useMemo(
+    () =>
+      isSeedance2PricingModel
+        ? resolveSeedanceVideoReferenceDurationLimitError(seedance2InputVideoDurationSeconds)
+        : null,
+    [isSeedance2PricingModel, seedance2InputVideoDurationSeconds]
   );
   const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
     (eligibility) => eligibility.isSubmittable
@@ -1042,6 +1052,9 @@ export const useAiStudioViewModel = ({
         if (seedance2ReferenceRequirementGuardrail) {
           return seedance2ReferenceRequirementGuardrail;
         }
+        if (seedance2ReferenceVideoDurationGuardrail) {
+          return seedance2ReferenceVideoDurationGuardrail;
+        }
       }
       if (
         !seedance2UsesMultimodalReferences &&
@@ -1085,6 +1098,7 @@ export const useAiStudioViewModel = ({
     hasSeedance2MultimodalReferences,
     klingElementProviderGuardrail,
     seedance2ReferenceRequirementGuardrail,
+    seedance2ReferenceVideoDurationGuardrail,
     seedance2UsesMultimodalReferences,
     isVideoTool,
     isDescribeMode,

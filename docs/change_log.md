@@ -34,6 +34,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Fixed
 
+- Fixed Seedance 2 video re-roll billing evidence so restored reference videos keep duration metadata, pricing evidence is verified before re-roll submission, and over-limit reference-video runs are blocked before credits are reserved.
 - Fixed prompt-only Seedance 2 billing evidence so production reservations use the explicit no-video-input pricing row instead of conflicting with the displayed pricing variant.
 - Improved Pulse/Standard agent runtime handling for fast-path turns, vision summaries, capacity admission, and route outcome parity.
 - Improved AI Studio media-library persistence handling and generation output media linkage coverage.

@@ -9,6 +9,7 @@ import type {
   ToolId,
   VideoReferenceMode,
   WorkflowReloadExpertEditReferences,
+  WorkflowReloadVideoMediaSlot,
 } from "../../types";
 
 export type AiStudioTaskSubmitOptions = {
@@ -38,6 +39,7 @@ export type AiStudioTaskSubmitOptions = {
   seedance2InputModeOverride?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrlsOverride?: string[];
   seedance2ReferenceVideoUrlsOverride?: string[];
+  seedance2ReferenceVideoDurationsOverride?: WorkflowReloadVideoMediaSlot[];
   seedance2ReferenceAudioUrlsOverride?: string[];
   seedance2ReturnLastFrameOverride?: boolean;
   seedance2WebSearchOverride?: boolean;

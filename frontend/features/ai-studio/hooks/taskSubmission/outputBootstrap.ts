@@ -10,6 +10,7 @@ import {
 } from "../../logic/generationReplay";
 import { SEEDANCE_REFERENCE_IMAGE_LIMIT } from "../../logic/klingElements";
 import { resolveInternalMediaRefForUrl } from "../../logic/referenceInputInternalMediaRegistry";
+import type { SeedanceVideoReferenceDuration } from "../../logic/seedanceVideoPricing";
 import { normalizeDurationSecondsToMs } from "../../logic/workflowReloadDuration";
 import { buildWorkflowReloadConfigV1 } from "../../logic/workflowReload";
 import type {
@@ -85,6 +86,7 @@ type BuildSubmissionWorkflowReloadSnapshotParams = {
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceVideoDurations?: SeedanceVideoReferenceDuration[];
   seedance2ReferenceAudioUrls?: string[];
   seedance2ReturnLastFrame?: boolean;
   seedance2WebSearch?: boolean;
@@ -252,7 +254,8 @@ const buildVideoFrameSlot = (
 
 const buildVideoMediaSlots = (
   urls: readonly string[],
-  refs: readonly (InternalMediaRef | null | undefined)[] = []
+  refs: readonly (InternalMediaRef | null | undefined)[] = [],
+  durations: readonly SeedanceVideoReferenceDuration[] = []
 ): NonNullable<WorkflowReloadVideoReferences["seedance2ReferenceImages"]> =>
   urls
     .slice(0, MAX_VIDEO_RESTORE_MEDIA_SLOTS)
@@ -262,10 +265,16 @@ const buildVideoMediaSlots = (
       const normalizedUrl = asTrimmedString(url);
       if (!normalizedUrl) return slots;
       const internalMediaRef = resolveReloadInternalMediaRef(normalizedUrl, refs[index] ?? null);
+      const durationMs = durations.find(
+        (duration) => duration.sourceUrl.trim() === normalizedUrl
+      )?.durationMs;
       if (!shouldKeepReloadMediaUrl(normalizedUrl, internalMediaRef)) return slots;
       slots.push({
         slotIndex: index,
         sourceUrl: normalizedUrl,
+        ...(typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+          ? { durationMs: Math.round(durationMs) }
+          : {}),
         ...(internalMediaRef ? { internalMediaRef } : {}),
       });
       return slots;
@@ -318,6 +327,7 @@ const buildVideoReferences = ({
   internalMediaRefs,
   seedance2ReferenceImageUrls,
   seedance2ReferenceVideoUrls,
+  seedance2ReferenceVideoDurations,
   seedance2ReferenceAudioUrls,
   klingElements,
 }: {
@@ -325,13 +335,18 @@ const buildVideoReferences = ({
   internalMediaRefs: Array<InternalMediaRef | null>;
   seedance2ReferenceImageUrls: string[];
   seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceVideoDurations: SeedanceVideoReferenceDuration[];
   seedance2ReferenceAudioUrls: string[];
   klingElements: Array<Record<string, unknown>>;
 }): WorkflowReloadVideoReferences | null => {
   const firstFrame = buildVideoFrameSlot(referenceInputs[0], internalMediaRefs[0] ?? null);
   const lastFrame = buildVideoFrameSlot(referenceInputs[1], internalMediaRefs[1] ?? null);
   const seedance2ReferenceImages = buildVideoMediaSlots(seedance2ReferenceImageUrls);
-  const seedance2ReferenceVideos = buildVideoMediaSlots(seedance2ReferenceVideoUrls);
+  const seedance2ReferenceVideos = buildVideoMediaSlots(
+    seedance2ReferenceVideoUrls,
+    [],
+    seedance2ReferenceVideoDurations
+  );
   const seedance2ReferenceAudio = buildVideoMediaSlots(seedance2ReferenceAudioUrls);
   const klingElementSlots = buildKlingElementSlots(klingElements);
   if (
@@ -486,6 +501,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
+  seedance2ReferenceVideoDurations = [],
   seedance2ReferenceAudioUrls = [],
   seedance2ReturnLastFrame = false,
   seedance2WebSearch = false,
@@ -534,6 +550,7 @@ export const buildSubmissionWorkflowReloadSnapshot = ({
     internalMediaRefs,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
+    seedance2ReferenceVideoDurations,
     seedance2ReferenceAudioUrls,
     klingElements,
   });

@@ -1498,6 +1498,66 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
+  it("blocks Seedance 2 multimodal videos above the provider's total duration limit", () => {
+    const pricingParams = makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+      durationSeconds: 6,
+      resolution: "1080p",
+      audio: false,
+      inputVideoCount: 2,
+      inputVideoDurationSeconds: 16,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: pricingParams,
+      credits: 50,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceVideoUrls: [
+          "https://example.com/reference-a.mp4",
+          "https://example.com/reference-b.mp4",
+        ],
+        outputs: [
+          {
+            id: "reference-video-a",
+            prompt: "",
+            mode: "video",
+            aspect: "16:9",
+            model: KIE_SEEDANCE_2_MODEL_ID,
+            status: "ready",
+            timestamp: "Ready",
+            previewUrl: "https://example.com/reference-a.mp4",
+            durationMs: 8_000,
+          },
+          {
+            id: "reference-video-b",
+            prompt: "",
+            mode: "video",
+            aspect: "16:9",
+            model: KIE_SEEDANCE_2_MODEL_ID,
+            status: "ready",
+            timestamp: "Ready",
+            previewUrl: "https://example.com/reference-b.mp4",
+            durationMs: 8_000,
+          },
+        ],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Seedance 2 reference videos must total 15 seconds or less."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
   it("requires both first and last frame images for explicit Seedance 2 first-last mode", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

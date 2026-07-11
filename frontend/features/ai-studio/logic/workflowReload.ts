@@ -469,11 +469,13 @@ const normalizeVideoMediaSlots = (value: unknown): WorkflowReloadVideoMediaSlot[
         return slots;
       }
       const internalMediaRef = normalizeInternalRefs([item.internalMediaRef], 1)[0] ?? null;
+      const durationMs = asFiniteNumberOrNull(item.durationMs);
       if (isLocalOnlyUrl(sourceUrl) && !internalMediaRef) return slots;
       seenSlots.add(slotIndex);
       slots.push({
         slotIndex,
         sourceUrl,
+        ...(durationMs != null && durationMs > 0 ? { durationMs: Math.round(durationMs) } : {}),
         ...(internalMediaRef ? { internalMediaRef } : {}),
       });
       return slots;

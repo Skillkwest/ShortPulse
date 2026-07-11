@@ -226,6 +226,9 @@ describe("taskSubmission outputBootstrap", () => {
       seedance2InputMode: "multimodal",
       seedance2ReferenceImageUrls: ["https://example.com/video-seed-image.png"],
       seedance2ReferenceVideoUrls: ["https://example.com/video-seed-video.mp4"],
+      seedance2ReferenceVideoDurations: [
+        { sourceUrl: "https://example.com/video-seed-video.mp4", durationMs: 8_500 },
+      ],
       seedance2ReferenceAudioUrls: ["https://example.com/video-seed-audio.mp3"],
       klingElements: [
         {
@@ -267,7 +270,11 @@ describe("taskSubmission outputBootstrap", () => {
             },
           ],
           seedance2ReferenceVideos: [
-            { slotIndex: 0, sourceUrl: "https://example.com/video-seed-video.mp4" },
+            {
+              slotIndex: 0,
+              sourceUrl: "https://example.com/video-seed-video.mp4",
+              durationMs: 8_500,
+            },
           ],
           seedance2ReferenceAudio: [
             { slotIndex: 0, sourceUrl: "https://example.com/video-seed-audio.mp3" },

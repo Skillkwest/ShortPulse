@@ -104,6 +104,7 @@ const buildVideoRerollOptions = (config: WorkflowReloadConfigV1): AiStudioTaskSu
       : {}),
     seedance2ReferenceImageUrlsOverride: seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrlsOverride: seedance2ReferenceVideoUrls,
+    seedance2ReferenceVideoDurationsOverride: videoReferences?.seedance2ReferenceVideos ?? [],
     seedance2ReferenceAudioUrlsOverride: seedance2ReferenceAudioUrls,
     ...(payload.seedance2ReturnLastFrame != null
       ? { seedance2ReturnLastFrameOverride: payload.seedance2ReturnLastFrame }
@@ -196,6 +197,24 @@ export const useAiStudioRerollController = ({
         return;
       }
 
+      const pricingEvidence = resolvePricingEvidence?.(config) ?? null;
+      if (resolvePricingEvidence && !pricingEvidence) {
+        addBreadcrumb({
+          type: "ui",
+          level: "warn",
+          message: "reroll_blocked_missing_pricing_evidence",
+          data: {
+            output_id: normalizedOutputId,
+            model_id: config.model.id,
+            payload_kind: payload.kind,
+          },
+        });
+        setUiNotice(
+          "Re-roll is unavailable because current pricing could not be verified. Retry in a moment."
+        );
+        return;
+      }
+
       registerWorkflowRerollInternalMediaRefs(config);
       addBreadcrumb({
         type: "ui",
@@ -213,12 +232,10 @@ export const useAiStudioRerollController = ({
         payload.kind === "image"
           ? buildImageRerollOptions(config)
           : buildVideoRerollOptions(config);
-      const pricingEvidence = resolvePricingEvidence?.(config) ?? null;
-      void submitTask(
-        config.prompt.submission ?? config.prompt.display,
-        payload.referenceInputs,
-        pricingEvidence ? { ...options, ...pricingEvidence } : options
-      );
+      void submitTask(config.prompt.submission ?? config.prompt.display, payload.referenceInputs, {
+        ...options,
+        ...pricingEvidence,
+      });
     },
     [resolvePricingEvidence, setUiNotice, submitTask]
   );

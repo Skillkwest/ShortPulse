@@ -397,6 +397,18 @@ describe("workflowReload", () => {
             { slotIndex: 0, sourceUrl: "https://example.com/duplicate.png" },
             { slotIndex: 1, sourceUrl: "data:image/png;base64,missing" },
           ],
+          seedance2ReferenceVideos: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://example.com/seed-video.mp4",
+              durationMs: 8_250,
+            },
+            {
+              slotIndex: 1,
+              sourceUrl: "https://example.com/invalid-duration.mp4",
+              durationMs: -1,
+            },
+          ],
           klingElementSlots: [
             {
               slotIndex: 0,
@@ -444,6 +456,14 @@ describe("workflowReload", () => {
           },
           seedance2ReferenceImages: [
             { slotIndex: 0, sourceUrl: "https://example.com/seed-image.png" },
+          ],
+          seedance2ReferenceVideos: [
+            {
+              slotIndex: 0,
+              sourceUrl: "https://example.com/seed-video.mp4",
+              durationMs: 8_250,
+            },
+            { slotIndex: 1, sourceUrl: "https://example.com/invalid-duration.mp4" },
           ],
           klingElementSlots: [
             {

@@ -190,6 +190,7 @@ export type WorkflowReloadVideoFrameSlot = {
 export type WorkflowReloadVideoMediaSlot = {
   slotIndex: number;
   sourceUrl: string;
+  durationMs?: number | null;
   internalMediaRef?: InternalMediaRef | null;
 };
 

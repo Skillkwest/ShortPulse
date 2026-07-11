@@ -208,14 +208,18 @@
 
 .create-composer-panel
   .create-composer-right-panel-inner.is-chat-mode-drop-guidance-visible
+  .create-composer-prompt-step
+  .agent-composer-row
   .agent-chat-mode-row.agent-chat-mode-toggle-shell {
   position: relative;
   z-index: 9;
   border-color: rgba(52, 200, 255, 0.98);
+  outline: 2px solid rgba(52, 200, 255, 0.98);
+  outline-offset: 1px;
   box-shadow:
-    0 0 0 2px rgba(52, 200, 255, 0.98),
-    0 0 0 6px rgba(52, 200, 255, 0.2),
-    0 14px 34px rgba(52, 200, 255, 0.22);
+    0 0 0 5px rgba(52, 200, 255, 0.22),
+    0 0 24px rgba(52, 200, 255, 0.55),
+    0 14px 34px rgba(52, 200, 255, 0.28);
 }
 
 .create-composer-panel .create-composer-pulse-columns > .create-composer-left-panel,

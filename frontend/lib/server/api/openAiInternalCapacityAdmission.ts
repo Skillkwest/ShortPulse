@@ -3,6 +3,7 @@
  * This server-only authority never reads or mutates customer credit balances.
  */
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { toErrorMessage } from "./errorMessage";
 import { randomUUID } from "node:crypto";
 import type { NextApiRequest } from "next";
 
@@ -182,7 +183,7 @@ const callAdmissionRpc = async (
 ): Promise<OpenAiInternalCapacityAdmission> => {
   const { data, error } = await getSupabaseAdmin().rpc(name, params);
   if (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error, "OpenAI internal-capacity admission RPC failed.");
     if (message.includes("Paid OpenAI internal-capacity access is required")) {
       throw new OpenAiInternalCapacityError(
         402,

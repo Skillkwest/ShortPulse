@@ -358,6 +358,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 224.  `sql/migrations/225_add_media_upload_intents.sql`
 225.  `sql/migrations/226_reconcile_media_upload_staging_mime_allowlist.sql`
 226.  `sql/migrations/227_add_model_pricing_policy_apply_cas.sql`
+227.  `sql/migrations/228_tune_openai_internal_capacity_limits.sql`
       Rollback files:
 
 
@@ -485,6 +486,7 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/225_add_media_upload_intents_rollback.sql`
     - `sql/migrations/rollback/226_reconcile_media_upload_staging_mime_allowlist_rollback.sql`
     - `sql/migrations/rollback/227_add_model_pricing_policy_apply_cas_rollback.sql`
+    - `sql/migrations/rollback/228_tune_openai_internal_capacity_limits_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -625,6 +627,7 @@ Billing safety note:
 - Migration `225_add_media_upload_intents.sql` adds the private 100 MiB `media_upload_staging` bucket plus the service-role-only `media_upload_intents` transport authority. Five atomic RPCs reserve, claim, finalize, reject, or expire one user/purpose/path-bound intent without storing signed URLs/tokens or granting provider, billing, credit, or durable Media Library authority. The rollback removes the RPCs/table and removes the bucket only when it is empty. Route wiring, storage-policy revocation, hosted apply, and staged-object cleanup remain separate approved operations.
 - Migration `226_reconcile_media_upload_staging_mime_allowlist.sql` reconciles the `media_upload_staging` bucket with the runtime audit's canonical upload MIME allowlist by adding the common `audio/m4a` variant while preserving the private 100 MiB bucket guardrail. The rollback restores the exact migration `225` allowlist. Hosted apply remains a separate approved Supabase operation.
 - Migration `227_add_model_pricing_policy_apply_cas.sql` adds a service-role-only model-pricing apply overload that requires the reviewed active policy-version row id and compares it under the existing advisory lock before inserting or activating a new policy. The prior overload remains temporarily available only for safe deployment ordering; the rollback removes the CAS overload. Hosted apply and removal of the prior overload remain separate approved operations.
+- Migration `228_tune_openai_internal_capacity_limits.sql` raises the OpenAI internal-capacity rolling-hour budgets to 5,000,000 microusd per eligible paid/internal-comp user and 500,000,000 microusd globally while preserving the existing per-user/global active-request caps. It also adds a `created_at` index for the rolling-hour reservation scan. Hosted apply remains a separate approved Supabase operation.
 - Migration `198_allow_equal_timestamp_project_workspace_updates.sql` changes the project workspace freshness trigger to reject only strictly older `snapshot_updated_at` writes, so same-timestamp structural checkpoint updates can persist while out-of-order older autosaves still no-op. Hosted apply remains a separate approved Supabase operation.
 - Migration `199_repair_create_pulse_builtin_catalog.sql` repairs legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions. Hosted apply remains a separate approved Supabase operation.
 - Migration `200_add_credit_grant_lot_expiration.sql` adds grant-lot credit accounting, expiration-aware reservation/debit allocation, 60-day subscription credit expiration, non-expiring paid top-up lots, and the service-role expiration RPC. It also retires the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC so runtime reservations must use `admit_and_reserve_generation_credits(...)` with grant allocations. Hosted apply and scheduler enablement remain separate approved Supabase operations.

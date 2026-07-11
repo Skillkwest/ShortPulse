@@ -91,6 +91,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/225_add_media_upload_intents.sql`: add the private bounded media staging bucket and service-role-only upload-intent lifecycle used to authorize browser-to-storage transport before inspection and promotion.
 - `sql/migrations/226_reconcile_media_upload_staging_mime_allowlist.sql`: reconcile the private media upload staging bucket MIME allowlist with runtime audit expectations without changing upload-intent authority.
 - `sql/migrations/227_add_model_pricing_policy_apply_cas.sql`: add the compare-and-swap model-pricing policy apply overload so a reviewed draft can publish only against the exact active policy row it was based on.
+- `sql/migrations/228_tune_openai_internal_capacity_limits.sql`: raise OpenAI internal-capacity hourly budgets to 5,000,000 microusd per eligible user and 500,000,000 microusd globally, preserving active-request caps and customer-credit separation.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -360,6 +361,7 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `225_add_media_upload_intents.sql`
 - `226_reconcile_media_upload_staging_mime_allowlist.sql`
 - `227_add_model_pricing_policy_apply_cas.sql`
+- `228_tune_openai_internal_capacity_limits.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

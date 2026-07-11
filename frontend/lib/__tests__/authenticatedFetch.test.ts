@@ -187,6 +187,57 @@ describe("fetchWithAuth auth-session timeout", () => {
     }
   });
 
+  it("adds allowlisted JSON failure metadata without consuming the caller response body", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
+    const payload = {
+      code: "AGENT_DISABLED",
+      message: "Studio agent is disabled",
+      detail: "This text must not be copied into telemetry metadata.",
+      outcome_class: "route_error",
+      reason_code: "CONFIG_MISSING",
+      decision: "error",
+      retryable: false,
+      traceId: "trace-123",
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(payload), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    try {
+      const response = await fetchWithAuth("/api/ai/studio-agent-standard", {
+        method: "POST",
+      });
+
+      await expect(response.json()).resolves.toEqual(payload);
+      await vi.waitFor(() => {
+        expect(reportAppErrorMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            source: "client.api_response",
+            metadata: {
+              method: "POST",
+              response_error_code: "AGENT_DISABLED",
+              response_outcome_class: "route_error",
+              response_reason_code: "CONFIG_MISSING",
+              response_decision: "error",
+              response_retryable: false,
+              response_trace_id: "trace-123",
+            },
+          })
+        );
+      });
+      const report = reportAppErrorMock.mock.calls[0]?.[0] as {
+        metadata?: Record<string, unknown>;
+      };
+      expect(report.metadata).not.toHaveProperty("response_error_message");
+      expect(report.metadata).not.toHaveProperty("response_error_detail");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("does not retry or report caller-aborted requests as network errors", async () => {
     readSupabaseAccessTokenMock.mockResolvedValueOnce("token-123");
     const abortError = new DOMException("Aborted", "AbortError");

@@ -87,6 +87,8 @@ Each classification must include confidence: high, medium, or low.
 
 Classification must also state whether there is an app-owned source defect. If yes, the default next action is source fix or owner-lane escalation before queue cleanup; if no, the item may be pruned, ignored, or resolved/watch with proof and a recurrence condition.
 
+When a `client.api_response` incident omits machine-readable failure fields even though the owning route returns a typed JSON error envelope, treat that loss as an app-owned observability defect. Fix the canonical client logger before resolving the cluster: clone the response, retain only bounded allowlisted machine fields (for example `code`, `reason_code`, `traceId`, and retryability), never consume the caller response body, and never copy freeform error text or payload details into telemetry.
+
 ### Step 5A. Fix Real App-Owned Defects Before Cleanup
 
 When evidence shows a real app-owned issue:

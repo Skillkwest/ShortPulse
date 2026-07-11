@@ -51,8 +51,21 @@ type RegenerateWithDebitOptions = ExpertEditRegenerateOptions &
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
+const PRICING_POLICY_EVIDENCE_UNAVAILABLE_ERROR = "Unable to load pricing. Retry in a moment.";
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 const isVideoSubmitTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
+
+const hasOverridePricingEvidenceGap = ({
+  overrideCredits,
+  activePricingPolicyVersion,
+}: {
+  overrideCredits: number | null | undefined;
+  activePricingPolicyVersion: number | null | undefined;
+}): boolean =>
+  typeof overrideCredits === "number" &&
+  Number.isFinite(overrideCredits) &&
+  overrideCredits > 0 &&
+  activePricingPolicyVersion == null;
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -260,6 +273,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       });
 
       const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
+      if (
+        hasOverridePricingEvidenceGap({
+          overrideCredits: options?.costOverrideCredits,
+          activePricingPolicyVersion,
+        })
+      ) {
+        setUiError(PRICING_POLICY_EVIDENCE_UNAVAILABLE_ERROR);
+        return { accepted: false, optimisticOutputId: null };
+      }
       const canProceedWithCredits = await runGenerationCreditGuardrail({
         requiredCredits,
         upfrontRunCredits: options?.costOverrideCredits,
@@ -434,6 +456,16 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           : null;
       const resolvedRunCostCredits = options?.costOverrideCredits ?? resolvedModelOverrideCredits;
       const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
+      if (
+        hasOverridePricingEvidenceGap({
+          overrideCredits: resolvedRunCostCredits,
+          activePricingPolicyVersion,
+        })
+      ) {
+        removeExternalOptimisticPlaceholder();
+        setUiError(PRICING_POLICY_EVIDENCE_UNAVAILABLE_ERROR);
+        return;
+      }
       trackAiStudioGenerateClicked({
         trigger: "regenerate",
         tool,

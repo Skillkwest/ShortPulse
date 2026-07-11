@@ -634,18 +634,46 @@ const parseGuidedBlocks = (value: string): CreateChatRichMessageBlock[] => {
   return parsedBlocks;
 };
 
+const coalesceAdjacentListBlocks = (
+  blocks: CreateChatRichMessageBlock[]
+): CreateChatRichMessageBlock[] => {
+  const coalescedBlocks: CreateChatRichMessageBlock[] = [];
+
+  for (const block of blocks) {
+    const previousBlock = coalescedBlocks[coalescedBlocks.length - 1];
+    if (
+      block.kind === "list" &&
+      previousBlock?.kind === "list" &&
+      !block.intro &&
+      !previousBlock.intro &&
+      block.ordered === previousBlock.ordered
+    ) {
+      previousBlock.items.push(...block.items);
+      continue;
+    }
+
+    coalescedBlocks.push(block);
+  }
+
+  return coalescedBlocks;
+};
+
 const parseCreateChatRichMessageBlocks = ({
   content,
   formatMode,
 }: {
   content: string;
   formatMode: CreateChatRichMessageFormatMode;
-}): CreateChatRichMessageBlock[] =>
-  formatMode === "guided"
-    ? parseGuidedBlocks(content)
-    : formatMode === "standard_rich"
-      ? parseStandardRichBlocks(content)
-      : parseBasicBlocks(content);
+}): CreateChatRichMessageBlock[] => {
+  const parsedBlocks =
+    formatMode === "guided"
+      ? parseGuidedBlocks(content)
+      : formatMode === "standard_rich"
+        ? parseStandardRichBlocks(content)
+        : parseBasicBlocks(content);
+
+  return coalesceAdjacentListBlocks(parsedBlocks);
+};
 
 /**
  * Renders readable Create-panel chat text while preserving the original meaning.

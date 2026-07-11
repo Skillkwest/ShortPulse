@@ -145,6 +145,50 @@ const shouldLogHttpFailure = (
   return status >= 400;
 };
 
+type HttpFailureTelemetryMetadata = {
+  response_error_code?: string;
+  response_outcome_class?: string;
+  response_reason_code?: string;
+  response_decision?: string;
+  response_retryable?: boolean;
+  response_trace_id?: string;
+};
+
+const normalizeFailureMetadataText = (value: unknown, maxLength = 160): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length ? normalized.slice(0, maxLength) : null;
+};
+
+const readHttpFailureTelemetryMetadata = async (
+  response: Response
+): Promise<HttpFailureTelemetryMetadata> => {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) return {};
+
+  try {
+    const payload: unknown = await response.clone().json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+    const record = payload as Record<string, unknown>;
+    const metadata: HttpFailureTelemetryMetadata = {};
+    const errorCode = normalizeFailureMetadataText(record.code);
+    const outcomeClass = normalizeFailureMetadataText(record.outcome_class);
+    const reasonCode = normalizeFailureMetadataText(record.reason_code);
+    const decision = normalizeFailureMetadataText(record.decision);
+    const traceId = normalizeFailureMetadataText(record.traceId);
+
+    if (errorCode) metadata.response_error_code = errorCode;
+    if (outcomeClass) metadata.response_outcome_class = outcomeClass;
+    if (reasonCode) metadata.response_reason_code = reasonCode;
+    if (decision) metadata.response_decision = decision;
+    if (typeof record.retryable === "boolean") metadata.response_retryable = record.retryable;
+    if (traceId) metadata.response_trace_id = traceId;
+    return metadata;
+  } catch {
+    return {};
+  }
+};
+
 const isAbortError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const maybeError = error as { name?: unknown; message?: unknown };
@@ -284,18 +328,21 @@ export const fetchWithAuth = async (
       shouldLogHttpFailure(scope, endpoint, response.status) &&
       !endpoint.includes("/api/log/client-error")
     ) {
-      void reportAppError({
-        source: "client.api_response",
-        scope,
-        severity: response.status >= 502 ? "high" : response.status >= 500 ? "medium" : "low",
-        message: `API ${response.status} response from ${endpoint}`,
-        endpoint,
-        requestId,
-        statusCode: response.status,
-        route: typeof window !== "undefined" ? window.location.pathname : null,
-        metadata: {
-          method,
-        },
+      void readHttpFailureTelemetryMetadata(response).then((failureMetadata) => {
+        void reportAppError({
+          source: "client.api_response",
+          scope,
+          severity: response.status >= 502 ? "high" : response.status >= 500 ? "medium" : "low",
+          message: `API ${response.status} response from ${endpoint}`,
+          endpoint,
+          requestId,
+          statusCode: response.status,
+          route: typeof window !== "undefined" ? window.location.pathname : null,
+          metadata: {
+            method,
+            ...failureMetadata,
+          },
+        });
       });
     }
 

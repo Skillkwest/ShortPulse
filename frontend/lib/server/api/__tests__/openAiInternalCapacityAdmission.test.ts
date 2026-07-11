@@ -161,7 +161,7 @@ describe("openAiInternalCapacityAdmission", () => {
 
     rpcMock.mockResolvedValueOnce({
       data: null,
-      error: new Error("OpenAI internal-capacity allowance is exhausted."),
+      error: { message: "OpenAI internal-capacity allowance is exhausted.", code: "P0001" },
     });
     await expect(
       reserveOpenAiInternalCapacity({
@@ -172,6 +172,14 @@ describe("openAiInternalCapacityAdmission", () => {
         internalBudgetMicrousd: 25000,
         maxAttempts: 2,
       })
+    ).rejects.toMatchObject({ status: 429, code: "OPENAI_INTERNAL_CAPACITY_EXHAUSTED" });
+
+    rpcMock.mockResolvedValueOnce({
+      data: null,
+      error: { details: "OpenAI internal-capacity attempt limit reached.", code: "P0001" },
+    });
+    await expect(
+      beginOpenAiInternalCapacityAttempt({ admissionId: "admission-1", userId: "paid-user" })
     ).rejects.toMatchObject({ status: 429, code: "OPENAI_INTERNAL_CAPACITY_EXHAUSTED" });
   });
 });

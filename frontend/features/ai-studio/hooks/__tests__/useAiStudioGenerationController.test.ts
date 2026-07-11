@@ -29,6 +29,7 @@ const createParams = (
     setModel: vi.fn(),
     isCharacterModeEnabled: false,
     currentCostCredits: 3,
+    activePricingPolicyVersion: 9,
     resolveCostCreditsForModel: vi.fn(() => null),
     isGenerateDisabled: false,
     isCreditGuardrail: false,
@@ -503,6 +504,26 @@ describe("useAiStudioGenerationController", () => {
 
     expect(refreshBalance).toHaveBeenCalledTimes(1);
     expect(setUiError).toHaveBeenCalledWith("Insufficient Credits");
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+  });
+
+  it("blocks override-priced generate when pricing policy evidence is missing", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      activePricingPolicyVersion: null,
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
+    await act(async () => {
+      generateResult = await result.current.handleGenerate("prompt", { costOverrideCredits: 2 });
+    });
+
+    expect(setUiError).toHaveBeenCalledWith("Unable to load pricing. Retry in a moment.");
     expect(generateOutput).not.toHaveBeenCalled();
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
   });
@@ -1203,6 +1224,33 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setOptimisticDebitEntries).not.toHaveBeenCalled();
     expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
+  });
+
+  it("blocks override-priced edit regenerate when pricing policy evidence is missing", async () => {
+    const setUiError = vi.fn();
+    const regenerateOutput = vi.fn();
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const params = createParams({
+      activePricingPolicyVersion: null,
+      selectedTool: "edit",
+      model: "kie-ai/gpt-image-2-image-to-image",
+      setUiError: asDispatch<string | null>(setUiError),
+      regenerateOutput,
+      removeOptimisticGenerationPlaceholder,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        costOverrideCredits: 2,
+        outputIdOverride: "optimistic-edit-1",
+        referenceInputsOverride: ["https://example.com/reference.png"],
+      });
+    });
+
+    expect(setUiError).toHaveBeenCalledWith("Unable to load pricing. Retry in a moment.");
+    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("optimistic-edit-1");
+    expect(regenerateOutput).not.toHaveBeenCalled();
   });
 
   it("surfaces explicit error and does not submit when create/text tool remains in text mode", async () => {

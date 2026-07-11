@@ -96,6 +96,7 @@ const createParams = (
   isCreateCharacterModeEnabled: true,
   mode: "image",
   model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  activePricingPolicyVersion: 9,
   modelPricingPolicyReady: true,
   motionReferenceVideoPending: false,
   motionReferenceVideoError: null,

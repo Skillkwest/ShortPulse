@@ -455,6 +455,36 @@ describe("AgentChatPanel prompt actions", () => {
     ]);
   });
 
+  it("renders blank-line-separated pulse numbered options as one ordered list", () => {
+    const { container } = render(
+      <PulseCreateChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "Pick one of these plot directions:\n\n1. The artist walks through a grand old hotel.\n\n2. The artist moves through a modern luxury building.\n\n3. The artist crosses a historic theater from backstage to rooftop.",
+          },
+        ]}
+        input=""
+        showInput={false}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const orderedLists = container.querySelectorAll(".agent-message-rich-list--ordered");
+    expect(orderedLists).toHaveLength(1);
+    expect(within(orderedLists[0] as HTMLOListElement).getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByText("The artist walks through a grand old hotel.")).toBeInTheDocument();
+    expect(
+      screen.getByText("The artist moves through a modern luxury building.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("The artist crosses a historic theater from backstage to rooftop.")
+    ).toBeInTheDocument();
+  });
+
   it("renders standard assistant and user messages with richer readable structure", () => {
     const { container } = render(
       <StandardCreateChatPanel

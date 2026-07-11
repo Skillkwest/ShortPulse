@@ -24,6 +24,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Added media-upload intent hardening, generation ownership SQL migrations, GitHub hosted-SQL workflow contract tests, and an architecture-audit handoff packet for follow-up production hardening work.
 - Added launch-week production-operations guidance so ShortPulse work now centers on protecting live customer use, investigating production reports, and shipping small evidence-backed fixes on `production`.
 - Added OpenAI internal capacity-admission tracking and related SQL checks so agent/runtime capacity pressure can be audited instead of treated as opaque provider noise.
+- Added an OpenAI internal-capacity budget tuning migration and rollback so paid/internal-comp OpenAI lanes have higher rolling-hour provider allowance without touching customer credits.
 - Added a generation output media-link API path and tests so persisted generation outputs can expose their media linkage more reliably.
 - Added new Maya tester reports for Styles Library application and Tiny Apartment project-home review, plus Hybervees insight summaries for Maya's Quick Slot Inventory findings.
 - Added a customer-readable changelog ownership rule to Gear Ball SOPs so every future production batch is recorded here as part of publish readiness.
@@ -38,6 +39,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Updated model-pricing policy handling so pricing-grid rows, custom row materialization, admin pricing controls, billing reservations, and AI Studio pricing displays share a stricter billed-credit authority path.
 - Updated hosted SQL apply workflows, runtime SQL security checks, database docs, and schema snapshots for the latest production migration and control-plane delivery posture.
 - Updated AI Studio media/reference handling, audio uploads, adaptive pressure tracking, and provider proxy tests to better preserve safe media authority across upload, staging, reload, and provider-submit paths.
+- Updated AI Studio generation and client API telemetry so missing pricing-policy evidence blocks override-priced submissions before provider dispatch and typed API failures keep bounded machine-readable error metadata.
 - Updated admin Kanban backlog mirroring and planning docs so backlog-source metadata, board activity, and security-remediation follow-ups stay easier to audit.
 - Updated launch-week branch, runtime, database, and agent-governance wording across the repo from pre-launch readiness language to live production-operations language.
 - Refreshed agent contracts, memories, SOPs, and indexes so named agents use the current launch-week trust and production-branch posture.
@@ -61,6 +63,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Hardened OpenAI image description, style extraction, and voiceover enhancement routes with updated route tests and safer runtime behavior.
 - Improved dashboard project action coverage and runtime SQL security audit checks.
 - Updated Badearsai and admin backlog tooling so admin-error intake and backlog sync flows better match the launch-week operating model.
+- Updated Badearsai incident guidance so typed API error envelopes that lose machine-readable client telemetry are treated as app-owned observability defects.
 
 ## 2026-07-10 - Fresh Post-Launch Baseline
 

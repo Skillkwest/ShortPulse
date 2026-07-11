@@ -9,7 +9,12 @@ const migrationPath = path.join(
   repoRoot,
   "sql/migrations/223_add_openai_internal_capacity_admissions.sql"
 );
+const tuningMigrationPath = path.join(
+  repoRoot,
+  "sql/migrations/228_tune_openai_internal_capacity_limits.sql"
+);
 const sql = fs.readFileSync(migrationPath, "utf8");
+const tuningSql = fs.readFileSync(tuningMigrationPath, "utf8");
 
 describe("OpenAI internal-capacity admission migration", () => {
   it("creates a distinct durable authority with no customer-credit mutation", () => {
@@ -58,5 +63,23 @@ describe("OpenAI internal-capacity admission migration", () => {
     expect(sql).toContain("OpenAI internal-capacity allowance is exhausted.");
     expect(sql).toContain("'estimated_cost_microusd'");
     expect(sql).toContain("jsonb_typeof(entry.value) not in ('number', 'null')");
+  });
+
+  it("tunes paid-account hourly budgets without changing admission ownership", () => {
+    expect(tuningSql).toContain(
+      "create index if not exists ix_openai_internal_capacity_admissions_created_at"
+    );
+    expect(tuningSql).toContain(
+      "create or replace function public.reserve_openai_internal_capacity_admission"
+    );
+    expect(tuningSql).toContain("c_user_active_limit constant integer := 4");
+    expect(tuningSql).toContain("c_global_active_limit constant integer := 100");
+    expect(tuningSql).toContain("c_user_hourly_budget_limit constant bigint := 5000000");
+    expect(tuningSql).toContain("c_global_hourly_budget_limit constant bigint := 500000000");
+    expect(tuningSql).toContain("from public.billing_subscription_contracts c");
+    expect(tuningSql).toContain(
+      "grant execute on function public.reserve_openai_internal_capacity_admission"
+    );
+    expect(tuningSql).not.toMatch(/update\s+public\.ai_credit|insert\s+into\s+public\.ai_credit/i);
   });
 });

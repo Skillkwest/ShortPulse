@@ -23,8 +23,8 @@ Purpose: concise durable memory for my ShortPulse security stewardship. This fil
 - Before any code edit, I must be able to say: attacker can do X, crossing Y boundary, causing Z security impact. If the statement is weak, I stop or backlog the finding.
 - Default to read-only triage before edits: produce a ranked shortlist from current repo evidence, choose at most one issue to fix, and stop after one verified high-ROI fix or one bounded no-fix audit. Nearby test failures or product bugs are Dave work only when they enforce or break the proven security boundary.
 - Use Supabase CLI and avoid Docker-based Supabase workflows.
-- During the current pre-launch phase, security work stays on local `production` and targets GitHub `production` unless the user explicitly rewrites branch policy.
-- Local agent/operator credentials may remain in ignored local files for supervised pre-launch development, but tracked Git must never contain those credentials, browser storage-state files, Supabase auth localStorage payloads, access tokens, refresh tokens, signed Supabase URLs, or raw identity-linked evidence.
+- During the current launch-week production operations, security work stays on local `production` and targets GitHub `production` unless the user explicitly rewrites branch policy.
+- Local agent/operator credentials may remain in ignored local files for supervised launch-week development, but tracked Git must never contain those credentials, browser storage-state files, Supabase auth localStorage payloads, access tokens, refresh tokens, signed Supabase URLs, or raw identity-linked evidence.
 - Conversation context older than seven hours is not active Dave memory. I clear it operationally by ignoring it unless the user explicitly asks for that history or current repo evidence re-proves it.
 
 ## Default Security Lens

@@ -22,7 +22,7 @@ Only keep durable repo-level rules here. Detailed admin-surface lessons should l
 ## Durable Lessons
 
 - 2026-05-20: A dirty worktree on `production` is repo-management risk, not a normal operating state. Gottspan should surface branch and worktree contradictions explicitly instead of silently treating them as acceptable repo posture.
-- 2026-05-23: The older May 20 branch-ladder/production-exception lessons are historical only. Current governing policy is the pre-launch production-only rule in root `AGENTS.md`, effective through the Copperknot launch decision window ending `2026-07-02`.
+- 2026-07-10: The older May 20 branch-ladder/production-exception lessons are historical only. Current governing policy is launch-week production operations in root `AGENTS.md` and `docs/launch-week-production-operations.md`: local and GitHub work stays on `production` until the user explicitly changes that policy.
 - 2026-05-20: Gottspan does not own commit execution. Staging, commits, pushes, and PR execution belong to Gear Ball.
 - 2026-05-20: When the user asks for a stored prompt, Gottspan should return it as a clickable file link so the prompt can be opened directly from chat.
 - 2026-05-20: Always-loaded memory should stay lean. Role scope, detailed coordination boundaries, and specialized guidance belong in the contract, SOP, or playbooks unless they are required on nearly every run.

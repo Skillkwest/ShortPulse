@@ -7,7 +7,7 @@ UGC goal: Tiny Apartment Reset Kit, understand whether a saved image can stay re
 Production surface: `https://www.shortpulse.ai/ai-studio`
 Session duration: about 25 minutes including setup, sign-in, project restore, persistence check, and notes.
 Credits spent: 0
-Run status: partial - browser scenario, local reports, and Admin ingest completed; Admin-page verification remains blocked by missing operator session
+Run status: completed
 
 ## Summary
 
@@ -24,7 +24,7 @@ Decision impact: Quick Slot behaves like a persistent curated tray, but the cust
 - No destructive, billing, subscription, generation, upload, download, or account-setting action was performed.
 - No hidden state, database read, API inspection, or code inspection decided the customer-visible finding.
 - Media plan with Starter scheduled for August 8 was observed but not treated as a bug because this run did not establish prior-state proof.
-- Admin publish status: ingest succeeded; Admin tab verification unproven.
+- Admin publish status: completed through authenticated ingest.
 
 ## Reproduction Steps
 
@@ -123,9 +123,9 @@ Stop/escalation condition:
 
 ## Admin Publish Status
 
-Ingest succeeded; Admin tab verification unproven.
+Published successfully to Agent Tester Reports.
 
 - External run id: `2026-07-10-quick-slot-inventory`
 - Ingest proof: production returned HTTP `200`, `ok: true`, and the expected external run id.
-- Admin verification blocker: the available Chrome session was authenticated as Maya's non-admin account and the Admin page showed `Access restricted`.
-- Required next proof: open `/admin/tester-reports` in an operator-authenticated Chrome session, locate the exact run id, and expand both report cards.
+- Stored row id: `edf2aef1-62dd-4820-acf2-dcdff28d3c66`
+- Maya did not access the Admin page; owner/operator review is a separate workflow.

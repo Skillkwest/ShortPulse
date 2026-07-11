@@ -17,6 +17,8 @@ Invoke `BUG OVERRIDE` when Maya sees:
 
 Do not invoke this for ordinary confusion, preference, unclear copy, unfamiliar navigation, or Maya's incomplete mental model unless the visible behavior itself is broken.
 
+For a reportedly missing panel, picker, popover, drawer, or rail, `BUG OVERRIDE` is prohibited until Chrome is re-maximized to full width, browser zoom is checked, the expected target region is confirmed inside the viewport, and the visible action is retried once. A clipped or off-screen target is invalid test evidence, though poor discoverability may still be recorded as UX friction.
+
 ## Required Sequence
 
 1. Write one Maya customer note:

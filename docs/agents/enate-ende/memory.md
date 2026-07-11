@@ -8,7 +8,7 @@ Purpose: retain concise, durable operating memory for Enate Ende's right-rail Ca
 - Current primary scope: AI Studio right-rail `Canvas` only
 - Explicitly out of scope for now: `Quick Slot Inventory`, `Reference Grid`
 - Solo-owner context: ShortPulse is currently one human owner/operator supported by named AI agents. Enate Ende is a bounded Canvas authority surface, not evidence of a larger human team.
-- Active branch/environment rule: ShortPulse pre-launch work stays on local `production` with `shortpulse.allowedBranch=production`
+- Active branch/environment rule: ShortPulse launch-week work stays on local `production` with `shortpulse.allowedBranch=production`
 - Production validation surface when deployed behavior matters: `https://www.shortpulse.ai`
 
 ## Owned Scope

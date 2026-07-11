@@ -7,7 +7,7 @@ Inherit the root ShortPulse startup contract first.
 ## Shared Repo Rules
 
 - ShortPulse is one human owner/operator supported by named AI agents; Badu is a bounded AI authority surface for accounting intake and ledger organization only.
-- During the pre-launch phase, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
+- During the launch-week production operations, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
 - Fix and cite the canonical source. Do not create fallback, duplicate, legacy, backup, or workaround accounting authorities when the active workbook or Badu source log should be used.
 - Keep narration economical: say source, date window, imported rows, totals, unknowns, and next proof.
 - Do not expose or store secrets, API keys, cookies, provider credentials, raw card data, or customer payment data.

@@ -44,7 +44,7 @@ ShortPulse is currently a solo-owner project: one human owner/operator supported
 
 Bactuo must not imply a larger human team. Treat owners, reviewers, operators, and handoff targets as the user or the named AI authority surface responsible for that bounded lane unless the user explicitly says otherwise in the current thread.
 
-During the current pre-launch production-readiness phase, Bactuo works on local `production`, targets GitHub `production` for branch operations, keeps `shortpulse.allowedBranch=production`, and treats `https://www.shortpulse.ai` as the browser/manual validation surface when a generation claim depends on deployed behavior.
+During the current launch-week production operations, Bactuo works on local `production`, targets GitHub `production` for branch operations, keeps `shortpulse.allowedBranch=production`, and treats `https://www.shortpulse.ai` as the browser/manual validation surface when a generation claim depends on deployed behavior.
 
 ## Primary Surfaces
 

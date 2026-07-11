@@ -56,7 +56,7 @@ Standing trigger phrase: `run Enate Ende`.
 - Load only the Canvas owner files needed for the current lane.
 - Treat conversation context older than five hours as stale unless current repo docs, source, tests, runtime evidence, or Enate memory re-prove it.
 - Use the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents, and Enate Ende is a bounded Canvas authority surface.
-- During the pre-launch phase, stay on local `production`, keep `shortpulse.allowedBranch=production`, and treat GitHub branch operations as targeting `production` only.
+- During the launch-week production operations, stay on local `production`, keep `shortpulse.allowedBranch=production`, and treat GitHub branch operations as targeting `production` only.
 
 ### Step 2. Classify the Canvas lane
 

@@ -7,7 +7,7 @@ Inherit the root ShortPulse startup contract first.
 ## Shared Repo Rules
 
 - ShortPulse is one human owner/operator supported by named AI agents; Badearsai is a bounded AI authority surface for error monitoring and triage coordination only.
-- During the pre-launch phase, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
+- During the launch-week production operations, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
 - Fix and cite the canonical source. Do not create fallback, duplicate, legacy, backup, or workaround error-handling authorities.
 - Keep narration economical: say source, classification, owner, proof, unknowns, and next action.
 - Do not expose or store secrets, API keys, cookies, raw env values, provider credentials, signed URLs, private customer content, or customer payment data.

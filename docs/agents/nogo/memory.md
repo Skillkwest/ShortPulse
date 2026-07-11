@@ -6,7 +6,7 @@ Purpose: concise durable memory for Nogo, the provider spending analytics stewar
 
 - Nogo owns provider spending analytics for Kie, Fal, ElevenLabs, OpenAI, and future variable-cost API providers.
 - Nogo operates inside the ShortPulse solo-owner model: one human owner/operator supported by named AI agents. Nogo is bounded authority for provider spending analytics only.
-- Nogo inherits the root pre-launch rules: local work stays on `production`, `shortpulse.allowedBranch=production`, production browser/manual validation uses `https://www.shortpulse.ai` when relevant, and canonical source fixes are preferred over fallback or duplicate spend authorities.
+- Nogo inherits the root launch-week rules: local work stays on `production`, `shortpulse.allowedBranch=production`, production browser/manual validation uses `https://www.shortpulse.ai` when relevant, and canonical source fixes are preferred over fallback or duplicate spend authorities.
 - Provider spend caps are emergency brakes; normal protection should come from ShortPulse credits, plan limits, per-user generation limits, and abuse controls.
 - The first observed anchor from the user is that the user plus Scott spent over `$400` in one month. Treat that as heavy founder/testing intensity, not normal blended user behavior.
 - Baseline provider-cap weighting starts at Kie `65%`, Fal `20%`, ElevenLabs `10%`, OpenAI `5%` unless current usage mix proves otherwise.

@@ -10,6 +10,9 @@ const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const resolveRequiredRuntimeAgentPromptMock = vi.fn();
+const admitOpenAiInternalCapacityRequestMock = vi.fn();
+const beginOpenAiInternalCapacityAttemptMock = vi.fn();
+const settleOpenAiInternalCapacityMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -37,6 +40,25 @@ vi.mock("../../lib/server/api/runtimeAgentPromptControlPlane", () => ({
     resolveRequiredRuntimeAgentPromptMock(...args),
 }));
 
+vi.mock("../../lib/server/api/openAiInternalCapacityAdmission", () => ({
+  OpenAiInternalCapacityError: class OpenAiInternalCapacityError extends Error {
+    constructor(
+      public readonly status: number,
+      public readonly code: string,
+      message: string
+    ) {
+      super(message);
+    }
+  },
+  resolveOpenAiInternalCapacityRequestId: () => "request-1",
+  admitOpenAiInternalCapacityRequest: (...args: unknown[]) =>
+    admitOpenAiInternalCapacityRequestMock(...args),
+  beginOpenAiInternalCapacityAttempt: (...args: unknown[]) =>
+    beginOpenAiInternalCapacityAttemptMock(...args),
+  extractOpenAiInternalCapacityUsage: () => ({}),
+  settleOpenAiInternalCapacity: (...args: unknown[]) => settleOpenAiInternalCapacityMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -51,6 +73,9 @@ describe("POST /api/ai/extract-style", () => {
     delete process.env.OPENAI_VISION_MODEL;
     delete process.env.OPENAI_VISION_FALLBACK_MODEL;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
+    admitOpenAiInternalCapacityRequestMock.mockResolvedValue({ id: "admission-1" });
+    beginOpenAiInternalCapacityAttemptMock.mockResolvedValue({ id: "admission-1" });
+    settleOpenAiInternalCapacityMock.mockResolvedValue({ status: "completed" });
     resolveRequiredRuntimeAgentPromptMock.mockResolvedValue({
       promptId: "OPENAI_PROMPT_STYLE_EXTRACT",
       promptBody: "Admin saved style extraction prompt.",
@@ -125,6 +150,34 @@ describe("POST /api/ai/extract-style", () => {
         retryable: true,
         error: "Style extraction is temporarily unavailable.",
       })
+    );
+  });
+
+  it("denies provider work when durable paid capacity is unavailable", async () => {
+    const { OpenAiInternalCapacityError } =
+      await import("../../lib/server/api/openAiInternalCapacityAdmission");
+    admitOpenAiInternalCapacityRequestMock.mockRejectedValueOnce(
+      new OpenAiInternalCapacityError(
+        402,
+        "OPENAI_PAID_ACCESS_REQUIRED",
+        "Choose a plan to use this AI feature."
+      )
+    );
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(resolveRequiredRuntimeAgentPromptMock).not.toHaveBeenCalled();
+    expect(beginOpenAiInternalCapacityAttemptMock).not.toHaveBeenCalled();
+    expect(settleOpenAiInternalCapacityMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ code: "OPENAI_PAID_ACCESS_REQUIRED" })
     );
   });
 
@@ -330,6 +383,7 @@ describe("POST /api/ai/extract-style", () => {
     await extractStyleHandler(req as never, res as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(beginOpenAiInternalCapacityAttemptMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

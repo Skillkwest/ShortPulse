@@ -1,6 +1,10 @@
 # July 7 Launch Authority
 
-Purpose: define the active ShortPulse launch-readiness authority model for the July 7, 2026 launch decision.
+Purpose: preserve the ShortPulse launch-readiness authority model used for the July 7, 2026 launch decision.
+
+## Status
+
+ShortPulse launched on `2026-07-07`. This file is the authoritative record of the launch decision and its evidence model, not the active phase instruction. Current work follows `docs/launch-week-production-operations.md` while preserving this file's evidence discipline.
 
 ## Controlling Promise
 
@@ -10,24 +14,24 @@ This promise is the controlling launch standard. System scores, queue order, han
 
 ## Active Date
 
-- Active launch decision date: `2026-07-07`
+- Launch decision date: `2026-07-07` (completed)
 - Active branch: `production`
 - Active production URL for browser/manual validation: `https://www.shortpulse.ai`
 
-The date is a decision target, not permission to create false confidence. If evidence shows the promise cannot be met by July 7, Copperknot must say so and route the smallest recovery plan.
+The date was a decision target, not permission to create false confidence. During launch week, use current production evidence to route the smallest customer-impacting recovery action.
 
 ## Readiness Model
 
 The old `/10` score is now a secondary architecture maturity index. It can help compare system health, but it does not decide whether a launch lane is ready for July 7. The July 7 launch board uses these fields as the primary authority:
 
-| Field | Meaning |
-| --- | --- |
-| `Launch state` | Whether the system can support the launch promise today. |
-| `Evidence level` | The strongest proof currently available. |
-| `Human risk` | Risk that the user experience breaks trust, task completion, or paid-use confidence. |
-| `Operational risk` | Risk that normal usage creates solo-owner rescue or support burden. |
-| `Technical risk` | Risk that the implementation is fragile, unclear, or hard to repair quickly. |
-| `Next proof` | The next concrete proof needed to move the system forward. |
+| Field              | Meaning                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| `Launch state`     | Whether the system can support the launch promise today.                             |
+| `Evidence level`   | The strongest proof currently available.                                             |
+| `Human risk`       | Risk that the user experience breaks trust, task completion, or paid-use confidence. |
+| `Operational risk` | Risk that normal usage creates solo-owner rescue or support burden.                  |
+| `Technical risk`   | Risk that the implementation is fragile, unclear, or hard to repair quickly.         |
+| `Next proof`       | The next concrete proof needed to move the system forward.                           |
 
 ## Human Launch Gates
 
@@ -45,26 +49,26 @@ These questions classify launch risk. They do not authorize redesign by default.
 
 ## Launch States
 
-| State | Use When |
-| --- | --- |
-| `Blocked` | A known unresolved defect, missing proof, or control gap can directly break the launch promise or prevents decision-grade evaluation. |
-| `Below Floor` | The system may work, but current evidence, reliability, or human/owner trust is not strong enough for launch reliance. |
-| `Floor With Watch` | The system meets the minimum launch floor for a bounded scope, but watch proof or residual risk remains too important to call launchable outright. |
-| `Launchable With Watch` | The system can support launch if monitored; residual risk is named, bounded, and not expected to break normal customer use. |
-| `Launch Ready` | The system has production-grade proof, low owner burden, no active launch blocker, and no required prelaunch work remains. |
-| `Post-Launch Improve` | The system is not required for the July 7 launch promise or is good enough for launch with only improvement work remaining. |
+| State                   | Use When                                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Blocked`               | A known unresolved defect, missing proof, or control gap can directly break the launch promise or prevents decision-grade evaluation.              |
+| `Below Floor`           | The system may work, but current evidence, reliability, or human/owner trust is not strong enough for launch reliance.                             |
+| `Floor With Watch`      | The system meets the minimum launch floor for a bounded scope, but watch proof or residual risk remains too important to call launchable outright. |
+| `Launchable With Watch` | The system can support launch if monitored; residual risk is named, bounded, and not expected to break normal customer use.                        |
+| `Launch Ready`          | The system had production-grade proof, low owner burden, no active launch blocker, and no required launch work remaining at the decision point.    |
+| `Post-Launch Improve`   | The system is not required for the July 7 launch promise or is good enough for launch with only improvement work remaining.                        |
 
 Use `Below Floor` instead of the older `Below Bar` wording for new July 7 launch-control updates. If an older handoff or retained report says `Below Bar`, interpret it as `Below Floor` until refreshed.
 
 ## Evidence Levels
 
-| Evidence level | Meaning |
-| --- | --- |
-| `Assumed` | A claim exists, but current repo or production evidence has not been checked. |
-| `Repo Inspected` | Current docs/code were inspected and support the claim. |
-| `Locally Tested` | Targeted local checks were run against the current worktree. |
-| `Production Checked` | Non-mutating production checks or route/manual observations passed. |
-| `Production Proven` | Mutating or end-to-end production behavior passed with real workflow evidence. |
+| Evidence level       | Meaning                                                                        |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `Assumed`            | A claim exists, but current repo or production evidence has not been checked.  |
+| `Repo Inspected`     | Current docs/code were inspected and support the claim.                        |
+| `Locally Tested`     | Targeted local checks were run against the current worktree.                   |
+| `Production Checked` | Non-mutating production checks or route/manual observations passed.            |
+| `Production Proven`  | Mutating or end-to-end production behavior passed with real workflow evidence. |
 
 Never claim a launch state stronger than the evidence level can support. Local fixes can improve the board, but production readiness needs production evidence when user-facing runtime behavior is involved.
 
@@ -93,7 +97,7 @@ If a major UI, UX, or behavior change becomes necessary, the launch artifact or 
 
 ## July 7 Completion Gates
 
-ShortPulse is not ready for the July 7 launch decision until all of these are true:
+The July 7 launch decision required all of these conditions. They remain useful production-health signals, but the active response model is now launch-week operations:
 
 1. Core user journey is production-proven or explicitly waived with current evidence: arrive, auth, enter AI Studio, create/edit/generate, save, reopen, reuse assets, and understand failure state.
 2. Credits, pricing, billing, and entitlement behavior is production-checked at minimum and production-proven for any path relied on for paid launch.

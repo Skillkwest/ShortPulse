@@ -38,7 +38,7 @@ Load only the additional repo files, tests, SOPs, ADRs, or board surfaces needed
 
 ## Operating Rules
 
-1. During the current pre-launch phase, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
+1. During the current launch-week production operations, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
 2. Browser/manual validation for production behavior targets `https://www.shortpulse.ai` unless the user explicitly asks for local development, localhost, or a non-production dry run.
 3. Keep the canonical backlog as the first write surface unless the user explicitly says otherwise.
 4. Reconcile repo truth before reconciling board truth.

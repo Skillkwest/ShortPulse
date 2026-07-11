@@ -19,10 +19,33 @@ const logApiRouteExceptionMock = vi.fn();
 const resolveRuntimeSafetyProfileMock = vi.fn();
 const resolveRuntimeCreatePulseBuiltInCatalogMock = vi.fn();
 const resolveRequiredRuntimeAgentPromptMock = vi.fn();
+const admitOpenAiInternalCapacityRequestMock = vi.fn();
+const beginOpenAiInternalCapacityAttemptMock = vi.fn();
+const settleOpenAiInternalCapacityMock = vi.fn();
 let apiUserCounter = 0;
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
+}));
+
+vi.mock("../../lib/server/api/openAiInternalCapacityAdmission", () => ({
+  OpenAiInternalCapacityError: class OpenAiInternalCapacityError extends Error {
+    constructor(
+      public readonly status: number,
+      public readonly code: string,
+      message: string
+    ) {
+      super(message);
+    }
+  },
+  resolveOpenAiInternalCapacityRequestId: () => "standard-request-id",
+  admitOpenAiInternalCapacityRequest: (...args: unknown[]) =>
+    admitOpenAiInternalCapacityRequestMock(...args),
+  beginOpenAiInternalCapacityAttempt: (...args: unknown[]) =>
+    beginOpenAiInternalCapacityAttemptMock(...args),
+  extractOpenAiInternalCapacityUsage: () => ({}),
+  mergeOpenAiInternalCapacityUsage: (current: Record<string, unknown>) => current,
+  settleOpenAiInternalCapacity: (...args: unknown[]) => settleOpenAiInternalCapacityMock(...args),
 }));
 
 vi.mock("../../features/ai-agent/logic/studioAgentThinkerFormatter", () => ({
@@ -222,6 +245,18 @@ const resetRuntimeTestState = () => {
     updatedByEmail: "admin@example.com",
     source: "control_plane",
   });
+  admitOpenAiInternalCapacityRequestMock.mockResolvedValue({
+    id: "standard-admission-1",
+    attemptCount: 1,
+  });
+  beginOpenAiInternalCapacityAttemptMock.mockResolvedValue({
+    id: "standard-admission-1",
+    attemptCount: 2,
+  });
+  settleOpenAiInternalCapacityMock.mockResolvedValue({
+    id: "standard-admission-1",
+    status: "completed",
+  });
   runThinkerFormatterTurnMock.mockResolvedValue({
     ok: true,
     result: {
@@ -385,6 +420,20 @@ describe("AI Studio Create agent runtime boundaries", () => {
 
     await standardStudioAgentHandler(req as never, res as never);
 
+    expect(admitOpenAiInternalCapacityRequestMock).toHaveBeenCalledWith({
+      userId: expect.stringMatching(/^user-/),
+      lane: "studio_agent.standard",
+      requestId: "standard-request-id",
+      internalBudgetMicrousd: 100_000,
+      maxAttempts: 5,
+    });
+    expect(beginOpenAiInternalCapacityAttemptMock).not.toHaveBeenCalled();
+    expect(settleOpenAiInternalCapacityMock).toHaveBeenCalledWith({
+      admissionId: "standard-admission-1",
+      userId: expect.stringMatching(/^user-/),
+      status: "completed",
+      usage: { requestCount: 1 },
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -405,6 +454,30 @@ describe("AI Studio Create agent runtime boundaries", () => {
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
+  });
+
+  it("denies Standard provider work when durable paid capacity is unavailable", async () => {
+    const { OpenAiInternalCapacityError } =
+      await import("../../lib/server/api/openAiInternalCapacityAdmission");
+    admitOpenAiInternalCapacityRequestMock.mockRejectedValueOnce(
+      new OpenAiInternalCapacityError(
+        402,
+        "OPENAI_PAID_ACCESS_REQUIRED",
+        "Choose a plan to use this AI feature."
+      )
+    );
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(beginOpenAiInternalCapacityAttemptMock).not.toHaveBeenCalled();
+    expect(settleOpenAiInternalCapacityMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ code: "OPENAI_PAID_ACCESS_REQUIRED" })
+    );
   });
 
   it("routes Standard through Responses transport when the Standard responses flag is enabled", async () => {
@@ -1196,6 +1269,15 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(String(payload.traceId).length).toBeGreaterThan(0);
     expect(payload.detail).toBe("Agent request timed out");
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(admitOpenAiInternalCapacityRequestMock).toHaveBeenCalledTimes(1);
+    expect(beginOpenAiInternalCapacityAttemptMock).toHaveBeenCalledTimes(1);
+    expect(settleOpenAiInternalCapacityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admissionId: "standard-admission-1",
+        status: "failed",
+        usage: { requestCount: 2 },
+      })
+    );
   });
 
   it("makes one bounded Standard recovery attempt for an eligible model refusal", async () => {
@@ -1242,6 +1324,15 @@ describe("AI Studio Create agent runtime boundaries", () => {
       })
     );
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(admitOpenAiInternalCapacityRequestMock).toHaveBeenCalledTimes(1);
+    expect(beginOpenAiInternalCapacityAttemptMock).toHaveBeenCalledTimes(1);
+    expect(settleOpenAiInternalCapacityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admissionId: "standard-admission-1",
+        status: "completed",
+        usage: { requestCount: 2 },
+      })
+    );
   });
 
   it("never loops when the bounded Standard recovery refuses again", async () => {
@@ -1592,6 +1683,18 @@ describe("AI Studio Create agent runtime boundaries", () => {
     await standardStudioAgentHandler(req as never, res as never);
 
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(admitOpenAiInternalCapacityRequestMock).toHaveBeenCalledTimes(1);
+    expect(beginOpenAiInternalCapacityAttemptMock).toHaveBeenCalledTimes(1);
+    expect(beginOpenAiInternalCapacityAttemptMock).toHaveBeenCalledWith({
+      admissionId: "standard-admission-1",
+      userId: expect.stringMatching(/^user-/),
+    });
+    expect(settleOpenAiInternalCapacityMock).toHaveBeenCalledWith({
+      admissionId: "standard-admission-1",
+      userId: expect.stringMatching(/^user-/),
+      status: "completed",
+      usage: { requestCount: 2 },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1695,6 +1798,36 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(fetch).not.toHaveBeenCalled();
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("denies Pulse provider work when durable paid capacity is unavailable", async () => {
+    const { OpenAiInternalCapacityError } =
+      await import("../../lib/server/api/openAiInternalCapacityAdmission");
+    admitOpenAiInternalCapacityRequestMock.mockRejectedValueOnce(
+      new OpenAiInternalCapacityError(
+        402,
+        "OPENAI_PAID_ACCESS_REQUIRED",
+        "Choose a plan to use this AI feature."
+      )
+    );
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: createPulseContext(),
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(beginOpenAiInternalCapacityAttemptMock).not.toHaveBeenCalled();
+    expect(settleOpenAiInternalCapacityMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ code: "OPENAI_PAID_ACCESS_REQUIRED" })
+    );
   });
 
   it("rejects runtimeMode standard on the Pulse route", async () => {

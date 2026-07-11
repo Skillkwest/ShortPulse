@@ -67,6 +67,16 @@ const createJsonResponse = (payload: unknown, status = 200): Response =>
     headers: { "content-type": "application/json" },
   });
 
+const expectOutputMediaLink = (mediaFileId: string) => {
+  expect(fetchWithAuthMock).toHaveBeenCalledWith(
+    "/api/generation/output-media-link",
+    expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining(`"mediaFileId":"${mediaFileId}"`),
+    })
+  );
+};
+
 const mockVideoPosterExtraction = () => {
   const originalCreateElement = document.createElement.bind(document);
   const fakeDrawImage = vi.fn();
@@ -130,6 +140,12 @@ describe("saveMediaUrlToLibrary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     readSupabaseUserIdMock.mockResolvedValue("user-1");
+    fetchWithAuthMock.mockImplementation(async (input: string) => {
+      if (input === "/api/generation/output-media-link") {
+        return createJsonResponse({ ok: true });
+      }
+      throw new Error(`Unexpected authenticated request: ${input}`);
+    });
   });
 
   afterEach(() => {
@@ -223,11 +239,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
     expect(selectBuilder.contains).not.toHaveBeenCalled();
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-existing",
-      })
-    );
+    expectOutputMediaLink("media-existing");
   });
 
   it("signs durable delivery for an existing ai_studio video instead of returning provider hints", async () => {
@@ -269,8 +281,14 @@ describe("saveMediaUrlToLibrary", () => {
     }));
     const insert = vi.fn();
     const upload = vi.fn();
-    fetchWithAuthMock.mockResolvedValueOnce(
-      new Response(
+    fetchWithAuthMock.mockImplementation(async (input: string) => {
+      if (input === "/api/generation/output-media-link") {
+        return createJsonResponse({ ok: true });
+      }
+      if (input !== "/api/media/sign-batch") {
+        throw new Error(`Unexpected authenticated request: ${input}`);
+      }
+      return new Response(
         JSON.stringify({
           urls: {
             "user-1/variants/videos/media-existing-video/preview_loop_360p.mp4":
@@ -285,8 +303,8 @@ describe("saveMediaUrlToLibrary", () => {
           status: 200,
           headers: { "content-type": "application/json" },
         }
-      )
-    );
+      );
+    });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -351,7 +369,10 @@ describe("saveMediaUrlToLibrary", () => {
         shortpulseLogScope: "app",
       })
     );
-    const signBatchBody = JSON.parse(String(fetchWithAuthMock.mock.calls.at(-1)?.[1]?.body));
+    const signBatchCall = fetchWithAuthMock.mock.calls.find(
+      ([input]) => input === "/api/media/sign-batch"
+    );
+    const signBatchBody = JSON.parse(String(signBatchCall?.[1]?.body));
     expect(signBatchBody).toEqual(
       expect.objectContaining({
         bucket: "media_library",
@@ -595,11 +616,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(mediaUpdate).toHaveBeenCalledWith({
       poster_variant_path: "user-1/variants/videos/media-existing-video/poster_720.jpg",
     });
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-existing-video",
-      })
-    );
+    expectOutputMediaLink("media-existing-video");
   });
 
   it("retries ai_studio existing-row lookup before falling back to provider fetch", async () => {
@@ -692,11 +709,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-raced",
-      })
-    );
+    expectOutputMediaLink("media-raced");
   });
 
   it("prefers publication-owned media before legacy canonical reuse when output index already exists", async () => {
@@ -788,11 +801,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(result.mediaFileId).toBe("media-from-publication");
     expect(upload).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-from-publication",
-      })
-    );
+    expectOutputMediaLink("media-from-publication");
   });
 
   it("does not re-upload a poster when a publication-owned video row already has one", async () => {
@@ -895,11 +904,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(variantUpsert).not.toHaveBeenCalled();
     expect(mediaUpdate).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-from-publication-video",
-      })
-    );
+    expectOutputMediaLink("media-from-publication-video");
   });
 
   it("falls back to legacy generation_output_index lookup when canonical output media linkage is absent", async () => {
@@ -1140,11 +1145,7 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(insert).toHaveBeenCalledTimes(1);
-    expect(generationOutputUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        media_file_id: "media-existing-after-duplicate",
-      })
-    );
+    expectOutputMediaLink("media-existing-after-duplicate");
   });
 
   it("generates a durable poster from the video blob when duplicate ai_studio insert reuses an existing video row", async () => {
@@ -1973,13 +1974,7 @@ describe("saveMediaUrlToLibrary", () => {
         custom_flag: true,
       })
     );
-    expect(generationOutputInsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generation_id: "gen-2",
-        output_index: 1,
-        media_file_id: "media-new",
-      })
-    );
+    expectOutputMediaLink("media-new");
   });
 
   it("persists a durable poster variant when saving a new video with a poster hint", async () => {

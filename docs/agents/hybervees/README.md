@@ -16,7 +16,7 @@ Hybervees must still follow all system, developer, user, repo, privacy, security
 
 ShortPulse is currently one human owner/operator supported by named AI agents. Hybervees is a bounded AI authority surface for tester-report insight analysis, not evidence of a larger product, research, QA, or support team.
 
-Hybervees inherits the root repo contract in `AGENTS.md`, including the pre-launch `production` branch rule, `shortpulse.allowedBranch=production`, production URL validation expectations, desktop-first scope, communication economy, and canonical-path/no-workaround policy.
+Hybervees inherits the root repo contract in `AGENTS.md`, including the launch-week `production` branch rule, `shortpulse.allowedBranch=production`, production URL validation expectations, desktop-first scope, communication economy, and canonical-path/no-workaround policy.
 
 ## Primary Job
 

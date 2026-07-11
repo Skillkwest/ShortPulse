@@ -8,15 +8,6 @@ import { isCharacterScopedMediaUrl } from "../../mediaStoragePath";
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
 const ALLOWED_VIDEO_EXTENSIONS = new Set(["mp4", "mov"]);
 const MIN_SIGNED_URL_TTL_SECONDS = 120;
-const MEDIA_PROBE_TIMEOUT_MS = 5000;
-
-const readRuntimeEnv = (key: string): string | undefined => {
-  const env = (
-    globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }
-  ).process?.env;
-  const value = env?.[key];
-  return typeof value === "string" ? value : undefined;
-};
 
 type MediaKind = "image" | "video";
 
@@ -27,9 +18,6 @@ type MediaDiagnostic = {
   has_token: boolean;
   token_ttl_seconds: number | null;
   path_contains_characters: boolean;
-  probe_http_status?: number;
-  probe_content_type?: string | null;
-  probe_error?: string | null;
 };
 
 export type KieSubmitMediaDiagnostics = {
@@ -52,9 +40,7 @@ export type KieSubmitMediaValidationResult =
           | "invalid_url"
           | "invalid_protocol"
           | "unsupported_extension"
-          | "expiring_signed_url"
-          | "probe_http_error"
-          | "content_type_mismatch";
+          | "expiring_signed_url";
         expected_kind: MediaKind;
         media_index: number;
         diagnostics: KieSubmitMediaDiagnostics;
@@ -168,87 +154,16 @@ const readSignedTokenTtlSeconds = (url: URL): number | null => {
   }
 };
 
-const readProbeError = (error: unknown): string => {
-  if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 280);
-  return String(error).slice(0, 280);
-};
-
-const matchesExpectedContentType = ({
-  contentType,
-  expected,
-}: {
-  contentType: string | null;
-  expected: MediaKind;
-}): boolean => {
-  if (!contentType) return true;
-  const normalized = contentType.toLowerCase();
-  if (normalized.includes("application/octet-stream")) return true;
-  if (expected === "image") return normalized.includes("image/");
-  return normalized.includes("video/");
-};
-
-const probeUrlContentType = async ({
-  url,
-  signal,
-}: {
-  url: string;
-  signal: AbortSignal;
-}): Promise<{ status: number; contentType: string | null } | { error: string }> => {
-  const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), MEDIA_PROBE_TIMEOUT_MS);
-  const abortSignalAny = (
-    AbortSignal as typeof AbortSignal & {
-      any?: (signals: readonly AbortSignal[]) => AbortSignal;
-    }
-  ).any;
-  try {
-    const mergedSignal =
-      typeof abortSignalAny === "function"
-        ? abortSignalAny([signal, timeoutController.signal])
-        : signal;
-    let response = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      signal: mergedSignal,
-    });
-    if (response.status === 405 || response.status === 501) {
-      response = await fetch(url, {
-        method: "GET",
-        headers: { Range: "bytes=0-0" },
-        redirect: "follow",
-        signal: mergedSignal,
-      });
-    }
-    return {
-      status: response.status,
-      contentType: response.headers.get("content-type"),
-    };
-  } catch (error) {
-    return { error: readProbeError(error) };
-  } finally {
-    clearTimeout(timeoutId);
-  }
-};
-
-const shouldProbeRemotely = (): boolean => {
-  const runtimeOverride = readRuntimeEnv("SHORTPULSE_KIE_MEDIA_PROBE_ENABLED");
-  if (runtimeOverride === "true") return true;
-  if (runtimeOverride === "false") return false;
-  return readRuntimeEnv("NODE_ENV") !== "test";
-};
-
 const validateOneMediaUrl = async ({
   url,
   expectedKind,
   mediaIndex,
   diagnostics,
-  signal,
 }: {
   url: string;
   expectedKind: MediaKind;
   mediaIndex: number;
   diagnostics: KieSubmitMediaDiagnostics;
-  signal: AbortSignal;
 }): Promise<KieSubmitMediaValidationResult | null> => {
   let parsedUrl: URL;
   try {
@@ -315,45 +230,6 @@ const validateOneMediaUrl = async ({
     };
   }
 
-  if (!shouldProbeRemotely()) return null;
-  const probe = await probeUrlContentType({ url, signal });
-  const mediaDiagnostic = diagnostics.media[mediaIndex];
-  if (mediaDiagnostic) {
-    if ("error" in probe && probe.error) {
-      mediaDiagnostic.probe_error = probe.error;
-    } else if (!("error" in probe)) {
-      mediaDiagnostic.probe_http_status = probe.status;
-      mediaDiagnostic.probe_content_type = probe.contentType;
-    }
-  }
-
-  if ("error" in probe) return null;
-  if (probe.status < 200 || probe.status >= 300) {
-    return {
-      ok: false,
-      error: `Kie Kling submit media URL is not fetchable (HTTP ${probe.status}).`,
-      code: "KIE_MEDIA_INPUT_INVALID",
-      detail: {
-        reason: "probe_http_error",
-        expected_kind: expectedKind,
-        media_index: mediaIndex,
-        diagnostics,
-      },
-    };
-  }
-  if (!matchesExpectedContentType({ contentType: probe.contentType, expected: expectedKind })) {
-    return {
-      ok: false,
-      error: `Kie Kling submit media URL content-type does not match expected ${expectedKind}.`,
-      code: "KIE_MEDIA_INPUT_INVALID",
-      detail: {
-        reason: "content_type_mismatch",
-        expected_kind: expectedKind,
-        media_index: mediaIndex,
-        diagnostics,
-      },
-    };
-  }
   return null;
 };
 
@@ -420,13 +296,11 @@ export const buildKieSubmitMediaDiagnostics = (
 /**
  * Validates Kie Kling media URLs before provider submit.
  */
-export const validateKieKlingSubmitMediaInputs = async ({
-  payload,
-  signal,
-}: {
+export const validateKieKlingSubmitMediaInputs = async (options: {
   payload: Record<string, unknown>;
   signal: AbortSignal;
 }): Promise<KieSubmitMediaValidationResult> => {
+  const { payload } = options;
   const parsed = readTopLevelMediaInput(payload);
   const elementMedia = readKlingElementMediaInput(payload);
   const diagnostics = buildKieSubmitMediaDiagnostics(payload);
@@ -446,7 +320,6 @@ export const validateKieKlingSubmitMediaInputs = async ({
       expectedKind: media.kind,
       mediaIndex: index,
       diagnostics,
-      signal,
     });
     if (failure) return failure;
   }

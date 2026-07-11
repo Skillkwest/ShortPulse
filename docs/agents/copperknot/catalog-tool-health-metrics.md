@@ -38,7 +38,7 @@ This surface answers:
 - Definition:
   - elapsed time between lane completion and Copperknot review
 - Target:
-  - `<= 3 days` during an active prelaunch window
+  - `<= 3 days` during active launch-week production operations
 
 ### 4. Launch-state freshness
 

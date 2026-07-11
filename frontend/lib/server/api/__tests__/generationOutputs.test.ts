@@ -8,6 +8,7 @@ vi.mock("../supabaseAdmin", () => ({
 
 import {
   attachMediaFileToGenerationOutput,
+  attachOwnedMediaFileToGenerationOutput,
   markGenerationOutputRowsVisibilitySettled,
   persistGenerationOutputRecords,
 } from "../generationOutputs";
@@ -271,5 +272,82 @@ describe("generationOutputs", () => {
       media_file_id: "media-1",
       updated_at: expect.any(String),
     });
+  });
+
+  it("verifies generation and media ownership before attaching a media file", async () => {
+    const updateMock = vi.fn(() => ({ eq: vi.fn().mockReturnThis() }));
+    const createOwnershipQuery = (data: { id: string } | null) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(async () => ({ data, error: null })),
+      })),
+    });
+    const adminClient = {
+      from: vi.fn((table: string) => {
+        if (table === "ai_generations" || table === "media_files") {
+          return createOwnershipQuery({ id: `${table}-1` });
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              order: vi.fn().mockReturnThis(),
+              limit: vi.fn(async () => ({
+                data: [
+                  {
+                    id: "output-1",
+                    output_index: 0,
+                    result_url: "https://provider.example/out-1.png",
+                    media_file_id: null,
+                  },
+                ],
+                error: null,
+              })),
+            })),
+            update: updateMock,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    await attachOwnedMediaFileToGenerationOutput({
+      generationId: "gen-1",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-1",
+      supabaseAdmin: adminClient as never,
+    });
+
+    expect(adminClient.from).toHaveBeenCalledWith("ai_generations");
+    expect(adminClient.from).toHaveBeenCalledWith("media_files");
+    expect(updateMock).toHaveBeenCalledWith({
+      media_file_id: "media-1",
+      updated_at: expect.any(String),
+    });
+  });
+
+  it("rejects attachment when either owned parent row is missing", async () => {
+    const createOwnershipQuery = (data: { id: string } | null) => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(async () => ({ data, error: null })),
+      })),
+    });
+    const adminClient = {
+      from: vi.fn((table: string) =>
+        createOwnershipQuery(table === "ai_generations" ? { id: "gen-1" } : null)
+      ),
+    };
+
+    await expect(
+      attachOwnedMediaFileToGenerationOutput({
+        generationId: "gen-1",
+        userId: "user-1",
+        outputIndex: 0,
+        mediaFileId: "foreign-media",
+        supabaseAdmin: adminClient as never,
+      })
+    ).rejects.toMatchObject({ name: "GenerationOutputOwnershipError" });
   });
 });

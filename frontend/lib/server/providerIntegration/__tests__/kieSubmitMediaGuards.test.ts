@@ -2,7 +2,7 @@
  * Unit coverage for Kie submit media guard diagnostics and validation.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildKieSubmitMediaDiagnostics,
   validateKieKlingSubmitMediaInputs,
@@ -17,18 +17,7 @@ const buildSignedToken = (expiresInSeconds: number): string => {
 };
 
 describe("kieSubmitMediaGuards", () => {
-  const env = process.env as Record<string, string | undefined>;
-  const originalNodeEnv = process.env.NODE_ENV;
-  const originalProbeOverride = process.env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED;
-
-  beforeEach(() => {
-    env.NODE_ENV = originalNodeEnv;
-    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
-  });
-
   afterEach(() => {
-    env.NODE_ENV = originalNodeEnv;
-    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = originalProbeOverride;
     vi.unstubAllGlobals();
   });
 
@@ -197,14 +186,10 @@ describe("kieSubmitMediaGuards", () => {
     expect(result.detail.reason).toBe("expiring_signed_url");
   });
 
-  it("rejects media URLs when remote probe returns non-success status", async () => {
-    env.SHORTPULSE_KIE_MEDIA_PROBE_ENABLED = "true";
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response("", {
-        status: 403,
-        headers: { "Content-Type": "text/plain" },
-      })
-    );
+  it("validates media deterministically without making network requests", async () => {
+    const fetchMock = vi.fn(() => {
+      throw new Error("Kie media validation must not fetch caller-directed URLs");
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await validateKieKlingSubmitMediaInputs({
@@ -217,10 +202,7 @@ describe("kieSubmitMediaGuards", () => {
       signal: new AbortController().signal,
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("KIE_MEDIA_INPUT_INVALID");
-    expect(result.detail.reason).toBe("probe_http_error");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

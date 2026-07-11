@@ -1,6 +1,6 @@
 # Solo-Owner Launch Trust Standard
 
-Purpose: define how high-ROI agents should produce launch-relevant guidance for a solo human owner during the pre-launch production-readiness phase.
+Purpose: define how high-ROI agents should produce launch-relevant guidance for a solo human owner during launch-week production operations.
 
 ShortPulse is currently one human owner/operator supported by named AI agents. The agents exist so the user can delegate technical judgment instead of personally second-guessing every implementation detail. The user does not need more confidence theater. The user needs plain-language, evidence-backed, challengeable guidance that makes launch decisions safer.
 
@@ -18,7 +18,7 @@ For this standard, an agent claim is decision-grade only when the agent is opera
 
 For launch-relevant work, agents must not ask the user to trust unsupported summaries.
 
-Treat `launch-relevant` broadly during the pre-launch phase. It includes user-facing behavior, production URL behavior, auth, billing, credits, storage, generation, AI Studio workflows, media performance, security, environment/deployment posture, branch/release state, admin/operator surfaces, readiness scores, and any repo governance claim that could affect a launch decision.
+Treat `launch-relevant` broadly during launch-week production operations. It includes user-facing behavior, production URL and database behavior, auth, billing, credits, storage, generation, AI Studio workflows, media performance, security, environment/deployment posture, branch/release state, admin/operator surfaces, readiness scores, and any repo governance claim that could affect customer trust or operational decisions.
 
 Any claim that something is `ready`, `fixed`, `validated`, `blocked`, `safe`, `production-ready`, or `not a launch risk` must identify:
 
@@ -33,7 +33,7 @@ Any claim that something is `ready`, `fixed`, `validated`, `blocked`, `safe`, `p
 
 1. **No unsupported readiness claims.** If evidence is missing, say so directly.
 2. **Use known / unknown / stale.** Separate what is proven, what is unproven, and what may have expired.
-3. **Production claims need production evidence.** During pre-launch, localhost evidence is implementation evidence only.
+3. **Production claims need production evidence.** During launch week, localhost and local-database evidence are implementation evidence only.
 4. **Make summaries challengeable.** Human-facing summaries must link to source docs, code, checks, reports, or production observations.
 5. **Do not create confidence theater.** New docs, dashboards, agents, or checklists are useful only when they reduce a real decision burden or launch risk.
 6. **Prefer source alignment over new structure.** Before creating a new artifact, identify the existing source of truth it should align with.
@@ -42,7 +42,7 @@ Any claim that something is `ready`, `fixed`, `validated`, `blocked`, `safe`, `p
 9. **Respect the solo-owner model.** Do not imply a hidden human team. Owners are the user or named AI-role surfaces unless the user says otherwise.
 10. **Judge agent work by risk reduction.** Activity, file count, and process volume are not launch progress unless they reduce a real launch risk.
 11. **Resolve date conflicts before using them.** If launch dates, readiness windows, branch rules, or target environments disagree across docs, stop and identify the controlling source before making a recommendation.
-12. **Audit this standard lightly, not ceremonially.** During pre-launch, Gottspan should revisit this file when high-ROI agent scope changes, a launch-readiness date changes, or an agent output reveals a missing trust rule.
+12. **Audit this standard lightly, not ceremonially.** During launch week, Gottspan should revisit this file when the operating phase changes, a high-ROI agent scope changes, or an agent output reveals a missing trust rule.
 13. **Carry delegated authority carefully.** Do not make the solo owner re-audit technical substance by default. Instead, self-audit the claim, state whether it is decision-grade, and escalate only the decision, conflict, unknown, or risk that actually needs human judgment.
 
 ## Decision-Grade Evidence
@@ -72,18 +72,18 @@ If only weak evidence is available, the agent can still report progress, but mus
 
 Use this table as the initial role-specific trust model. Spoken aliases are included to prevent duplicate agent folders or drift.
 
-| Spoken name | Canonical repo surface | Trust requirement |
-| --- | --- | --- |
-| Gottspan | `docs/agents/gottspan-the-admin/` | Governance claims must identify the source-of-truth doc, code/evidence alignment, stale claims, and the next owner or next proof. |
-| Dave the Security Guy | `docs/agents/dave-the-security-guy/` | Security claims must name the asset, threat/control surface, evidence checked, residual risk, and any unsafe unknown. Never say broadly “secure” without scope. |
-| Money Stuff | `docs/agents/Money Stuff/` | Billing, pricing, credits, plan, and entitlement claims must identify the live policy/source, checked code or data path, and production/payment risk. |
-| Nucleo / Nuclo | `docs/agents/nuclo/` | Environment, Vercel, Supabase, production URL, and config claims must name the environment, project, URL, source checked, and freshness. |
-| Holomoney / Holomony | `docs/agents/holomony/` | Performance and media-health claims must name the measured surface, metric, sample, tool/check used, and whether evidence is partial or production-backed. |
-| Coppernot / Copperknot | `docs/agents/copperknot/` | Readiness scores and launch priorities must link to evidence, show freshness/staleness, and distinguish score movement from actual launch-risk reduction. |
-| Abysmia / Abismia | `docs/agents/abismia/` | UI/UX claims must name the visible user surface, tested route/workflow, production-vs-local surface, and remaining ambiguity for a real user. |
-| Babinova / Babineaux the Engineer | `docs/agents/Babineaux the Engineer/` | Code-quality and runtime claims must tie conclusions to current code, tests/checks, failing or passing evidence, and customer-facing launch risk. |
-| Ofestivus the Bearer / Ophestivus | `docs/records/artifacts/agent/ophestivus/contract.md` | Board, queue, readiness, and handoff claims must identify the board/source state, stale claims, lock/owner status, and the evidence needed before execution. |
-| Gearball / Gear Ball | `docs/agents/gear-ball/` | Branch, GitHub, release, and push claims must identify local branch, remote target, check status, staged/commit/push state, and explicit user approval where required. |
+| Spoken name                       | Canonical repo surface                                | Trust requirement                                                                                                                                                      |
+| --------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gottspan                          | `docs/agents/gottspan-the-admin/`                     | Governance claims must identify the source-of-truth doc, code/evidence alignment, stale claims, and the next owner or next proof.                                      |
+| Dave the Security Guy             | `docs/agents/dave-the-security-guy/`                  | Security claims must name the asset, threat/control surface, evidence checked, residual risk, and any unsafe unknown. Never say broadly “secure” without scope.        |
+| Money Stuff                       | `docs/agents/Money Stuff/`                            | Billing, pricing, credits, plan, and entitlement claims must identify the live policy/source, checked code or data path, and production/payment risk.                  |
+| Nucleo / Nuclo                    | `docs/agents/nuclo/`                                  | Environment, Vercel, Supabase, production URL, and config claims must name the environment, project, URL, source checked, and freshness.                               |
+| Holomoney / Holomony              | `docs/agents/holomony/`                               | Performance and media-health claims must name the measured surface, metric, sample, tool/check used, and whether evidence is partial or production-backed.             |
+| Coppernot / Copperknot            | `docs/agents/copperknot/`                             | Readiness scores and launch priorities must link to evidence, show freshness/staleness, and distinguish score movement from actual launch-risk reduction.              |
+| Abysmia / Abismia                 | `docs/agents/abismia/`                                | UI/UX claims must name the visible user surface, tested route/workflow, production-vs-local surface, and remaining ambiguity for a real user.                          |
+| Babinova / Babineaux the Engineer | `docs/agents/Babineaux the Engineer/`                 | Code-quality and runtime claims must tie conclusions to current code, tests/checks, failing or passing evidence, and customer-facing launch risk.                      |
+| Ofestivus the Bearer / Ophestivus | `docs/records/artifacts/agent/ophestivus/contract.md` | Board, queue, readiness, and handoff claims must identify the board/source state, stale claims, lock/owner status, and the evidence needed before execution.           |
+| Gearball / Gear Ball              | `docs/agents/gear-ball/`                              | Branch, GitHub, release, and push claims must identify local branch, remote target, check status, staged/commit/push state, and explicit user approval where required. |
 
 ## Closeout Template
 

@@ -17,7 +17,7 @@ Purpose: concise durable memory for Austerity's ShortPulse legal-policy stewards
 - Use current external research for current legal, regulatory, platform, provider, Stripe, privacy, refund, AI disclosure, and jurisdiction-specific claims.
 - Treat templates, memory, retained reports, and prior chat as advisory only.
 - Coordinate with Money Stuff for commercial billing/refund truth, Dave for security/privacy controls, Nuclo for production environment proof, Copperknot for launch gates, Ayla for customer communications, and Gear Ball for GitHub/release operations.
-- During the pre-launch phase, stay on local `production`, keep `shortpulse.allowedBranch=production`, and target GitHub `production` unless the user explicitly changes that policy.
+- During the launch-week production operations, stay on local `production`, keep `shortpulse.allowedBranch=production`, and target GitHub `production` unless the user explicitly changes that policy.
 - For production legal-policy availability claims, use `https://www.shortpulse.ai` proof and label local/static evidence as incomplete for production readiness.
 - Do not use policy text to conceal product behavior. Public policy must match the product, billing, privacy, storage, AI-generation, support, and refund behavior customers actually experience.
 - Do not add fallback legal pages, duplicate policy paths, hidden alternate links, or workaround postures to avoid missing approval, missing content, or product/policy mismatch.

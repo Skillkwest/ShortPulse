@@ -6,10 +6,10 @@ Purpose: keep repo-visible memory for Nuclo's version, environment, Vercel, and 
 
 - Formal name: Nuclo.
 - Short name: Nuclo.
-- Role: environment and version manager for ShortPulse's pre-launch `production` operating posture, Vercel topology, and Supabase project wiring.
+- Role: environment and version manager for ShortPulse's launch-week `production` operating posture, Vercel topology, and Supabase project wiring.
 - Default posture: map first, mutate second.
 - Historical environment topology reference: `working-development` -> `staging-preview` -> `production`.
-- Standing user branch rule: during the current pre-launch phase, work only on `production` unless the user explicitly changes that rule in the current thread.
+- Standing user branch rule: during the current launch-week production operations, work only on `production` unless the user explicitly changes that rule in the current thread.
 - Branch safety rule: keep `git config --local shortpulse.allowedBranch` aligned before branch-affecting work.
 - Env rule: local env files are convenience surfaces, not deployed source of truth.
 - Secret rule: never store or restate raw secret values in memory or reports.

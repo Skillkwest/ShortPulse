@@ -11,6 +11,15 @@ import {
   executeStyleExtraction,
   type StyleExtractionDiagnostics,
 } from "../../../features/agent-runtime/styleExtractionService";
+import {
+  admitOpenAiInternalCapacityRequest,
+  beginOpenAiInternalCapacityAttempt,
+  extractOpenAiInternalCapacityUsage,
+  OpenAiInternalCapacityError,
+  resolveOpenAiInternalCapacityRequestId,
+  settleOpenAiInternalCapacity,
+  type OpenAiInternalCapacityAdmission,
+} from "../../../lib/server/api/openAiInternalCapacityAdmission";
 
 const applyDiagnosticsHeaders = (
   res: NextApiResponse,
@@ -72,13 +81,78 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
   if (!user) return;
+  const userId = user.id;
+  const imageDataUrl = (req.body as { imageDataUrl?: unknown })?.imageDataUrl;
+  const normalizedImageDataUrl = typeof imageDataUrl === "string" ? imageDataUrl.trim() : "";
+  if (
+    !normalizedImageDataUrl ||
+    !/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalizedImageDataUrl)
+  ) {
+    const result = await executeStyleExtraction({ req, user, imageDataUrl, routeLabel });
+    applyDiagnosticsHeaders(res, result.diagnostics);
+    return result.ok
+      ? res.status(200).json(result.payload)
+      : res.status(result.status).json(result.payload);
+  }
+
+  let admission: OpenAiInternalCapacityAdmission;
+  try {
+    admission = await admitOpenAiInternalCapacityRequest({
+      userId,
+      lane: "ai.extract_style",
+      requestId: resolveOpenAiInternalCapacityRequestId(req),
+      internalBudgetMicrousd: 100_000,
+      maxAttempts: 4,
+    });
+  } catch (error) {
+    if (error instanceof OpenAiInternalCapacityError) {
+      return res.status(error.status).json({
+        ...buildAgentMachineOutcome({ outcomeClass: "route_error", reasonCode: "ROUTE_ERROR" }),
+        error: error.message,
+        code: error.code,
+      });
+    }
+    throw error;
+  }
   const result = await executeStyleExtraction({
     req,
     user,
-    imageDataUrl: (req.body as { imageDataUrl?: unknown })?.imageDataUrl,
+    imageDataUrl: normalizedImageDataUrl,
     routeLabel,
+    beforeProviderCall: (() => {
+      let providerCallCount = 0;
+      return async () => {
+        providerCallCount += 1;
+        if (providerCallCount === 1) return;
+        await beginOpenAiInternalCapacityAttempt({ admissionId: admission.id, userId });
+      };
+    })(),
   });
   applyDiagnosticsHeaders(res, result.diagnostics);
+
+  try {
+    await settleOpenAiInternalCapacity({
+      admissionId: admission.id,
+      userId,
+      status: result.ok ? "completed" : "failed",
+      usage: {
+        ...extractOpenAiInternalCapacityUsage(result.ok ? result.payload : null),
+        requestCount: result.diagnostics?.attemptCount ?? 1,
+      },
+    });
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: `${routeLabel}.admission-settlement`,
+      scope: "app",
+      user,
+    });
+    return res.status(503).json({
+      ...buildAgentMachineOutcome({ outcomeClass: "route_error", reasonCode: "ROUTE_ERROR" }),
+      error: "Style extraction is temporarily unavailable.",
+    });
+  }
 
   if (!result.ok) {
     return res.status(result.status).json(result.payload);

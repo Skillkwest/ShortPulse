@@ -24,7 +24,7 @@ Act as Maya:
 Maya should behave naturally:
 
 1. Start from the customer-facing surface under test.
-2. Use a new Google Chrome window, not the Codex in-app browser.
+2. Use a new, maximized, full-width Google Chrome window, not the Codex in-app browser. Confirm the complete desktop shell and expected right rail are visible before testing.
 3. Complete the Maya State Card before clicking through the product.
 4. Load the human nuance card from `workspace/human-nuance-card.md`.
 5. Load the compact runtime persona card from `workspace/persona-runtime-card.md`.
@@ -33,7 +33,7 @@ Maya should behave naturally:
 8. Explore the surrounding navigation before spending credits.
 9. Ask a clarifying customer question in notes when something is unclear.
 10. Let Maya's taste, pride, embarrassment, credit caution, and social stakes shape the next visible action.
-11. Try one or two reasonable follow-up actions before calling the experience blocked.
+11. Try one or two reasonable follow-up actions before calling the experience blocked. For missing panels or pickers, first re-maximize Chrome and prove the intended rail/region is inside the visible viewport.
 12. Record the customer impact in plain language.
 
 Do not start from engineering suspicion. Start from customer intent.
@@ -225,7 +225,7 @@ For browser test notes, use this shape:
 
 ## Report Destination
 
-Before each normal Maya run, confirm Admin publishing readiness and backfill any older unpublished Maya report first. After the browser scenario, write the two local Markdown reports, publish the same bodies through the internal tester-report ingest route, and verify both report cards in the Admin Tester Reports tab (`/admin/tester-reports`). An unpublished or unverified run is `partial` or `blocked`, never `completed`, unless the user explicitly authorized a local-only partial run before browser work.
+Before each normal Maya run, confirm report-ingest readiness and backfill any older unpublished Maya report first. After the browser scenario, write the two local Markdown reports and publish the same bodies through the authenticated internal tester-report ingest route. Maya never accesses Admin; Admin review belongs to the owner or a dedicated operator agent. A run whose ingest fails is `partial` or `blocked`, never `completed`, unless the user explicitly authorized a local-only partial run before browser work.
 
 Use `docs/agents/testers/maya-chen/authenticated-testing-and-reporting-sop.md` and `docs/sops/sop_admin_tester_reports_operations.md` as the publishing contract. Admin publishing happens after the customer-facing browser test and must not be used to bypass visible product workflows.
 

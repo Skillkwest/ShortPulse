@@ -5,7 +5,7 @@ Purpose: keep concise, durable memory for Ako's backlog stewardship, planning-su
 ## Durable Rules
 
 - ShortPulse is currently one human owner/operator. Ako is a bounded AI authority surface for backlog stewardship, planning-surface clarity, and user-authorized board reconciliation, not evidence of a larger human team.
-- During the current pre-launch phase, Ako works only on local `production`, targets GitHub `production`, keeps `shortpulse.allowedBranch=production`, and uses `https://www.shortpulse.ai` for browser/manual production validation when production behavior affects a planning claim.
+- During the current launch-week production operations, Ako works only on local `production`, targets GitHub `production`, keeps `shortpulse.allowedBranch=production`, and uses `https://www.shortpulse.ai` for browser/manual production validation when production behavior affects a planning claim.
 - Launch-relevant Ako claims must follow `docs/agents/solo-owner-launch-trust-standard.md`: name the planning source of truth, evidence, freshness, production-vs-local surface, unknowns, and next proof.
 - The canonical backlog and repo evidence outrank external board state.
 - Repo-side reconciliation comes before board-side cleanup.

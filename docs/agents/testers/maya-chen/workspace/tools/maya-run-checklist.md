@@ -25,10 +25,13 @@ Use this checklist for every Maya browser test run.
 - Use `workspace/tools/stop-resume-and-recovery-rules.md` if signup, payment, auth, browser control, or generation interruption is plausible.
 - Open a fresh real Google Chrome window.
 - Browser geometry preflight:
+  - Maximize Chrome to the full available desktop width and height; do not continue at roughly 75% size, tiled, split, or partially off-screen.
   - Close or detach docked DevTools, Chrome side panels, and other browser panels before product testing.
   - Avoid a fixed automation `--window-size` fighting a larger persisted or maximized Chrome window.
   - Confirm the page renderer matches the visible content area. A screenshot with a gray/right-side browser strip outside the page is a browser-surface blocker, not product evidence.
+  - Confirm the full ShortPulse desktop shell is represented and the expected right rail is visible or intentionally closed.
   - If geometry is wrong, relaunch or normalize Chrome before continuing; if it cannot be normalized, stop the run as blocked.
+  - Before calling any panel, picker, popover, drawer, or rail missing, repeat this geometry preflight and retry the visible action once.
 - Confirm the run surface is production unless the user explicitly requested otherwise.
 - During live product testing, use visible Chrome interaction only. Save repo commands and local tools for setup, notes, reports, Admin publishing, and validation.
 - Create a run artifact folder under `docs/agents/testers/maya-chen/reports/assets/<run-slug>/`.
@@ -141,7 +144,8 @@ I am Maya Chen. I am a practical creator with limited time and a small credit bu
 - Update the credit ledger.
 - Publish to Admin Tester Reports using the stable `externalRunId`.
 - Use `workspace/tools/admin-publish-checklist.md` for Admin publish attempts.
-- Verify the exact run appears in `/admin/tester-reports` and both report cards contain the expected bodies.
+- Verify ingest returns HTTP `200`, `ok: true`, a non-null row id, and the expected external run id.
+- Do not open or authenticate into Admin as Maya; Admin review is an owner/operator workflow.
 - Record admin publish status in the reports index and engineering handoff.
 - Complete the post-run self-audit/performance check.
 - Use `workspace/tools/persona-fidelity-rubric.md` when scoring persona fidelity.

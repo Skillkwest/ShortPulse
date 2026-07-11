@@ -51,6 +51,7 @@ import {
   stripEditableSafeCompletionSystemInstruction,
   type SafeCompletionRecoverySkipReason,
 } from "../studioAgentSafeCompletion";
+import { OpenAiInternalCapacityError } from "../../../lib/server/api/openAiInternalCapacityAdmission";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -194,6 +195,7 @@ export const executeStudioAgentCoordinator = async ({
   initialProviderCallCount = 0,
   routeLabel = "ai/studio-agent",
   safetyRoute = "studio-agent",
+  beforeProviderCall,
 }: {
   req: NextApiRequest;
   traceId: string;
@@ -236,9 +238,11 @@ export const executeStudioAgentCoordinator = async ({
   initialProviderCallCount?: number;
   routeLabel?: string;
   safetyRoute?: StudioAgentSafetyRoute;
+  beforeProviderCall?: () => Promise<void>;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
   let providerCallCount = initialProviderCallCount;
-  const recordProviderCall = () => {
+  const recordProviderCall = async () => {
+    await beforeProviderCall?.();
     providerCallCount += 1;
   };
   const openAiMessages = buildStudioAgentOpenAiMessages({
@@ -738,6 +742,7 @@ export const executeStudioAgentCoordinator = async ({
         singleStageResult.turn.result.safeCompletionRecoveryLatencyMs,
     });
   } catch (error) {
+    if (error instanceof OpenAiInternalCapacityError) throw error;
     const failureDetail = formatStudioAgentErrorMessage(error);
     await logApiRouteException({
       req,

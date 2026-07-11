@@ -337,3 +337,61 @@ export const attachMediaFileToGenerationOutput = async ({
     .eq("user_id", userId);
   if (updateError) throw updateError;
 };
+
+/**
+ * Attaches an owned media row to an owned generation output.
+ * Caller identity is supplied by a verified server route; all relational
+ * ownership checks happen before the service-role mutation.
+ */
+export const attachOwnedMediaFileToGenerationOutput = async ({
+  generationId,
+  userId,
+  outputIndex,
+  mediaFileId,
+  resultUrl,
+  supabaseAdmin,
+}: {
+  generationId: string;
+  userId: string;
+  outputIndex: number;
+  mediaFileId: string;
+  resultUrl?: string | null;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<void> => {
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const [generationResult, mediaResult] = await Promise.all([
+    adminClient
+      .from("ai_generations")
+      .select("id")
+      .eq("id", generationId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    adminClient
+      .from("media_files")
+      .select("id")
+      .eq("id", mediaFileId)
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+
+  if (generationResult.error) throw generationResult.error;
+  if (mediaResult.error) throw mediaResult.error;
+  if (!generationResult.data || !mediaResult.data) {
+    const ownershipError = new Error("Generation output ownership could not be verified.");
+    ownershipError.name = "GenerationOutputOwnershipError";
+    throw ownershipError;
+  }
+
+  await attachMediaFileToGenerationOutput({
+    generationId,
+    userId,
+    outputIndex,
+    mediaFileId,
+    resultUrl,
+    supabaseAdmin: adminClient,
+    metadata: {
+      media_library_persistence: true,
+      media_library_persisted_at: new Date().toISOString(),
+    },
+  });
+};

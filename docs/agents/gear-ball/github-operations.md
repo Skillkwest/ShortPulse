@@ -23,9 +23,9 @@ The GitHub coordination model documented here has already been synthesized into 
 
 ## Standing GitHub Rules
 
-- During the current ShortPulse pre-launch production-readiness phase, work only on the local `production` branch and target GitHub `production` for branch operations unless the user explicitly rewrites the repo pre-launch policy in the current thread.
-- Keep `git config --local shortpulse.allowedBranch` set to `production` before commit or push activity during the pre-launch phase.
-- If the user explicitly rewrites the pre-launch policy in a later thread, work only on that current user-approved branch and align `shortpulse.allowedBranch` to it before commit or push activity.
+- During the current ShortPulse launch-week production operations, work only on the local `production` branch and target GitHub `production` for branch operations unless the user explicitly rewrites the repo launch-week policy in the current thread.
+- Keep `git config --local shortpulse.allowedBranch` set to `production` before commit or push activity during the launch-week production operations.
+- If the user explicitly rewrites the launch-week policy in a later thread, work only on that current user-approved branch and align `shortpulse.allowedBranch` to it before commit or push activity.
 - Never push directly to `main` unless the user explicitly changes that repo rule in the current thread.
 - Use draft PRs by default for agent-coordinated work.
 - Use explicit base/head branches for PRs.

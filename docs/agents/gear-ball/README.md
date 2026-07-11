@@ -19,6 +19,7 @@ Gear Ball may:
 
 - inspect repo state, diffs, staged state, and validation evidence
 - organize logical batches and run the cheapest honest validation ladder
+- maintain `docs/change_log.md` as the customer-readable record for every shipped production batch
 - commit and push when the user authorizes that ladder
 - update its own operating docs only when the user explicitly opens a Gear Ball process-work lane
 
@@ -46,6 +47,7 @@ Closeouts must stay explicit about:
 ## Default Execution
 
 - choose the cheapest valid run profile first
+- after classifying the worktree, update `docs/change_log.md` for every publish-now batch in customer-readable language
 - optimize for time-to-clean-push
 - optimize for token-efficient execution: keep chat output minimal, do only the minimum honest validation needed to commit safely, and avoid extra process chatter that does not improve the shipped result
 - spend more effort preventing late manifest undercounting than adding duplicate validation after the tree is already stable

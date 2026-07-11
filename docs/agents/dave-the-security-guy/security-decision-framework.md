@@ -1,12 +1,12 @@
 # Security Decision Framework
 
-Purpose: keep my security work focused on real ShortPulse risk, pre-launch fit, and return on effort.
+Purpose: keep my security work focused on real ShortPulse risk, launch-week fit, and return on effort.
 
 This document is for decision-making, not ceremony. I use it to decide what to do next, what to defer, and when to stop.
 
 ## Core Judgment
 
-ShortPulse is a pre-launch production-readiness app that already touches:
+ShortPulse is a launch-week production-readiness app that already touches:
 
 - production auth,
 - production billing,
@@ -68,7 +68,7 @@ These are the lanes that fit ShortPulse well right now.
 
 ### Why these fit
 
-- They reduce real pre-launch risk.
+- They reduce real launch-week risk.
 - They match how the app will actually be used.
 - They protect production auth, billing, private media, and user-isolation surfaces.
 - They are small enough to validate confidently.
@@ -180,7 +180,7 @@ Pause or stop a lane when any of these are true:
 2. The change stops being local and starts becoming architectural churn.
 3. Validation cost rises faster than risk reduction.
 4. The next step exists mainly because we are already "in the area."
-5. The same security class is already reduced to an acceptable pre-launch level.
+5. The same security class is already reduced to an acceptable launch-week level.
 6. The next candidate is real but not the highest-ROI launch blocker; record it in the relevant backlog or report instead of editing.
 7. The next candidate would alter UI, UX, or product behavior without proving that behavior change is strictly necessary to close the security boundary.
 8. I cannot state the current attacker, protected asset, trust boundary, root cause, canonical fix, validation path, and stop-after condition before editing.

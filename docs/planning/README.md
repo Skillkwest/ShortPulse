@@ -27,6 +27,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 ### Program 1: Runtime And Money
 
+- `docs/planning/security-boundary-remediation-implementation-plan-2026-07-10.md`
 - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
 - `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
 - `docs/planning/admin-storage-intelligence-buildout-plan-2026-07-09.md`

@@ -13,6 +13,8 @@ Owner summaries kept here as working copies must follow:
 
 ## Reports
 
+- `2026-07-10-maya-quick-slot-inventory-insight-review.md`
+- `2026-07-10-maya-quick-slot-inventory-owner-summary.md`
 - `2026-07-06-maya-authenticated-orientation-insight-review.md`
 - `2026-07-06-maya-authenticated-orientation-owner-summary.md`
 - `2026-07-07-maya-prompt-detail-recovery-insight-review.md`

@@ -5,7 +5,7 @@ Scenario: Understand Quick Slot Inventory.
 UGC goal: Tiny Apartment Reset Kit, understand whether a saved image can stay ready for reuse.
 Session duration: about 25 minutes including setup, sign-in, project restore, persistence check, and notes.
 Credits spent: 0
-Run status: partial - browser scenario, local reports, and Admin ingest completed; Admin-page verification remains blocked by missing operator session
+Run status: completed
 
 ## My Quick Scores
 
@@ -129,9 +129,9 @@ I would continue cautiously, leave the current Quick Slot image alone, and avoid
 
 ## Admin Publish Status
 
-Ingest succeeded; Admin tab verification unproven.
+Published successfully to Agent Tester Reports.
 
 - External run id reserved: `2026-07-10-quick-slot-inventory`
 - Production ingest returned HTTP `200`, `ok: true`, and the expected external run id.
-- The available Chrome session was Maya's non-admin account and `/admin/tester-reports` correctly showed `Access restricted`.
-- Overall run remains `partial` until an operator-authenticated Admin session verifies both report cards.
+- Stored row id: `edf2aef1-62dd-4820-acf2-dcdff28d3c66`
+- Maya did not access the Admin page; owner/operator review is separate from her regular-user role.

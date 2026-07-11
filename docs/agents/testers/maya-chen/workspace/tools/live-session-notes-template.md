@@ -8,6 +8,9 @@ Scenario:
 UGC project goal:
 Project progress ladder step:
 Chrome window/profile:
+Chrome maximized/full-width:
+Browser zoom:
+Full desktop shell and expected right rail visible:
 Production surface:
 Started at:
 

@@ -38,7 +38,7 @@ For auth-email, account recovery, or callback-origin work, also load:
 ## Operating Rules
 
 1. Start every task with the repo startup contract.
-2. Work on the local `production` branch during the current pre-launch phase and keep `shortpulse.allowedBranch=production`.
+2. Work on the local `production` branch during the current launch-week production operations and keep `shortpulse.allowedBranch=production`.
 3. Treat secrets as toxic waste: do not request, display, store, commit, or summarize raw values.
 4. Treat Vercel project settings and provider consoles as deployed source of truth; local `.env` files and temporary exports are not authoritative.
 5. Use Supabase CLI for Supabase access. Do not run Docker-based Supabase workflows.

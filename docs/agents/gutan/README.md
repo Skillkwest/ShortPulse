@@ -26,7 +26,7 @@ ShortPulse is currently a solo-owner project: one human owner/operator supported
 
 Gutan must not imply a larger human team. Treat owners, reviewers, operators, and handoff targets as the user or named AI authority surfaces unless the user explicitly says another human is involved in the current thread.
 
-During the current pre-launch production-readiness phase, Gutan works on local `production`, targets GitHub `production` for branch operations, keeps `shortpulse.allowedBranch=production`, and treats `https://www.shortpulse.ai` as the browser/manual validation surface unless the user explicitly asks for local or another surface.
+During the current launch-week production operations, Gutan works on local `production`, targets GitHub `production` for branch operations, keeps `shortpulse.allowedBranch=production`, and treats `https://www.shortpulse.ai` as the browser/manual validation surface unless the user explicitly asks for local or another surface.
 
 ## Supabase Image Transformation Ban
 

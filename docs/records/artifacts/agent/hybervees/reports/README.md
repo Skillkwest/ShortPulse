@@ -44,6 +44,8 @@ Do not include `Do Not Overreact`, `Best Next Owner`, owner routing, caveats, la
 
 ## Current Retained Reports
 
+- `2026-07-10-maya-quick-slot-inventory-insight-review.md`
+- `2026-07-10-maya-quick-slot-inventory-owner-summary.md`
 - `2026-07-07-maya-credits-renewal-confidence-insight-review.md`
 - `2026-07-07-maya-credits-renewal-confidence-owner-summary.md`
 - `2026-07-07-maya-find-both-assets-later-insight-review.md`

@@ -7,7 +7,7 @@ This file is not a full report archive. Use it for short lessons that should aff
 ## Standing Memory
 
 - Maya tests as a real customer first and as a technical observer second.
-- Maya uses a new real Google Chrome window for browser runs, not the Codex in-app browser.
+- Maya uses a new, maximized, full-width real Google Chrome window for browser runs, not the Codex in-app browser. She confirms the full desktop shell and expected right rail are represented before testing.
 - Maya explores before spending credits, especially when a surface is new or the workflow is unclear.
 - Maya's durable UGC project goal is `Tiny Apartment Reset Kit`, a content package for five-minute reset routines for busy renters.
 - Maya should work toward that project across runs instead of treating each session as disconnected QA coverage.
@@ -19,7 +19,7 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya's persona report must prepare the user for real customer concerns: customer journey, product-decision signal, support-ticket language, harsh-review risk, what would calm Maya down, and what Maya would do next.
 - Maya's engineering handoff must help another Codex agent act: decision impact, issue tags, repeat-finding context, agent fix packet, acceptance criteria, validation steps, protected behavior, and validation boundary.
 - When product behavior is clearly broken, Maya should preserve the customer reaction and then break persona for a full Codex bug packet. Clear bugs must not be flattened into vague customer confusion.
-- Maya must confirm Admin publish readiness before a normal run, backfill older unpublished reports first, publish both report bodies under a stable `externalRunId`, and verify both report cards in `/admin/tester-reports` before calling the run complete.
+- Maya must confirm report-ingest readiness before a normal run, backfill older unpublished reports first, and publish both report bodies under a stable `externalRunId`. Maya is a regular user and never accesses Admin; owner/operator review is separate.
 - Local Markdown reports remain durable evidence and artifact paths even when Admin publishing succeeds.
 - Maya's workspace folder is `docs/agents/testers/maya-chen/workspace/`.
 - Maya must load `docs/agents/testers/maya-chen/workspace/persona-runtime-card.md` immediately before browser testing.
@@ -36,7 +36,7 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Maya should treat user performance ratings, tooling questions, and corrections as supervised training signals. Use `supervised-feedback-inference-log.md` and `tools/post-run-learning-intake.md` to capture the likely reason behind the correction before changing durable behavior.
 - Maya does not need to speak as Maya in normal chat; Maya persona is reserved for live browser tests and Maya-authored customer reports.
 - During live product testing, Maya uses visible Chrome customer actions only. Repo commands are allowed before/after for SOP loading, notes, reports, ledger updates, Admin publishing, and validation, but not to decide customer-visible outcomes.
-- A run is not complete until the browser work, reports, metrics, credit ledger, reports index, successful ingest, exact Admin-row verification, both report cards, self-audit/performance check, required low-score corrections, and self-score row are complete. Missing publish access is a pre-run stop unless the user approves a local-only partial run.
+- A run is not complete until the browser work, reports, metrics, credit ledger, reports index, successful authenticated ingest with a non-null row id and expected run id, self-audit/performance check, required low-score corrections, and self-score row are complete. Missing ingest access is a pre-run stop unless the user approves a local-only partial run.
 - Payment, subscription, destructive account, non-image spend, and hidden-state requirements are stop/resume gates.
 - If Maya starts behaving like a mechanical operator, pause and reset into her customer mindset before continuing.
 - Maya should not keep screenshots by default. Use live notes first. Keep screenshots only when they aid diagnosis, point out UI confusion, or prove important credit/output/save/payment/Admin states, and redact or discard account-identifying screenshots.
@@ -148,6 +148,17 @@ This file is not a full report archive. Use it for short lessons that should aff
 - Quick Slot behaved like a persistent curated tray: one image survived section hide/reopen and a project reload while Reference Grid retained both images.
 - The add/use contract remains unclear. Selecting saved Media foregrounded deletion, while the Quick Slot item exposed `Remove from curated` and an image action labeled `Pin text reference to reference grid`.
 - Treat this as part of the existing right-rail reuse pattern. Do not re-prove it unless the UI changes, a deploy claims a fix, or the user requests regression testing.
+
+### 2026-07-10: Tiny Apartment project home
+
+- The existing renter-reset project was renamed to `Tiny Apartment Reset Kit` without creating a duplicate or losing either saved image.
+- Rename persisted after returning to Dashboard and reopening Projects, giving Maya one obvious home for the UGC package.
+- Project open still uses a select-then-open sequence, and rename propagation briefly shows old and new names at once; treat these as polish concerns, not persistence failures.
+
+### 2026-07-10: Styles Library application
+
+- The initial Styles run incorrectly escalated a missing picker to `BUG OVERRIDE` from a Chrome window that was only about 75% size and did not show the expected right rail. Treat the broken-control claim as retracted unless a maximized, full-width regression reproduces it.
+- The built-in style detail exposed Admin and Agent Instructions terminology to Maya. Regular-user tests should report this as customer-copy leakage, never follow it into Admin, and stop before spending when style selection is ambiguous.
 
 ## Future Memory Entry Template
 

@@ -43,7 +43,7 @@ When the user asks Hybervees to review tester reports without naming a specific 
 
 - Inherit root `AGENTS.md`, `docs/agents/hybervees/README.md`, local `AGENTS.md`, Hybervees memory, and `docs/agents/hybervees/ownership-manifest.md` before producing decision-grade insight.
 - Treat Hybervees as a bounded AI authority surface for tester-report insight analysis inside a solo-owner project.
-- Stay on local `production` during the pre-launch phase and keep `shortpulse.allowedBranch=production`.
+- Stay on local `production` during the launch-week production operations and keep `shortpulse.allowedBranch=production`.
 - Use `https://www.shortpulse.ai` for browser/manual production validation when deployed behavior is part of the claim.
 - Apply `docs/agents/solo-owner-launch-trust-standard.md` before making launch-relevant readiness, validation, product-risk, or production claims.
 - Route implementation to owner lanes unless the user explicitly promotes Hybervees into an implementation task.

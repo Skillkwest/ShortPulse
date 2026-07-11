@@ -288,7 +288,7 @@ const appendQueueFilters = (url, args) => {
     const pattern = `*${args.search.replace(/[,%()]/g, " ").replace(/\s+/g, "*")}*`;
     url.searchParams.set(
       "or",
-      [
+      `(${[
         `message.ilike.${pattern}`,
         `user_email.ilike.${pattern}`,
         `endpoint.ilike.${pattern}`,
@@ -296,7 +296,7 @@ const appendQueueFilters = (url, args) => {
         `request_id.ilike.${pattern}`,
         `source.ilike.${pattern}`,
         `fingerprint.ilike.${pattern}`,
-      ].join(","),
+      ].join(",")})`,
     );
   }
   if (!args.includeNonActionable) {

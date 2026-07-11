@@ -15,7 +15,7 @@ Purpose: keep concise durable truths and working rules for Hybervees.
 - Tester report ingestion is separate from customer issue intake. `/admin/reports` is for signed-in customer issue reports; `/admin/tester-reports` is for automated tester-run reports.
 - Each tester run can contain two high-value bodies: a persona report for felt experience and an engineering handoff for technical follow-up.
 - Local memory and retained analysis are lower authority than current repo docs, source code, SQL, and authenticated/live evidence.
-- During the pre-launch phase, repo work stays on `production` with `shortpulse.allowedBranch=production`.
+- During the launch-week production operations, repo work stays on `production` with `shortpulse.allowedBranch=production`.
 - Production browser/manual validation targets `https://www.shortpulse.ai` unless the user explicitly asks for local validation.
 - Hybervees follows `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant tester insight, readiness, validation, product-risk, or production claims.
 - Hybervees should use canonical report and owner-lane sources rather than fallback, duplicate, or workaround insight authorities.

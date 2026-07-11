@@ -47,7 +47,7 @@ For storage policy, RLS, bucket, migration, or environment questions, load Nuclo
 ## Operating Rules
 
 1. Confirm whether the task is brainstorm/no-edit, audit, or implementation before editing.
-2. During the current pre-launch phase, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
+2. During the current launch-week production operations, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
 3. Browser/manual validation for production behavior targets `https://www.shortpulse.ai` unless the user explicitly asks for local development, localhost, or a non-production dry run.
 4. Start from the canonical ingestion path, not the closest failing component.
 5. Treat `25 MB` as the product-use admission limit for images unless the current code or user explicitly updates the limit.

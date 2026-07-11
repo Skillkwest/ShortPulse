@@ -447,3 +447,23 @@ Outcome:
 - Saved a detailed insight report and short owner summary.
 - Refined the existing global right-rail behavior backlog item instead of adding a duplicate Reference Grid item.
 - Updated the insight ledger and product-decision log with the stronger Reference Grid / Quick Slot / Media Library mental-model evidence.
+
+### 2026-07-10 - Seventh `run sop` Review Strengthened Quick Slot Without Adding Noise
+
+Prompt used:
+
+> run sop
+
+Behavior learned:
+
+- `2026-07-10-quick-slot-inventory` strengthened the same global right-rail mental-model issue instead of creating a separate product problem.
+- Quick Slot persistence is a positive signal to protect: Maya saw one Quick Slot item survive hide, reopen, and reload while both images remained in Media and Reference Grid.
+- The higher-ROI friction is now specific enough for implementation: explain Quick Slot purpose, expose a safe add/use path from saved Media or explain automatic curation, reconcile `Quick Slot` with `curated`, fix image actions that use text-reference language, and state whether Quick Slot affects generation.
+- Hybervees should refine existing backlog work when new evidence sharpens acceptance criteria and validation, rather than creating duplicate Quick Slot or Reference Grid items.
+
+Outcome:
+
+- Reviewed `2026-07-10-quick-slot-inventory`.
+- Saved a detailed insight report and short owner summary.
+- Refined the existing Program 2 global right-rail backlog item instead of adding a new item.
+- Updated the insight ledger and product-decision log with the Quick Slot / Media / Reference Grid reuse-clarity evidence.

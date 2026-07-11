@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ChartBar, SignOut, Sparkle } from "phosphor-react";
 import { useCredits } from "../../ai-studio/hooks/useCredits";
-import { buildPlanView, type BillingCatalogSnapshot } from "../../billing/catalog";
+import type { BillingCatalogSnapshot } from "../../billing/catalog";
 import { fetchBillingAccountSummary } from "../../billing/accountSummary";
 import { formatStorageBytes } from "../../billing/storage";
 import { useMediaStorageQuotaSummary } from "../../billing/useMediaStorageQuotaSummary";
@@ -40,7 +40,6 @@ import {
   SHORTPULSE_COMMUNITY_URL,
 } from "../communityLinks";
 
-const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
@@ -224,23 +223,12 @@ export function AuthenticatedDashboardRoute({
     };
   }, [profileMenuOpen]);
 
-  const fallbackPlanView = buildPlanView({
-    planId: DEFAULT_PLAN_TIER,
-    plans: billingCatalog.plans,
-  });
-  const planMeta = resolvedPlan ?? {
-    id: fallbackPlanView.id,
-    label: fallbackPlanView.displayName,
-    className: fallbackPlanView.className,
-    monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
-  };
   const {
     quotaStatus,
     quotaSummary,
     loading: quotaLoading,
   } = useMediaStorageQuotaSummary({
     enabled: true,
-    fallbackPlanId: planMeta.id,
   });
   const displayName = getUserDisplayName(user);
   const firstName = getDashboardGreetingName(displayName);
@@ -291,16 +279,7 @@ export function AuthenticatedDashboardRoute({
         setResolvedPlan(summary.resolvedPlan);
       } catch {
         if (!active) return;
-        const fallbackPlanView = buildPlanView({
-          planId: DEFAULT_PLAN_TIER,
-          plans: billingCatalog.plans,
-        });
-        setResolvedPlan({
-          id: fallbackPlanView.id,
-          label: fallbackPlanView.displayName,
-          className: fallbackPlanView.className,
-          monthlyCreditsCents: fallbackPlanView.monthlyCreditsCents,
-        });
+        setResolvedPlan(null);
       } finally {
         if (active) {
           setUsageLoading(false);
@@ -376,22 +355,21 @@ export function AuthenticatedDashboardRoute({
     return `${usedStorage} /\n${totalStorage}`;
   }, [quotaLoading, quotaStatus, quotaSummary, usageLoading]);
 
+  const planCreditsCents = resolvedPlan?.monthlyCreditsCents ?? 0;
   const aiCreditsValue =
-    balanceLoading && balanceCents == null
+    usageLoading || (balanceLoading && balanceCents == null)
       ? "…"
-      : formatCreditUsageValue(balanceCents, planMeta.monthlyCreditsCents);
+      : formatCreditUsageValue(balanceCents, planCreditsCents);
   const aiCreditsSummary =
-    balanceLoading && balanceCents == null
+    usageLoading || (balanceLoading && balanceCents == null)
       ? null
       : resolveAccountCreditsSummary({
           balanceCents,
           balanceLoading: false,
-          planCreditsCents: planMeta.monthlyCreditsCents,
+          planCreditsCents,
         });
   const aiCreditsValueNode =
-    planMeta.monthlyCreditsCents > 0 &&
-    aiCreditsSummary?.state === "ready" &&
-    aiCreditsSummary.isSurplus ? (
+    planCreditsCents > 0 && aiCreditsSummary?.state === "ready" && aiCreditsSummary.isSurplus ? (
       <>
         <span className="dashboard-credit-surplus-value">{aiCreditsSummary.currentLabel}</span>
         {" /\n"}
@@ -447,8 +425,8 @@ export function AuthenticatedDashboardRoute({
     {
       key: "auth-plan",
       label: "Plan",
-      value: planMeta.label,
-      className: planMeta.className,
+      value: usageLoading ? "…" : (resolvedPlan?.label ?? "Unavailable"),
+      className: resolvedPlan?.className,
       href: buildProfileSectionHref({
         section: "subscription",
         fromPath: DASHBOARD_PROFILE_RETURN_PATH,

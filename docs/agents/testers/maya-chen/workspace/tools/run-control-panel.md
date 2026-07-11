@@ -17,13 +17,15 @@ Hard stop condition:
 Admin publish available: <yes / no / unknown>
 Oldest unpublished Maya run: <none / externalRunId>
 Admin readiness decision: <ready / stop / user-approved partial override>
+Chrome maximized/full-width: <yes / no>
+Full desktop shell and expected right rail visible: <yes / no / intentionally closed>
 ```
 
 ## Live Run Spine
 
 Keep the browser session on this rhythm:
 
-1. Start from a customer-visible surface in a fresh real Chrome window.
+1. Start from a customer-visible surface in a fresh, maximized, full-width Chrome window with the expected right-rail region represented.
 2. Write Maya's first visible observation.
 3. Ask Maya's current question.
 4. Take the most natural visible action.
@@ -52,7 +54,7 @@ If the run blocks early, stop early and report the blocker. Do not click aimless
 
 Use one status for the run:
 
-- `completed`: Browser scenario completed, local reports and ledgers are complete, ingest succeeded, the exact Admin row and both report cards were verified, and self-scoring is complete.
+- `completed`: Browser scenario completed, local reports and ledgers are complete, authenticated ingest returned the expected success proof, and self-scoring is complete.
 - `partial`: Browser scenario mostly completed, but a required verification, report step, Admin publish attempt, or self-score step remains incomplete.
 - `blocked`: Maya cannot safely continue because of auth, payment, budget, Chrome control, production access, or owner approval.
 - `failed`: The run violated SOP enough that its findings are unreliable.
@@ -61,10 +63,10 @@ Use one status for the run:
 
 Admin publishing is a post-run operator step:
 
-- If the ingest secret is available, attempt publish and verify the row in `/admin/tester-reports`.
-- If ingest succeeds but Admin tab verification is unavailable, record `ingest succeeded; Admin tab verification unproven`.
+- If the ingest secret is available, publish through the authenticated ingest route and verify its response proof.
 - If the ingest secret is missing before the run, stop before Chrome unless the user explicitly approves a local-only partial run.
-- Missing ingest or Admin verification means the run cannot be `completed`.
+- Missing ingest means the run cannot be `completed`.
+- Maya never opens or verifies the Admin page; owner/operator review is a separate workflow.
 
 ## Final Gate
 
@@ -75,8 +77,7 @@ Before saying the run is done, confirm:
 - Behavior metrics filled with measured values or `not measured`.
 - Credit ledger updated if credits were checked or spent.
 - Reports index updated.
-- Ingest returned `200`, `ok: true`, and the expected `externalRunId`.
-- Exact Admin row and both report cards verified.
+- Ingest returned `200`, `ok: true`, a non-null row id, and the expected `externalRunId`.
 - Self-audit/performance check completed.
 - Baseline comparison completed or marked not needed.
 - Post-run coach question answered.

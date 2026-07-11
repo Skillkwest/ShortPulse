@@ -1042,80 +1042,24 @@ const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
 };
 
 const attachMediaFileToAiStudioGenerationOutput = async ({
-  supabase,
-  userId,
   generationId,
   index,
   mediaFileId,
   resultUrl,
 }: {
-  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
-  userId: string;
   generationId: string;
   index: number;
   mediaFileId: string;
   resultUrl: string;
 }) => {
-  const nowIso = new Date().toISOString();
-  const { data: existingOutput, error: existingOutputError } = await supabase
-    .from("ai_generation_outputs")
-    .select("id")
-    .eq("generation_id", generationId)
-    .eq("user_id", userId)
-    .eq("output_index", index)
-    .limit(1)
-    .maybeSingle();
-  if (existingOutputError) throw existingOutputError;
-
-  const existingOutputId = asOptionalString(asRecord(existingOutput).id);
-  if (existingOutputId) {
-    const { error } = await supabase
-      .from("ai_generation_outputs")
-      .update({
-        media_file_id: mediaFileId,
-        updated_at: nowIso,
-      })
-      .eq("id", existingOutputId)
-      .eq("user_id", userId);
-    if (error) throw error;
-    return;
-  }
-
-  const { error: insertError } = await supabase.from("ai_generation_outputs").insert({
-    generation_id: generationId,
-    user_id: userId,
-    output_index: index,
-    result_url: resultUrl,
-    media_file_id: mediaFileId,
-    metadata: {
-      media_library_persistence: true,
-      media_library_persisted_at: nowIso,
-    },
-    updated_at: nowIso,
+  const response = await fetchWithAuth("/api/generation/output-media-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ generationId, outputIndex: index, mediaFileId, resultUrl }),
   });
-  if (!insertError) return;
-  if (!isDuplicateInsertError(insertError)) throw insertError;
-
-  const { data: duplicateOutput, error: duplicateLookupError } = await supabase
-    .from("ai_generation_outputs")
-    .select("id")
-    .eq("generation_id", generationId)
-    .eq("user_id", userId)
-    .eq("output_index", index)
-    .limit(1)
-    .maybeSingle();
-  if (duplicateLookupError) throw duplicateLookupError;
-  const duplicateOutputId = asOptionalString(asRecord(duplicateOutput).id);
-  if (!duplicateOutputId) throw insertError;
-  const { error: updateError } = await supabase
-    .from("ai_generation_outputs")
-    .update({
-      media_file_id: mediaFileId,
-      updated_at: nowIso,
-    })
-    .eq("id", duplicateOutputId)
-    .eq("user_id", userId);
-  if (updateError) throw updateError;
+  if (!response.ok) {
+    throw new Error("Unable to link generated media output.");
+  }
 };
 
 /**
@@ -1265,8 +1209,6 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       }
       try {
         await attachMediaFileToAiStudioGenerationOutput({
-          supabase,
-          userId,
           generationId: input.generationId,
           index: input.index,
           mediaFileId: existingRow.id,
@@ -1490,8 +1432,6 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
         try {
           await attachMediaFileToAiStudioGenerationOutput({
-            supabase,
-            userId,
             generationId: input.generationId,
             index: input.index,
             mediaFileId: existingRow.id,
@@ -1673,8 +1613,6 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   if (input.source === "ai_studio" && input.generationId && mediaFileId) {
     try {
       await attachMediaFileToAiStudioGenerationOutput({
-        supabase,
-        userId,
         generationId: input.generationId,
         index: input.index,
         mediaFileId,

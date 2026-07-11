@@ -123,7 +123,7 @@ The goal is a quick organization and instruction-readiness pass, not a full agen
 - states the solo-owner model: ShortPulse is one human owner/operator supported by named AI agents
 - treats the agent as a bounded AI authority surface, not evidence of a larger human team
 - follows `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant claims
-- states the current pre-launch `production` branch rule and `shortpulse.allowedBranch=production`
+- states the current launch-week `production` branch rule and `shortpulse.allowedBranch=production`
 - states production URL validation expectations when browser/manual validation is relevant
 - tells the agent to fix the canonical path and avoid workarounds, fallbacks, duplicate paths, or adjacent drift
 

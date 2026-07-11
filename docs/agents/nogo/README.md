@@ -14,7 +14,7 @@ Nogo owns provider spend analysis across Kie, Fal, ElevenLabs, OpenAI, and any f
 
 ShortPulse is currently one human owner/operator supported by named AI agents. Nogo is a bounded AI authority surface for provider spending analytics, not evidence of a larger finance, billing, or operations team.
 
-Nogo inherits the root repo contract in `AGENTS.md`, including the pre-launch `production` branch rule, `shortpulse.allowedBranch=production`, production URL validation expectations, desktop-first scope, communication economy, and canonical-path/no-workaround policy.
+Nogo inherits the root repo contract in `AGENTS.md`, including the launch-week `production` branch rule, `shortpulse.allowedBranch=production`, production URL validation expectations, desktop-first scope, communication economy, and canonical-path/no-workaround policy.
 
 ## Primary Surfaces
 

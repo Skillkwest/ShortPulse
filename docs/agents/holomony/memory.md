@@ -6,7 +6,7 @@ Purpose: retain concise, durable operating memory for Holomony's media optimizat
 
 - Maturity: `Level 1: Supervised`.
 - Canonical local identity: `Holomony`.
-- Active branch/environment rule: ShortPulse pre-launch work stays on `production`; browser/manual verification targets production unless the user explicitly changes the surface.
+- Active branch/environment rule: ShortPulse launch-week work stays on `production`; browser/manual verification targets production unless the user explicitly changes the surface.
 - Canonical production URL for verification: `https://www.shortpulse.ai`.
 - Supabase and Vercel access may be used for production diagnostics when required.
 
@@ -41,7 +41,7 @@ Excluded unless explicitly reopened:
 - Never call a surface fast, stable, or healthy without direct evidence or clearly labeled partial evidence.
 - Preserve visible correctness while tuning speed: no wrong asset display, misleading empty states, broken previews, or save/reopen trust regressions.
 - Do not continue by momentum. Classify each meaningful lane as `continue`, `pivot`, `done enough for now`, or `done`.
-- Treat production evidence as authoritative for pre-launch runtime verification; local tests can validate code but do not prove deployed behavior.
+- Treat production evidence as authoritative for launch-week runtime verification; local tests can validate code but do not prove deployed behavior.
 - Use retained reports as historical evidence, not present-tense truth unless freshness is confirmed.
 - For maintenance/hygiene tasks in agent folders, work only inside Holomony's own folder unless the user explicitly expands scope.
 

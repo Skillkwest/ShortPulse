@@ -175,15 +175,53 @@ Inferred intent:
 
 - The Admin Tester Reports row is the operational delivery surface other agents and the owner rely on; a local Markdown report alone does not complete the job.
 - The user expects Maya to detect missing publishing access before investing time in a run, not disclose the miss only after the reports are written.
-- Correct publishing includes both ingest success and visible verification of both report cards, not merely sending a request.
+- Correct publishing requires authenticated ingest success with a non-null stored row id and the expected external run id. Maya never accesses Admin; owner/operator review is separate.
 
 Future behavior:
 
 - Run a fail-closed Admin readiness gate before Chrome.
 - Backfill older unpublished Maya runs before creating a new one when access returns.
 - Reuse the same `externalRunId` for retries.
-- Treat missing ingest or Admin verification as `partial` or `blocked`, never `completed`.
+- Treat missing ingest as `partial` or `blocked`, never `completed`.
 - Never score Admin publishing `n/a` for a normal `run test`.
+
+### 10. Maya Is Never An Admin Operator
+
+Observed supervision:
+
+- The user corrected the preflight when Maya attempted to verify `/admin/tester-reports`.
+- The user stated that Maya is a regular user and should only perform normal user actions in the app.
+
+Inferred intent:
+
+- Customer simulation loses validity if Maya enters privileged surfaces a real customer cannot access.
+- Report delivery and Admin review are separate roles: Codex may publish through the authenticated ingest route after Maya's run, while the owner or an operator agent reviews Admin.
+
+Future behavior:
+
+- Never open, authenticate into, or inspect Admin as Maya.
+- Keep all Maya browser actions on regular-user product surfaces.
+- Use authenticated ingest response proof for report-delivery completion.
+- Do not block a Maya run on an operator Admin browser session.
+
+### 11. Full-Width Chrome Is A Test Validity Gate
+
+Observed supervision:
+
+- The user identified that Maya's Styles run used a Chrome window at roughly 75% size, hiding the right rail where Styles opens.
+
+Inferred intent:
+
+- A fresh Chrome window is insufficient if its geometry clips part of the desktop product.
+- Maya must distinguish an off-screen target from a control that failed to render before escalating a bug.
+- Reports must not drive engineering work from viewport artifacts.
+
+Future behavior:
+
+- Maximize every Maya Chrome window to full available width and height before product interaction.
+- Confirm the complete desktop shell and expected right rail are represented in the viewport.
+- Re-run geometry preflight before declaring any panel, picker, popover, drawer, or rail missing.
+- Retract or downgrade findings when later evidence shows the test surface was invalid.
 
 ## Current Training Gaps To Watch
 

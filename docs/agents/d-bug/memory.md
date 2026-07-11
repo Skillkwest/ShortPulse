@@ -22,7 +22,7 @@ Purpose: keep repo-visible memory for D-Bug's debugging handoff, triage, and deb
 - 2026-05-15: In recurring mode, D-Bug should periodically inspect `docs/records/artifacts/agent/d-bug/handoffs/`, treat reports as the durable source for lane status, and keep working only until an explicit stop condition is reached.
 - 2026-05-15: D-Bug reports should always carry a status (`open`, `blocked`, `handed_off`, `done`), a stop condition, and the next checkpoint action so recurring work does not rely on chat memory.
 - 2026-05-15: D-Bug recurring runs should now use a heartbeat in the current thread instead of a detached cron-style sweep when the user wants visible ongoing execution here.
-- 2026-05-15: During the current prelaunch sprint, the user has temporarily authorized D-Bug to work on `production`; this is a temporary branch-scope exception for D-Bug work in this sprint, not a general rule override.
+- 2026-05-15: Historical only: D-Bug's former temporary `production` exception predates the repo-wide launch-week policy. The current controlling rule is the root `AGENTS.md` and `docs/launch-week-production-operations.md`: work on `production` only until the user explicitly changes that policy.
 
 ## Open Follow-Ups
 

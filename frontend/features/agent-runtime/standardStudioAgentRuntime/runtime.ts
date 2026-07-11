@@ -88,6 +88,17 @@ import {
 } from "../promptCompilerCacheScopeKey";
 import { finalizeStudioAgentResponseSafety } from "../studioAgentSafetyResponseFinalizer";
 import { maybeTriggerSafetyIncidentAutoRollback } from "../safetyPolicy/incidentAutoRollback";
+import {
+  OpenAiInternalCapacityError,
+  admitOpenAiInternalCapacityRequest,
+  beginOpenAiInternalCapacityAttempt,
+  extractOpenAiInternalCapacityUsage,
+  mergeOpenAiInternalCapacityUsage,
+  resolveOpenAiInternalCapacityRequestId,
+  settleOpenAiInternalCapacity,
+  type OpenAiInternalCapacityAdmission,
+  type OpenAiInternalCapacityUsage,
+} from "../../../lib/server/api/openAiInternalCapacityAdmission";
 
 const STANDARD_ROUTE_LABEL = "ai/studio-agent-standard";
 const STANDARD_TELEMETRY_PATH = "standard_agent";
@@ -541,6 +552,7 @@ const executeStandardOpenAiWithRetry = async ({
   responsesEnabled,
   chatFallbackEnabled,
   webSearchToolChoice,
+  beforeProviderCall,
   env,
 }: {
   apiKey: string;
@@ -554,6 +566,7 @@ const executeStandardOpenAiWithRetry = async ({
   responsesEnabled: boolean;
   chatFallbackEnabled: boolean;
   webSearchToolChoice?: StandardWebSearchToolChoice | null;
+  beforeProviderCall: () => Promise<void>;
   env?: NodeJS.ProcessEnv;
 }): Promise<
   | { ok: true; response: Response; retryCount: number; transport: "chat" | "responses" }
@@ -571,8 +584,9 @@ const executeStandardOpenAiWithRetry = async ({
   const effectiveResponsesEnabled = responsesEnabled || requiresResponsesTransport;
   const effectiveChatFallbackEnabled = requiresResponsesTransport ? false : chatFallbackEnabled;
 
-  const executeChatTurn = async (): Promise<Response> =>
-    await fetchStudioAgentChatCompletion({
+  const executeChatTurn = async (): Promise<Response> => {
+    await beforeProviderCall();
+    return await fetchStudioAgentChatCompletion({
       apiKey,
       openAiUrl,
       model,
@@ -584,6 +598,7 @@ const executeStandardOpenAiWithRetry = async ({
         SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED: "false",
       },
     });
+  };
 
   while (true) {
     try {
@@ -613,6 +628,7 @@ const executeStandardOpenAiWithRetry = async ({
           };
         }
       } else {
+        await beforeProviderCall();
         const response = await fetchOpenAiResponse({
           apiKey,
           openAiUrl,
@@ -1211,6 +1227,53 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     webSearchToolChoice,
     safeCompletionInstruction,
   });
+  let admission: OpenAiInternalCapacityAdmission;
+  try {
+    admission = await admitOpenAiInternalCapacityRequest({
+      userId: user.id,
+      lane: "studio_agent.standard",
+      requestId: resolveOpenAiInternalCapacityRequestId(req),
+      internalBudgetMicrousd: 100_000,
+      maxAttempts: Math.min(10, openAiConfig.upstreamRetryMaxAttempts * 2 + 1),
+    });
+  } catch (error) {
+    if (error instanceof OpenAiInternalCapacityError) {
+      return res.status(error.status).json({
+        ...buildStudioAgentRouteFailurePayload({
+          traceId,
+          detail: error.message,
+          reasonCode: "ROUTE_ERROR",
+        }),
+        code: error.code,
+      });
+    }
+    throw error;
+  }
+  let firstProviderAttemptConsumed = false;
+  let providerAttemptCount = 0;
+  let providerUsage: OpenAiInternalCapacityUsage = {};
+  let admissionSettled = false;
+  const beforeProviderCall = async (): Promise<void> => {
+    if (firstProviderAttemptConsumed) {
+      admission = await beginOpenAiInternalCapacityAttempt({
+        admissionId: admission.id,
+        userId: user.id,
+      });
+    } else {
+      firstProviderAttemptConsumed = true;
+    }
+    providerAttemptCount += 1;
+  };
+  const settleAdmission = async (status: "completed" | "failed"): Promise<void> => {
+    if (admissionSettled) return;
+    await settleOpenAiInternalCapacity({
+      admissionId: admission.id,
+      userId: user.id,
+      status,
+      usage: { ...providerUsage, requestCount: providerAttemptCount },
+    });
+    admissionSettled = true;
+  };
   try {
     const directResponseResult = await executeStandardOpenAiWithRetry({
       apiKey,
@@ -1224,6 +1287,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       responsesEnabled: openAiConfig.standardResponsesEnabled,
       chatFallbackEnabled: openAiConfig.standardChatFallbackEnabled,
       webSearchToolChoice,
+      beforeProviderCall,
       env: {
         ...process.env,
         SHORTPULSE_OPENAI_RESPONSES_ENABLED:
@@ -1284,6 +1348,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
             }),
           },
         });
+        await settleAdmission("completed");
         return res.status(200).json(
           buildStudioAgentSafetyRefusalPayload({
             traceId,
@@ -1309,6 +1374,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
           runtimeScopeKey: "studio-agent-standard",
         },
       });
+      await settleAdmission("failed");
       return res.status(directResponseResult.status ?? 502).json(
         buildStudioAgentUpstreamErrorPayload({
           traceId,
@@ -1318,6 +1384,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     }
 
     const directPayload = await directResponseResult.response.json();
+    providerUsage = mergeOpenAiInternalCapacityUsage(
+      providerUsage,
+      extractOpenAiInternalCapacityUsage(directPayload)
+    );
     const directResult =
       directResponseResult.transport === "responses"
         ? extractStandardOpenAiResponsesResult({
@@ -1345,6 +1415,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
           runtimeScopeKey: "studio-agent-standard",
         },
       });
+      await settleAdmission("failed");
       return res.status(502).json(
         buildStudioAgentUpstreamErrorPayload({
           traceId,
@@ -1388,6 +1459,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
             responsesEnabled: directResponseResult.transport === "responses",
             chatFallbackEnabled: false,
             webSearchToolChoice: null,
+            beforeProviderCall,
             env: {
               ...process.env,
               SHORTPULSE_OPENAI_RESPONSES_ENABLED:
@@ -1397,6 +1469,10 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
           });
           if (recoveryResponseResult.ok) {
             const recoveryPayload = await recoveryResponseResult.response.json();
+            providerUsage = mergeOpenAiInternalCapacityUsage(
+              providerUsage,
+              extractOpenAiInternalCapacityUsage(recoveryPayload)
+            );
             const recoveryResult =
               recoveryResponseResult.transport === "responses"
                 ? extractStandardOpenAiResponsesResult({
@@ -1517,6 +1593,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
         safetyDebugEnabled: safetyRuntimeConfig.debugEnabled,
         safetyTelemetry: safeCompletionTelemetry,
       });
+      await settleAdmission("completed");
       return res.status(200).json(
         buildStudioAgentSafetyRefusalPayload({
           traceId,
@@ -1551,6 +1628,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
       safetyDebugEnabled: safetyRuntimeConfig.debugEnabled,
       safetyTelemetry: safeCompletionTelemetry,
     });
+    await settleAdmission("completed");
     return res.status(200).json({
       ...safetyFinalization.response,
       ...buildAgentMachineOutcome({
@@ -1562,6 +1640,21 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     });
   } catch (error) {
     markStage("standard_openai_roundtrip", openAiRoundTripStartedAt);
+    try {
+      await settleAdmission("failed");
+    } catch (settlementError) {
+      await logApiRouteException({
+        req,
+        error: settlementError,
+        routeLabel: STANDARD_ROUTE_LABEL,
+        metadata: {
+          trace_id: traceId,
+          user_id: user.id,
+          conversation_id: normalizedConversationId,
+          stage: "openai_internal_capacity_settlement",
+        },
+      });
+    }
     await logApiRouteException({
       req,
       error,

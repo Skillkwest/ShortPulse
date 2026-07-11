@@ -15,6 +15,8 @@ const auditScriptPath = path.resolve(
 
 const REQUIRED_SIGNATURES = [
   "public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)",
+  "public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)",
+  "public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)",
   "public.create_admin_kanban_item(text,text,uuid,text)",
   "public.update_admin_kanban_item(uuid,text,text,uuid,text)",
   "public.move_admin_kanban_item(uuid,text,uuid,text)",
@@ -76,6 +78,9 @@ const REQUIRED_SIGNATURES = [
   "public.get_credit_grant_summaries(uuid[])",
   "public.expire_credit_grants(integer)",
   "public.release_generation_reservation_by_id(uuid,text,jsonb)",
+  "public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)",
+  "public.begin_openai_internal_capacity_attempt(uuid,uuid)",
+  "public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)",
 ] as const;
 
 const extractExpectedFunctionSignatureBlocks = (sql: string): string[][] =>
@@ -121,6 +126,11 @@ describe("check_runtime_sql_security_audit.sql", () => {
     expect(sql).toContain("aclexplode(coalesce(p.proacl, acldefault('f', p.proowner)))");
     expect(sql).toContain("schema_checks(signature, check_name, check_pass, detail) as (");
     expect(sql).toContain("table_checks(signature, check_name, check_pass, detail) as (");
+    expect(sql).toContain(
+      "openai_capacity_table_checks(signature, check_name, check_pass, detail) as ("
+    );
+    expect(sql).toContain("'browser_policies_none'::text");
+    expect(sql).toContain("must not access OpenAI internal-capacity admissions");
     expect(sql).toContain("sequence_checks(signature, check_name, check_pass, detail) as (");
     expect(sql).toContain("from all_checks\norder by signature, check_name;");
     expect(sql).toContain("count(*)::integer as total_checks");

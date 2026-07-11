@@ -157,7 +157,7 @@ describe("StandardCreatePanelView", () => {
     };
 
     fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
-    expect(screen.getByRole("status")).toHaveTextContent("References are shared through Chat Mode");
+    expect(screen.getByRole("status")).toHaveTextContent("Turn on chat mode to upload references.");
 
     fireEvent.dragLeave(panelBody as Element, {
       dataTransfer: mediaTransfer,

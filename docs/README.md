@@ -7,6 +7,7 @@ Start here for all repository documentation.
 - Core engineering and governance docs live at `docs/` root.
 - API references live in `docs/api/`.
 - SOP runbooks live in `docs/sops/`.
+- Current launch-week operating status lives in `docs/launch-week-production-operations.md`.
 - Product/domain docs live in `docs/product/`.
 - Systems catalog docs live in `docs/systems/`.
 - Active planning docs live in `docs/planning/`.

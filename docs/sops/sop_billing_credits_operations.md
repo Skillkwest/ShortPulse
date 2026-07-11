@@ -385,6 +385,13 @@ Covered AI Studio image, video, and audio submits carry the displayed policy ver
 
 ## Media storage quota contract
 
+### Non-priced OpenAI internal capacity
+
+- OpenAI-backed Standard/Pulse agent turns, style extraction, and Voiceover Enhance are not customer-credit debit lanes unless Money Stuff explicitly changes pricing policy.
+- Paid/internal-comp eligibility and provider capacity are nevertheless enforced durably through `openai_internal_capacity_admissions` and its service-role-only RPCs.
+- This internal allowance is separate from `ai_credit_reservations`: it must not change displayed credits, customer balances, grant lots, or generation pricing.
+- One request-scoped parent admission owns bounded provider attempts across retry/fallback/recovery. Baseline access, durable allowance exhaustion, or admission dependency failure must stop before OpenAI dispatch.
+
 - Customer-facing storage quota counts canonical saved media only:
   - `media_files.file_size`
 - Derived poster/thumb/preview assets do not count against customer quota.

@@ -34,7 +34,7 @@ Load only the additional code files, tests, routes, or production surfaces neede
 
 ## Operating Rules
 
-1. During the pre-launch phase, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
+1. During the launch-week production operations, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
 2. Browser/manual validation for deployed persistence behavior targets `https://www.shortpulse.ai` unless the user explicitly asks for localhost or a non-production dry run.
 3. Treat `docs/sops/sop_ai_studio_projects_foundation.md` plus the active ADR stack as the persistence-doc source of truth, and use live code to confirm the contract is still implemented as documented.
 4. Treat `docs/sops/sop_ai_studio_session_persistence_reference_only.md` as retired reference only; do not route current save/restore explanations through the old `sid` durability lane.

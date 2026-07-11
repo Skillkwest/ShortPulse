@@ -39,10 +39,8 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
     - images: `jpg|jpeg|png`
     - videos (motion control): `mp4|mov`
   - signed media URLs with embedded JWT `token` are rejected when TTL is too short (`<=120s`)
-  - remote media probe rejects non-success fetch status before provider dispatch (`HTTP 2xx` required)
-  - remote media probe rejects content-type mismatches (`image/*` for images, `video/*` for videos; `application/octet-stream` remains compatibility-accepted)
+  - validation is deterministic and performs no caller-directed `HEAD`/`GET` request; provider submit owns remote fetchability errors
   - deterministic route error on violation: `code=KIE_MEDIA_INPUT_INVALID`
-  - runtime probe override (optional): `SHORTPULSE_KIE_MEDIA_PROBE_ENABLED=true|false` (`unset` defaults to enabled outside test runtime)
 - Kie temporary-file staging:
   - Standard first/last-frame inputs and linked element image references are prepared through `/api/kie/upload-url` before the final Kie submit payload.
   - Kling image staging uses `admissionProfile="kie_kling_reference_image"` so product-valid WebP/AVIF/GIF/HEIC/HEIF inputs are converted to provider-facing JPEG/PNG bytes before Kie submit.

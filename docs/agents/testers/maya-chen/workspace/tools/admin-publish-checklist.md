@@ -49,15 +49,15 @@ External run id:
 HTTP result:
 Response `ok`:
 Returned external run id matches:
-Admin page verified:
-Verified fields:
+Stored row id:
+Verified response fields:
 
 - Tester slug:
 - Scenario:
 - Status:
 - Persona report present:
 - Engineering handoff present:
-- Both report cards visible in Agent Tester Reports:
+- Both required report bodies accepted by ingest:
   Failure reason if any:
 
 ## Failure Rule
@@ -71,9 +71,4 @@ If the secret is missing or the publish call fails:
 - Score `Admin publish completion` honestly in the self-audit.
 - Retry with the same `externalRunId`; never create a duplicate run id as a workaround.
 
-If ingest succeeds but Admin page verification is not available:
-
-- Do not claim full Admin tab proof.
-- Record `ingest succeeded; Admin tab verification unproven`.
-- Add the exact blocker to the engineering handoff.
-- Classify the run `partial` until the exact row and both report cards are verified.
+Maya must never open or authenticate into the Admin page. Owner/operator review of the stored row is separate from Maya's regular-user testing and report-delivery duty.

@@ -60,10 +60,34 @@ import {
   resolveSafeCompletionSystemInstruction,
 } from "../studioAgentSafeCompletion";
 import { resolveStudioAgentSafetyRuntimeConfig } from "../studioAgentSafetyRuntimeConfig";
+import {
+  OpenAiInternalCapacityError,
+  admitOpenAiInternalCapacityRequest,
+  beginOpenAiInternalCapacityAttempt,
+  extractOpenAiInternalCapacityUsage,
+  resolveOpenAiInternalCapacityRequestId,
+  settleOpenAiInternalCapacity,
+  type OpenAiInternalCapacityAdmission,
+} from "../../../lib/server/api/openAiInternalCapacityAdmission";
 
 const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
 const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
 const PULSE_RUNTIME_SCOPE_FALLBACK = "studio-agent-pulse";
+const PULSE_INTERNAL_CAPACITY_BUDGET_MICROUSD = 300_000;
+
+const sendPulseCapacityError = (
+  res: NextApiResponse,
+  traceId: string,
+  error: OpenAiInternalCapacityError
+) =>
+  res.status(error.status).json({
+    ...buildStudioAgentRouteFailurePayload({
+      traceId,
+      detail: error.message,
+      reasonCode: "ROUTE_ERROR",
+    }),
+    code: error.code,
+  });
 
 const hasPulseWorkflowPresetMismatch = (body: unknown): boolean => {
   const pulse = (body as { context?: { pulse?: unknown } })?.context?.pulse as
@@ -406,6 +430,46 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     effectiveCanonical,
   });
 
+  let admission: OpenAiInternalCapacityAdmission;
+  try {
+    admission = await admitOpenAiInternalCapacityRequest({
+      userId: user.id,
+      lane: "studio_agent.pulse",
+      requestId: resolveOpenAiInternalCapacityRequestId(req),
+      internalBudgetMicrousd: PULSE_INTERNAL_CAPACITY_BUDGET_MICROUSD,
+      maxAttempts: Math.min(10, 1 + upstreamRetryMaxAttempts * 3),
+    });
+  } catch (error) {
+    if (error instanceof OpenAiInternalCapacityError) {
+      return sendPulseCapacityError(res, traceId, error);
+    }
+    throw error;
+  }
+  let firstProviderAttemptConsumed = false;
+  let providerAttemptCount = 0;
+  let admissionSettled = false;
+  const beforeProviderCall = async (): Promise<void> => {
+    if (firstProviderAttemptConsumed) {
+      admission = await beginOpenAiInternalCapacityAttempt({
+        admissionId: admission.id,
+        userId: user.id,
+      });
+    } else {
+      firstProviderAttemptConsumed = true;
+    }
+    providerAttemptCount += 1;
+  };
+  const settleAdmission = async (status: "completed" | "failed", usage = {}): Promise<void> => {
+    if (admissionSettled) return;
+    await settleOpenAiInternalCapacity({
+      admissionId: admission.id,
+      userId: user.id,
+      status,
+      usage: { ...usage, requestCount: providerAttemptCount },
+    });
+    admissionSettled = true;
+  };
+
   let visionSummaryMap = new Map<string, string>();
   let providerCallCount = 0;
   let untrustedImageTextSignalCount = 0;
@@ -426,7 +490,8 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         apiKey,
         visionModel: openAiVisionModel,
         timeoutMs: visionTimeoutMs,
-        onProviderCall: () => {
+        onProviderCall: async () => {
+          await beforeProviderCall();
           providerCallCount += 1;
         },
         onUntrustedImageTextSignal: (signal) => {
@@ -448,6 +513,15 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         profileId: safetyTelemetryProfileId,
       });
     } catch (error) {
+      if (error instanceof OpenAiInternalCapacityError) {
+        try {
+          await settleAdmission("failed");
+        } catch {
+          // Preserve the original admission failure; the database remains the
+          // authority for any indeterminate settlement state.
+        }
+        return sendPulseCapacityError(res, traceId, error);
+      }
       console.warn(
         "[studio-agent] server vision summary failed",
         describeStudioAgentVisionSummaryError(error)
@@ -476,51 +550,69 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     selectedReferences,
     effectiveCanonical,
   });
-  const coordinatorResult = await executeStudioAgentCoordinator({
-    req,
-    traceId,
-    requestStartedAt,
-    stageLatencyMs,
-    markStage,
-    apiKey,
-    openAiUrl,
-    systemPrompt,
-    openAiModel: coordinatorOpenAiModel,
-    turnTimeoutMs: coordinatorTurnTimeoutMs,
-    upstreamRetryMaxAttempts,
-    upstreamRetryBaseDelayMs,
-    upstreamRetryMaxDelayMs,
-    orchestration,
-    context,
-    messages,
-    selectedReferences,
-    visionSummaryMap,
-    effectiveCanonical,
-    normalizedConversationId,
-    userId: user.id,
-    userEmail: user.email ?? null,
-    canonicalDbEnabled: false,
-    safetyPostProcessMode,
-    safetyDebugEnabled,
-    safetyProfileId,
-    safetyPolicyDocument,
-    safetyPolicyVersion: safetyProfile.policyVersion,
-    safetyPolicySchemaVersion,
-    safetyPromptTemplateVersion: promptTemplateVersion,
-    runtimeScopeKey: runtimeScopeKey || PULSE_RUNTIME_SCOPE_FALLBACK,
-    safetyEnvironment,
-    safetyDevAbsoluteZeroEnabled,
-    safetyProviderErrorMode,
-    safetyAutoRollbackEnabled,
-    safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
-    safeCompletionRecoveryEligible: safeCompletionRecoveryEligibility.eligible,
-    safeCompletionRecoverySkipReason: safeCompletionRecoveryEligibility.eligible
-      ? null
-      : safeCompletionRecoveryEligibility.skipReason,
-    initialProviderCallCount: providerCallCount,
-    routeLabel: PULSE_ROUTE_LABEL,
-    safetyRoute: PULSE_PROMPT_CACHE_ROUTE,
-  });
+  let coordinatorResult: Awaited<ReturnType<typeof executeStudioAgentCoordinator>>;
+  try {
+    coordinatorResult = await executeStudioAgentCoordinator({
+      req,
+      traceId,
+      requestStartedAt,
+      stageLatencyMs,
+      markStage,
+      apiKey,
+      openAiUrl,
+      systemPrompt,
+      openAiModel: coordinatorOpenAiModel,
+      turnTimeoutMs: coordinatorTurnTimeoutMs,
+      upstreamRetryMaxAttempts,
+      upstreamRetryBaseDelayMs,
+      upstreamRetryMaxDelayMs,
+      orchestration,
+      context,
+      messages,
+      selectedReferences,
+      visionSummaryMap,
+      effectiveCanonical,
+      normalizedConversationId,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      canonicalDbEnabled: false,
+      safetyPostProcessMode,
+      safetyDebugEnabled,
+      safetyProfileId,
+      safetyPolicyDocument,
+      safetyPolicyVersion: safetyProfile.policyVersion,
+      safetyPolicySchemaVersion,
+      safetyPromptTemplateVersion: promptTemplateVersion,
+      runtimeScopeKey: runtimeScopeKey || PULSE_RUNTIME_SCOPE_FALLBACK,
+      safetyEnvironment,
+      safetyDevAbsoluteZeroEnabled,
+      safetyProviderErrorMode,
+      safetyAutoRollbackEnabled,
+      safeCompletionEnabled: safetyRuntimeConfig.safeCompletionEnabled,
+      safeCompletionRecoveryEligible: safeCompletionRecoveryEligibility.eligible,
+      safeCompletionRecoverySkipReason: safeCompletionRecoveryEligibility.eligible
+        ? null
+        : safeCompletionRecoveryEligibility.skipReason,
+      initialProviderCallCount: providerCallCount,
+      routeLabel: PULSE_ROUTE_LABEL,
+      safetyRoute: PULSE_PROMPT_CACHE_ROUTE,
+      beforeProviderCall,
+    });
+    await settleAdmission(
+      coordinatorResult.status === 200 ? "completed" : "failed",
+      extractOpenAiInternalCapacityUsage(coordinatorResult.payload)
+    );
+  } catch (error) {
+    if (error instanceof OpenAiInternalCapacityError) {
+      try {
+        await settleAdmission("failed");
+      } catch {
+        // Preserve the original admission failure response.
+      }
+      return sendPulseCapacityError(res, traceId, error);
+    }
+    throw error;
+  }
 
   return res.status(coordinatorResult.status).json(coordinatorResult.payload);
 };

@@ -5,7 +5,7 @@ Purpose: keep concise, durable generation, recovery, and settlement truths and w
 ## Current Contract Truths
 
 - ShortPulse is currently one human owner/operator supported by named AI agents. Bactuo is a bounded AI authority surface for generation, recovery, and request-scoped settlement, not evidence of a larger human team.
-- Pre-launch Bactuo work stays on local `production` with `shortpulse.allowedBranch=production`; launch-relevant browser/manual validation uses `https://www.shortpulse.ai` unless the user explicitly asks otherwise in the current thread.
+- Launch-week Bactuo work stays on local `production` with `shortpulse.allowedBranch=production`; launch-relevant browser/manual validation uses `https://www.shortpulse.ai` unless the user explicitly asks otherwise in the current thread.
 - The core lifecycle chain is split across `ai_generations`, `generation_attempts`, `ai_generation_outputs`, `generation_projection`, `generation_publications`, `ai_credit_reservations`, and `ai_credit_ledger`.
 - `ai_generations` is the lifecycle shell, not the whole truth of a generation.
 - `generation_attempts` is provider-attempt lineage and should not be the only bridge the system can use to recover ownership or settlement authority.

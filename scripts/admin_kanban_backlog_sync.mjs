@@ -57,6 +57,33 @@ const requireEnv = (name) => {
   return value;
 };
 
+const formatError = (error) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const message =
+      typeof error.message === "string" && error.message.trim()
+        ? error.message.trim()
+        : null;
+    const details =
+      typeof error.details === "string" && error.details.trim()
+        ? error.details.trim()
+        : null;
+    const hint =
+      typeof error.hint === "string" && error.hint.trim()
+        ? error.hint.trim()
+        : null;
+    const code =
+      typeof error.code === "string" && error.code.trim()
+        ? error.code.trim()
+        : null;
+    return [message, details, hint, code ? `code=${code}` : null]
+      .filter(Boolean)
+      .join(" ");
+  }
+  return String(error);
+};
+
 const resolveRepoPath = (repoRelativePath) =>
   path.resolve(process.cwd(), repoRelativePath);
 
@@ -164,7 +191,7 @@ run().catch((error) => {
   emit(
     {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: formatError(error),
     },
     { jsonOnly: hasFlag("--json") },
   );

@@ -17,6 +17,35 @@ vi.mock("../studioAgentOpenAiGateway", async () => {
 });
 
 describe("studioAgentVisionSummaries", () => {
+  it("awaits provider admission before dispatching the vision request", async () => {
+    fetchStudioAgentChatCompletionMock.mockReset();
+    let releaseAdmission: (() => void) | undefined;
+    const admissionGate = new Promise<void>((resolve) => {
+      releaseAdmission = resolve;
+    });
+    const promise = buildStudioAgentImageSummaryMap({
+      openAiUrl: "https://example.test/v1/chat/completions",
+      context: {
+        media: [{ id: "image-1", kind: "image", url: "https://example.test/image.png" }],
+      },
+      imageDescribePrompt: "describe image",
+      apiKey: "key-1",
+      visionModel: "gpt-vision",
+      timeoutMs: 20000,
+      onProviderCall: () => admissionGate,
+    });
+
+    await Promise.resolve();
+    expect(fetchStudioAgentChatCompletionMock).not.toHaveBeenCalled();
+    fetchStudioAgentChatCompletionMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"summaries":[]}' } }] }),
+    });
+    releaseAdmission?.();
+    await promise;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+  });
+
   it("builds image summaries for ten images with one batched describe call", async () => {
     fetchStudioAgentChatCompletionMock.mockReset();
     const onUntrustedImageTextSignal = vi.fn();

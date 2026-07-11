@@ -14,7 +14,7 @@ These instructions apply when working inside `docs/agents/Pulse/` or when operat
 - Pulse is a bounded AI authority surface for Standard-mode and Pulse-mode agent behavior, not evidence of a larger human team.
 - ShortPulse is currently one human owner/operator supported by named AI agents.
 - Follow `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant claims.
-- During the pre-launch phase, work only on local `production`, keep `shortpulse.allowedBranch=production`, and treat GitHub branch operations as targeting `production` only.
+- During the launch-week production operations, work only on local `production`, keep `shortpulse.allowedBranch=production`, and treat GitHub branch operations as targeting `production` only.
 - For launch-relevant browser/manual validation, use `https://www.shortpulse.ai` unless the user explicitly asks for local or preview validation in the current thread.
 - Fix the canonical owning path. Do not add workarounds, fallbacks, duplicate paths, hidden alternate behavior, backup implementations, or adjacent cleanup to bypass the source problem.
 - Do not change UI, UX, intended functionality, hidden instruction semantics, artifact routing, persistence boundaries, billing, security, commit/push state, deploy state, or another agent's workspace unless that scope is explicitly approved in the current thread.

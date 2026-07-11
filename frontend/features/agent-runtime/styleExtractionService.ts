@@ -227,11 +227,13 @@ export const executeStyleExtraction = async ({
   user,
   imageDataUrl,
   routeLabel = "ai/extract-style",
+  beforeProviderCall,
 }: {
   req: NextApiRequest;
   user: AuthenticatedApiUser;
   imageDataUrl: unknown;
   routeLabel?: string;
+  beforeProviderCall?: () => Promise<void>;
 }): Promise<StyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
   let promptTemplateVersion: string | null = null;
@@ -446,6 +448,7 @@ export const executeStyleExtraction = async ({
       model: primaryVisionModel,
       systemPrompt,
       imageDataUrl: normalizedImageDataUrl,
+      beforeProviderCall,
     });
     openAiMs += extractionAttempt.elapsedMs;
     attemptCount += extractionAttempt.attemptCount;
@@ -466,6 +469,7 @@ export const executeStyleExtraction = async ({
         model: fallbackVisionModel,
         systemPrompt,
         imageDataUrl: normalizedImageDataUrl,
+        beforeProviderCall,
       });
       openAiMs += extractionAttempt.elapsedMs;
       attemptCount += extractionAttempt.attemptCount;

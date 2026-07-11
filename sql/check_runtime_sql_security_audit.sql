@@ -75,7 +75,10 @@ with expected_functions as (
             ('public.get_credit_grant_summary(uuid)', null),
             ('public.get_credit_grant_summaries(uuid[])', null),
             ('public.expire_credit_grants(integer)', null),
-            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null),
+            ('public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)', null),
+            ('public.begin_openai_internal_capacity_attempt(uuid,uuid)', null),
+            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -292,7 +295,11 @@ expected_table_grants as (
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'SELECT'::text),
-            ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'INSERT'::text)
+            ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text)
     ) as t(schema_name, table_name, grantee, privilege_type)
 ),
 table_checks(signature, check_name, check_pass, detail) as (
@@ -371,6 +378,34 @@ browser_crash_table_checks(signature, check_name, check_pass, detail) as (
         format('%s must not access browser crash evidence', role_name)
     from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
 ),
+openai_capacity_table_checks(signature, check_name, check_pass, detail) as (
+    select 'table public.openai_internal_capacity_admissions'::text,
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass('public.openai_internal_capacity_admissions')), false),
+           'OpenAI internal-capacity admissions must have RLS enabled'::text
+    union all
+    select 'table public.openai_internal_capacity_admissions'::text,
+           'browser_policies_none'::text,
+           to_regclass('public.openai_internal_capacity_admissions') is not null
+           and not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public'
+                 and p.tablename = 'openai_internal_capacity_admissions'
+           ),
+           'OpenAI internal-capacity admissions must have no browser RLS policies'::text
+    union all
+    select format('table public.openai_internal_capacity_admissions -> %s', role_name),
+           'table_none'::text,
+           to_regclass('public.openai_internal_capacity_admissions') is not null
+           and not has_table_privilege(
+               role_name,
+               'public.openai_internal_capacity_admissions',
+               'SELECT,INSERT,UPDATE,DELETE'
+           ),
+           format('%s must not access OpenAI internal-capacity admissions', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+),
 expected_sequence_grants as (
     select *
     from (
@@ -447,6 +482,8 @@ all_checks as (
     select * from table_checks
     union all
     select * from browser_crash_table_checks
+    union all
+    select * from openai_capacity_table_checks
     union all
     select * from sequence_checks
     union all
@@ -532,7 +569,10 @@ with expected_functions as (
             ('public.get_credit_grant_summary(uuid)', null),
             ('public.get_credit_grant_summaries(uuid[])', null),
             ('public.expire_credit_grants(integer)', null),
-            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null)
+            ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null),
+            ('public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)', null),
+            ('public.begin_openai_internal_capacity_attempt(uuid,uuid)', null),
+            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -749,7 +789,11 @@ expected_table_grants as (
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'admin_user_health_snapshots'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'SELECT'::text),
-            ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'INSERT'::text)
+            ('public'::text, 'admin_user_health_snapshot_findings'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text)
     ) as t(schema_name, table_name, grantee, privilege_type)
 ),
 table_checks(signature, check_name, check_pass, detail) as (
@@ -828,6 +872,34 @@ browser_crash_table_checks(signature, check_name, check_pass, detail) as (
         format('%s must not access browser crash evidence', role_name)
     from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
 ),
+openai_capacity_table_checks(signature, check_name, check_pass, detail) as (
+    select 'table public.openai_internal_capacity_admissions'::text,
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass('public.openai_internal_capacity_admissions')), false),
+           'OpenAI internal-capacity admissions must have RLS enabled'::text
+    union all
+    select 'table public.openai_internal_capacity_admissions'::text,
+           'browser_policies_none'::text,
+           to_regclass('public.openai_internal_capacity_admissions') is not null
+           and not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public'
+                 and p.tablename = 'openai_internal_capacity_admissions'
+           ),
+           'OpenAI internal-capacity admissions must have no browser RLS policies'::text
+    union all
+    select format('table public.openai_internal_capacity_admissions -> %s', role_name),
+           'table_none'::text,
+           to_regclass('public.openai_internal_capacity_admissions') is not null
+           and not has_table_privilege(
+               role_name,
+               'public.openai_internal_capacity_admissions',
+               'SELECT,INSERT,UPDATE,DELETE'
+           ),
+           format('%s must not access OpenAI internal-capacity admissions', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+),
 expected_sequence_grants as (
     select *
     from (
@@ -904,6 +976,8 @@ all_checks as (
     select * from table_checks
     union all
     select * from browser_crash_table_checks
+    union all
+    select * from openai_capacity_table_checks
     union all
     select * from sequence_checks
     union all

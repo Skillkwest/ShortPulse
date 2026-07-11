@@ -14,10 +14,11 @@ Purpose: give Gear Ball the shortest default-loaded checklist for its real job: 
 
 1. Build the manifest from live `git status --short`, not memory or tracked diffs.
 2. Classify every non-temp repo-backed change as `publish now`, `defer intentionally`, or `ignore temp/noise`.
-3. Collapse to the fewest honest lanes. Default to one lane; split only on real risk, owner, review, or validation boundaries.
-4. For broad route/runtime/helper work, run one related sweep before validation:
+3. Add or update `docs/change_log.md` for every `publish now` production batch in customer-readable language, including internal reliability, docs/governance, agent/tester report, and tooling changes.
+4. Collapse to the fewest honest lanes. Default to one lane; split only on real risk, owner, review, or validation boundaries.
+5. For broad route/runtime/helper work, run one related sweep before validation:
    `node scripts/ops/gear_ball_related_sweep.mjs --files <paths...>`
-5. Refresh the manifest after any formatting, generated artifact, or validation-fix mutation.
+6. Refresh the manifest after any formatting, generated artifact, changelog update, or validation-fix mutation.
 
 ## Validation Profiles
 

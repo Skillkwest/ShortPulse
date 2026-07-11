@@ -246,14 +246,17 @@ const requestOpenAiStructuredStyleExtraction = async ({
   model,
   systemPrompt,
   imageDataUrl,
+  beforeProviderCall,
 }: {
   apiKey: string;
   model: string;
   systemPrompt: string;
   imageDataUrl: string;
+  beforeProviderCall?: () => Promise<void>;
 }): Promise<OpenAiStructuredStyleAttemptResult> => {
   const startedAt = Date.now();
   try {
+    await beforeProviderCall?.();
     const response = await fetchOpenAiResponse({
       apiKey,
       openAiApiBase: process.env.OPENAI_API_BASE,
@@ -354,6 +357,7 @@ export const requestOpenAiStructuredStyleExtractionWithRetry = async (params: {
   model: string;
   systemPrompt: string;
   imageDataUrl: string;
+  beforeProviderCall?: () => Promise<void>;
 }): Promise<OpenAiStructuredStyleAttemptResult> => {
   const startedAt = Date.now();
   let attempt = await requestOpenAiStructuredStyleExtraction(params);

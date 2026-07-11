@@ -1220,6 +1220,21 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: service-role-only. Customer-facing summaries must come through trusted API routes/RPCs, not direct allocation reads.
 - Provisioned by: `sql/migrations/200_add_credit_grant_lot_expiration.sql`.
 
+### openai_internal_capacity_admissions
+
+- `id` (uuid, pk): One request-scoped internal provider allowance.
+- `user_id` (uuid, fk -> `auth.users.id`): Paid/internal-comp account receiving the included convenience.
+- `eligibility_kind` (text): Database-derived `paid` or `internal_comp`; never client supplied.
+- `route_lane` / `source_ref` / `idempotency_key` (text): Bounded route and request identity, unique per user/lane/idempotency key.
+- `internal_budget_microusd` (bigint): Conservative internal provider-cost ceiling; not a customer credit amount.
+- `max_attempts` / `attempt_count` (integer): Bounded physical provider-dispatch allowance.
+- `status` (text): `reserved` | `in_progress` | `completed` | `failed` | `expired`.
+- `usage` (jsonb): Numeric-only token/request/estimated-cost facts; prompts, URLs, and media are prohibited.
+- `expires_at`, `started_at`, `settled_at`, `created_at`, `updated_at` (timestamptz): Lifecycle timestamps.
+- RLS/grants: no browser policies; table and lifecycle RPCs are service-role-only.
+- Admission policy: the reservation RPC derives eligibility from the current non-free `billing_subscription_contracts` row and serializes per-user/global active and hourly provider budgets.
+- Provisioned by: `sql/migrations/223_add_openai_internal_capacity_admissions.sql`.
+
 ### ai_credit_reservations
 
 - `id` (uuid, pk): Reservation row.

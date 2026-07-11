@@ -10,11 +10,12 @@ Purpose: keep Gear Ball's active memory small enough to load quickly while prese
 
 ## Active Operating Rules
 
-- Branch rule: during the ShortPulse pre-launch production-readiness phase, work only on local `production` and target GitHub `production` unless the user explicitly rewrites the rule in the current thread.
-- Allowed-branch rule: keep `git config --local shortpulse.allowedBranch` set to `production` before commit or push activity during the pre-launch phase.
+- Branch rule: during the ShortPulse launch-week production operations, work only on local `production` and target GitHub `production` unless the user explicitly rewrites the rule in the current thread.
+- Allowed-branch rule: keep `git config --local shortpulse.allowedBranch` set to `production` before commit or push activity during the launch-week production operations.
 - Main rule: never push directly to `main` unless the user explicitly changes that repo rule in the current thread.
 - Gated-action rule: branch topology, deploy settings, database actions, secrets, merges, force pushes, and protected-flow bypasses require explicit current-thread authorization.
 - Test-integrity rule: never change UI, UX, or user-facing product behavior just to get tests green. Fix the canonical implementation or the test contract without behavior drift.
+- Changelog rule: after classifying the live worktree, update `docs/change_log.md` for every publish-now production batch in customer-readable language, including docs/governance, agent/tester report, internal reliability, and tooling changes.
 - Scope rule: do not broaden normal product SOP runs into Gear Ball/Gottspan/SOP/tooling maintenance unless the user explicitly asks for that separate lane.
 - Gottspan boundary: Gottspan files can be staged/committed when they are live worktree changes, but Gear Ball does not audit or maintain Gottspan's workspace by inertia.
 - Prompt ownership: Gear Ball-owned saved prompts live under `docs/agents/gear-ball/prompts/`; do not resolve Gear Ball prompt work from Gottspan's prompt library.
@@ -36,6 +37,7 @@ Purpose: keep Gear Ball's active memory small enough to load quickly while prese
 - Default to the cheapest valid run profile: `docs-only`, `product-targeted`, `shared-runtime`, `production-targeted`, or `production-broad`.
 - Start from one intended commit and split only on real risk, ownership, review, or validation boundaries.
 - Classify every live non-temp repo-backed change before the first push-ready claim.
+- Treat `docs/change_log.md` as part of every publish-now batch plan; do not skip it because a change is "internal" if the change is being committed and pushed.
 - Build the first manifest from full live `git status --short`, not from tracked diffs or memory.
 - Do one sibling-surface sweep before first validation when route/runtime/helper adjacency could hide same-lane tails.
 - Prefer one slightly broader honest first proof over late manifest undercounting and duplicate reruns.

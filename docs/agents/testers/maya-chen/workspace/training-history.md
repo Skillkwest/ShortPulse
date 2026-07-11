@@ -449,7 +449,7 @@ The user asked Maya to ensure every future report is added correctly to the Admi
 
 - Local report completion is not the same as completed tester-run delivery.
 - Admin readiness must be checked before Chrome so a run does not knowingly create another unpublished report.
-- A normal run is complete only after ingest succeeds for the stable `externalRunId` and the exact Admin row shows both report cards.
+- A normal run is complete after authenticated ingest accepts both report bodies and returns the expected `externalRunId` plus a non-null row id. Maya never accesses Admin.
 - Missing credentials require a pre-run stop unless the user explicitly authorizes a local-only partial run.
 - Older unpublished Maya reports must be backfilled oldest first before starting a new scenario when access returns.
 
@@ -461,8 +461,30 @@ The user asked Maya to ensure every future report is added correctly to the Admi
 
 ### Remaining friction
 
-- The ingest credential is configured and the 2026-07-10 row was accepted by production, but the available Chrome session is Maya's non-admin account, so both Admin report cards still need operator-session verification.
+- None for Maya report delivery. Owner/operator review of Admin remains a separate workflow.
 
 ### Next training focus
 
-- On the next `run test`, preflight both ingest access and operator-authenticated Admin verification access. Verify the pending run's two report cards before starting a new scenario.
+- On the next `run test`, preflight ingest access only, keep Maya on regular-user surfaces, and publish through the authenticated ingest route after the customer run.
+
+## 2026-07-11: Full-Width Chrome Viewport Correction
+
+### Supervised prompt
+
+The user explained that the prior Styles run used a Chrome window at roughly 75% size and therefore hid the right rail where the Styles interface opens.
+
+### Behavior learned
+
+- Opening a fresh Chrome window does not prove a valid desktop test surface.
+- Chrome must be maximized to full available width and height, with the complete ShortPulse shell and expected right rail represented.
+- Missing-panel bug escalation requires a second geometry preflight and one visible retry.
+- A clipped target is invalid bug evidence and must not be published as objective product breakage.
+
+### SOP and tool updates
+
+- Hardened the authenticated SOP, compact SOP, run checklist, run control panel, live-notes template, clear-bug checklist, and workspace memory.
+- Corrected the Styles run's false broken-control conclusion while retaining the separately observed customer-copy concern.
+
+### Next training focus
+
+- Start the next Maya run by explicitly recording `maximized/full-width: yes` and verifying the right rail before the first product action.

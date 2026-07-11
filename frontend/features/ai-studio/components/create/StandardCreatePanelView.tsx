@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { ChatCircleDots, Trash } from "phosphor-react";
+import { Trash } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
@@ -628,12 +628,8 @@ export function StandardCreatePanelView({
                 role="status"
                 aria-live="polite"
               >
-                <span className="create-composer-chat-mode-drop-guidance-icon" aria-hidden="true">
-                  <ChatCircleDots size={20} weight="duotone" />
-                </span>
                 <span className="create-composer-chat-mode-drop-guidance-copy">
-                  <strong>References are shared through Chat Mode</strong>
-                  <span>Turn it on to add this reference to the Pulse agent.</span>
+                  Turn on chat mode to upload references.
                 </span>
                 <button
                   type="button"

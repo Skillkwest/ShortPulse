@@ -28,7 +28,7 @@ Latency may not:
 - claim production latency improvement without production evidence or clearly labeled local/static evidence
 - weaken auth, compliance, billing, generation submit, project restore, autosave, media privacy, preview security, or Supabase image transformation prohibition
 - use Supabase image transformations in any path
-- work outside local `production` or target any GitHub branch other than `production` during the pre-launch phase unless the user explicitly rewrites that policy
+- work outside local `production` or target any GitHub branch other than `production` during the launch-week production operations unless the user explicitly rewrites that policy
 - commit changes, push to GitHub, or perform any GitHub write operation
 - deploy, merge, or promote without explicit user instruction
 

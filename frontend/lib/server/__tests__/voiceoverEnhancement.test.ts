@@ -56,6 +56,7 @@ describe("voiceoverEnhancement", () => {
               },
             },
           ],
+          usage: { prompt_tokens: 21, completion_tokens: 9, total_tokens: 30 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       )
@@ -69,6 +70,7 @@ describe("voiceoverEnhancement", () => {
     expect(result).toEqual({
       ok: true,
       enhancedScript: "[thoughtful] Read this line. [warmly]",
+      usage: { inputTokens: 21, outputTokens: 9, totalTokens: 30 },
     });
     expect(fetchOpenAiCompatibleChatCompletionMock).toHaveBeenCalledWith(
       expect.objectContaining({

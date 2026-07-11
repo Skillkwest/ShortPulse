@@ -38,7 +38,7 @@ Lane SOP: `docs/agents/abismia/sop-human-experience-psychological-feel.md`
   - `docs/styles-structure.md`
   - `docs/ux-decision-framework.md`
   - relevant SOPs for the surface being changed
-- Production validation surface during the current pre-launch phase:
+- Production validation surface during the current launch-week production operations:
   - `https://www.shortpulse.ai`
 
 ## Owned Surface

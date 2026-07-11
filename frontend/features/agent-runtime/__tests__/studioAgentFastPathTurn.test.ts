@@ -17,6 +17,55 @@ describe("executeStudioAgentFastPathTurn", () => {
     fetchStudioAgentChatCompletionMock.mockReset();
   });
 
+  it("awaits provider admission before dispatching the coordinator request", async () => {
+    let releaseAdmission: (() => void) | undefined;
+    const admissionGate = new Promise<void>((resolve) => {
+      releaseAdmission = resolve;
+    });
+    const promise = executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "hello" }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {},
+      messages: [{ role: "user", content: "hello" }],
+      markStage: vi.fn(),
+      onProviderCall: () => admissionGate,
+    });
+
+    await Promise.resolve();
+    expect(fetchStudioAgentChatCompletionMock).not.toHaveBeenCalled();
+    fetchStudioAgentChatCompletionMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "hello" } }] }),
+    });
+    releaseAdmission?.();
+    await promise;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dispatch when provider admission rejects", async () => {
+    await expect(
+      executeStudioAgentFastPathTurn({
+        apiKey: "key",
+        openAiUrl: "https://example.test/v1/chat/completions",
+        model: "gpt-default",
+        openAiMessages: [{ role: "user", content: "hello" }],
+        timeoutMs: 20000,
+        effectiveCanonical: null,
+        context: {},
+        messages: [{ role: "user", content: "hello" }],
+        markStage: vi.fn(),
+        onProviderCall: async () => {
+          throw new Error("admission denied");
+        },
+      })
+    ).rejects.toThrow("admission denied");
+    expect(fetchStudioAgentChatCompletionMock).not.toHaveBeenCalled();
+  });
+
   it("returns upstream failure with status and detail", async () => {
     fetchStudioAgentChatCompletionMock.mockResolvedValue({
       ok: false,

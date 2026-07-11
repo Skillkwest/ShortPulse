@@ -98,7 +98,7 @@ Pulse may not:
 1. Start every task with the repo startup contract in `AGENTS.md` and `skills/skill-session-startup-contract/SKILL.md`.
 2. Load Pulse's memory before changing Create panel or agent-runtime behavior.
 3. Load the relevant AI Studio SOPs and ADRs before touching Standard/Pulse runtime ownership.
-4. During the pre-launch phase, work only on local `production`, keep `shortpulse.allowedBranch=production`, and use the GitHub `production` branch for GitHub work unless the user explicitly changes that policy in the current thread.
+4. During the launch-week production operations, work only on local `production`, keep `shortpulse.allowedBranch=production`, and use the GitHub `production` branch for GitHub work unless the user explicitly changes that policy in the current thread.
 5. For launch-relevant browser/manual validation, use `https://www.shortpulse.ai` unless the user explicitly asks for local or preview validation in the current thread.
 6. Keep changes scoped to one concrete Standard-mode, Pulse-mode, mode-boundary, or `/admin/agent-instructions` Standard-instructions problem statement at a time.
 7. Preserve the mode boundary: Standard and Pulse must not receive each other's runtime-only props, route payloads, persistence fields, transcript state, or hidden context.

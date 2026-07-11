@@ -4,6 +4,8 @@ import handler from "../../pages/api/ai/voiceover-enhance";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const enhanceVoiceoverScriptMock = vi.fn();
+const admitOpenAiInternalCapacityRequestMock = vi.fn();
+const settleOpenAiInternalCapacityMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -14,7 +16,25 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/voiceoverEnhancement", () => ({
+  VOICEOVER_ENHANCE_MAX_CHARACTERS: 5000,
   enhanceVoiceoverScript: (...args: unknown[]) => enhanceVoiceoverScriptMock(...args),
+}));
+
+vi.mock("../../lib/server/api/openAiInternalCapacityAdmission", () => ({
+  OpenAiInternalCapacityError: class OpenAiInternalCapacityError extends Error {
+    constructor(
+      public readonly status: number,
+      public readonly code: string,
+      message: string
+    ) {
+      super(message);
+    }
+  },
+  resolveOpenAiInternalCapacityRequestId: () => "request-1",
+  admitOpenAiInternalCapacityRequest: (...args: unknown[]) =>
+    admitOpenAiInternalCapacityRequestMock(...args),
+  extractOpenAiInternalCapacityUsage: () => ({}),
+  settleOpenAiInternalCapacity: (...args: unknown[]) => settleOpenAiInternalCapacityMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -26,11 +46,14 @@ const createMockResponse = () => ({
 describe("POST /api/ai/voiceover-enhance", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.OPENAI_API_KEY = "test-openai-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     enhanceVoiceoverScriptMock.mockResolvedValue({
       ok: true,
       enhancedScript: "[thoughtful] Read this line.",
     });
+    admitOpenAiInternalCapacityRequestMock.mockResolvedValue({ id: "admission-1" });
+    settleOpenAiInternalCapacityMock.mockResolvedValue({ status: "completed" });
   });
 
   it("rejects non-POST requests", async () => {
@@ -72,9 +95,46 @@ describe("POST /api/ai/voiceover-enhance", () => {
     expect(enhanceVoiceoverScriptMock).toHaveBeenCalledWith({
       script: "Read this line.",
     });
+    expect(admitOpenAiInternalCapacityRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      lane: "ai.voiceover_enhance",
+      requestId: "request-1",
+      internalBudgetMicrousd: 25000,
+      maxAttempts: 1,
+    });
+    expect(settleOpenAiInternalCapacityMock).toHaveBeenCalledWith({
+      admissionId: "admission-1",
+      userId: "user-1",
+      status: "completed",
+      usage: { requestCount: 1 },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       enhancedScript: "[thoughtful] Read this line.",
+    });
+  });
+
+  it("denies enhancement before provider work when paid capacity is unavailable", async () => {
+    const { OpenAiInternalCapacityError } =
+      await import("../../lib/server/api/openAiInternalCapacityAdmission");
+    admitOpenAiInternalCapacityRequestMock.mockRejectedValueOnce(
+      new OpenAiInternalCapacityError(
+        402,
+        "OPENAI_PAID_ACCESS_REQUIRED",
+        "Choose a plan to use this AI feature."
+      )
+    );
+    const req = { method: "POST", body: { script: "Read this line." } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(enhanceVoiceoverScriptMock).not.toHaveBeenCalled();
+    expect(settleOpenAiInternalCapacityMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(402);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Choose a plan to use this AI feature.",
+      details: "OPENAI_PAID_ACCESS_REQUIRED",
     });
   });
 
@@ -95,5 +155,6 @@ describe("POST /api/ai/voiceover-enhance", () => {
       error: "Invalid request",
       details: "script is required.",
     });
+    expect(admitOpenAiInternalCapacityRequestMock).not.toHaveBeenCalled();
   });
 });

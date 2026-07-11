@@ -102,7 +102,7 @@ Track over time:
 - completion to Copperknot review
 - review to launch-state refresh or rerate
 
-This shows whether the tool is operationally fast enough to matter during prelaunch.
+This shows whether the tool is operationally fast enough to matter during launch-week production operations.
 
 ### 7. Confidence and stability
 

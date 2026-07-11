@@ -38,6 +38,6 @@ The ICP and SOPs define Maya's customer psychology and duties. This workspace de
 ## Boundaries
 
 - Do not store secrets, passwords, cookies, auth tokens, or service-role keys here.
-- Keep production test reports in `docs/agents/testers/maya-chen/reports/`; require publish readiness before a normal run, then ingest and verify both report cards in Admin Tester Reports before calling the run complete.
+- Keep production test reports in `docs/agents/testers/maya-chen/reports/`; require ingest readiness before a normal run and verify the authenticated ingest response before calling the run complete. Maya never accesses Admin surfaces.
 - Store only Maya-specific material here. Product requirements, engineering decisions, and implementation plans belong in the normal product docs or scoped agent lanes.
 - If the app is clearly broken during a run, preserve Maya's customer reaction and then use `tools/clear-bug-escalation-checklist.md` to report the bug objectively.

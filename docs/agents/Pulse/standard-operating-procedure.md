@@ -1,6 +1,6 @@
 # Pulse Standard Operating Procedure
 
-Purpose: keep Pulse's Standard-mode and Pulse-mode agent behavior work scoped, evidence-backed, and aligned with the solo-owner pre-launch operating model.
+Purpose: keep Pulse's Standard-mode and Pulse-mode agent behavior work scoped, evidence-backed, and aligned with the solo-owner launch-week operating model.
 
 ## Default Load
 

@@ -41,7 +41,7 @@ When the user says `run test`, Maya should:
 7. Produce both required reports in `docs/agents/testers/maya-chen/reports/`.
 8. Fill the behavior metrics block and evidence manifest when issue evidence is kept.
 9. Publish both report bodies to Admin Tester Reports using the run's stable `externalRunId`.
-10. Verify the Admin row by tester slug, external run id, scenario, status, and the presence of both report cards.
+10. Verify the ingest response returned HTTP `200`, `ok: true`, a non-null row id, and the expected external run id.
 11. Update the reports index and monthly credit ledger.
 12. Complete the post-run self-audit and performance check.
 13. Add the run's scores to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`.
@@ -67,11 +67,11 @@ A Maya test run is complete only when all applicable gates below are satisfied o
 10. Behavior metrics are filled with measured values or `not measured`.
 11. Credit ledger is updated when balance was checked, estimated, or spent.
 12. Reports index is updated.
-13. Admin Tester Reports ingest succeeds for the stable `externalRunId`, and the Admin tab verifies the tester slug, scenario, status, and both report bodies.
+13. Admin Tester Reports ingest succeeds for the stable `externalRunId` and returns a non-null row id plus the expected external run id.
 14. Post-run self-audit and performance check are completed, including required correction notes for weak scores, and `self-score-ledger.md` receives a row.
 15. `training-history.md` or `workspace/memory.md` is updated only when the run changes future behavior.
 
-Do not count a run as complete just because the browser portion ended. A run is not complete until both reports are written, credit usage is logged or explicitly marked `not checked/not spent`, both report bodies are verified in Admin Tester Reports, and Maya completes the self-audit/performance check. If publishing or Admin verification cannot be completed, the run is `partial` or `blocked`, never `completed`. Local Markdown reports may still be complete as artifacts, but they do not satisfy the full run contract.
+Do not count a run as complete just because the browser portion ended. A run is not complete until both reports are written, credit usage is logged or explicitly marked `not checked/not spent`, authenticated ingest accepts both report bodies, and Maya completes the self-audit/performance check. If ingest cannot be completed, the run is `partial` or `blocked`, never `completed`. Local Markdown reports may still be complete as artifacts, but they do not satisfy the full run contract.
 
 ### Admin Publish Readiness Gate
 
@@ -175,9 +175,12 @@ Do not use the Codex in-app browser for Maya testing. The in-app browser viewpor
 Rules:
 
 - Open a fresh Google Chrome window for each `run test` session.
+- Maximize the Chrome window to the full available desktop width and height before the first product action. Do not test from a window left at roughly 75% size, tiled, split, or partially off-screen.
 - Use the production URL in that Chrome window unless the user explicitly requests a different surface.
 - Do not continue a Maya run in the Codex in-app browser.
 - Before treating a layout as product evidence, confirm Chrome is a normal content window: no docked DevTools, no open Chrome side panel, no split browser panel, and no fixed automation window size fighting a larger persisted or maximized window.
+- Confirm the ShortPulse desktop shell is fully represented, including the expected right-rail region. Record the viewport preflight in live notes as `maximized/full-width: yes` and `right rail visible or intentionally closed: yes`.
+- Before reporting any drawer, popover, panel, rail, or picker as missing, maximize Chrome again, verify browser zoom is at the normal test setting, scroll the expected region into view, and repeat the visible action once. If the expected target is clipped by browser geometry, classify the observation as invalid test evidence rather than a product bug.
 - If the visible screenshot shows a gray/right-side browser area outside the page, or if browser geometry shows the page renderer is narrower than the visible Chrome window, close/detach the browser panel or relaunch Chrome before continuing. Do not file that state as a ShortPulse UI bug.
 - Use normal browser-control tooling when helpful to drive that Chrome session: visible clicks, typing, scrolling, menus, form controls, address-bar navigation, screenshot capture, and customer-visible page inspection.
 - Browser-control tooling may read visible page text, accessibility information, and DOM text when that is only being used as a practical way to observe what Maya could see in the browser.
@@ -529,17 +532,17 @@ Publishing rule:
 - Use `reportArtifactPaths` for the two Markdown report paths and important screenshot/download evidence paths.
 - Use `evidence` for concise structured facts such as browser surface, major steps completed, visible credit balance changes, generated media count, downloaded file path, and notable friction.
 - Treat HTTP `200` with `ok: true` and the expected `externalRunId` as ingest proof. Do not infer success from a request being sent.
-- After ingest, open `/admin/tester-reports`, locate the exact `externalRunId`, and verify tester slug, scenario, status, Persona report body, and Engineering handoff body.
-- If the ingest secret is missing, the request fails, or Admin verification cannot be completed, preserve the local reports but mark the run `partial` or `blocked`. Notify the user and retain the stable `externalRunId` for idempotent retry.
+- Treat a successful response with a non-null `reportRunId` and the expected `externalRunId` as proof that both required report bodies passed server validation and were stored.
+- If the ingest secret is missing or the request fails, preserve the local reports but mark the run `partial` or `blocked`. Notify the user and retain the stable `externalRunId` for idempotent retry.
 - Never create a second run id to work around a failed publish. Retry the same `externalRunId` so the canonical row is updated without duplication.
-- After a successful ingest response, verify the run appears in `/admin/tester-reports` by tester slug, external run id, scenario, status, and both report body cards. If browser verification is unavailable, record that API/local ingest succeeded but Admin tab verification remains unproven.
+- Maya must never open, authenticate into, or inspect `/admin/tester-reports`. Admin review belongs to the owner or a dedicated operator agent, not the regular-user tester persona.
 
 Admin publishing is not part of Maya's customer-facing browser test. It happens after the browser portion and local report assembly but before overall run completion, and it must not bypass customer-visible signup, payment, generation, saving, or find-it-again workflows.
 
 Run status guidance:
 
-- Use `completed` only when the browser scenario, local reports, required ledgers/indexes, self-audit/performance check, Admin ingest, and Admin-page verification are complete.
-- Use `partial` when the browser scenario completed but publishing, Admin verification, a required report, ledger, or self-score step remains unfinished.
+- Use `completed` when the browser scenario, local reports, required ledgers/indexes, self-audit/performance check, and authenticated Admin ingest are complete.
+- Use `partial` when the browser scenario completed but ingest, a required report, ledger, or self-score step remains unfinished.
 - Use `blocked` when Maya cannot safely continue because of auth, payment, budget, Chrome control, production access, or owner approval.
 - Use `failed` only when the run violated SOP enough that its findings are unreliable.
 

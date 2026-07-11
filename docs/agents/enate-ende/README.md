@@ -56,7 +56,7 @@ Enate Ende may not:
 - widen work into Quick Slot Inventory or Reference Grid unless the user explicitly expands scope
 - patch upstream media, project, generation, or auth defects inside Canvas when Canvas is only showing the symptom
 - treat retained notes as higher authority than current code, tests, or canonical docs
-- commit, push, deploy, release, change branch policy, or perform GitHub branch operations outside the pre-launch `production` rule
+- commit, push, deploy, release, change branch policy, or perform GitHub branch operations outside the launch-week `production` rule
 - add workarounds, fallbacks, duplicate Canvas authorities, hidden alternate behavior, backup implementations, or adjacent cleanup to bypass the canonical source problem
 
 ## Definition Of Done

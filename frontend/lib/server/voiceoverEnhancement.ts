@@ -3,6 +3,10 @@
  */
 import { resolveRequiredAiStudioTextPromptModelId } from "../model-runtime/modelCatalog";
 import { fetchOpenAiCompatibleChatCompletion } from "./api/openAiCompat";
+import {
+  extractOpenAiInternalCapacityUsage,
+  type OpenAiInternalCapacityUsage,
+} from "./api/openAiInternalCapacityAdmission";
 
 export const VOICEOVER_ENHANCE_MAX_CHARACTERS = 5000;
 
@@ -10,7 +14,7 @@ const VOICEOVER_ENHANCE_TIMEOUT_MS = 30_000;
 const GENERATED_VOICEOVER_ENHANCE_MAX_CHARACTERS = 5000;
 
 type EnhanceVoiceoverScriptResult =
-  | { ok: true; enhancedScript: string }
+  | { ok: true; enhancedScript: string; usage: OpenAiInternalCapacityUsage }
   | { ok: false; status: number; error: string; details?: string };
 
 const normalizeScript = (value: unknown): string | null => {
@@ -133,7 +137,8 @@ export const enhanceVoiceoverScript = async ({
       };
     }
 
-    const enhancedScript = readEnhancedScript(await response.json().catch(() => null));
+    const payload = await response.json().catch(() => null);
+    const enhancedScript = readEnhancedScript(payload);
     if (!enhancedScript || enhancedScript.length > GENERATED_VOICEOVER_ENHANCE_MAX_CHARACTERS) {
       return {
         ok: false,
@@ -143,7 +148,11 @@ export const enhanceVoiceoverScript = async ({
       };
     }
 
-    return { ok: true, enhancedScript };
+    return {
+      ok: true,
+      enhancedScript,
+      usage: extractOpenAiInternalCapacityUsage(payload),
+    };
   } catch {
     return {
       ok: false,

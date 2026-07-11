@@ -335,14 +335,16 @@ export const executeStudioAgentFastPathTurn = async ({
   messages: AgentMessage[];
   markStage: StageMarker;
   safeCompletionRecoveryEligible?: boolean;
-  onProviderCall?: (stage: "coordinator" | "repair" | "safe_completion_recovery") => void;
+  onProviderCall?: (
+    stage: "coordinator" | "repair" | "safe_completion_recovery"
+  ) => void | Promise<void>;
 }): Promise<StudioAgentFastPathTurnResult> => {
   const fastPathStartedAt = Date.now();
   const pulseKind = resolveStudioAgentPulseKind(context.pulse);
   const pulseActive = pulseKind !== null;
   let response: Response;
+  await onProviderCall?.("coordinator");
   try {
-    onProviderCall?.("coordinator");
     response = await fetchStudioAgentChatCompletion({
       apiKey,
       openAiUrl,
@@ -402,8 +404,8 @@ export const executeStudioAgentFastPathTurn = async ({
       : resolveLatestUserInput(messages);
     const repairStartedAt = Date.now();
     let repairResponse: Response;
+    await onProviderCall?.("repair");
     try {
-      onProviderCall?.("repair");
       repairResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,
@@ -493,8 +495,8 @@ export const executeStudioAgentFastPathTurn = async ({
   if (initialResponseRefusal && safeCompletionRecoveryEligible) {
     safeCompletionRecoveryAttempted = true;
     const recoveryStartedAt = Date.now();
+    await onProviderCall?.("safe_completion_recovery");
     try {
-      onProviderCall?.("safe_completion_recovery");
       const recoveryResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,

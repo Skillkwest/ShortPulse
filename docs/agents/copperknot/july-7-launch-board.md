@@ -1,12 +1,13 @@
 # July 7 Launch Board
 
-Purpose: provide the first Copperknot-owned launch-control board for the July 7, 2026 launch decision.
+Purpose: preserve Copperknot's launch-control board for the July 7, 2026 launch decision.
 
 ## Current Freshness Pointer
 
-- Active July 7 readiness and queue authority: `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`, and the current board table below.
+- The July 7 decision is complete. This board is launch-decision evidence; active repo status and operations are governed by `docs/launch-week-production-operations.md`.
+- Retained July 7 readiness and queue authority: `docs/agents/copperknot/july-7-launch-authority.md`, `docs/agents/copperknot/july-7-system-map.md`, `docs/agents/copperknot/prioritized-launch-queue-2026-07-07.md`, and the board table below.
 - Latest active evidence is in the current board table plus the June 28 refresh entries below. Older snapshot bullets are retained baseline/history and must not override fresher route, queue, production, or issue-list evidence.
-- Branch policy: `production` only during the pre-launch phase.
+- Branch policy: `production` only during launch-week production operations.
 - Current repo anchor for this retained board refresh: `7910dadc1` before the June 28 issue-list implementation pass. Use fresh `git status` for the current worktree; do not use the retained June 8 dirty-worktree note as current ownership evidence.
 
 ## Retained Evidence Snapshot

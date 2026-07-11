@@ -46,7 +46,7 @@ Load only the additional code files, tests, routes, SQL, or production surfaces 
 
 ## Operating Rules
 
-1. During the pre-launch phase, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
+1. During the launch-week production operations, work only on local `production`, target GitHub `production`, and keep `shortpulse.allowedBranch=production` unless the user explicitly rewrites the repo policy in the current thread.
 2. Browser/manual validation for deployed generation behavior targets `https://www.shortpulse.ai` unless the user explicitly asks for localhost or a non-production dry run.
 3. Treat the source map plus current code as the primary generation truth stack, and use docs as contracts to confirm or challenge rather than blindly trust.
 4. Distinguish clearly between:

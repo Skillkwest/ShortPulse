@@ -77,6 +77,7 @@ Owns:
 
 Primary entry docs:
 
+- `docs/planning/security-boundary-remediation-implementation-plan-2026-07-10.md`
 - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/evidence/runtime-v2/README.md`

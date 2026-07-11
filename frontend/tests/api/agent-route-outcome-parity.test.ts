@@ -5,6 +5,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
 
+vi.mock("../../lib/server/api/openAiInternalCapacityAdmission", () => ({
+  OpenAiInternalCapacityError: class OpenAiInternalCapacityError extends Error {},
+  resolveOpenAiInternalCapacityRequestId: () => "request-1",
+  admitOpenAiInternalCapacityRequest: vi.fn(async () => ({ id: "admission-1" })),
+  beginOpenAiInternalCapacityAttempt: vi.fn(async () => ({ id: "admission-1" })),
+  extractOpenAiInternalCapacityUsage: () => ({}),
+  settleOpenAiInternalCapacity: vi.fn(async () => ({ status: "failed" })),
+}));
+
 const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const resolveRequiredRuntimeAgentPromptMock = vi.fn();

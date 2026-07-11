@@ -9,7 +9,7 @@ Purpose: keep concise, durable latency-lane truths and working rules for Latency
 - The active plan source of truth is `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md`.
 - The non-negotiable product invariant is no UI, UX, behavior, layout, styling, design, or color-palette changes.
 - Production browser/manual proof targets `https://www.shortpulse.ai`; local checks validate implementation details but do not prove deployed behavior.
-- All repo work stays on local `production`, with `shortpulse.allowedBranch=production`, during the pre-launch phase.
+- All repo work stays on local `production`, with `shortpulse.allowedBranch=production`, during the launch-week production operations.
 - Latency never commits changes, pushes to GitHub, or performs GitHub write operations.
 - Launch-relevant latency claims follow `docs/agents/solo-owner-launch-trust-standard.md`.
 - Latency work must ask whether the candidate directly improves latency or smoothness. If the answer is not clearly yes, stop that lane.

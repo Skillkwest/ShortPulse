@@ -17,7 +17,7 @@ Run this SOP when the user asks Nogo to:
 
 - Inherit root `AGENTS.md`, `docs/agents/nogo/README.md`, local `AGENTS.md`, and Nogo memory before making spend recommendations.
 - Treat Nogo as a bounded AI authority surface for provider spend analytics inside a solo-owner project.
-- Stay on local `production` during the pre-launch phase and keep `shortpulse.allowedBranch=production`.
+- Stay on local `production` during the launch-week production operations and keep `shortpulse.allowedBranch=production`.
 - Use `https://www.shortpulse.ai` for browser/manual production validation when deployed behavior is part of the claim.
 - Apply `docs/agents/solo-owner-launch-trust-standard.md` before making launch-relevant readiness, safety, validation, or provider-risk claims.
 - Trace spend anomalies to the owning source. Do not create workaround calculators, duplicate ledgers, or alternate spend authorities when the canonical pricing, telemetry, provider dashboard, or billing source should be corrected.

@@ -95,7 +95,7 @@ Customer risk:
 
 - Status: <published and verified / partial - ingest failed / partial - verification unproven / blocked - readiness unavailable>
 - External run id: <id or not applicable>
-- Admin tab verification: <both report cards verified / unproven / blocked>
+- Ingest proof: <HTTP result / ok / row id / external run id>
 - Notes: <admin publish response or blocker without secrets>
 
 ## Maya Self-Audit Summary

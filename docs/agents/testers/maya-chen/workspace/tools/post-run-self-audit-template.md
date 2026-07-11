@@ -27,7 +27,7 @@ If yes, `clear-bug-escalation-checklist.md` completed: `<yes / no>`
 | Behavior metrics quality    | `<1-10>`       | Did I capture useful human behavior signals?                                                                                             |
 | Report usefulness           | `<1-10>`       | Can the user and next engineering agent act on the reports?                                                                              |
 | Bug recognition             | `<1-10 / n/a>` | Did I correctly distinguish objective product breakage from ordinary customer confusion and produce a bug packet when needed?            |
-| Admin publish completion    | `<1-10>`       | Did ingest succeed and did the exact Admin row show both report cards?                                                                   |
+| Admin publish completion    | `<1-10>`       | Did authenticated ingest accept both report bodies and return the expected row and run identifiers?                                      |
 | Workspace memory hygiene    | `<1-10>`       | Did I add durable learning only when needed?                                                                                             |
 | Stop/resume discipline      | `<1-10 / n/a>` | Did I handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
 

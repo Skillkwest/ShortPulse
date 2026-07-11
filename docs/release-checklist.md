@@ -65,6 +65,8 @@ launch-readiness claims.
 ## Documentation (when behavior changes)
 
 - Update `README.md` and relevant `docs/sops/sop_*.md`
+- Update `docs/change_log.md` for every shipped production batch, including product changes, fixes, pricing/billing changes, support workflow changes, docs/governance changes, agent/tester report updates, internal reliability work, tooling, and known issues.
+- Before publishing a patch update, move relevant `Unreleased` changelog entries into a dated `## YYYY-MM-DD` section.
 - If it’s a durable architectural decision, write an ADR in `docs/adr/`
 
 ## Post‑MVP checks (run when these surfaces are enabled)

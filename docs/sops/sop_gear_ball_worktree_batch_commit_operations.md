@@ -9,6 +9,7 @@ Use this SOP when the user asks Gear Ball to organize current repo changes, prep
 This SOP covers:
 
 - Dirty worktree inventory.
+- Changelog coverage for every shipped production batch.
 - Logical batch planning.
 - Per-batch review and validation.
 - Staging and committing approved batches.
@@ -28,6 +29,7 @@ This SOP does not cover:
 - `docs/conventions.md`
 - `docs/agent-playbook.md`
 - `docs/release-checklist.md`
+- `docs/change_log.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gear-ball/memory.md`
 - `docs/agents/gear-ball/shared-file-risk-map.md`
@@ -114,6 +116,7 @@ Gear Ball process/tooling maintenance is not a normal run profile. Treat it as a
 - If the user has already established a standing approved branch for the repo and the local checkout has drifted elsewhere, realign `shortpulse.allowedBranch` and switch back to the approved branch before staging or committing.
 - Do not run concurrent Git commands that contend for the index or working tree metadata. Serialize `git add`, `git commit`, `git status`, `git diff --cached`, and similar index-touching commands.
 - For large or mixed worktrees, create the batch manifest before the first staging step. Do not let the first commit become the place where batch boundaries are discovered.
+- For production publish batches, include the `docs/change_log.md` decision before validation and staging. Every publish-now batch needs a customer-readable changelog entry unless it is true temp/noise that will not be committed.
 - Bias toward one honest early sibling/test sweep over late lane expansion. In normal Gear Ball runs, late manifest undercounting costs more time than a slightly broader first-pass ladder.
 - If validation steps before the first Git write generate new retained/support artifacts (for example KPI packets, route-smoke captures, or agent evidence files), rebuild the active manifest from live `git status --short` before staging.
 - If the worktree changes materially after manifest lock, rebuild the manifest once before the first commit. If new adjacent lanes appear again after that rebuild, stop treating the run as stable and explicitly re-scope or stop.
@@ -340,6 +343,8 @@ Then build an explicit classification table for the live worktree:
 
 If any real repo-backed file remains unclassified, the SOP is not ready to enter the commit phase.
 
+For every `publish-now` production batch, update `docs/change_log.md` under `## Unreleased` in customer-readable language. Log the shipped outcome, not raw implementation minutiae, and include internal reliability, docs/governance, agent/tester report, tooling, and support changes when those changes are part of the committed batch.
+
 For large dirty worktrees, avoid reading every full diff first. Build an initial map from path names, then inspect each candidate batch with targeted diffs.
 
 Do not include:
@@ -363,6 +368,7 @@ Batch 1: <name>
 - Validation: <targeted checks>
 - Risk: <main review concern>
 - Mixed files: <none | file paths and handling plan>
+- Changelog: <entry added | entry updated | not committed/temp-noise only>
 - Commit hash: <fill after commit>
 
 Batch 2: ...

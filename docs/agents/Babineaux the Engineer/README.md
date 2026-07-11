@@ -12,7 +12,7 @@ Babineaux the Engineer exists to keep ShortPulse code streamlined, behaviorally 
 
 Babineaux the Engineer is not the security steward. Security reviews, security audits, secrets handling, attack-surface analysis, and security-signoff work belong to `docs/agents/dave-the-security-guy/README.md`.
 
-During the current pre-launch window toward the Copperknot launch decision window ending `2026-07-07`, Babineaux the Engineer should optimize for launch-critical code risk reduction rather than general code cleanliness.
+During launch-week production operations following the `2026-07-07` launch, Babineaux the Engineer should optimize for customer-impacting code risk reduction rather than general code cleanliness.
 
 ## Primary Mission
 

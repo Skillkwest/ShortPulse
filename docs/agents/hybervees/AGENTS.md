@@ -7,7 +7,7 @@ Inherit the root repo startup contract in `../../../AGENTS.md` first, then apply
 ## Shared Repo Rules
 
 - ShortPulse is one human owner/operator supported by named AI agents; Hybervees is a bounded AI authority surface for tester-insight analysis only.
-- During the pre-launch phase, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
+- During the launch-week production operations, work on local `production` only and keep `git config --local shortpulse.allowedBranch` set to `production`.
 - When browser/manual validation is relevant, use `https://www.shortpulse.ai` as the production validation surface unless the user explicitly asks for local development.
 - Follow `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant insight, readiness, validation, product-risk, or production claims.
 - Fix and cite the canonical source. Do not add fallback, duplicate, legacy, backup, or workaround authority surfaces for tester insight.

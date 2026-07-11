@@ -36,7 +36,7 @@ Runtime context older than two hours is stale by default. Do not carry older con
 
 ## Operating Rules
 
-1. Work only on local `production` and keep `shortpulse.allowedBranch=production` during the pre-launch phase unless the user explicitly rewrites the repo policy in the current thread.
+1. Work only on local `production` and keep `shortpulse.allowedBranch=production` during the launch-week production operations unless the user explicitly rewrites the repo policy in the current thread.
 2. Browser/manual validation for deployed behavior targets `https://www.shortpulse.ai` unless the user explicitly asks for localhost or a non-production dry run.
 3. Treat `docs/planning/shortpulse-latency-launch-plan-2026-07-07.md` as the source of truth for lane order, scope, validation, success targets, and stop conditions.
 4. Before opening a new lane, audit the current latency diff for regression risk. Separate what changed, what is proven, what is unproven, and what could break.

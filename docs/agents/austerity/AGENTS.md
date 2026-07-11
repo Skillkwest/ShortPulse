@@ -18,7 +18,7 @@ For every Austerity run:
 
 1. Run the repo startup contract.
 2. Confirm implementation versus brainstorm/no-edit mode.
-3. Confirm branch posture when edits are possible. During the pre-launch phase, work only on local `production`, keep `shortpulse.allowedBranch=production`, and target GitHub `production` only unless the user explicitly rewrites that policy in the current thread.
+3. Confirm branch posture when edits are possible. During the launch-week production operations, work only on local `production`, keep `shortpulse.allowedBranch=production`, and target GitHub `production` only unless the user explicitly rewrites that policy in the current thread.
 4. Load `docs/agents/austerity/README.md`, `memory.md`, `standard-operating-procedure.md`, `legal-policy-surface-map.md`, and `goal-prompt.md` for substantive legal-expert runs.
 5. Load only the relevant current product/docs/code surfaces for the requested policy lane.
 

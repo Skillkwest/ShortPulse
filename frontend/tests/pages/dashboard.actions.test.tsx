@@ -168,6 +168,14 @@ const buildSupabaseClient = () => ({
   }),
 });
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+};
+
 describe("Dashboard actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -450,6 +458,72 @@ describe("Dashboard actions", () => {
     expect(document.querySelector('[data-next-image="/Media.svg"]')).toBeInTheDocument();
     expect(document.querySelector('[data-next-image="/Credits.svg"]')).toBeInTheDocument();
     expect(document.querySelector('[data-next-image="/Plan.svg"]')).toBeInTheDocument();
+  });
+
+  it("does not flash baseline account values before the account summary settles", async () => {
+    const accountSummaryResponse = createDeferred<{
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }>();
+    fetchWithAuthMock.mockImplementation(async (input: unknown) => {
+      if (input === "/api/announcements/active") {
+        return {
+          ok: true,
+          json: async () => ({ announcement: null }),
+        };
+      }
+      if (input === "/api/billing/account-summary") {
+        return await accountSummaryResponse.promise;
+      }
+      if (input === "/api/account/media-compliance") {
+        return {
+          ok: true,
+          json: async () => ({
+            agreement: {
+              version: "test-media-compliance",
+              title: "Media agreement",
+              summary: "Test media compliance agreement.",
+              bullets: [],
+            },
+            accepted: true,
+            acceptedAt: "2026-06-29T00:00:00.000Z",
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(input)}`);
+    });
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("link", { name: "Plan: …" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "AI credits: …" })).toBeInTheDocument();
+    expect(screen.queryByText("Baseline access")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "AI credits: 86" })).not.toBeInTheDocument();
+
+    accountSummaryResponse.resolve({
+      ok: true,
+      json: async () => ({
+        userId: "user-1",
+        resolvedPlan: {
+          id: "media",
+          label: "Media",
+          className: "plan-media",
+          monthlyCreditsCents: 1_200,
+        },
+        quotaStatus: "available",
+        quotaSummary: {
+          usedBytes: 1024,
+          baseLimitBytes: 500 * 1024 * 1024 * 1024,
+          addonLimitBytes: 0,
+          totalLimitBytes: 500 * 1024 * 1024 * 1024,
+          remainingBytes: 500 * 1024 * 1024 * 1024 - 1024,
+          isOverLimit: false,
+        },
+      }),
+    });
+
+    expect(await screen.findByRole("link", { name: "Plan: Media" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "AI credits: 86 / 1,200" })).toBeInTheDocument();
   });
 
   it("marks surplus dashboard credits with the account-page surplus color class", async () => {

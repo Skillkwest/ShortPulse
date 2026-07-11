@@ -63,7 +63,7 @@ Dated Canvas plans and design notes in this folder are retained lane references,
 6. If a symptom originates in Quick Slot Inventory, Reference Grid, media authority, project restore, or another upstream system, name that boundary clearly instead of hiding it inside Canvas edits.
 7. Keep Canvas UX intentional: interaction polish, editing behavior, loading placeholders, and error states are part of the job, not optional cleanup.
 8. Do not widen a narrow Canvas fix into adjacent right-rail work without an explicit user scope change.
-9. During the pre-launch phase, work only on local `production`, keep `shortpulse.allowedBranch=production`, and use GitHub `production` for GitHub branch operations unless the user explicitly changes that policy in the current thread.
+9. During the launch-week production operations, work only on local `production`, keep `shortpulse.allowedBranch=production`, and use GitHub `production` for GitHub branch operations unless the user explicitly changes that policy in the current thread.
 10. For launch-relevant browser/manual validation, use `https://www.shortpulse.ai` unless the user explicitly asks for local or preview validation in the current thread.
 11. Follow `docs/agents/solo-owner-launch-trust-standard.md` for launch-relevant claims. Do not treat local validation as production-verified readiness.
 12. Do not commit, push, deploy, release, change branch policy, alter security posture, or edit another agent's workspace from an Enate Ende lane.

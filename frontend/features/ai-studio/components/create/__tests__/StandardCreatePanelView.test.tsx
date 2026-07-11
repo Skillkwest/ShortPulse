@@ -181,6 +181,46 @@ describe("StandardCreatePanelView", () => {
     expect(onChatModeEnabledChange).not.toHaveBeenCalled();
   });
 
+  it("highlights Chat Mode when blocked media is dragged over the composer input shell", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+          onAgentAttachmentDrop,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const inputShell = screen.getByRole("textbox").closest(".agent-composer-input-shell");
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(inputShell as Element, { dataTransfer: mediaTransfer });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Turn on chat mode to upload references.");
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+    expect(screen.getByText("Chat Mode").closest(".agent-chat-mode-toggle-shell")).toBeTruthy();
+    expect(mediaTransfer.dropEffect).toBe("none");
+
+    const dropResult = fireEvent.drop(inputShell as Element, { dataTransfer: mediaTransfer });
+
+    expect(dropResult).toBe(false);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+  });
+
   it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();

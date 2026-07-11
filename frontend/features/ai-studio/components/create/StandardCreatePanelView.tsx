@@ -277,6 +277,41 @@ export function StandardCreatePanelView({
     },
     [isTargetInsideComposerInputShell, promptStepProps, showBlockedMediaDropGuidance]
   );
+  const handleComposerInputBlockedMediaDrag = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>, lingerAfterDrop = false) => {
+      if (!isTargetInsideComposerInputShell(event)) return false;
+      const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
+      if (panelDropKind !== "media" || promptStepProps.chatModeEnabled !== false) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "none";
+      showBlockedMediaDropGuidance(lingerAfterDrop);
+      return true;
+    },
+    [
+      isTargetInsideComposerInputShell,
+      promptStepProps.chatModeEnabled,
+      showBlockedMediaDropGuidance,
+    ]
+  );
+  const handlePanelMediaDragEnterCapture = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleComposerInputBlockedMediaDrag(event);
+    },
+    [handleComposerInputBlockedMediaDrag]
+  );
+  const handlePanelMediaDragOverCapture = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleComposerInputBlockedMediaDrag(event);
+    },
+    [handleComposerInputBlockedMediaDrag]
+  );
+  const handlePanelMediaDropCapture = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleComposerInputBlockedMediaDrag(event, true);
+    },
+    [handleComposerInputBlockedMediaDrag]
+  );
   const handlePanelMediaDragLeave = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
@@ -619,6 +654,9 @@ export function StandardCreatePanelView({
             } ${
               blockedMediaDropGuidanceVisible ? "is-chat-mode-drop-guidance-visible" : ""
             }`.trim()}
+            onDragEnterCapture={handlePanelMediaDragEnterCapture}
+            onDragOverCapture={handlePanelMediaDragOverCapture}
+            onDropCapture={handlePanelMediaDropCapture}
             onDragEnter={handlePanelMediaDragEnter}
             onDragOver={handlePanelMediaDragOver}
             onDragLeave={handlePanelMediaDragLeave}

@@ -45,6 +45,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Updated planning, docs governance, release checklist, backlog, routes, API references, data dictionary, database migration notes, and security checklist for the latest production-operations and remediation lanes.
 - Updated AI Studio Create composer guidance and tests around blocked reference drops and Chat Mode handoff.
 - Updated AI Studio Create composer drop guidance so blocked media drops make the Chat Mode requirement easier to spot.
+- Updated AI Studio Create composer input drop handling so blocked media drops over the prompt box also surface Chat Mode guidance instead of silently falling through.
 - Recorded the latest Gear Ball SOP score and improvement note for this production batch.
 
 ### Fixed

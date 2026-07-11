@@ -297,6 +297,7 @@ export const chargeGenerationRequest = async ({
   const pricingParams = buildPricingParams(modelId, payload, { shortpulseContext });
   const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy({
     bypassCache: true,
+    requirePublishedBillingArtifact: true,
   }).catch(async (error) => {
     await logGenerationFailure({
       req,
@@ -660,6 +661,8 @@ export const chargeGenerationRequest = async ({
         : {}),
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
+      pricing_billing_artifact_source:
+        runtimePricingPolicy.billingArtifactSource ?? "active_policy",
     },
     ...(pricingObservability ? { pricing_observability: pricingObservability } : {}),
     debited_credits: breakdown.credits,

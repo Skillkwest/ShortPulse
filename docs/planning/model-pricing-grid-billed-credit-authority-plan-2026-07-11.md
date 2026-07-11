@@ -95,6 +95,8 @@ Existing active policies do not contain the new published artifact. Implementati
 
 A later production operation must review the dry-run, publish/activate the complete policy through the canonical admin apply path, deploy the strict reader in the documented order, and verify fresh image/video/audio rows. Temporary compatibility, if unavoidable for deployment ordering, must be version-scoped to the pre-migration policy, explicitly observable, and removed immediately after activation; it must never silently recalculate a missing row in the new policy.
 
+Production policy v9 compatibility is temporarily owned by the shared model-pricing control-plane reader. Customer display and server debit may request a complete, in-memory publication derived from the exact active v9 policy and active custom rows; admin authoring reads remain unchanged. The runtime exposes `billingArtifactSource = legacy_v9_materialized` for observability. This compatibility applies only to version 9, performs no policy/database mutation, and must be removed as soon as a version 10 or later policy containing reviewed published billing rules is active.
+
 ## Implementation proof boundary
 
 Local completion proves source correctness and automated parity. It does not prove current production policy completeness or live debit behavior. Production closure requires a separately authorized deployment and policy activation followed by fresh authenticated billable traffic with complete pricing observability and zero display/debit deltas.

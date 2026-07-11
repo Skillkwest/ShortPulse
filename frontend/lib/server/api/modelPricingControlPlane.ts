@@ -12,6 +12,7 @@ import {
   getDefaultModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
 } from "../../model-runtime/pricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type ActiveModelPricingPolicy = {
@@ -50,8 +51,39 @@ export type RuntimeModelPricingPolicyResolution = {
   activePolicyVersion: number | null;
   activePolicyVersionId: number | null;
   source: "control_plane";
+  billingArtifactSource: "active_policy" | "legacy_v9_materialized";
   updatedAt: string | null;
   updatedByEmail: string | null;
+};
+
+const LEGACY_UNPUBLISHED_BILLING_POLICY_VERSION = 9;
+
+export const resolveRuntimeBillingPolicyDocument = ({
+  activePolicyVersion,
+  activePolicy,
+  activeCustomRows,
+  requirePublishedBillingArtifact,
+}: {
+  activePolicyVersion: number;
+  activePolicy: ModelPricingPolicyDocument;
+  activeCustomRows: AdminPricingCustomRowsDocument;
+  requirePublishedBillingArtifact: boolean;
+}): Pick<RuntimeModelPricingPolicyResolution, "policy" | "billingArtifactSource"> => {
+  if (
+    requirePublishedBillingArtifact &&
+    activePolicyVersion === LEGACY_UNPUBLISHED_BILLING_POLICY_VERSION
+  ) {
+    return {
+      policy: materializeImageBilledCreditPolicy(activePolicy, activeCustomRows, {
+        requireComplete: true,
+      }),
+      billingArtifactSource: "legacy_v9_materialized",
+    };
+  }
+  return {
+    policy: activePolicy,
+    billingArtifactSource: "active_policy",
+  };
 };
 
 type ModelPricingPolicyVersionRow = {
@@ -268,9 +300,11 @@ export const fetchActiveModelPricingPolicy = async ({
 export const resolveRuntimeModelPricingPolicy = async ({
   controlPlaneCacheTtlMs = process.env.MODEL_PRICING_CONTROL_PLANE_CACHE_TTL_MS,
   bypassCache = false,
+  requirePublishedBillingArtifact = false,
 }: {
   controlPlaneCacheTtlMs?: string | null;
   bypassCache?: boolean;
+  requirePublishedBillingArtifact?: boolean;
 } = {}): Promise<RuntimeModelPricingPolicyResolution> => {
   const hasAdminConfig =
     typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
@@ -285,12 +319,19 @@ export const resolveRuntimeModelPricingPolicy = async ({
   if (!bypassCache && runtimePolicyCache && runtimePolicyCache.expiresAtMs > nowMs) {
     const cached = runtimePolicyCache.value;
     if (cached) {
+      const runtimePolicy = resolveRuntimeBillingPolicyDocument({
+        activePolicyVersion: cached.activePolicyVersion,
+        activePolicy: cached.activePolicy,
+        activeCustomRows: cached.activeCustomRows,
+        requirePublishedBillingArtifact,
+      });
       return {
-        policy: cached.activePolicy,
+        policy: runtimePolicy.policy,
         customRows: cached.activeCustomRows,
         activePolicyVersion: cached.activePolicyVersion,
         activePolicyVersionId: cached.activePolicyVersionId,
         source: "control_plane",
+        billingArtifactSource: runtimePolicy.billingArtifactSource,
         updatedAt: cached.updatedAt,
         updatedByEmail: cached.updatedByEmail,
       };
@@ -309,12 +350,19 @@ export const resolveRuntimeModelPricingPolicy = async ({
   if (!activePolicy) {
     throw new Error("No active model pricing policy is configured.");
   }
+  const runtimePolicy = resolveRuntimeBillingPolicyDocument({
+    activePolicyVersion: activePolicy.activePolicyVersion,
+    activePolicy: activePolicy.activePolicy,
+    activeCustomRows: activePolicy.activeCustomRows,
+    requirePublishedBillingArtifact,
+  });
   return {
-    policy: activePolicy.activePolicy,
+    policy: runtimePolicy.policy,
     customRows: activePolicy.activeCustomRows,
     activePolicyVersion: activePolicy.activePolicyVersion,
     activePolicyVersionId: activePolicy.activePolicyVersionId,
     source: "control_plane",
+    billingArtifactSource: runtimePolicy.billingArtifactSource,
     updatedAt: activePolicy.updatedAt,
     updatedByEmail: activePolicy.updatedByEmail,
   };

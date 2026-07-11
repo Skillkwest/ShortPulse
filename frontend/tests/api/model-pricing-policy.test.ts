@@ -56,6 +56,7 @@ describe("model pricing policy routes", () => {
       activePolicyVersion: 4,
       activePolicyVersionId: 44,
       source: "control_plane",
+      billingArtifactSource: "legacy_v9_materialized",
       updatedAt: "2026-04-24T12:00:00.000Z",
       updatedByEmail: "admin@example.com",
     });
@@ -65,13 +66,17 @@ describe("model pricing policy routes", () => {
 
     await userPolicyHandler(req as never, res as never);
 
-    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalledWith({ bypassCache: true });
+    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalledWith({
+      bypassCache: true,
+      requirePublishedBillingArtifact: true,
+    });
     expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "no-store, max-age=0");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       modelPolicy: expect.objectContaining({
         version: "policy-v4",
         policySource: "control_plane",
+        billingArtifactSource: "legacy_v9_materialized",
         creditUsdScale: 100,
         document: expect.objectContaining({
           perModel: expect.objectContaining({

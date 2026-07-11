@@ -3,8 +3,13 @@ import {
   applyModelPricingPolicy,
   clearRuntimeModelPricingPolicyCacheForTests,
   ensureModelPricingControlPlaneInitialized,
+  resolveRuntimeBillingPolicyDocument,
 } from "../modelPricingControlPlane";
 import { getDefaultAdminPricingCustomRowsDocument } from "../../../model-runtime/adminPricingCustomRows";
+import { getDefaultModelPricingPolicyDocument } from "../../../model-runtime/pricingPolicy";
+import { resolvePricingGridCostBreakdown } from "../../../model-runtime/pricingGridBilledCredits";
+import { KIE_SEEDANCE_2_MODEL_ID } from "../../../model-runtime/providerModelIds";
+import { ELEVENLABS_VOICEOVER_MODEL_ID } from "../../../model-runtime/elevenLabsModels";
 
 const buildInitializedSupabaseMock = () => {
   const upsertRuntime = vi.fn(async () => ({ error: null }));
@@ -43,6 +48,73 @@ describe("modelPricingControlPlane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearRuntimeModelPricingPolicyCacheForTests();
+  });
+
+  it("materializes strict billing rules for legacy policy v9 without mutating authoring policy", () => {
+    const defaults = getDefaultModelPricingPolicyDocument();
+    const activePolicy = {
+      ...defaults,
+      global: {
+        ...defaults.global,
+        creditUsdScale: 30,
+      },
+      perModel: {
+        "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+          markupBps: 6_000,
+        },
+      },
+    };
+    const activePolicySnapshot = JSON.stringify(activePolicy);
+
+    const runtime = resolveRuntimeBillingPolicyDocument({
+      activePolicyVersion: 9,
+      activePolicy,
+      activeCustomRows: getDefaultAdminPricingCustomRowsDocument(),
+      requirePublishedBillingArtifact: true,
+    });
+
+    expect(runtime.billingArtifactSource).toBe("legacy_v9_materialized");
+    expect(JSON.stringify(activePolicy)).toBe(activePolicySnapshot);
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        params: { aspect: "9:16", resolution: "auto_2K" },
+        pricingPolicy: runtime.policy,
+        requirePublishedBillingRule: true,
+      })?.credits
+    ).toBe(4);
+    expect(
+      Object.values(runtime.policy.perModel[KIE_SEEDANCE_2_MODEL_ID]?.variants ?? {}).some(
+        (variant) => variant.billedCreditsQuantityRule?.quantityBasis === "per_second"
+      )
+    ).toBe(true);
+    expect(
+      Object.values(runtime.policy.perModel[ELEVENLABS_VOICEOVER_MODEL_ID]?.variants ?? {}).some(
+        (variant) => variant.billedCreditsQuantityRule?.quantityBasis === "per_1k_chars"
+      )
+    ).toBe(true);
+  });
+
+  it("never materializes a later active policy or an admin authoring read", () => {
+    const activePolicy = getDefaultModelPricingPolicyDocument();
+    const activeCustomRows = getDefaultAdminPricingCustomRowsDocument();
+
+    expect(
+      resolveRuntimeBillingPolicyDocument({
+        activePolicyVersion: 10,
+        activePolicy,
+        activeCustomRows,
+        requirePublishedBillingArtifact: true,
+      })
+    ).toEqual({ policy: activePolicy, billingArtifactSource: "active_policy" });
+    expect(
+      resolveRuntimeBillingPolicyDocument({
+        activePolicyVersion: 9,
+        activePolicy,
+        activeCustomRows,
+        requirePublishedBillingArtifact: false,
+      })
+    ).toEqual({ policy: activePolicy, billingArtifactSource: "active_policy" });
   });
 
   it("initializes the runtime singleton from the latest policy version when missing", async () => {

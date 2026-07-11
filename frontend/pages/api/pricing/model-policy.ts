@@ -27,7 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return;
 
   try {
-    const resolution = await resolveRuntimeModelPricingPolicy({ bypassCache: true });
+    const resolution = await resolveRuntimeModelPricingPolicy({
+      bypassCache: true,
+      requirePublishedBillingArtifact: true,
+    });
     const snapshot = getModelPricingPolicySnapshot(resolution.policy, {
       activePolicyVersion: resolution.activePolicyVersion,
       policySource: resolution.source,
@@ -38,6 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       modelPolicy: {
         ...snapshot,
+        billingArtifactSource: resolution.billingArtifactSource,
         document: resolution.policy,
       },
     });

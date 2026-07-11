@@ -28,6 +28,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Changed
 
+- Updated model-pricing runtime reads so the current legacy v9 policy can use a complete in-memory billing artifact for customer pricing display and server debit while admin authoring reads stay unchanged until the next reviewed policy activation.
 - Updated model-pricing billed-credit resolution so published fixed and quantity rules can act as runtime billing authority even when no provider-cost calculator exists for the row.
 - Updated model-pricing policy handling so pricing-grid rows, custom row materialization, admin pricing controls, billing reservations, and AI Studio pricing displays share a stricter billed-credit authority path.
 - Updated hosted SQL apply workflows, runtime SQL security checks, database docs, and schema snapshots for the latest production migration and control-plane delivery posture.

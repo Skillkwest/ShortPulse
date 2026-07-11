@@ -11,6 +11,7 @@ vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
 
 const baseProps: React.ComponentProps<typeof VideoAssetSlotsCard> = {
   isSeedance2FamilyModelSelected: true,
+  isMotionMode: false,
   shouldShowShotModeSelector: true,
   visibleShotMode: "single",
   shotModeTabCount: 2,
@@ -51,8 +52,9 @@ describe("VideoAssetSlotsCard", () => {
   });
 
   it("shows the asset helper only while every visible asset slot is empty", () => {
-    const helperCopy =
+    const seedanceHelperCopy =
       "Click an empty slot to add an element or drag a reference from the Reference Grid.";
+    const klingHelperCopy = "Click an empty slot to add an element.";
     const filledElement = {
       id: "slot-1",
       slotIndex: 0,
@@ -67,17 +69,37 @@ describe("VideoAssetSlotsCard", () => {
 
     const { rerender } = render(<VideoAssetSlotsCard {...baseProps} />);
 
-    expect(screen.getByText(helperCopy)).toBeInTheDocument();
+    expect(screen.getByText(seedanceHelperCopy)).toBeInTheDocument();
+
+    rerender(<VideoAssetSlotsCard {...baseProps} isSeedance2FamilyModelSelected={false} />);
+
+    expect(screen.getByText(klingHelperCopy)).toBeInTheDocument();
+    expect(screen.queryByText(seedanceHelperCopy)).not.toBeInTheDocument();
 
     rerender(
-      <VideoAssetSlotsCard {...baseProps} modelVisibleKlingElements={[filledElement, null, null]} />
+      <VideoAssetSlotsCard
+        {...baseProps}
+        isSeedance2FamilyModelSelected={true}
+        isMotionMode={true}
+      />
     );
 
-    expect(screen.queryByText(helperCopy)).not.toBeInTheDocument();
+    expect(screen.getByText(klingHelperCopy)).toBeInTheDocument();
+    expect(screen.queryByText(seedanceHelperCopy)).not.toBeInTheDocument();
+
+    rerender(
+      <VideoAssetSlotsCard
+        {...baseProps}
+        isSeedance2FamilyModelSelected={false}
+        modelVisibleKlingElements={[filledElement, null, null]}
+      />
+    );
+
+    expect(screen.queryByText(klingHelperCopy)).not.toBeInTheDocument();
 
     rerender(<VideoAssetSlotsCard {...baseProps} modelVisibleKlingElements={[null, null, null]} />);
 
-    expect(screen.getByText(helperCopy)).toBeInTheDocument();
+    expect(screen.getByText(seedanceHelperCopy)).toBeInTheDocument();
   });
 
   it("refreshes restored Seedance image slot previews from durable storage refs", async () => {

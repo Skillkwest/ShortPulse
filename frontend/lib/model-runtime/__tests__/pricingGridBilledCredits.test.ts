@@ -28,6 +28,39 @@ const pricingGridPolicy = {
 const materializedImagePolicy = materializeImageBilledCreditPolicy(pricingGridPolicy);
 
 describe("pricingGridBilledCredits", () => {
+  it("keeps composition-neutral customer credits stable while preserving raw provider economics", () => {
+    const policy = materializeImageBilledCreditPolicy({
+      ...pricingGridPolicy,
+      perModel: {
+        ...pricingGridPolicy.perModel,
+        [KIE_SEEDANCE_2_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+      },
+    });
+    const withoutVideo = resolvePricingGridCostBreakdown({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: { durationSeconds: 4, resolution: "720p", inputVideoCount: 0 },
+      pricingPolicy: policy,
+      requirePublishedBillingRule: true,
+    });
+    const withVideo = resolvePricingGridCostBreakdown({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: {
+        durationSeconds: 4,
+        resolution: "720p",
+        inputVideoCount: 1,
+        inputVideoDurationSeconds: 15,
+      },
+      pricingPolicy: policy,
+      requirePublishedBillingRule: true,
+    });
+
+    expect(withVideo?.variantId).toBe(withoutVideo?.variantId);
+    expect(withVideo?.credits).toBe(withoutVideo?.credits);
+    expect(withVideo?.usdRaw).toBeGreaterThan(withoutVideo?.usdRaw ?? 0);
+  });
+
   it("matches the pricing-grid billed credits for standard Nano Banana 2 Create variants", () => {
     expect(
       resolvePricingGridCostBreakdown({

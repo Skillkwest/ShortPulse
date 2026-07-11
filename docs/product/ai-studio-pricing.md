@@ -33,6 +33,7 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
   - `perModel[modelId].creditUsdScale`
   - `perModel[modelId].markupBps`
   - `perModel[modelId].roundingIncrement`
+  - `perModel[modelId].billingVariantProfile` for explicit policy-gated customer variant contracts
 - Default policy:
   - Base conversion: `1 credit = $0.01`
   - Markup is model-specific only; legacy top-level markup fields are ignored during normalization.
@@ -66,6 +67,8 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
 - Voiceover Enhance (`POST /api/ai/voiceover-enhance`) is a non-audio helper route. It prepares script text for `eleven_v3` and does not reserve ElevenLabs generation credits or persist media.
 - `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
 - Billable submit paths attach `shortpulse_context.displayed_billed_credits`, `displayed_pricing_policy_version`, and the displayed variant identifier when available, plus `pricing_display_source` and `pricing_policy_ready` for diagnostics. The server rejects missing or stale evidence before reservation on covered image, video, and audio lanes; see `docs/adr/0100-pricing-policy-submit-handshake.md`.
+- Seedance composition-neutral policies publish exactly one customer row per model/resolution with `per_output_second`. Image, audio, video, and mixed references do not change customer credits at fixed model/resolution/output duration. Input-video duration still selects modeled provider economics and must be known, positive, and at most 15 seconds before reservation. See `docs/adr/0101-seedance-composition-neutral-customer-pricing.md`.
+- `/api/admin/pricing/model-policy/dry-run?target=seedance_composition_neutral_v1` reads the exact active policy/custom rows and returns the five-row candidate, legacy-to-target rule diff, margin envelopes, active row id, and review hash without mutation. Composition-neutral apply requires that hash plus the expected active row id; no rate or policy is activated automatically.
 
 ## Current strategies
 

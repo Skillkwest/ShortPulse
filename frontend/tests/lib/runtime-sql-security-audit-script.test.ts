@@ -70,7 +70,7 @@ const REQUIRED_SIGNATURES = [
   "public.activate_agent_safety_policy(text,text,uuid,text,boolean,text)",
   "public.rollback_agent_safety_policy(text,uuid,text,text,integer)",
   "public.get_active_model_pricing_policy()",
-  "public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)",
+  "public.apply_model_pricing_policy(jsonb,bigint,jsonb,text,text,uuid,text,text)",
   "public.rollback_model_pricing_policy(text,uuid,text,text)",
   "public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)",
   "public.debit_account_credits(uuid,integer,text,text,text,jsonb,uuid)",

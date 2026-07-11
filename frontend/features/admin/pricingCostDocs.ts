@@ -25,8 +25,8 @@ import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 import {
   resolvePricingGridAspectOptions,
   shouldExpandAspectPricingVariants,
+  shouldExpandCustomerVideoInputPricingVariants,
   shouldExpandResolutionPricingVariants,
-  shouldExpandVideoInputPricingVariants,
 } from "../../lib/model-runtime/pricingGridVariantRules";
 
 export type CostDocsPopover = {
@@ -275,9 +275,18 @@ const buildAudioOptions = (
 
 const buildVideoInputOptions = (
   model: AdminPricingModelRow,
+  pricingPolicy: Parameters<typeof computeCostForModel>[2],
   options: { videoInput?: boolean | null }
 ): Array<boolean | null> => {
-  if (!shouldExpandVideoInputPricingVariants(model.pricingStrategy)) return [null];
+  if (
+    !shouldExpandCustomerVideoInputPricingVariants({
+      modelId: model.id,
+      pricingStrategy: model.pricingStrategy,
+      pricingPolicy,
+    })
+  ) {
+    return [null];
+  }
   if (options.videoInput !== undefined) return [options.videoInput];
   return [true, false];
 };
@@ -342,6 +351,7 @@ export const buildDraftPricingPreviewVariants = (
       modelId: model.id,
       variantBaseId: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
       generationCount: 1,
+      pricingPolicy,
     });
     const explicitDurationSeconds =
       options.usageAmount != null && Number.isFinite(options.usageAmount) && options.usageAmount > 0
@@ -375,6 +385,7 @@ export const buildDraftPricingPreviewVariants = (
               modelId: model.id,
               variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
               durationSeconds: explicitDurationSeconds,
+              pricingPolicy,
             }),
             label: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_LABEL,
             breakdown: explicitBreakdown,
@@ -396,7 +407,9 @@ export const buildDraftPricingPreviewVariants = (
       : [{ id: "default", label: "Default", breakdown: null }];
   const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
   const audioOptions = buildAudioOptions(model, { audio: options.audio });
-  const videoInputOptions = buildVideoInputOptions(model, { videoInput: options.videoInput });
+  const videoInputOptions = buildVideoInputOptions(model, pricingPolicy, {
+    videoInput: options.videoInput,
+  });
 
   const draftVariants = variants
     .flatMap((variant) =>
@@ -434,6 +447,7 @@ export const buildDraftPricingPreviewVariants = (
                   ...(audio != null ? { audio } : {}),
                   ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
                   ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
+                  pricingPolicy,
                   ...(variant.id === "edit"
                     ? {
                         inputImageCount: 1,

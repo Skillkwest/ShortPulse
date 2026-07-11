@@ -40,6 +40,7 @@ type SeedanceReferenceMode = (typeof SEEDANCE_REFERENCE_MODE_TAB_VALUES)[number]
 
 type VideoAssetSlotsCardProps = {
   isSeedance2FamilyModelSelected: boolean;
+  isMotionMode: boolean;
   shouldShowShotModeSelector: boolean;
   visibleShotMode: ShotMode;
   shotModeTabCount: number;
@@ -114,6 +115,7 @@ const resolveSlotReorderPlacement = (
  */
 export function VideoAssetSlotsCard({
   isSeedance2FamilyModelSelected,
+  isMotionMode,
   shouldShowShotModeSelector,
   visibleShotMode,
   shotModeTabCount,
@@ -180,6 +182,10 @@ export function VideoAssetSlotsCard({
     { length: klingElementSlotCount },
     (_, index) => !modelVisibleKlingElements[index]
   ).every(Boolean);
+  const assetSlotHelperCopy =
+    isSeedance2FamilyModelSelected && !isMotionMode
+      ? "Click an empty slot to add an element or drag a reference from the Reference Grid."
+      : "Click an empty slot to add an element.";
 
   React.useEffect(() => {
     if (!seedanceSlotPreviewSigningRequests.length) return;
@@ -450,9 +456,7 @@ export function VideoAssetSlotsCard({
               Add Assets
             </div>
             {areAllVisibleAssetSlotsEmpty ? (
-              <div className="video-elements-card-helper">
-                Click an empty slot to add an element or drag a reference from the Reference Grid.
-              </div>
+              <div className="video-elements-card-helper">{assetSlotHelperCopy}</div>
             ) : null}
             {seedanceSlotLimitWarning ? (
               <AppMessage

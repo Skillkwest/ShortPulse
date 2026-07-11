@@ -1371,6 +1371,50 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
+  it("shows a neutral Seedance quote but blocks Generate while video duration is unresolved", () => {
+    const pricingPolicy = materializeImageBilledCreditPolicy({
+      ...getDefaultModelPricingPolicyDocument(),
+      perModel: {
+        [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+      },
+    });
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "1:1",
+      durationSeconds: 10,
+      resolution: "720p",
+      audio: false,
+      ...overrides,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoDurationSeconds: 10,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
+        costParamsForModel,
+        pricingPolicy,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBeGreaterThan(0);
+    expect(result.current.generationGuardrail).toBe(
+      "Seedance 2 reference-video duration is still being resolved. Try again in a moment."
+    );
+  });
+
   it("blocks Seedance 2 multimodal mode when no multimodal references are present", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

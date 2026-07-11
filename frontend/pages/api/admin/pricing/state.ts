@@ -884,6 +884,7 @@ export default async function handler(
       generatedAt: new Date().toISOString(),
       modelPolicy: getModelPricingPolicySnapshot(runtimePricingPolicy.policy, {
         activePolicyVersion: runtimePricingPolicy.activePolicyVersion,
+        activePolicyVersionId: runtimePricingPolicy.activePolicyVersionId,
         policySource: runtimePricingPolicy.source,
         updatedAt: runtimePricingPolicy.updatedAt,
         updatedByEmail: runtimePricingPolicy.updatedByEmail,

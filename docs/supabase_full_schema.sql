@@ -4453,6 +4453,19 @@ alter table if exists public.model_pricing_policy_versions
 --       p_actor_email text,
 --       p_source text
 --   )
+--
+-- Compare-and-swap apply signature after migration 227 (current admin authority):
+--   public.apply_model_pricing_policy(
+--       p_policy jsonb,
+--       p_expected_active_policy_version_id bigint,
+--       p_custom_rows jsonb,
+--       p_note text,
+--       p_reason text,
+--       p_actor_user_id uuid,
+--       p_actor_email text,
+--       p_source text
+--   )
+-- The migration-142 overload remains temporarily for deployment ordering only.
 
 -- -----------------------------------------------------------------------------
 -- Dashboard tutorial catalog and thumbnail derivatives (migrations 153-155)

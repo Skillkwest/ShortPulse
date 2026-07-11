@@ -24,14 +24,14 @@ import {
   type ModelPricingPolicyDocument,
 } from "../../../lib/model-runtime/pricingPolicy";
 
-const ADMIN_PRICING_WORKSPACE_STORAGE_KEY = "shortpulse.adminPricingWorkspace.v1";
+const ADMIN_PRICING_WORKSPACE_STORAGE_KEY = "shortpulse.adminPricingWorkspace.v2";
 const DEFAULT_MODEL_SORT_OPTION: ModelPricingSortOption = "type";
 
 type StorageReader = Pick<Storage, "getItem">;
 type StorageWriter = Pick<Storage, "setItem" | "removeItem">;
 
 export type AdminPricingWorkspaceDraftSnapshot = {
-  version: 1;
+  version: 2;
   savedAt: string;
   sourceActivePolicyVersion: number | null;
   modelPolicyDirty: boolean;
@@ -175,8 +175,9 @@ const sanitizeWorkspaceDraftSnapshot = (
   value: unknown
 ): AdminPricingWorkspaceDraftSnapshot | null => {
   if (!isPlainObject(value)) return null;
+  if (value.version !== 2) return null;
   return {
-    version: 1,
+    version: 2,
     savedAt: typeof value.savedAt === "string" ? value.savedAt : new Date(0).toISOString(),
     sourceActivePolicyVersion:
       typeof value.sourceActivePolicyVersion === "number" &&
@@ -215,12 +216,21 @@ const sanitizeWorkspaceDraftSnapshot = (
 
 export function readAdminPricingWorkspaceDraftFromStorage(
   storage: StorageReader,
-  storageKey = ADMIN_PRICING_WORKSPACE_STORAGE_KEY
+  storageKey = ADMIN_PRICING_WORKSPACE_STORAGE_KEY,
+  expectedActivePolicyVersion?: number | null
 ): AdminPricingWorkspaceDraftSnapshot | null {
   try {
     const raw = storage.getItem(storageKey);
     if (!raw) return null;
-    return sanitizeWorkspaceDraftSnapshot(JSON.parse(raw));
+    const snapshot = sanitizeWorkspaceDraftSnapshot(JSON.parse(raw));
+    if (
+      snapshot &&
+      expectedActivePolicyVersion != null &&
+      snapshot.sourceActivePolicyVersion !== expectedActivePolicyVersion
+    ) {
+      return null;
+    }
+    return snapshot;
   } catch {
     return null;
   }
@@ -241,9 +251,15 @@ export function clearAdminPricingWorkspaceDraftFromStorage(
   storage.removeItem(storageKey);
 }
 
-export function readAdminPricingWorkspaceDraft(): AdminPricingWorkspaceDraftSnapshot | null {
+export function readAdminPricingWorkspaceDraft(
+  expectedActivePolicyVersion?: number | null
+): AdminPricingWorkspaceDraftSnapshot | null {
   if (typeof window === "undefined") return null;
-  return readAdminPricingWorkspaceDraftFromStorage(window.localStorage);
+  return readAdminPricingWorkspaceDraftFromStorage(
+    window.localStorage,
+    ADMIN_PRICING_WORKSPACE_STORAGE_KEY,
+    expectedActivePolicyVersion
+  );
 }
 
 export function writeAdminPricingWorkspaceDraft(snapshot: AdminPricingWorkspaceDraftSnapshot) {

@@ -449,6 +449,144 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
     );
   });
 
+  it("recovers signed storage signature mismatches with a fresh upload target", async () => {
+    const sourceFile = new File(["raw-image"], "screenshot.png", {
+      type: "image/png",
+      lastModified: 123,
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            intentId: "intent-1",
+            bucketId: "media_upload_staging",
+            storagePath: "user-1/upload-staging/uploaded_images/screenshot-first.png",
+            uploadToken: "token-1",
+            mimeType: "image/png",
+            name: "screenshot.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            intentId: "intent-2",
+            bucketId: "media_upload_staging",
+            storagePath: "user-1/upload-staging/uploaded_images/screenshot-second.png",
+            uploadToken: "token-2",
+            mimeType: "image/png",
+            name: "screenshot.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          file: {
+            id: "media-2",
+            filename: "screenshot.png",
+            storage_path: "user-1/uploads/images/screenshot.png",
+            preview_storage_path: "user-1/uploads/images/screenshot.png",
+            file_type: "image",
+            file_size: sourceFile.size,
+            source: "upload",
+            created_at: "2026-07-11T16:45:00.000Z",
+            signedUrl: "https://signed.test/screenshot.png",
+          },
+        })
+      );
+    uploadToSignedUrlMock
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Invalid signature" },
+      })
+      .mockResolvedValueOnce({ data: { path: "uploaded" }, error: null });
+
+    const result = await uploadMediaFile({
+      file: sourceFile,
+      destinationTab: "uploaded_images",
+    });
+
+    expect(result.id).toBe("media-2");
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(3);
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(2);
+    expect(uploadToSignedUrlMock).toHaveBeenNthCalledWith(
+      1,
+      "user-1/upload-staging/uploaded_images/screenshot-first.png",
+      "token-1",
+      sourceFile,
+      expect.objectContaining({
+        contentType: "image/png",
+        cacheControl: "31536000",
+        upsert: false,
+      })
+    );
+    expect(uploadToSignedUrlMock).toHaveBeenNthCalledWith(
+      2,
+      "user-1/upload-staging/uploaded_images/screenshot-second.png",
+      "token-2",
+      sourceFile,
+      expect.objectContaining({
+        contentType: "image/png",
+        cacheControl: "31536000",
+        upsert: false,
+      })
+    );
+    expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/media/finalize-upload",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining(
+          '"intentId":"intent-2","destinationTab":"uploaded_images","sourceMimeType":"image/png","sourceName":"screenshot.png","sourceStoragePath":"user-1/upload-staging/uploaded_images/screenshot-second.png"'
+        ),
+      })
+    );
+  });
+
+  it("stops after one fresh target when signed storage still rejects the signature", async () => {
+    const sourceFile = new File(["raw-image"], "screenshot.png", {
+      type: "image/png",
+    });
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            intentId: "intent-1",
+            bucketId: "media_upload_staging",
+            storagePath: "user-1/upload-staging/uploaded_images/screenshot-first.png",
+            uploadToken: "token-1",
+            mimeType: "image/png",
+            name: "screenshot.png",
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          target: {
+            intentId: "intent-2",
+            bucketId: "media_upload_staging",
+            storagePath: "user-1/upload-staging/uploaded_images/screenshot-second.png",
+            uploadToken: "token-2",
+            mimeType: "image/png",
+            name: "screenshot.png",
+          },
+        })
+      );
+    uploadToSignedUrlMock.mockResolvedValue({
+      data: null,
+      error: { message: "Invalid signature" },
+    });
+
+    await expect(
+      uploadMediaFile({
+        file: sourceFile,
+        destinationTab: "uploaded_images",
+      })
+    ).rejects.toThrow("Invalid signature");
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(2);
+  });
+
   it("maps non-json 413 prepare failures to a precise size-limit message", async () => {
     const sourceFile = new File(["raw-image"], "oversized-reference.png", {
       type: "image/png",
@@ -495,6 +633,8 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
         destinationTab: "uploaded_videos",
       })
     ).rejects.toThrow("Video file is too large. ShortPulse accepts videos up to 100 MB.");
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(uploadToSignedUrlMock).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces finalize route details when the staged media remains too large", async () => {

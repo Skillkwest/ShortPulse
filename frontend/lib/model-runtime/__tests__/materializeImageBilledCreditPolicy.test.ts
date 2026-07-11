@@ -42,6 +42,36 @@ const basePolicy = {
 };
 
 describe("materializeImageBilledCreditPolicy", () => {
+  it("publishes exactly five output-only Seedance customer rows under the neutral profile", () => {
+    const materialized = materializeImageBilledCreditPolicy({
+      ...basePolicy,
+      perModel: {
+        ...basePolicy.perModel,
+        [KIE_SEEDANCE_2_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+        [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+      },
+    });
+    const publishedRowsFor = (modelId: string) =>
+      Object.entries(materialized.perModel[modelId]?.variants ?? {}).filter(
+        ([, row]) => row.billedCreditsOverride != null || row.billedCreditsQuantityRule != null
+      );
+    const standardRows = publishedRowsFor(KIE_SEEDANCE_2_MODEL_ID);
+    const fastRows = publishedRowsFor(KIE_SEEDANCE_2_FAST_MODEL_ID);
+
+    expect(standardRows).toHaveLength(3);
+    expect(fastRows).toHaveLength(2);
+    expect([...standardRows, ...fastRows].every(([id]) => !id.includes("video_input:"))).toBe(true);
+    expect(
+      [...standardRows, ...fastRows].every(
+        ([, row]) => row.billedCreditsQuantityRule?.quantityBasis === "per_output_second"
+      )
+    ).toBe(true);
+  });
+
   it("materializes canonical billed-credit rows for create and edit image variants", () => {
     const materialized = materializeImageBilledCreditPolicy(basePolicy);
 
@@ -279,6 +309,40 @@ describe("materializeImageBilledCreditPolicy", () => {
       resolveModelPricingForModel(materialized, KIE_SEEDANCE_2_MODEL_ID, variantId)
         .providerUsdPerSecondOverride
     ).toBe(0.2);
+  });
+
+  it("blocks legacy video-input custom rows from silently collapsing under the neutral profile", () => {
+    const customRows = getDefaultAdminPricingCustomRowsDocument();
+    customRows.rowsByModel[KIE_SEEDANCE_2_MODEL_ID] = [
+      {
+        displayRowId: "custom:legacy-video-row",
+        label: "Legacy video row",
+        variantId: "default|res:720p|aspect:16:9|audio:on|video_input:with",
+        spec: {
+          baseVariantId: "default",
+          resolution: "720p",
+          videoInput: true,
+        },
+        overrides: {
+          markupBps: null,
+          providerUsdOverride: null,
+          providerUsdPerSecondOverride: 0.2,
+        },
+      },
+    ];
+    const policy = {
+      ...basePolicy,
+      perModel: {
+        ...basePolicy.perModel,
+        [KIE_SEEDANCE_2_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1" as const,
+        },
+      },
+    };
+
+    expect(() => materializeImageBilledCreditPolicy(policy, customRows)).toThrow(
+      "retains legacy video-input semantics"
+    );
   });
 
   it("publishes explicit billed-credit rules for every billable ElevenLabs audio row", () => {

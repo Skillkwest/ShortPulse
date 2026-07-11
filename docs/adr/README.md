@@ -116,3 +116,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0098-media-storage-lifecycle-stewardship.md`
 - `docs/adr/0099-ai-studio-create-safe-completion-contract.md`
 - `docs/adr/0100-pricing-policy-submit-handshake.md`
+- `docs/adr/0101-seedance-composition-neutral-customer-pricing.md`

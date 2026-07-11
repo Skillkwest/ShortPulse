@@ -270,7 +270,10 @@ export const useAiStudioTaskSubmission = ({
         ],
       });
       const seedance2ReferenceVideoDurationLimitError = isSeedance2Submission
-        ? resolveSeedanceVideoReferenceDurationLimitError(seedance2InputVideoDurationSeconds)
+        ? resolveSeedanceVideoReferenceDurationLimitError(
+            seedance2InputVideoDurationSeconds,
+            seedance2SubmitReferenceVideoUrls.length
+          )
         : null;
       const internalMediaRefs = dedupeInternalMediaRefs(
         [
@@ -840,8 +843,14 @@ export const useAiStudioTaskSubmission = ({
                 ? ` from ${previousCredits} to ${activeCredits} credits`
                 : "";
             const refreshedVersion = conflict?.activePricingPolicyVersion;
+            const previousVersion = conflict?.displayedPricingPolicyVersion;
+            const policyVersionChanged =
+              typeof refreshedVersion === "number" &&
+              (typeof previousVersion !== "number" || previousVersion !== refreshedVersion);
             setUiNotice(
-              `Pricing updated${creditChange}${typeof refreshedVersion === "number" ? ` (policy ${refreshedVersion})` : ""}. Review the new price, then click Generate again.`
+              policyVersionChanged
+                ? `Pricing updated${creditChange} (policy ${refreshedVersion}). Review the new price, then click Generate again.`
+                : `Generation settings changed the price${creditChange}. Review the current amount, then click Generate again.`
             );
             return;
           }

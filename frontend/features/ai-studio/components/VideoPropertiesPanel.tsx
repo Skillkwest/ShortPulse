@@ -1063,6 +1063,7 @@ export function VideoPropertiesPanel({
                     {shouldShowVideoElementSettings ? (
                       <VideoAssetSlotsCard
                         isSeedance2FamilyModelSelected={isSeedance2FamilyModelSelected}
+                        isMotionMode={isMotionMode}
                         shouldShowShotModeSelector={shouldShowShotModeSelector}
                         visibleShotMode={visibleShotMode}
                         shotModeTabCount={shotModeTabCount}

@@ -1253,6 +1253,10 @@
   color: rgb(199, 61, 79);
 }
 
+.art-confirm-backdrop.media-library-panel-move-dialog-backdrop {
+  background: transparent;
+}
+
 .media-library-panel-move-dialog {
   width: min(420px, calc(100vw - 48px));
   display: flex;

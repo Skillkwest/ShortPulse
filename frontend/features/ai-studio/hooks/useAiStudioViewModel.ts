@@ -298,9 +298,16 @@ export const useAiStudioViewModel = ({
   const seedance2ReferenceVideoDurationGuardrail = useMemo(
     () =>
       isSeedance2PricingModel
-        ? resolveSeedanceVideoReferenceDurationLimitError(seedance2InputVideoDurationSeconds)
+        ? resolveSeedanceVideoReferenceDurationLimitError(
+            seedance2InputVideoDurationSeconds,
+            seedance2PricingReferenceVideoUrls.length
+          )
         : null,
-    [isSeedance2PricingModel, seedance2InputVideoDurationSeconds]
+    [
+      isSeedance2PricingModel,
+      seedance2InputVideoDurationSeconds,
+      seedance2PricingReferenceVideoUrls.length,
+    ]
   );
   const hasSeedance2LinkedAssetReferences = seedanceLinkedElementEligibilities.some(
     (eligibility) => eligibility.isSubmittable

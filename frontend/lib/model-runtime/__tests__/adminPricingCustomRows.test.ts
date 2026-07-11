@@ -138,7 +138,7 @@ describe("adminPricingCustomRows", () => {
     ).toEqual(getDefaultAdminPricingCustomRowsDocument());
   });
 
-  it("recomputes canonical variant ids from model-aware spec data", () => {
+  it("preserves explicit stored variant ids until policy-aware migration", () => {
     const compacted = compactAdminPricingCustomRowsDocument({
       schemaVersion: 1,
       rowsByModel: {
@@ -159,7 +159,7 @@ describe("adminPricingCustomRows", () => {
     expect(compacted.rowsByModel["fal-ai/flux-2/klein/9b"]).toContainEqual({
       displayRowId: "row-1",
       label: null,
-      variantId: "create|res:model_default|aspect:4:3",
+      variantId: "bogus",
       spec: {
         baseVariantId: "create",
         aspect: "4:3",

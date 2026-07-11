@@ -40,6 +40,7 @@ export type ChargeResult = {
     usdRaw: number | null;
   };
   pricingParams: JsonObject;
+  providerPricingParams?: JsonObject;
   markSubmitted: (providerRequestId: string, extra?: JsonObject) => Promise<ChargeSubmitLinkResult>;
   refund: (message?: string, extra?: JsonObject) => Promise<void>;
 };

@@ -37,6 +37,8 @@ This means:
 6. A published quantity rule snapshots the calculator's derived cost credits per unit, applied markup, final rounding increment, and approved quantity basis. Runtime executes that stored credit rule against server-validated quantity; it does not read provider USD, conversion scale, authoring markup fields, or compiled provider-rate constants.
 7. The two-stage credit rounding shown by the admin workbook is preserved: round total cost credits first, then apply the rule's snapshotted markup and final rounding increment. Current approved examples include Seedance output duration and, for video-input rows, input-video duration plus output duration.
 
+Seedance exception: ADR 0101 supersedes item 7 only for profile-bearing Seedance policies. Those policies publish one composition-neutral customer row per model/resolution using output duration only; input-video duration remains provider validation and internal economics evidence. Legacy profile-absent policies retain this ADR's split-row behavior for rollback.
+
 ## Consequences
 
 ### Positive

@@ -111,7 +111,10 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
 
       {bulkMoveDialogOpen ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" {...bulkMoveBackdropDismiss}>
+          <div
+            className="art-confirm-backdrop media-library-panel-move-dialog-backdrop"
+            {...bulkMoveBackdropDismiss}
+          >
             <div
               className="media-library-panel-move-dialog"
               role="dialog"
@@ -186,7 +189,10 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
 
       {moveFolderPicker ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" {...moveFolderBackdropDismiss}>
+          <div
+            className="art-confirm-backdrop media-library-panel-move-dialog-backdrop"
+            {...moveFolderBackdropDismiss}
+          >
             <div
               className="media-library-panel-move-dialog"
               role="dialog"

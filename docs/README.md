@@ -254,6 +254,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/adr/0088-admin-priced-billed-credit-authority.md`
 - `docs/adr/0100-pricing-policy-submit-handshake.md`
+- `docs/adr/0101-seedance-composition-neutral-customer-pricing.md`
 - `docs/adr/0091-generation-provider-lifecycle-vs-reference-visibility.md`
 - `docs/adr/0093-legal-policy-control-plane.md`
 - `docs/prefabs.md`

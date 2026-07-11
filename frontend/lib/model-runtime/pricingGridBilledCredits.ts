@@ -1,13 +1,17 @@
 import { getModelConfig } from "./modelRegistry";
 import { computeCostForModel } from "./pricing";
 import { isKieKling30MotionControlPricingVariant } from "./klingMotionControlPricing";
-import { resolveModelPricingForModel, type ModelPricingPolicyDocument } from "./pricingPolicy";
+import {
+  resolveModelBillingVariantProfile,
+  resolveModelPricingForModel,
+  type ModelPricingPolicyDocument,
+} from "./pricingPolicy";
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { CostBreakdown, PricingParams } from "./pricingTypes";
 import {
   shouldExpandAspectPricingVariants,
+  shouldExpandCustomerVideoInputPricingVariants,
   shouldExpandResolutionPricingVariants,
-  shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
 import {
   getCreditsAtProviderCost,
@@ -73,12 +77,17 @@ const resolveProviderObservabilityBreakdown = (
 };
 
 const resolvePublishedQuantity = (
-  basis: "per_second" | "per_1k_chars",
+  basis: "per_second" | "per_output_second" | "per_1k_chars",
   params: Omit<PricingParams, "modelId">
 ): number | null => {
   if (basis === "per_1k_chars") {
     return typeof params.textCharacters === "number" && Number.isFinite(params.textCharacters)
       ? Math.max(0, params.textCharacters) / 1_000
+      : null;
+  }
+  if (basis === "per_output_second") {
+    return typeof params.durationSeconds === "number" && Number.isFinite(params.durationSeconds)
+      ? Math.max(0, params.durationSeconds)
       : null;
   }
   if (typeof params.sourceDurationSeconds === "number") {
@@ -104,7 +113,8 @@ const shouldKeepAudioInPricingGridParams = (config: ReturnType<typeof getModelCo
 
 const normalizePricingGridParams = (
   modelId: string,
-  params: Omit<PricingParams, "modelId">
+  params: Omit<PricingParams, "modelId">,
+  pricingPolicy: ModelPricingPolicyDocument | null
 ): Omit<PricingParams, "modelId"> => {
   const config = getModelConfig(modelId);
   if (!config) return params;
@@ -144,8 +154,21 @@ const normalizePricingGridParams = (
     delete normalizedParams.audio;
   }
 
-  if (!shouldExpandVideoInputPricingVariants(config.pricingStrategy)) {
+  if (
+    !shouldExpandCustomerVideoInputPricingVariants({
+      modelId,
+      pricingStrategy: config.pricingStrategy,
+      pricingPolicy,
+    })
+  ) {
     delete normalizedParams.inputVideoCount;
+    if (
+      resolveModelBillingVariantProfile(pricingPolicy, modelId) ===
+      "seedance_composition_neutral_v1"
+    ) {
+      delete normalizedParams.inputVideoDurationSeconds;
+      delete normalizedParams.sourceDurationSeconds;
+    }
   }
 
   if (
@@ -188,7 +211,8 @@ export function resolvePricingGridCostBreakdown({
   pricingPolicy?: ModelPricingPolicyDocument | null;
   requirePublishedBillingRule?: boolean;
 }): PricingGridCostBreakdown | null {
-  const normalizedParams = normalizePricingGridParams(modelId, params);
+  const providerCostParams = { ...params };
+  const normalizedParams = normalizePricingGridParams(modelId, params, pricingPolicy);
   const variantId = resolveModelPricingVariantId({
     modelId,
     ...normalizedParams,
@@ -209,7 +233,7 @@ export function resolvePricingGridCostBreakdown({
   if (resolvedPolicy.billedCreditsOverride != null) {
     const providerObservability = resolveProviderObservabilityBreakdown(
       modelId,
-      normalizedParams,
+      providerCostParams,
       pricingPolicy
     );
     const outputCount =
@@ -243,7 +267,7 @@ export function resolvePricingGridCostBreakdown({
     );
     const providerObservability = resolveProviderObservabilityBreakdown(
       modelId,
-      normalizedParams,
+      providerCostParams,
       pricingPolicy
     );
     return {

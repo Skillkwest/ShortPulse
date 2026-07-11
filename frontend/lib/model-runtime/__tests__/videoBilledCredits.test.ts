@@ -61,6 +61,35 @@ const withVideoBilledCreditsOverride = ({
 };
 
 describe("videoBilledCredits", () => {
+  it("separates composition-neutral customer params from raw provider-cost params", () => {
+    const neutralPolicy = materializeImageBilledCreditPolicy({
+      ...getDefaultModelPricingPolicyDocument(),
+      perModel: {
+        [KIE_SEEDANCE_2_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+      },
+    });
+    const lookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: {
+        durationSeconds: 4,
+        resolution: "720p",
+        inputVideoCount: 1,
+        inputVideoDurationSeconds: 3,
+      },
+      pricingPolicy: neutralPolicy,
+    });
+
+    expect(lookup.customerPricingParams.inputVideoCount).toBeUndefined();
+    expect(lookup.customerPricingParams.inputVideoDurationSeconds).toBeUndefined();
+    expect(lookup.providerCostParams).toMatchObject({
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 3,
+    });
+    expect(lookup.breakdown?.variantId).not.toContain("video_input:");
+  });
+
   it("resolves video billed credits through pricing-grid math without duration variants", () => {
     expect(
       resolveVideoBilledCredits({

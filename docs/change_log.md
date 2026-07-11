@@ -18,6 +18,8 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Added
 
+- Added a review-only Seedance pricing migration preview with a five-row composition-neutral candidate, legacy rule diff, provider margin envelopes, and an artifact hash; it does not activate pricing.
+- Added compare-and-swap protection for future model-pricing policy applies so stale admin state cannot replace a newer active policy.
 - Added an admin-only model-pricing dry-run endpoint so pricing policy publication can be reviewed with deterministic rule changes and an artifact hash before activation.
 - Added media-upload intent hardening, generation ownership SQL migrations, GitHub hosted-SQL workflow contract tests, and an architecture-audit handoff packet for follow-up production hardening work.
 - Added launch-week production-operations guidance so ShortPulse work now centers on protecting live customer use, investigating production reports, and shipping small evidence-backed fixes on `production`.
@@ -28,6 +30,8 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Changed
 
+- Updated Seedance pricing architecture so a reviewed profile-bearing policy can charge one output-duration price per model/resolution regardless of attached image, audio, or video assets, while legacy policy v9 remains unchanged.
+- Updated Seedance provider-cost evidence and reference-duration validation so video economics remain input-sensitive and missing or over-limit duration is rejected before credit reservation.
 - Updated model-pricing runtime reads so the current legacy v9 policy can use a complete in-memory billing artifact for customer pricing display and server debit while admin authoring reads stay unchanged until the next reviewed policy activation.
 - Updated model-pricing billed-credit resolution so published fixed and quantity rules can act as runtime billing authority even when no provider-cost calculator exists for the row.
 - Updated model-pricing policy handling so pricing-grid rows, custom row materialization, admin pricing controls, billing reservations, and AI Studio pricing displays share a stricter billed-credit authority path.

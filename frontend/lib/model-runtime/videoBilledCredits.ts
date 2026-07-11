@@ -8,13 +8,18 @@ import {
   resolvePricingGridCostBreakdown,
   type PricingGridCostBreakdown,
 } from "./pricingGridBilledCredits";
-import type { ModelPricingPolicyDocument } from "./pricingPolicy";
+import {
+  resolveModelBillingVariantProfile,
+  type ModelPricingPolicyDocument,
+} from "./pricingPolicy";
 import type { PricingParams } from "./pricingTypes";
 import { shouldExpandVideoInputPricingVariants } from "./pricingGridVariantRules";
 
 export type VideoBilledCreditLookup = {
   modelId: string;
   params: Omit<PricingParams, "modelId">;
+  customerPricingParams: Omit<PricingParams, "modelId">;
+  providerCostParams: Omit<PricingParams, "modelId">;
   breakdown: PricingGridCostBreakdown | null;
 };
 
@@ -39,7 +44,8 @@ export const supportsCanonicalVideoBilledPricing = (
  */
 export const normalizeVideoBilledPricingParams = (
   modelId: string,
-  params: Omit<PricingParams, "modelId"> = {}
+  params: Omit<PricingParams, "modelId"> = {},
+  pricingPolicy: ModelPricingPolicyDocument | null = null
 ): Omit<PricingParams, "modelId"> => {
   const config = getModelConfig(modelId);
   const normalized: Omit<PricingParams, "modelId"> = {
@@ -62,6 +68,14 @@ export const normalizeVideoBilledPricingParams = (
     normalized.inputVideoDurationSeconds = Math.max(0, normalized.inputVideoDurationSeconds);
   }
 
+  if (
+    resolveModelBillingVariantProfile(pricingPolicy, modelId) === "seedance_composition_neutral_v1"
+  ) {
+    delete normalized.inputVideoCount;
+    delete normalized.inputVideoDurationSeconds;
+    delete normalized.sourceDurationSeconds;
+  }
+
   return normalized;
 };
 
@@ -77,14 +91,17 @@ export const resolveVideoBilledCreditLookup = ({
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
 }): VideoBilledCreditLookup => {
-  const normalizedParams = normalizeVideoBilledPricingParams(modelId, params);
+  const providerCostParams = normalizeVideoBilledPricingParams(modelId, params, null);
+  const customerPricingParams = normalizeVideoBilledPricingParams(modelId, params, pricingPolicy);
   return {
     modelId,
-    params: normalizedParams,
+    params: customerPricingParams,
+    customerPricingParams,
+    providerCostParams,
     breakdown: supportsCanonicalVideoBilledPricing(modelId)
       ? resolvePricingGridCostBreakdown({
           modelId,
-          params: normalizedParams,
+          params: providerCostParams,
           pricingPolicy,
           requirePublishedBillingRule: true,
         })

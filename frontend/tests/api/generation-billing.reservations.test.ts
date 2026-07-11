@@ -351,6 +351,38 @@ describe("generationBilling reservation RPC handling", () => {
     );
   });
 
+  it("rejects Seedance video references with missing duration before pricing or reservation", async () => {
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-seedance-missing-duration" },
+      url: "/api/fal/kie-seedance-2-submit",
+      body: { shortpulse_context: { selected_tool: "video", mode: "video" } },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      payload: {
+        prompt: "animate the reference",
+        duration_seconds: 5,
+        resolution: "720p",
+        reference_video_urls: ["https://example.com/reference.mp4"],
+      },
+      reason: "Kie Seedance 2 generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "SEEDANCE_REFERENCE_VIDEO_DURATION_REQUIRED" })
+    );
+    expect(resolveRuntimeModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it("requires displayed pricing evidence from trusted image workflows even when client context omits the billing lane", async () => {
     const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
@@ -1373,6 +1405,82 @@ describe("generationBilling reservation RPC handling", () => {
     );
     expect(res.status).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("reserves a neutral Seedance customer row while retaining input-sensitive provider evidence", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-seedance-neutral", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const policy = materializeImageBilledCreditPolicy({
+      ...getDefaultModelPricingPolicyDocument(),
+      perModel: {
+        [KIE_SEEDANCE_2_MODEL_ID]: {
+          billingVariantProfile: "seedance_composition_neutral_v1",
+        },
+      },
+    });
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: null,
+      activePolicyVersionId: null,
+      source: "control_plane",
+      billingArtifactSource: "active_policy",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const shortpulseContext = {
+      selected_tool: "video",
+      mode: "video",
+      input_video_duration_seconds: 3,
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: {
+        headers: { "x-shortpulse-request-id": "req-seedance-neutral" },
+        url: "/api/fal/kie-seedance-2-submit",
+        body: { shortpulse_context: shortpulseContext },
+      } as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      payload: {
+        prompt: "animate the reference",
+        duration_seconds: 4,
+        resolution: "720p",
+        reference_video_urls: ["https://example.com/reference.mp4"],
+      },
+      reason: "Kie Seedance 2 generation",
+      shortpulseContext,
+    });
+
+    expect(charge).not.toBeNull();
+    expect(charge?.pricingParams.inputVideoCount).toBeUndefined();
+    expect(charge?.providerPricingParams).toMatchObject({
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 3,
+    });
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_metadata: expect.objectContaining({
+          pricing_params: expect.not.objectContaining({ inputVideoCount: expect.anything() }),
+          provider_pricing_params: expect.objectContaining({
+            inputVideoCount: 1,
+            inputVideoDurationSeconds: 3,
+          }),
+          provider_economics: expect.objectContaining({
+            scenario: "with_video_input",
+            modeled_billable_duration_seconds: 7,
+          }),
+          pricing_breakdown: expect.objectContaining({
+            billing_variant_profile: "seedance_composition_neutral_v1",
+            variant_id: expect.not.stringContaining("video_input:"),
+          }),
+        }),
+      })
+    );
   });
 
   it("reserves audio requests from the pricing-grid resolver when shortpulse_context marks sound billing", async () => {

@@ -818,9 +818,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `get_active_model_pricing_policy()`
   - Service-role-only read helper for active runtime version/document/custom-row manifest + last-known-safe metadata.
-- `apply_model_pricing_policy(p_policy, p_custom_rows, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
-  - Service-role-only activation helper.
-  - Creates the next immutable policy version row, updates the runtime singleton, and records an `apply` audit event.
+- `apply_model_pricing_policy(p_policy, p_expected_active_policy_version_id, p_custom_rows, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
+  - Service-role-only compare-and-swap activation helper.
+  - Under the canonical advisory lock, rejects a stale expected active row id before creating the next immutable policy version, updating the runtime singleton, and recording an `apply` audit event.
+  - The pre-CAS overload remains temporarily available for deployed-call ordering and is not the current admin apply authority.
 - `rollback_model_pricing_policy(p_reason, p_actor_user_id, p_actor_email, p_source)`
   - Service-role-only rollback helper.
   - Swaps the runtime singleton back to the last-known-safe version and records a `rollback` audit event.

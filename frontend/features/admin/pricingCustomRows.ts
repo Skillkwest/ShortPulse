@@ -7,10 +7,16 @@ import type {
   AdminPricingCustomRowSpec,
   AdminPricingCustomRowsDocument,
 } from "../../lib/model-runtime/adminPricingCustomRows";
-import { getDefaultAdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
+import {
+  getDefaultAdminPricingCustomRowsDocument,
+  resolveAdminPricingCustomRowTargetVariantId,
+} from "../../lib/model-runtime/adminPricingCustomRows";
 import { resolveModelPricingVariantId } from "../../lib/model-runtime/modelPricingVariants";
-import { shouldExpandVideoInputPricingVariants } from "../../lib/model-runtime/pricingGridVariantRules";
-import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
+import { shouldExpandCustomerVideoInputPricingVariants } from "../../lib/model-runtime/pricingGridVariantRules";
+import {
+  resolveModelBillingVariantProfile,
+  type ModelPricingPolicyDocument,
+} from "../../lib/model-runtime/pricingPolicy";
 import {
   shouldShowAudioSpecControl,
   shouldShowAspectSpecControl,
@@ -66,8 +72,17 @@ const getDraftAudioOptions = (model: AdminPricingModelRow): Array<boolean | null
     ? [model.defaultAudio ?? true, !(model.defaultAudio ?? true)]
     : [null];
 
-const getDraftVideoInputOptions = (model: AdminPricingModelRow): Array<boolean | null> =>
-  shouldExpandVideoInputPricingVariants(model.pricingStrategy) ? [false, true] : [null];
+const getDraftVideoInputOptions = (
+  model: AdminPricingModelRow,
+  pricingPolicy: ModelPricingPolicyDocument
+): Array<boolean | null> =>
+  shouldExpandCustomerVideoInputPricingVariants({
+    modelId: model.id,
+    pricingStrategy: model.pricingStrategy,
+    pricingPolicy,
+  })
+    ? [false, true]
+    : [null];
 
 const getUniqueBaseVariantOptions = (
   model: AdminPricingModelRow,
@@ -111,7 +126,7 @@ export const buildAdminPricingCustomRowSpecOptions = (
     value,
     label: value == null ? "Default audio" : value ? "Audio on" : "Audio off",
   })),
-  videoInputOptions: getDraftVideoInputOptions(model).map((value) => ({
+  videoInputOptions: getDraftVideoInputOptions(model, pricingPolicy).map((value) => ({
     value,
     label: value == null ? "Default input" : value ? "With video input" : "No video input",
   })),
@@ -119,9 +134,11 @@ export const buildAdminPricingCustomRowSpecOptions = (
 
 const resolveCustomRowVariantId = ({
   model,
+  pricingPolicy,
   draft,
 }: {
   model: AdminPricingModelRow;
+  pricingPolicy: ModelPricingPolicyDocument;
   draft: AdminPricingCustomRowDraft;
 }): string =>
   resolveModelPricingVariantId({
@@ -131,6 +148,7 @@ const resolveCustomRowVariantId = ({
     resolution: draft.resolution ?? undefined,
     audio: draft.audio ?? undefined,
     inputVideoCount: draft.videoInput == null ? undefined : draft.videoInput === true ? 1 : 0,
+    pricingPolicy,
     ...(draft.baseVariantId === "edit"
       ? {
           inputImageCount: 1,
@@ -149,7 +167,7 @@ export const resolveAdminPricingCustomRowCandidate = ({
   pricingPolicy: ModelPricingPolicyDocument;
   draft: AdminPricingCustomRowDraft;
 }): { variantId: string; variant: AdminPricingPreviewVariant } | null => {
-  const variantId = resolveCustomRowVariantId({ model, draft });
+  const variantId = resolveCustomRowVariantId({ model, pricingPolicy, draft });
   const variant =
     buildDraftPricingPreviewVariants(model, pricingPolicy, {
       aspect: draft.aspect ?? undefined,
@@ -197,6 +215,15 @@ export const buildMergedPricingPreviewVariants = ({
     (customRowsDocument ?? getDefaultAdminPricingCustomRowsDocument()).rowsByModel[model.id] ?? [];
 
   for (const customRow of customRows) {
+    const targetVariantId =
+      resolveModelBillingVariantProfile(pricingPolicy, model.id) ===
+      "seedance_composition_neutral_v1"
+        ? resolveAdminPricingCustomRowTargetVariantId({
+            modelId: model.id,
+            spec: customRow.spec,
+            pricingPolicy,
+          })
+        : customRow.variantId;
     const variant =
       buildDraftPricingPreviewVariants(model, pricingPolicy, {
         usageAmount,
@@ -206,7 +233,7 @@ export const buildMergedPricingPreviewVariants = ({
         resolution: customRow.spec.resolution ?? undefined,
         audio: customRow.spec.audio ?? undefined,
         videoInput: customRow.spec.videoInput ?? undefined,
-      }).find((candidate) => candidate.id === customRow.variantId) ?? null;
+      }).find((candidate) => candidate.id === targetVariantId) ?? null;
     if (!variant) continue;
     rows.push({
       displayRowId: customRow.displayRowId,

@@ -183,6 +183,14 @@ const isSignedStorageObjectSizeError = (message: string): boolean => {
   );
 };
 
+const isSignedStorageSignatureError = (message: string | null): boolean => {
+  const normalizedMessage = message?.trim().toLowerCase() ?? "";
+  return (
+    normalizedMessage.includes("invalid signature") ||
+    normalizedMessage.includes("signature verification failed")
+  );
+};
+
 const resolveSignedStorageUploadErrorMessage = (file: File, message: string | null): string => {
   const normalizedMessage = message?.trim() ?? "";
   if (normalizedMessage && isSignedStorageObjectSizeError(normalizedMessage)) {
@@ -333,6 +341,86 @@ const toPreparedMediaUploadTarget = (value: unknown): PreparedMediaUploadTarget 
     mimeType,
     name,
   };
+};
+
+const prepareMediaUploadTarget = async ({
+  file,
+  destinationTab,
+}: {
+  file: File;
+  destinationTab: MediaUploadDestinationTab;
+}): Promise<PreparedMediaUploadTarget> => {
+  const prepareResponse = await fetchWithAuth("/api/media/prepare-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      destinationTab,
+      sourceMimeType: file.type,
+      sourceName: file.name,
+    }),
+    shortpulseLogScope: "app",
+  });
+  const { payload: preparePayload, rawText: prepareRawText } =
+    await readUploadErrorResponse(prepareResponse);
+  if (!prepareResponse.ok) {
+    throw new Error(
+      resolveUploadErrorMessage({
+        response: prepareResponse,
+        file,
+        payload: preparePayload,
+        rawText: prepareRawText,
+      })
+    );
+  }
+  const preparedTarget = toPreparedMediaUploadTarget(preparePayload?.target);
+  if (!preparedTarget) {
+    throw new Error("Upload preparation returned an invalid target.");
+  }
+  return preparedTarget;
+};
+
+const finalizeMediaUploadTarget = async ({
+  file,
+  destinationTab,
+  preparedTarget,
+}: {
+  file: File;
+  destinationTab: MediaUploadDestinationTab;
+  preparedTarget: PreparedMediaUploadTarget;
+}): Promise<MediaUploadRow> => {
+  const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      intentId: preparedTarget.intentId,
+      destinationTab,
+      sourceMimeType: preparedTarget.mimeType,
+      sourceName: preparedTarget.name,
+      sourceStoragePath: preparedTarget.storagePath,
+    }),
+    shortpulseLogScope: "app",
+  });
+  const { payload, rawText } = await readUploadErrorResponse(finalizeResponse);
+  if (!finalizeResponse.ok) {
+    throw new Error(
+      resolveUploadErrorMessage({
+        response: finalizeResponse,
+        file,
+        payload,
+        rawText,
+      })
+    );
+  }
+
+  const row = toMediaUploadRow(payload?.file);
+  if (!row) {
+    throw new Error("Upload API returned an invalid media payload.");
+  }
+  return row;
 };
 
 const sleep = async (ms: number): Promise<void> =>
@@ -665,78 +753,35 @@ export const uploadMediaFile = async ({
   destinationTab: MediaUploadDestinationTab;
 }): Promise<MediaUploadRow> => {
   const normalizedFile = await normalizeUploadFileForApi(file);
-  const prepareResponse = await fetchWithAuth("/api/media/prepare-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      destinationTab,
-      sourceMimeType: normalizedFile.type,
-      sourceName: normalizedFile.name,
-    }),
-    shortpulseLogScope: "app",
-  });
-  const { payload: preparePayload, rawText: prepareRawText } =
-    await readUploadErrorResponse(prepareResponse);
-  if (!prepareResponse.ok) {
-    throw new Error(
-      resolveUploadErrorMessage({
-        response: prepareResponse,
-        file: normalizedFile,
-        payload: preparePayload,
-        rawText: prepareRawText,
-      })
-    );
-  }
-  const preparedTarget = toPreparedMediaUploadTarget(preparePayload?.target);
-  if (!preparedTarget) {
-    throw new Error("Upload preparation returned an invalid target.");
-  }
-
   const supabase = ensureSupabaseQueryClient();
-  const uploadResult = await supabase.storage
-    .from(preparedTarget.bucketId)
-    .uploadToSignedUrl(preparedTarget.storagePath, preparedTarget.uploadToken, normalizedFile, {
-      contentType: preparedTarget.mimeType,
-      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
-      upsert: false,
+  let preparedTarget = await prepareMediaUploadTarget({
+    file: normalizedFile,
+    destinationTab,
+  });
+  const uploadPreparedTarget = async (target: PreparedMediaUploadTarget) =>
+    await supabase.storage
+      .from(target.bucketId)
+      .uploadToSignedUrl(target.storagePath, target.uploadToken, normalizedFile, {
+        contentType: target.mimeType,
+        cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
+        upsert: false,
+      });
+  let uploadResult = await uploadPreparedTarget(preparedTarget);
+  if (uploadResult.error && isSignedStorageSignatureError(uploadResult.error.message)) {
+    preparedTarget = await prepareMediaUploadTarget({
+      file: normalizedFile,
+      destinationTab,
     });
+    uploadResult = await uploadPreparedTarget(preparedTarget);
+  }
   if (uploadResult.error) {
     throw new Error(
       resolveSignedStorageUploadErrorMessage(normalizedFile, uploadResult.error.message)
     );
   }
-
-  const finalizeResponse = await fetchWithAuth("/api/media/finalize-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      intentId: preparedTarget.intentId,
-      destinationTab,
-      sourceMimeType: preparedTarget.mimeType,
-      sourceName: preparedTarget.name,
-      sourceStoragePath: preparedTarget.storagePath,
-    }),
-    shortpulseLogScope: "app",
+  return await finalizeMediaUploadTarget({
+    file: normalizedFile,
+    destinationTab,
+    preparedTarget,
   });
-  const { payload, rawText } = await readUploadErrorResponse(finalizeResponse);
-  if (!finalizeResponse.ok) {
-    throw new Error(
-      resolveUploadErrorMessage({
-        response: finalizeResponse,
-        file: normalizedFile,
-        payload,
-        rawText,
-      })
-    );
-  }
-
-  const row = toMediaUploadRow(payload?.file);
-  if (!row) {
-    throw new Error("Upload API returned an invalid media payload.");
-  }
-  return row;
 };

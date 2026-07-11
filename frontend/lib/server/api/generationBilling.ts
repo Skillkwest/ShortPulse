@@ -17,6 +17,11 @@ import {
   type PricingGridCostBreakdown,
 } from "../../model-runtime/pricingGridBilledCredits";
 import { resolveVideoBilledCreditLookup } from "../../model-runtime/videoBilledCredits";
+import {
+  isSeedance2ModelId,
+  validateSeedanceReferenceVideoDuration,
+} from "../../model-runtime/seedanceReferenceVideoValidation";
+import { resolveModelBillingVariantProfile } from "../../model-runtime/pricingPolicy";
 import { requireApiUser } from "./auth";
 import { requireMediaComplianceAccepted } from "./mediaComplianceGuard";
 import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
@@ -204,6 +209,7 @@ const shouldResolveEditImagePricing = ({
 type CanonicalPricingCandidate = {
   workflow: "create_image" | "edit_image" | "video" | "audio";
   params: Omit<PricingParams, "modelId">;
+  providerCostParams?: Omit<PricingParams, "modelId">;
   breakdown: PricingGridCostBreakdown;
 };
 
@@ -295,6 +301,32 @@ export const chargeGenerationRequest = async ({
   }
 
   const pricingParams = buildPricingParams(modelId, payload, { shortpulseContext });
+  const seedanceReferenceVideoValidation = validateSeedanceReferenceVideoDuration({
+    modelId,
+    inputVideoCount: pricingParams.inputVideoCount,
+    inputVideoDurationSeconds: pricingParams.inputVideoDurationSeconds,
+  });
+  if (seedanceReferenceVideoValidation) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_seedance_reference_duration_invalid",
+      message: seedanceReferenceVideoValidation.message,
+      statusCode: 400,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+        validation_code: seedanceReferenceVideoValidation.code,
+      },
+    });
+    res.status(400).json({
+      error: seedanceReferenceVideoValidation.message,
+      code: seedanceReferenceVideoValidation.code,
+    });
+    return null;
+  }
   const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy({
     bypassCache: true,
     requirePublishedBillingArtifact: true,
@@ -383,6 +415,7 @@ export const chargeGenerationRequest = async ({
     canonicalPricingCandidates.push({
       workflow: "video",
       params: videoPricingLookup.params,
+      providerCostParams: videoPricingLookup.providerCostParams,
       breakdown: videoPricingBreakdown,
     });
   }
@@ -400,6 +433,7 @@ export const chargeGenerationRequest = async ({
   });
   const canonicalPricingBreakdown = selectedCanonicalPricingCandidate?.breakdown ?? null;
   const canonicalPricingParams = selectedCanonicalPricingCandidate?.params ?? pricingParams;
+  const providerCostParams = selectedCanonicalPricingCandidate?.providerCostParams ?? pricingParams;
   const activePricingPolicyVersion = runtimePricingPolicy.activePolicyVersion;
   const requiresCanonicalEditImagePricing =
     billingWorkflow === "edit_image" &&
@@ -646,11 +680,44 @@ export const chargeGenerationRequest = async ({
     activePricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
     activePricingVariantId,
   });
+  const billingVariantProfile = resolveModelBillingVariantProfile(effectivePricingPolicy, modelId);
+  const providerOutputDurationSeconds = readFiniteNumber(providerCostParams.durationSeconds);
+  const providerInputVideoDurationSeconds = readFiniteNumber(
+    providerCostParams.inputVideoDurationSeconds
+  );
+  const providerInputVideoCount = readFiniteNumber(providerCostParams.inputVideoCount) ?? 0;
+  const providerBillableDurationSeconds =
+    providerOutputDurationSeconds == null
+      ? null
+      : providerOutputDurationSeconds +
+        (providerInputVideoCount > 0 ? (providerInputVideoDurationSeconds ?? 0) : 0);
+  const providerEconomics = isSeedance2ModelId(modelId)
+    ? {
+        scenario: providerInputVideoCount > 0 ? "with_video_input" : "without_video_input",
+        input_video_count: providerInputVideoCount,
+        input_video_duration_seconds: providerInputVideoDurationSeconds,
+        output_duration_seconds: providerOutputDurationSeconds,
+        modeled_billable_duration_seconds: providerBillableDurationSeconds,
+        modeled_raw_credits: breakdown.rawCredits,
+        modeled_provider_usd: breakdown.usdRaw,
+        modeled_unit_usd:
+          breakdown.usdRaw != null &&
+          providerBillableDurationSeconds != null &&
+          providerBillableDurationSeconds > 0
+            ? Number((breakdown.usdRaw / providerBillableDurationSeconds).toFixed(12))
+            : null,
+        customer_billed_usd: breakdown.usd,
+        modeled_margin_usd:
+          breakdown.usdRaw == null ? null : Number((breakdown.usd - breakdown.usdRaw).toFixed(6)),
+      }
+    : null;
   const chargeMetadata = {
     model_id: modelId,
     route: req.url ?? null,
     params: summarizePayload(payload),
     pricing_params: effectivePricingParams,
+    provider_pricing_params: providerCostParams,
+    ...(providerEconomics ? { provider_economics: providerEconomics } : {}),
     pricing_breakdown: {
       usd_raw: breakdown.usdRaw,
       raw_credits: breakdown.rawCredits,
@@ -659,6 +726,7 @@ export const chargeGenerationRequest = async ({
       ...(canonicalPricingBreakdown?.variantId
         ? { variant_id: canonicalPricingBreakdown.variantId }
         : {}),
+      ...(billingVariantProfile ? { billing_variant_profile: billingVariantProfile } : {}),
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
       pricing_billing_artifact_source:
@@ -966,7 +1034,8 @@ export const chargeGenerationRequest = async ({
     chargeMetadata: finalChargeMetadata,
     concurrencyEntitlement,
     pricingBreakdown,
-    pricingParams,
+    pricingParams: effectivePricingParams,
+    providerPricingParams: providerCostParams,
     markSubmitted,
     refund,
   };

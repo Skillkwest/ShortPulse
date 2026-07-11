@@ -4,8 +4,10 @@
 
 export type CreditRoundingMode = "nearest-5" | "ceil";
 export type ModelPricingPolicySource = "control_plane" | "fallback";
+export type ModelBillingVariantProfile = "seedance_composition_neutral_v1";
 
 export type ModelPricingPerModelOverride = {
+  billingVariantProfile?: ModelBillingVariantProfile;
   creditUsdScale?: number;
   markupBps?: number;
   roundingIncrement?: number;
@@ -30,11 +32,11 @@ export type ModelPricingBilledCreditsQuantityRule = {
   costCreditsPerUnit: number;
   markupBps: number;
   roundingIncrement: number;
-  quantityBasis: "per_second" | "per_1k_chars";
+  quantityBasis: "per_second" | "per_output_second" | "per_1k_chars";
 };
 
 export type ModelPricingPolicyDocument = {
-  schemaVersion: 1 | 2 | 3 | 4;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
   global: {
     creditUsdScale: number;
     defaultRoundingMode: CreditRoundingMode;
@@ -44,6 +46,7 @@ export type ModelPricingPolicyDocument = {
 };
 
 export type ResolvedModelPricingForModel = {
+  billingVariantProfile: ModelBillingVariantProfile | null;
   creditUsdScale: number;
   markupBps: number;
   roundingMode: CreditRoundingMode;
@@ -58,6 +61,7 @@ export type ResolvedModelPricingForModel = {
 export type ModelPricingPolicySnapshot = {
   version: string;
   activePolicyVersion: number | null;
+  activePolicyVersionId?: number | null;
   policySource: ModelPricingPolicySource;
   updatedAt: string | null;
   updatedByEmail: string | null;
@@ -74,11 +78,14 @@ export const USD_MICRO_SCALE = 1_000_000; // 1e-6 USD precision
 export const DEFAULT_MARKUP_BPS = 6_000;
 export const DEFAULT_CREDIT_ROUNDING_MODE: CreditRoundingMode = "ceil";
 export const DEFAULT_CREDIT_ROUNDING_INCREMENT = 1;
-export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 4;
-export const MODEL_PRICING_POLICY_VERSION = "runtime-default-v4";
+export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 5;
+export const MODEL_PRICING_POLICY_VERSION = "runtime-default-v5";
 
 const MIN_MARKUP_BPS = 0;
 const MAX_MARKUP_BPS = 100_000;
+const SUPPORTED_BILLING_VARIANT_PROFILES = new Set<ModelBillingVariantProfile>([
+  "seedance_composition_neutral_v1",
+]);
 
 const clampInteger = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, Math.trunc(value)));
@@ -144,10 +151,10 @@ const normalizeVariantOverride = (value: unknown): ModelPricingVariantOverride |
   const quantityRuleCostCreditsPerUnit = asPositiveDecimal(quantityRuleRecord?.costCreditsPerUnit);
   const quantityRuleMarkupBps = asInteger(quantityRuleRecord?.markupBps);
   const quantityRuleRoundingIncrement = asInteger(quantityRuleRecord?.roundingIncrement);
-  const quantityRuleBasis = ["per_second", "per_1k_chars"].includes(
+  const quantityRuleBasis = ["per_second", "per_output_second", "per_1k_chars"].includes(
     String(quantityRuleRecord?.quantityBasis)
   )
-    ? (quantityRuleRecord?.quantityBasis as "per_second" | "per_1k_chars")
+    ? (quantityRuleRecord?.quantityBasis as ModelPricingBilledCreditsQuantityRule["quantityBasis"])
     : null;
 
   const normalized: ModelPricingVariantOverride = {};
@@ -210,7 +217,22 @@ const normalizePerModelOverride = (value: unknown): ModelPricingPerModelOverride
     return accumulator;
   }, {});
 
+  const rawBillingVariantProfile = record.billingVariantProfile;
+  if (
+    rawBillingVariantProfile != null &&
+    !SUPPORTED_BILLING_VARIANT_PROFILES.has(rawBillingVariantProfile as ModelBillingVariantProfile)
+  ) {
+    throw new Error(
+      `Unsupported model billing variant profile: ${String(rawBillingVariantProfile)}`
+    );
+  }
+
   const normalized: ModelPricingPerModelOverride = { ...baseOverride };
+  if (
+    SUPPORTED_BILLING_VARIANT_PROFILES.has(rawBillingVariantProfile as ModelBillingVariantProfile)
+  ) {
+    normalized.billingVariantProfile = rawBillingVariantProfile as ModelBillingVariantProfile;
+  }
   if (Object.keys(normalizedVariants).length > 0) {
     normalized.variants = normalizedVariants;
   }
@@ -266,8 +288,18 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
     };
   });
 
+  const rawSchemaVersion = asInteger(record.schemaVersion);
+  const usesSchemaV5Contract = Object.values(normalizedPerModel).some(
+    (override) =>
+      override.billingVariantProfile != null ||
+      override.billedCreditsQuantityRule?.quantityBasis === "per_output_second" ||
+      Object.values(override.variants ?? {}).some(
+        (variant) => variant.billedCreditsQuantityRule?.quantityBasis === "per_output_second"
+      )
+  );
+
   return {
-    schemaVersion: MODEL_PRICING_POLICY_SCHEMA_VERSION,
+    schemaVersion: rawSchemaVersion === 5 || usesSchemaV5Contract ? 5 : 4,
     global: {
       creditUsdScale:
         creditUsdScale != null && creditUsdScale > 0
@@ -286,6 +318,10 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
     Record<string, ModelPricingPerModelOverride>
   >((accumulator, [modelId, override]) => {
     const nextOverride: ModelPricingPerModelOverride = {};
+
+    if (override.billingVariantProfile) {
+      nextOverride.billingVariantProfile = override.billingVariantProfile;
+    }
 
     if (
       typeof override.creditUsdScale === "number" &&
@@ -400,6 +436,7 @@ const modelPricingOverridesEqual = (
   left: ModelPricingPerModelOverride,
   right: ModelPricingPerModelOverride
 ): boolean =>
+  left.billingVariantProfile === right.billingVariantProfile &&
   left.creditUsdScale === right.creditUsdScale &&
   left.markupBps === right.markupBps &&
   left.roundingIncrement === right.roundingIncrement &&
@@ -455,6 +492,7 @@ export const resolveModelPricingForModel = (
     DEFAULT_CREDIT_ROUNDING_INCREMENT;
 
   return {
+    billingVariantProfile: override?.billingVariantProfile ?? null,
     creditUsdScale:
       variantOverride?.creditUsdScale ??
       override?.creditUsdScale ??
@@ -476,10 +514,21 @@ export const resolveModelPricingForModel = (
   };
 };
 
+/**
+ * Resolves the policy-declared customer billing variant profile for one model.
+ * A missing profile intentionally means the legacy customer-variant contract.
+ */
+export const resolveModelBillingVariantProfile = (
+  policy: ModelPricingPolicyDocument | null | undefined,
+  modelId: string
+): ModelBillingVariantProfile | null =>
+  compactModelPricingPolicyDocument(policy).perModel[modelId]?.billingVariantProfile ?? null;
+
 export const getModelPricingPolicySnapshot = (
   policy: ModelPricingPolicyDocument | null | undefined = getDefaultModelPricingPolicyDocument(),
   options: {
     activePolicyVersion?: number | null;
+    activePolicyVersionId?: number | null;
     policySource?: ModelPricingPolicySource;
     updatedAt?: string | null;
     updatedByEmail?: string | null;
@@ -493,6 +542,7 @@ export const getModelPricingPolicySnapshot = (
         ? `policy-v${options.activePolicyVersion}`
         : MODEL_PRICING_POLICY_VERSION,
     activePolicyVersion: options.activePolicyVersion ?? null,
+    activePolicyVersionId: options.activePolicyVersionId ?? null,
     policySource: options.policySource ?? "fallback",
     updatedAt: options.updatedAt ?? null,
     updatedByEmail: options.updatedByEmail ?? null,

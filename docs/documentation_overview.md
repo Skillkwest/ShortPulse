@@ -104,6 +104,7 @@ Covered after this cleanup:
 - Structured taxonomy for API/SOP/Product/Planning/Archive docs.
 - Structured taxonomy for API/SOP/Product/Systems/Planning/Archive docs.
 - Unique ADR numbering with index parity.
+- Composition-neutral Seedance customer pricing is governed by ADR 0101, with provider economics and production activation kept as separate proof boundaries.
 - Monitoring, disaster recovery, and performance operations baseline docs.
 
 Remaining improvement opportunities:

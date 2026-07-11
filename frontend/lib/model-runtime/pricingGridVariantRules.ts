@@ -2,6 +2,10 @@
  * Shared admin-pricing-grid variant expansion rules.
  * Keeps runtime billed-credit lookups aligned with how the admin pricing grid authors rows.
  */
+import {
+  resolveModelBillingVariantProfile,
+  type ModelPricingPolicyDocument,
+} from "./pricingPolicy";
 
 const GPT_IMAGE_2_APP_SUPPORTED_ASPECTS = ["9:16", "4:5", "1:1", "5:4", "16:9"] as const;
 
@@ -39,6 +43,22 @@ export const shouldExpandResolutionPricingVariants = (pricingStrategy?: string |
 
 export const shouldExpandVideoInputPricingVariants = (pricingStrategy?: string | null): boolean =>
   Boolean(pricingStrategy && VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES.has(pricingStrategy));
+
+/**
+ * Resolves the customer-facing video-input dimension for a model and policy.
+ * Provider economics continue using the low-level split variant identifiers.
+ */
+export const shouldExpandCustomerVideoInputPricingVariants = ({
+  modelId,
+  pricingStrategy,
+  pricingPolicy,
+}: {
+  modelId: string;
+  pricingStrategy?: string | null;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
+}): boolean =>
+  shouldExpandVideoInputPricingVariants(pricingStrategy) &&
+  resolveModelBillingVariantProfile(pricingPolicy, modelId) !== "seedance_composition_neutral_v1";
 
 export const resolvePricingGridAspectOptions = ({
   pricingStrategy,

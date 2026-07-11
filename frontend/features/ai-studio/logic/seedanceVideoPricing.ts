@@ -1,24 +1,29 @@
 /**
  * Seedance video-reference pricing helpers.
- * Resolves billing-only input-video duration from existing AI Studio media metadata.
+ * Resolves Seedance reference-video duration from existing AI Studio media metadata.
  */
 import type { StudioOutput, WorkflowReloadVideoMediaSlot } from "../types";
+import {
+  SEEDANCE_REFERENCE_VIDEO_DURATION_LIMIT_SECONDS,
+  validateSeedanceReferenceVideoDuration,
+} from "../../../lib/model-runtime/seedanceReferenceVideoValidation";
 
 export type SeedanceVideoReferenceDuration = Pick<
   WorkflowReloadVideoMediaSlot,
   "sourceUrl" | "durationMs"
 >;
 
-export const SEEDANCE_REFERENCE_VIDEO_DURATION_LIMIT_SECONDS = 15;
+export { SEEDANCE_REFERENCE_VIDEO_DURATION_LIMIT_SECONDS };
 
 export const resolveSeedanceVideoReferenceDurationLimitError = (
-  inputVideoDurationSeconds: number | null | undefined
+  inputVideoDurationSeconds: number | null | undefined,
+  inputVideoCount = inputVideoDurationSeconds == null ? 0 : 1
 ): string | null =>
-  typeof inputVideoDurationSeconds === "number" &&
-  Number.isFinite(inputVideoDurationSeconds) &&
-  inputVideoDurationSeconds > SEEDANCE_REFERENCE_VIDEO_DURATION_LIMIT_SECONDS
-    ? `Seedance 2 reference videos must total ${SEEDANCE_REFERENCE_VIDEO_DURATION_LIMIT_SECONDS} seconds or less.`
-    : null;
+  validateSeedanceReferenceVideoDuration({
+    modelId: "kie-ai/seedance-2",
+    inputVideoCount,
+    inputVideoDurationSeconds,
+  })?.message ?? null;
 
 const normalizeUrl = (value: string | null | undefined): string => value?.trim() ?? "";
 

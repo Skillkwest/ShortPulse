@@ -13,6 +13,7 @@ import {
   resolveModelPricingVariantId,
   type ModelPricingVariantParts,
 } from "./modelPricingVariants";
+import type { ModelPricingPolicyDocument } from "./pricingPolicy";
 
 export const ADMIN_PRICING_CUSTOM_ROWS_SCHEMA_VERSION = 1;
 
@@ -74,8 +75,9 @@ const resolveCustomRowVariantId = (
   spec: AdminPricingCustomRowSpec,
   fallbackVariantId: string | null
 ): string => {
+  if (fallbackVariantId) return fallbackVariantId;
   if (!getModelConfig(modelId)) {
-    return fallbackVariantId ?? buildModelPricingVariantId(spec);
+    return buildModelPricingVariantId(spec);
   }
   return resolveModelPricingVariantId({
     modelId,
@@ -89,6 +91,34 @@ const resolveCustomRowVariantId = (
     maskPresent: spec.maskPresent ?? undefined,
   });
 };
+
+/**
+ * Resolves a stored custom-row specification against a target pricing policy.
+ * Generic document normalization intentionally preserves stored legacy ids.
+ */
+export const resolveAdminPricingCustomRowTargetVariantId = ({
+  modelId,
+  spec,
+  pricingPolicy,
+}: {
+  modelId: string;
+  spec: AdminPricingCustomRowSpec;
+  pricingPolicy: ModelPricingPolicyDocument;
+}): string =>
+  getModelConfig(modelId)
+    ? resolveModelPricingVariantId({
+        modelId,
+        variantBaseId: spec.baseVariantId ?? undefined,
+        aspect: spec.aspect ?? undefined,
+        resolution: spec.resolution ?? undefined,
+        audio: spec.audio ?? undefined,
+        inputVideoCount: spec.videoInput == null ? undefined : spec.videoInput === true ? 1 : 0,
+        inputImageCount: spec.inputImageCount ?? undefined,
+        inputFidelity: spec.inputFidelity ?? undefined,
+        maskPresent: spec.maskPresent ?? undefined,
+        pricingPolicy,
+      })
+    : buildModelPricingVariantId(spec);
 
 const normalizeCustomRowSpec = (value: unknown): AdminPricingCustomRowSpec => {
   const record = asObjectRecord(value);

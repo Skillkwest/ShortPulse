@@ -191,7 +191,9 @@ export function useAdminPricingPageState({
 
   React.useEffect(() => {
     if (!pricingState || pricingWorkspaceHydrated) return;
-    const restoredWorkspace = readAdminPricingWorkspaceDraft();
+    const restoredWorkspace = readAdminPricingWorkspaceDraft(
+      modelPolicySnapshot?.activePolicyVersion ?? null
+    );
     if (restoredWorkspace) {
       const restoredPolicyDraft = restoredWorkspace.modelPolicyDraft ?? activeModelPolicyDocument;
       const restoredCustomRowsDraft = restoredWorkspace.customRowsDraft ?? activeCustomRowsDocument;
@@ -225,7 +227,13 @@ export function useAdminPricingPageState({
       setUsageMixRowsByPlanId(restoredWorkspace.usageMixRowsByPlanId);
     }
     setPricingWorkspaceHydrated(true);
-  }, [activeCustomRowsDocument, activeModelPolicyDocument, pricingState, pricingWorkspaceHydrated]);
+  }, [
+    activeCustomRowsDocument,
+    activeModelPolicyDocument,
+    modelPolicySnapshot?.activePolicyVersion,
+    pricingState,
+    pricingWorkspaceHydrated,
+  ]);
 
   React.useEffect(() => {
     if (!pricingState || modelPolicyDirty || !pricingWorkspaceHydrated) return;
@@ -258,7 +266,7 @@ export function useAdminPricingPageState({
   React.useEffect(() => {
     if (!pricingState || !pricingWorkspaceHydrated) return;
     writeAdminPricingWorkspaceDraft({
-      version: 1,
+      version: 2,
       savedAt: new Date().toISOString(),
       sourceActivePolicyVersion: modelPolicySnapshot?.activePolicyVersion ?? null,
       modelPolicyDirty,
@@ -915,6 +923,7 @@ export function useAdminPricingPageState({
         body: JSON.stringify({
           policy,
           customRows,
+          expectedActivePolicyVersionId: modelPolicySnapshot?.activePolicyVersionId ?? null,
           reason: "",
         }),
       });
@@ -953,7 +962,12 @@ export function useAdminPricingPageState({
     } finally {
       setModelPolicySaving(false);
     }
-  }, [effectiveCustomRowsDraft, effectiveModelPolicyDraft, refreshPricingState]);
+  }, [
+    effectiveCustomRowsDraft,
+    effectiveModelPolicyDraft,
+    modelPolicySnapshot?.activePolicyVersionId,
+    refreshPricingState,
+  ]);
 
   const rollbackModelPolicy = React.useCallback(async () => {
     setModelPolicyRollbackLoading(true);

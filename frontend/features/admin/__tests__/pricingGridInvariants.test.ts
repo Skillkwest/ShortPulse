@@ -201,6 +201,22 @@ describe("pricing grid invariants", () => {
       durationSeconds: 15,
       billedCredits: 149,
     });
+
+    const neutralPolicy = {
+      ...pricingPolicy,
+      perModel: {
+        [model.id]: {
+          billingVariantProfile: "seedance_composition_neutral_v1" as const,
+        },
+      },
+    };
+    const neutralRows = buildDraftPricingPreviewVariants(model, neutralPolicy, {
+      usageAmount: 12,
+    });
+
+    expect(neutralRows).toHaveLength(3);
+    expect(neutralRows.every((candidate) => !candidate.id.includes("video_input:"))).toBe(true);
+    expect(neutralRows.every((candidate) => candidate.videoInput == null)).toBe(true);
   });
 
   it("keeps per-image rate fixed while amount scales total provider cost", () => {

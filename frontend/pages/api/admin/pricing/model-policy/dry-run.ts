@@ -2,7 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import { fetchActiveModelPricingPolicy } from "../../../../../lib/server/api/modelPricingControlPlane";
-import { buildModelPricingPublicationDryRun } from "../../../../../lib/server/api/modelPricingPublicationDryRun";
+import {
+  buildModelPricingPublicationDryRun,
+  buildSeedanceCompositionNeutralPublicationDryRun,
+} from "../../../../../lib/server/api/modelPricingPublicationDryRun";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -29,14 +32,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!active) {
       return res.status(503).json({ error: "Model pricing policy is not initialized." });
     }
-    return res.status(200).json({
-      ok: true,
-      ...buildModelPricingPublicationDryRun({
-        activePolicyVersion: active.activePolicyVersion,
-        activePolicy: active.activePolicy,
-        activeCustomRows: active.activeCustomRows,
-      }),
-    });
+    const target = Array.isArray(req.query.target) ? req.query.target[0] : req.query.target;
+    const dryRun =
+      target === "seedance_composition_neutral_v1"
+        ? buildSeedanceCompositionNeutralPublicationDryRun({
+            activePolicyVersion: active.activePolicyVersion,
+            activePolicyVersionId: active.activePolicyVersionId,
+            activePolicy: active.activePolicy,
+            activeCustomRows: active.activeCustomRows,
+          })
+        : buildModelPricingPublicationDryRun({
+            activePolicyVersion: active.activePolicyVersion,
+            activePolicyVersionId: active.activePolicyVersionId,
+            activePolicy: active.activePolicy,
+            activeCustomRows: active.activeCustomRows,
+          });
+    return res.status(200).json({ ok: true, ...dryRun });
   } catch (error) {
     await logApiRouteException({
       req,

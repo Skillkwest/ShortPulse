@@ -4054,7 +4054,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("refreshes pricing and removes the optimistic output on a stale-policy conflict", async () => {
+  it("classifies a same-policy settings conflict without claiming the policy changed", async () => {
     const setOutputs = vi.fn();
     const setUiNotice = vi.fn();
     const notifyGenerationFailure = vi.fn();
@@ -4066,6 +4066,7 @@ describe("useAiStudioTaskSubmission", () => {
         pricingConflict: {
           displayedBilledCredits: 7,
           activeBilledCredits: 9,
+          displayedPricingPolicyVersion: 12,
           activePricingPolicyVersion: 12,
         },
       })
@@ -4118,7 +4119,7 @@ describe("useAiStudioTaskSubmission", () => {
 
     expect(setOutputs).toHaveBeenCalledWith(expect.any(Function));
     expect(setUiNotice).toHaveBeenCalledWith(
-      "Pricing updated from 7 to 9 credits (policy 12). Review the new price, then click Generate again."
+      "Generation settings changed the price from 7 to 9 credits. Review the current amount, then click Generate again."
     );
     expect(dispatchEvent).toHaveBeenCalledTimes(2);
     expect(dispatchEvent.mock.calls[0]?.[0]).toMatchObject({

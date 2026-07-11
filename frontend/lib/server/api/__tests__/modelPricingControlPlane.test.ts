@@ -249,6 +249,7 @@ describe("modelPricingControlPlane", () => {
       supabaseAdmin: { from, rpc } as never,
       actorUserId: "admin-1",
       actorEmail: "admin@example.com",
+      expectedActivePolicyVersionId: 7,
       policy: {
         schemaVersion: 1,
         global: {
@@ -272,6 +273,7 @@ describe("modelPricingControlPlane", () => {
         perModel: {},
       },
       p_custom_rows: getDefaultAdminPricingCustomRowsDocument(),
+      p_expected_active_policy_version_id: 7,
       p_note: null,
       p_reason: null,
       p_actor_user_id: "admin-1",
@@ -313,6 +315,7 @@ describe("modelPricingControlPlane", () => {
         supabaseAdmin: { rpc } as never,
         actorUserId: "admin-1",
         actorEmail: "admin@example.com",
+        expectedActivePolicyVersionId: 7,
         policy: {
           schemaVersion: 4,
           global: {
@@ -324,7 +327,7 @@ describe("modelPricingControlPlane", () => {
         },
       })
     ).rejects.toThrow(
-      "Model pricing custom rows require the latest control-plane SQL migration before they can be saved."
+      "Model pricing saves require the CAS control-plane SQL migration before they can be applied."
     );
 
     expect(rpc).toHaveBeenNthCalledWith(1, "apply_model_pricing_policy", {
@@ -338,6 +341,7 @@ describe("modelPricingControlPlane", () => {
         perModel: {},
       },
       p_custom_rows: getDefaultAdminPricingCustomRowsDocument(),
+      p_expected_active_policy_version_id: 7,
       p_note: null,
       p_reason: null,
       p_actor_user_id: "admin-1",
@@ -362,6 +366,7 @@ describe("modelPricingControlPlane", () => {
         supabaseAdmin: { rpc } as never,
         actorUserId: "admin-1",
         actorEmail: "admin@example.com",
+        expectedActivePolicyVersionId: 7,
         policy: {
           schemaVersion: 4,
           global: {
@@ -395,7 +400,7 @@ describe("modelPricingControlPlane", () => {
         },
       })
     ).rejects.toThrow(
-      "Model pricing custom rows require the latest control-plane SQL migration before they can be saved."
+      "Model pricing saves require the CAS control-plane SQL migration before they can be applied."
     );
   });
 });

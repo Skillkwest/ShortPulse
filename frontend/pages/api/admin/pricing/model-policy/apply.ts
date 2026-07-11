@@ -7,16 +7,20 @@ import {
 import {
   compactModelPricingPolicyDocument,
   modelPricingPolicyDocumentsEqual,
+  resolveModelBillingVariantProfile,
   type ModelPricingPolicyDocument,
 } from "../../../../../lib/model-runtime/pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import { applyModelPricingPolicy } from "../../../../../lib/server/api/modelPricingControlPlane";
+import { hashModelPricingPolicyArtifact } from "../../../../../lib/server/api/modelPricingPublicationDryRun";
 
 type ApplyModelPricingPolicyRequest = {
   policy?: ModelPricingPolicyDocument;
   customRows?: AdminPricingCustomRowsDocument;
+  expectedActivePolicyVersionId?: number;
+  reviewedArtifactSha256?: string;
   note?: string;
   reason?: string;
 };
@@ -61,6 +65,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const customRows = compactAdminPricingCustomRowsDocument(body.customRows);
   const note = normalizeText(body.note, 400);
   const reason = normalizeText(body.reason, 400);
+  const expectedActivePolicyVersionId =
+    typeof body.expectedActivePolicyVersionId === "number" &&
+    Number.isFinite(body.expectedActivePolicyVersionId)
+      ? Math.trunc(body.expectedActivePolicyVersionId)
+      : null;
+  const reviewedArtifactSha256 = normalizeText(body.reviewedArtifactSha256, 64);
+
+  if (expectedActivePolicyVersionId == null || expectedActivePolicyVersionId <= 0) {
+    return res.status(400).json({
+      error: "The active pricing policy version id is required. Refresh pricing and retry.",
+    });
+  }
 
   try {
     const policy = materializeImageBilledCreditPolicy(
@@ -68,9 +84,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       customRows,
       { requireComplete: true }
     );
+    const containsCompositionNeutralSeedance = ["kie-ai/seedance-2", "kie-ai/seedance-2-fast"].some(
+      (modelId) =>
+        resolveModelBillingVariantProfile(policy, modelId) === "seedance_composition_neutral_v1"
+    );
+    const artifactSha256 = hashModelPricingPolicyArtifact(policy);
+    if (
+      containsCompositionNeutralSeedance &&
+      (!reviewedArtifactSha256 || reviewedArtifactSha256 !== artifactSha256)
+    ) {
+      return res.status(409).json({
+        error:
+          "The composition-neutral Seedance artifact does not match the reviewed dry-run. Refresh and review it again.",
+        status: "artifact_review_required",
+        artifactSha256,
+      });
+    }
     const result = await applyModelPricingPolicy({
       policy,
       customRows,
+      expectedActivePolicyVersionId,
       note,
       reason,
       actorUserId: adminUser.id,

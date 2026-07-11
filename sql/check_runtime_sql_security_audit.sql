@@ -66,8 +66,8 @@ with expected_functions as (
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)', null),
             ('public.get_active_model_pricing_policy()', null),
             (
-                'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)',
-                'public.apply_model_pricing_policy(jsonb,text,text,uuid,text,text)'
+                'public.apply_model_pricing_policy(jsonb,bigint,jsonb,text,text,uuid,text,text)',
+                'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)'
             ),
             ('public.rollback_model_pricing_policy(text,uuid,text,text)', null),
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),
@@ -750,8 +750,8 @@ with expected_functions as (
             ('public.rollback_agent_safety_policy(text,uuid,text,text,integer)', null),
             ('public.get_active_model_pricing_policy()', null),
             (
-                'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)',
-                'public.apply_model_pricing_policy(jsonb,text,text,uuid,text,text)'
+                'public.apply_model_pricing_policy(jsonb,bigint,jsonb,text,text,uuid,text,text)',
+                'public.apply_model_pricing_policy(jsonb,jsonb,text,text,uuid,text,text)'
             ),
             ('public.rollback_model_pricing_policy(text,uuid,text,text)', null),
             ('public.grant_account_credits(uuid,integer,text,text,text,text,timestamptz,jsonb,uuid)', null),

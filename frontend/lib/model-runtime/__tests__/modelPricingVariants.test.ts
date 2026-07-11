@@ -58,6 +58,46 @@ describe("modelPricingVariants", () => {
     ).toBe("default|res:720p|aspect:16:9|audio:on|video_input:with");
   });
 
+  it("collapses Seedance customer ids only under the composition-neutral policy profile", () => {
+    const pricingPolicy = {
+      schemaVersion: 5 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {
+        "kie-ai/seedance-2": {
+          billingVariantProfile: "seedance_composition_neutral_v1" as const,
+        },
+      },
+    };
+    const withoutVideo = resolveModelPricingVariantId({
+      modelId: "kie-ai/seedance-2",
+      resolution: "720p",
+      inputVideoCount: 0,
+      pricingPolicy,
+    });
+    const withVideo = resolveModelPricingVariantId({
+      modelId: "kie-ai/seedance-2",
+      resolution: "720p",
+      inputVideoCount: 1,
+      pricingPolicy,
+    });
+
+    expect(withoutVideo).toBe("default|res:720p|aspect:16:9|audio:on");
+    expect(withVideo).toBe(withoutVideo);
+    expect(
+      buildModelPricingVariantId({
+        baseVariantId: "default",
+        resolution: "720p",
+        aspect: "16:9",
+        audio: true,
+        videoInput: true,
+      })
+    ).toContain("video_input:with");
+  });
+
   it("keeps sound effect Auto and explicit duration on separate rows", () => {
     expect(
       resolveModelPricingVariantId({

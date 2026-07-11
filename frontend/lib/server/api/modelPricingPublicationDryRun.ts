@@ -4,6 +4,11 @@ import {
   IncompletePublishedPricingPolicyError,
   materializeImageBilledCreditPolicy,
 } from "../../model-runtime/materializeImageBilledCreditPolicy";
+import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
+import {
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../model-runtime/providerModelIds";
 import {
   compactModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
@@ -18,6 +23,7 @@ type PublishedRule = {
 
 export type ModelPricingPublicationDryRun = {
   activePolicyVersion: number;
+  activePolicyVersionId: number | null;
   artifactSha256: string;
   addedRules: PublishedRule[];
   changedRules: PublishedRule[];
@@ -26,6 +32,32 @@ export type ModelPricingPublicationDryRun = {
   complete: boolean;
   publishedRuleCount: number;
   candidatePolicy: ModelPricingPolicyDocument;
+};
+
+export type SeedanceCompositionNeutralMarginEnvelope = {
+  modelId: string;
+  resolution: string;
+  outputDurationSeconds: number;
+  inputVideoDurationSeconds: number;
+  customerCredits: number;
+  customerUsd: number;
+  modeledProviderCredits: number | null;
+  modeledProviderUsd: number | null;
+  modeledMarginUsd: number | null;
+};
+
+export type SeedanceCompositionNeutralRateComparison = {
+  modelId: string;
+  resolution: string;
+  continuityCostCreditsPerOutputSecond: number | null;
+  equalDurationConservativeCostCreditsPerOutputSecond: number | null;
+};
+
+export type SeedanceCompositionNeutralPublicationDryRun = ModelPricingPublicationDryRun & {
+  targetBillingVariantProfile: "seedance_composition_neutral_v1";
+  proposedSeedanceRules: PublishedRule[];
+  rateComparisons: SeedanceCompositionNeutralRateComparison[];
+  marginEnvelopes: SeedanceCompositionNeutralMarginEnvelope[];
 };
 
 const stableJsonValue = (value: unknown): unknown => {
@@ -40,6 +72,12 @@ const stableJsonValue = (value: unknown): unknown => {
 };
 
 const stableJson = (value: unknown): string => JSON.stringify(stableJsonValue(value));
+
+/** Returns the deterministic review hash for one compact published pricing artifact. */
+export const hashModelPricingPolicyArtifact = (policy: ModelPricingPolicyDocument): string =>
+  createHash("sha256")
+    .update(stableJson(compactModelPricingPolicyDocument(policy)))
+    .digest("hex");
 
 const listPublishedRules = (policy: ModelPricingPolicyDocument): PublishedRule[] =>
   Object.entries(policy.perModel)
@@ -82,10 +120,12 @@ const ruleKey = (rule: PublishedRule): string => `${rule.modelId}:${rule.variant
 
 export const buildModelPricingPublicationDryRun = ({
   activePolicyVersion,
+  activePolicyVersionId = null,
   activePolicy,
   activeCustomRows,
 }: {
   activePolicyVersion: number;
+  activePolicyVersionId?: number | null;
   activePolicy: ModelPricingPolicyDocument;
   activeCustomRows: AdminPricingCustomRowsDocument;
 }): ModelPricingPublicationDryRun => {
@@ -118,10 +158,11 @@ export const buildModelPricingPublicationDryRun = ({
     return activeRule != null && stableJson(activeRule) !== stableJson(rule);
   });
   const removedRules = activeRules.filter((rule) => !candidateByKey.has(ruleKey(rule)));
-  const artifactSha256 = createHash("sha256").update(stableJson(candidatePolicy)).digest("hex");
+  const artifactSha256 = hashModelPricingPolicyArtifact(candidatePolicy);
 
   return {
     activePolicyVersion,
+    activePolicyVersionId,
     artifactSha256,
     addedRules,
     changedRules,
@@ -130,5 +171,177 @@ export const buildModelPricingPublicationDryRun = ({
     complete: missingRules.length === 0,
     publishedRuleCount: candidateRules.length,
     candidatePolicy,
+  };
+};
+
+const SEEDANCE_TARGET_MODELS = [
+  { modelId: KIE_SEEDANCE_2_MODEL_ID, resolutions: ["1080p", "720p", "480p"] },
+  { modelId: KIE_SEEDANCE_2_FAST_MODEL_ID, resolutions: ["720p", "480p"] },
+] as const;
+const SEEDANCE_MARGIN_OUTPUT_SECONDS = [4, 5, 10, 15] as const;
+const SEEDANCE_MARGIN_INPUT_SECONDS = [0, 2, 5, 10, 15] as const;
+
+/**
+ * Builds a non-mutating composition-neutral Seedance candidate from the exact active policy.
+ */
+export const buildSeedanceCompositionNeutralPublicationDryRun = ({
+  activePolicyVersion,
+  activePolicyVersionId,
+  activePolicy,
+  activeCustomRows,
+}: {
+  activePolicyVersion: number;
+  activePolicyVersionId: number;
+  activePolicy: ModelPricingPolicyDocument;
+  activeCustomRows: AdminPricingCustomRowsDocument;
+}): SeedanceCompositionNeutralPublicationDryRun => {
+  const normalizedActivePolicy = compactModelPricingPolicyDocument(activePolicy);
+  const legacyPublishedPolicy = materializeImageBilledCreditPolicy(
+    normalizedActivePolicy,
+    activeCustomRows,
+    { requireComplete: true }
+  );
+  const targetAuthoringPolicy: ModelPricingPolicyDocument = {
+    ...normalizedActivePolicy,
+    schemaVersion: 5,
+    perModel: {
+      ...normalizedActivePolicy.perModel,
+      [KIE_SEEDANCE_2_MODEL_ID]: {
+        ...(normalizedActivePolicy.perModel[KIE_SEEDANCE_2_MODEL_ID] ?? {}),
+        billingVariantProfile: "seedance_composition_neutral_v1",
+      },
+      [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+        ...(normalizedActivePolicy.perModel[KIE_SEEDANCE_2_FAST_MODEL_ID] ?? {}),
+        billingVariantProfile: "seedance_composition_neutral_v1",
+      },
+    },
+  };
+  const candidatePolicy = materializeImageBilledCreditPolicy(
+    targetAuthoringPolicy,
+    activeCustomRows,
+    { requireComplete: true }
+  );
+  const legacyRules = listPublishedRules(legacyPublishedPolicy);
+  const candidateRules = listPublishedRules(candidatePolicy);
+  const legacyByKey = new Map(legacyRules.map((rule) => [ruleKey(rule), rule]));
+  const candidateByKey = new Map(candidateRules.map((rule) => [ruleKey(rule), rule]));
+  const addedRules = candidateRules.filter((rule) => !legacyByKey.has(ruleKey(rule)));
+  const changedRules = candidateRules.filter((rule) => {
+    const legacyRule = legacyByKey.get(ruleKey(rule));
+    return legacyRule != null && stableJson(legacyRule) !== stableJson(rule);
+  });
+  const removedRules = legacyRules.filter((rule) => !candidateByKey.has(ruleKey(rule)));
+  const artifactSha256 = hashModelPricingPolicyArtifact(candidatePolicy);
+  const proposedSeedanceRules = candidateRules.filter((rule) =>
+    SEEDANCE_TARGET_MODELS.some((model) => model.modelId === rule.modelId)
+  );
+  const rateComparisons = SEEDANCE_TARGET_MODELS.flatMap(({ modelId, resolutions }) =>
+    resolutions.map((resolution) => {
+      const noVideoBreakdown = resolvePricingGridCostBreakdown({
+        modelId,
+        params: {
+          resolution,
+          durationSeconds: 4,
+          inputVideoCount: 0,
+        },
+        pricingPolicy: candidatePolicy,
+        requirePublishedBillingRule: true,
+      });
+      const equalDurationVideoBreakdown = resolvePricingGridCostBreakdown({
+        modelId,
+        params: {
+          resolution,
+          durationSeconds: 4,
+          inputVideoCount: 1,
+          inputVideoDurationSeconds: 4,
+        },
+        pricingPolicy: candidatePolicy,
+        requirePublishedBillingRule: true,
+      });
+      const continuityCostCreditsPerOutputSecond =
+        noVideoBreakdown?.rawCredits == null
+          ? null
+          : Number((noVideoBreakdown.rawCredits / 4).toFixed(12));
+      const equalDurationVideoCostCreditsPerOutputSecond =
+        equalDurationVideoBreakdown?.rawCredits == null
+          ? null
+          : Number((equalDurationVideoBreakdown.rawCredits / 4).toFixed(12));
+      return {
+        modelId,
+        resolution,
+        continuityCostCreditsPerOutputSecond,
+        equalDurationConservativeCostCreditsPerOutputSecond:
+          continuityCostCreditsPerOutputSecond == null ||
+          equalDurationVideoCostCreditsPerOutputSecond == null
+            ? null
+            : Math.max(
+                continuityCostCreditsPerOutputSecond,
+                equalDurationVideoCostCreditsPerOutputSecond
+              ),
+      };
+    })
+  );
+  const marginEnvelopes = SEEDANCE_TARGET_MODELS.flatMap(({ modelId, resolutions }) =>
+    resolutions.flatMap((resolution) =>
+      SEEDANCE_MARGIN_OUTPUT_SECONDS.flatMap((outputDurationSeconds) =>
+        SEEDANCE_MARGIN_INPUT_SECONDS.flatMap((inputVideoDurationSeconds) => {
+          const params = {
+            resolution,
+            durationSeconds: outputDurationSeconds,
+            inputVideoCount: inputVideoDurationSeconds > 0 ? 1 : 0,
+            ...(inputVideoDurationSeconds > 0 ? { inputVideoDurationSeconds } : {}),
+          };
+          const breakdown = resolvePricingGridCostBreakdown({
+            modelId,
+            params,
+            pricingPolicy: candidatePolicy,
+            requirePublishedBillingRule: true,
+          });
+          if (!breakdown) return [];
+          const modeledProviderUsd = breakdown.usdRaw;
+          return [
+            {
+              modelId,
+              resolution,
+              outputDurationSeconds,
+              inputVideoDurationSeconds,
+              customerCredits: breakdown.credits,
+              customerUsd: breakdown.usd,
+              modeledProviderCredits: breakdown.rawCredits,
+              modeledProviderUsd,
+              modeledMarginUsd:
+                modeledProviderUsd == null
+                  ? null
+                  : Number((breakdown.usd - modeledProviderUsd).toFixed(6)),
+            },
+          ];
+        })
+      )
+    )
+  );
+
+  return {
+    activePolicyVersion,
+    activePolicyVersionId,
+    artifactSha256,
+    addedRules,
+    changedRules,
+    removedRules,
+    missingRules: [],
+    complete:
+      proposedSeedanceRules.length === 5 &&
+      rateComparisons.length === 5 &&
+      rateComparisons.every(
+        (comparison) =>
+          comparison.continuityCostCreditsPerOutputSecond != null &&
+          comparison.equalDurationConservativeCostCreditsPerOutputSecond != null
+      ) &&
+      marginEnvelopes.length === 100,
+    publishedRuleCount: candidateRules.length,
+    candidatePolicy,
+    targetBillingVariantProfile: "seedance_composition_neutral_v1",
+    proposedSeedanceRules,
+    rateComparisons,
+    marginEnvelopes,
   };
 };

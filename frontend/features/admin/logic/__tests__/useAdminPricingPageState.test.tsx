@@ -11,13 +11,14 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
-const ADMIN_PRICING_WORKSPACE_STORAGE_KEY = "shortpulse.adminPricingWorkspace.v1";
+const ADMIN_PRICING_WORKSPACE_STORAGE_KEY = "shortpulse.adminPricingWorkspace.v2";
 
 const buildPricingState = (): AdminPricingStateResponse => ({
   generatedAt: "2026-05-07T12:00:00.000Z",
   modelPolicy: {
     version: "policy-v3",
     activePolicyVersion: 3,
+    activePolicyVersionId: 3,
     policySource: "control_plane",
     updatedAt: "2026-05-07T12:00:00.000Z",
     updatedByEmail: "admin@example.com",
@@ -88,7 +89,7 @@ describe("useAdminPricingPageState", () => {
     window.localStorage.setItem(
       ADMIN_PRICING_WORKSPACE_STORAGE_KEY,
       JSON.stringify({
-        version: 1,
+        version: 2,
         savedAt: "2026-05-07T11:30:00.000Z",
         sourceActivePolicyVersion: 3,
         modelPolicyDirty: false,

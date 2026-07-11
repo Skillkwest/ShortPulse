@@ -3,11 +3,13 @@ import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { ModelConfig } from "./modelRegistry";
 import {
   getDefaultAdminPricingCustomRowsDocument,
+  resolveAdminPricingCustomRowTargetVariantId,
   type AdminPricingCustomRowsDocument,
 } from "./adminPricingCustomRows";
 import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
 import {
   compactModelPricingPolicyDocument,
+  resolveModelBillingVariantProfile,
   resolveModelPricingForModel,
   type ModelPricingBilledCreditsQuantityRule,
   type ModelPricingPerModelOverride,
@@ -18,8 +20,8 @@ import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
 import {
   resolvePricingGridAspectOptions,
   shouldExpandAspectPricingVariants,
+  shouldExpandCustomerVideoInputPricingVariants,
   shouldExpandResolutionPricingVariants,
-  shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
 import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
 import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "./klingMotionControlPricing";
@@ -61,6 +63,16 @@ export class IncompletePublishedPricingPolicyError extends Error {
     this.name = "IncompletePublishedPricingPolicyError";
     this.missingPublishedRows = missingPublishedRows;
     this.missingCustomRows = missingCustomRows;
+  }
+}
+
+export class InvalidPublishedPricingCustomRowsError extends Error {
+  readonly conflicts: string[];
+
+  constructor(conflicts: string[]) {
+    super(`Invalid pricing custom-row migration: ${conflicts.join(", ")}.`);
+    this.name = "InvalidPublishedPricingCustomRowsError";
+    this.conflicts = conflicts;
   }
 }
 
@@ -196,7 +208,7 @@ const resolvePublishedQuantityRule = ({
   breakdown: { usdRaw: number };
   quantity: number;
   resolved: ReturnType<typeof resolveModelPricingForModel>;
-  quantityBasis: "per_second" | "per_1k_chars";
+  quantityBasis: "per_second" | "per_output_second" | "per_1k_chars";
 }): ModelPricingBilledCreditsQuantityRule => ({
   costCreditsPerUnit: Number(((breakdown.usdRaw / quantity) * resolved.creditUsdScale).toFixed(12)),
   markupBps: resolved.markupBps,
@@ -251,6 +263,44 @@ export const materializeImageBilledCreditPolicy = (
   const recordRequiredPublishedRow = (modelId: string, variantId: string) => {
     requiredPublishedRows.set(`${modelId}:${variantId}`, { modelId, variantId });
   };
+  const resolvedCustomVariantIds = new Map<string, string>();
+  const resolveCustomVariantId = (
+    modelId: string,
+    row: AdminPricingCustomRowsDocument["rowsByModel"][string][number]
+  ): string => {
+    const rowKey = `${modelId}:${row.displayRowId}`;
+    const existing = resolvedCustomVariantIds.get(rowKey);
+    if (existing) return existing;
+    const isCompositionNeutral =
+      resolveModelBillingVariantProfile(normalized, modelId) === "seedance_composition_neutral_v1";
+    if (isCompositionNeutral && row.spec.videoInput != null) {
+      throw new InvalidPublishedPricingCustomRowsError([
+        `${rowKey} retains legacy video-input semantics`,
+      ]);
+    }
+    const variantId = isCompositionNeutral
+      ? resolveAdminPricingCustomRowTargetVariantId({
+          modelId,
+          spec: row.spec,
+          pricingPolicy: normalized,
+        })
+      : row.variantId;
+    const duplicate = [...resolvedCustomVariantIds.entries()].find(
+      ([key, candidate]) => key.startsWith(`${modelId}:`) && candidate === variantId
+    );
+    if (duplicate) {
+      throw new InvalidPublishedPricingCustomRowsError([
+        `${rowKey} and ${duplicate[0]} target ${variantId}`,
+      ]);
+    }
+    if (requiredPublishedRows.has(`${modelId}:${variantId}`)) {
+      throw new InvalidPublishedPricingCustomRowsError([
+        `${rowKey} collides with built-in ${variantId}`,
+      ]);
+    }
+    resolvedCustomVariantIds.set(rowKey, variantId);
+    return variantId;
+  };
   pricingModels.forEach((model) => {
     if (model.mediaType !== "image") return;
     const variantBases = buildImageVariantBases(model);
@@ -298,9 +348,10 @@ export const materializeImageBilledCreditPolicy = (
 
     const activeCustomRows = customRowsDocument.rowsByModel[model.id] ?? [];
     activeCustomRows.forEach((row) => {
+      const customVariantId = resolveCustomVariantId(model.id, row);
       const rowModelOverride = mergeCustomRowOverrides(
         nextPolicy.perModel[model.id],
-        row.variantId,
+        customVariantId,
         row.overrides
       );
       const rowPolicy: ModelPricingPolicyDocument = {
@@ -334,7 +385,7 @@ export const materializeImageBilledCreditPolicy = (
 
       nextPolicy.perModel[model.id] = mergeVariantOverride(
         rowModelOverride,
-        row.variantId,
+        customVariantId,
         breakdown.credits
       );
     });
@@ -348,9 +399,12 @@ export const materializeImageBilledCreditPolicy = (
       ["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy ?? "")
         ? [null]
         : [true, false];
-    const videoInputOptions = shouldExpandVideoInputPricingVariants(model.pricingStrategy)
-      ? [false, true]
-      : [null];
+    const expandsCustomerVideoInput = shouldExpandCustomerVideoInputPricingVariants({
+      modelId: model.id,
+      pricingStrategy: model.pricingStrategy,
+      pricingPolicy: normalized,
+    });
+    const videoInputOptions = expandsCustomerVideoInput ? [false, true] : [null];
     const variantBaseIds =
       model.id === KIE_KLING_30_MODEL_ID
         ? ["default", KIE_KLING_30_MOTION_CONTROL_VARIANT_ID]
@@ -392,7 +446,9 @@ export const materializeImageBilledCreditPolicy = (
             }
 
             const isFlatPerGeneration = model.id === KIE_VEO_31_FAST_I2V_MODEL_ID;
-            const billableSeconds = durationSeconds + (inputVideoDurationSeconds ?? 0);
+            const billableSeconds = expandsCustomerVideoInput
+              ? durationSeconds + (inputVideoDurationSeconds ?? 0)
+              : durationSeconds;
             nextPolicy.perModel[model.id] = mergePublishedQuantityPricing(
               nextPolicy.perModel[model.id],
               variantId,
@@ -403,7 +459,7 @@ export const materializeImageBilledCreditPolicy = (
                       breakdown,
                       quantity: billableSeconds,
                       resolved,
-                      quantityBasis: "per_second",
+                      quantityBasis: expandsCustomerVideoInput ? "per_second" : "per_output_second",
                     }),
                   }
             );
@@ -414,9 +470,10 @@ export const materializeImageBilledCreditPolicy = (
 
     const activeCustomRows = customRowsDocument.rowsByModel[model.id] ?? [];
     activeCustomRows.forEach((row) => {
+      const customVariantId = resolveCustomVariantId(model.id, row);
       const rowModelOverride = mergeCustomRowOverrides(
         nextPolicy.perModel[model.id],
-        row.variantId,
+        customVariantId,
         row.overrides
       );
       const rowPolicy: ModelPricingPolicyDocument = {
@@ -445,15 +502,17 @@ export const materializeImageBilledCreditPolicy = (
         pricingPolicy: rowPolicy,
       });
       if (!breakdown || breakdown.usdRaw <= 0) return;
-      const resolved = resolveModelPricingForModel(rowPolicy, model.id, row.variantId);
+      const resolved = resolveModelPricingForModel(rowPolicy, model.id, customVariantId);
       if (resolved.billedCreditsOverride != null || resolved.billedCreditsQuantityRule != null) {
         return;
       }
       const isFlatPerGeneration = model.id === KIE_VEO_31_FAST_I2V_MODEL_ID;
-      const billableSeconds = durationSeconds + (inputVideoDurationSeconds ?? 0);
+      const billableSeconds = expandsCustomerVideoInput
+        ? durationSeconds + (inputVideoDurationSeconds ?? 0)
+        : durationSeconds;
       nextPolicy.perModel[model.id] = mergePublishedQuantityPricing(
         rowModelOverride,
-        row.variantId,
+        customVariantId,
         isFlatPerGeneration
           ? { billedCreditsOverride: breakdown.credits }
           : {
@@ -461,7 +520,7 @@ export const materializeImageBilledCreditPolicy = (
                 breakdown,
                 quantity: billableSeconds,
                 resolved,
-                quantityBasis: "per_second",
+                quantityBasis: expandsCustomerVideoInput ? "per_second" : "per_output_second",
               }),
             }
       );
@@ -565,7 +624,8 @@ export const materializeImageBilledCreditPolicy = (
       ([modelId, rows]) =>
         rows
           .filter((row) => {
-            const published = publishedPolicy.perModel[modelId]?.variants?.[row.variantId];
+            const variantId = resolveCustomVariantId(modelId, row);
+            const published = publishedPolicy.perModel[modelId]?.variants?.[variantId];
             return !(
               published?.billedCreditsOverride != null ||
               published?.billedCreditsQuantityRule != null

@@ -22,7 +22,7 @@ const createMemoryStorage = () => {
 };
 
 const buildSnapshot = (): AdminPricingWorkspaceDraftSnapshot => ({
-  version: 1,
+  version: 2,
   savedAt: "2026-05-06T12:00:00.000Z",
   sourceActivePolicyVersion: 7,
   modelPolicyDirty: true,
@@ -112,8 +112,9 @@ describe("pricingWorkspacePersistence", () => {
   it("sanitizes malformed payloads without crashing", () => {
     const storage = createMemoryStorage();
     storage.setItem(
-      "shortpulse.adminPricingWorkspace.v1",
+      "shortpulse.adminPricingWorkspace.v2",
       JSON.stringify({
+        version: 2,
         modelPolicyDirty: 1,
         modelSearchQuery: 42,
         modelSortOption: "not-a-sort",
@@ -151,7 +152,7 @@ describe("pricingWorkspacePersistence", () => {
     );
 
     expect(readAdminPricingWorkspaceDraftFromStorage(storage)).toEqual({
-      version: 1,
+      version: 2,
       savedAt: new Date(0).toISOString(),
       sourceActivePolicyVersion: null,
       modelPolicyDirty: true,
@@ -204,8 +205,9 @@ describe("pricingWorkspacePersistence", () => {
   it("preserves older plan economics drafts that do not yet include a simulator name", () => {
     const storage = createMemoryStorage();
     storage.setItem(
-      "shortpulse.adminPricingWorkspace.v1",
+      "shortpulse.adminPricingWorkspace.v2",
       JSON.stringify({
+        version: 2,
         planEconomicsDrafts: {
           starter: {
             priceUsd: "19",
@@ -235,8 +237,9 @@ describe("pricingWorkspacePersistence", () => {
   it("sanitizes simulator plan ids as a simple string list", () => {
     const storage = createMemoryStorage();
     storage.setItem(
-      "shortpulse.adminPricingWorkspace.v1",
+      "shortpulse.adminPricingWorkspace.v2",
       JSON.stringify({
+        version: 2,
         simulatorPlanIds: ["starter", 42, "sim-plan-2"],
       })
     );
@@ -250,13 +253,23 @@ describe("pricingWorkspacePersistence", () => {
   it("preserves an intentionally empty simulator plan list", () => {
     const storage = createMemoryStorage();
     storage.setItem(
-      "shortpulse.adminPricingWorkspace.v1",
+      "shortpulse.adminPricingWorkspace.v2",
       JSON.stringify({
+        version: 2,
         simulatorPlanIds: [],
       })
     );
 
     expect(readAdminPricingWorkspaceDraftFromStorage(storage)?.simulatorPlanIds).toEqual([]);
+  });
+
+  it("rejects a draft captured from a different active policy version", () => {
+    const storage = createMemoryStorage();
+    writeAdminPricingWorkspaceDraftToStorage(storage, buildSnapshot());
+
+    expect(
+      readAdminPricingWorkspaceDraftFromStorage(storage, "shortpulse.adminPricingWorkspace.v2", 8)
+    ).toBeNull();
   });
 
   it("clears the stored workspace snapshot", () => {

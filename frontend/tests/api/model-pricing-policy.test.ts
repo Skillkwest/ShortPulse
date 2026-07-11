@@ -4,6 +4,7 @@ import applyPolicyHandler from "../../pages/api/admin/pricing/model-policy/apply
 import rollbackPolicyHandler from "../../pages/api/admin/pricing/model-policy/rollback";
 import { getDefaultAdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
+import { hashModelPricingPolicyArtifact } from "../../lib/server/api/modelPricingPublicationDryRun";
 
 const requireApiUserMock = vi.fn();
 const requireAdminUserMock = vi.fn();
@@ -137,6 +138,7 @@ describe("model pricing policy routes", () => {
     const req = {
       method: "POST",
       body: {
+        expectedActivePolicyVersionId: 44,
         note: "Update pricing for testing",
         reason: "Admin update",
         policy: submittedPolicy,
@@ -149,6 +151,7 @@ describe("model pricing policy routes", () => {
     expect(applyModelPricingPolicyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actorEmail: "admin@example.com",
+        expectedActivePolicyVersionId: 44,
         note: "Update pricing for testing",
         reason: "Admin update",
         policy: expect.objectContaining({
@@ -166,11 +169,50 @@ describe("model pricing policy routes", () => {
     );
   });
 
+  it("requires the reviewed artifact hash for a composition-neutral Seedance apply", async () => {
+    const submittedPolicy = {
+      schemaVersion: 5 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {
+        "kie-ai/seedance-2": {
+          billingVariantProfile: "seedance_composition_neutral_v1" as const,
+        },
+      },
+    };
+    const published = materializeImageBilledCreditPolicy(submittedPolicy);
+    const res = createMockResponse();
+
+    await applyPolicyHandler(
+      {
+        method: "POST",
+        body: {
+          expectedActivePolicyVersionId: 44,
+          policy: submittedPolicy,
+        },
+      } as never,
+      res as never
+    );
+
+    expect(applyModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "artifact_review_required",
+        artifactSha256: hashModelPricingPolicyArtifact(published),
+      })
+    );
+  });
+
   it("does not apply model policy when admin auth verification throws unexpectedly", async () => {
     requireAdminUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
     const req = {
       method: "POST",
       body: {
+        expectedActivePolicyVersionId: 44,
         policy: {
           schemaVersion: 1,
           global: {
@@ -215,6 +257,7 @@ describe("model pricing policy routes", () => {
     const req = {
       method: "POST",
       body: {
+        expectedActivePolicyVersionId: 44,
         policy: {
           schemaVersion: 1,
           global: {
@@ -243,6 +286,7 @@ describe("model pricing policy routes", () => {
     const req = {
       method: "POST",
       body: {
+        expectedActivePolicyVersionId: 44,
         policy: {
           schemaVersion: 1,
           global: {
@@ -311,6 +355,7 @@ describe("model pricing policy routes", () => {
     const req = {
       method: "POST",
       body: {
+        expectedActivePolicyVersionId: 44,
         policy: {
           schemaVersion: 1,
           global: {

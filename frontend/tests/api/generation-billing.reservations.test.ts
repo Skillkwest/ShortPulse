@@ -351,6 +351,111 @@ describe("generationBilling reservation RPC handling", () => {
     );
   });
 
+  it("accepts same-policy Seedance video-reference pricing when output duration comes from submit context", async () => {
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 9,
+      activePolicyVersionId: "policy-version-9",
+      source: "control_plane",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn().mockResolvedValue({
+      data: [{ status: "reserved", source_ref: "req-seedance-video-duration", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const payload = {
+      prompt: "Animate the reference clip",
+      resolution: "720p",
+      aspect_ratio: "16:9",
+      generate_audio: true,
+      reference_video_urls: ["https://example.com/reference.mp4"],
+    };
+    const clientParams = {
+      durationSeconds: 15,
+      resolution: "720p",
+      aspect: "16:9",
+      audio: true,
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 4,
+    };
+    const lookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: clientParams,
+      pricingPolicy: policy,
+    });
+    const shortpulseContext = {
+      selected_tool: "video",
+      mode: "video",
+      displayed_pricing_policy_version: 9,
+      displayed_pricing_variant_id: lookup.breakdown?.variantId,
+      displayed_billed_credits: lookup.breakdown?.credits,
+      output_duration_seconds: 15,
+      input_video_count: 1,
+      input_video_duration_seconds: 4,
+    };
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-seedance-video-duration" },
+      url: "/api/fal/kie-seedance-2-submit",
+      body: { shortpulse_context: shortpulseContext },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      payload,
+      reason: "Kie Seedance 2 generation",
+      shortpulseContext,
+    });
+
+    expect(charge).not.toBeNull();
+    expect(res.status).not.toHaveBeenCalledWith(409);
+    expect(logGenerationFailureMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_pricing_policy_conflict",
+      })
+    );
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_amount_cents: lookup.breakdown?.credits,
+        p_source_ref: "req-seedance-video-duration",
+        p_metadata: expect.objectContaining({
+          pricing_params: expect.objectContaining({
+            durationSeconds: 15,
+            inputVideoCount: 1,
+            inputVideoDurationSeconds: 4,
+          }),
+          provider_pricing_params: expect.objectContaining({
+            durationSeconds: 15,
+            inputVideoCount: 1,
+            inputVideoDurationSeconds: 4,
+            sourceDurationSeconds: 4,
+          }),
+          provider_economics: expect.objectContaining({
+            modeled_billable_duration_seconds: 19,
+          }),
+          pricing_breakdown: expect.objectContaining({
+            billed_credits: lookup.breakdown?.credits,
+            variant_id: lookup.breakdown?.variantId,
+          }),
+        }),
+      })
+    );
+    const reservationMetadata = rpcMock.mock.calls[0]?.[1]?.p_metadata as
+      | Record<string, unknown>
+      | undefined;
+    expect(reservationMetadata?.pricing_params).not.toEqual(
+      expect.objectContaining({
+        sourceDurationSeconds: expect.anything(),
+      })
+    );
+  });
+
   it("rejects Seedance video references with missing duration before pricing or reservation", async () => {
     const rpcMock = vi.fn();
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });

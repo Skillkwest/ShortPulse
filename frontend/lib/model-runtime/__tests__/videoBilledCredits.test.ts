@@ -252,6 +252,57 @@ describe("videoBilledCredits", () => {
     expect(clientLookup.breakdown?.credits).toBe(44);
   });
 
+  it("keeps Seedance output duration aligned between display and server debit when video duration evidence is present", () => {
+    const clientParams = {
+      aspect: "16:9",
+      durationSeconds: 15,
+      resolution: "720p",
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 4,
+    };
+    const serverParams = buildPricingParams(
+      KIE_SEEDANCE_2_MODEL_ID,
+      {
+        prompt: "Animate the reference clip",
+        aspect_ratio: "16:9",
+        resolution: "720p",
+        reference_video_urls: ["https://example.com/reference.mp4"],
+      },
+      {
+        shortpulseContext: {
+          output_duration_seconds: 15,
+          input_video_count: 1,
+          input_video_duration_seconds: 4,
+        },
+      }
+    );
+    const clientLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: clientParams,
+      pricingPolicy,
+    });
+    const serverLookup = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: serverParams,
+      pricingPolicy,
+    });
+
+    expect(serverParams).toMatchObject({
+      durationSeconds: 15,
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 4,
+      sourceDurationSeconds: 4,
+    });
+    expect(serverLookup.params.sourceDurationSeconds).toBeUndefined();
+    expect(serverLookup.providerCostParams.sourceDurationSeconds).toBe(4);
+    expect(clientLookup.breakdown?.variantId).toBe(serverLookup.breakdown?.variantId);
+    expect(clientLookup.breakdown?.variantId).toBe(
+      "default|res:720p|aspect:16:9|audio:on|video_input:with"
+    );
+    expect(clientLookup.breakdown?.credits).toBe(serverLookup.breakdown?.credits);
+    expect(serverLookup.breakdown?.credits).toBeGreaterThan(24);
+  });
+
   it("keeps client Lip Sync lookup and server debit lookup on the same OmniHuman row", () => {
     const clientParams = {
       durationSeconds: 12,

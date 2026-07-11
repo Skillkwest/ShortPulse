@@ -616,6 +616,8 @@ export function StandardCreatePanelView({
             ref={panelBodyRef}
             className={`create-composer-right-panel-inner ${
               promptStepProps.agentDropActive || canvasTearOutActive ? "is-drop-active" : ""
+            } ${
+              blockedMediaDropGuidanceVisible ? "is-chat-mode-drop-guidance-visible" : ""
             }`.trim()}
             onDragEnter={handlePanelMediaDragEnter}
             onDragOver={handlePanelMediaDragOver}

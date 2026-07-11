@@ -630,6 +630,12 @@ export const useAiStudioTaskSubmission = ({
           displayed_pricing_policy_version: options?.displayedPricingPolicyVersion ?? null,
           displayed_pricing_variant_id: options?.displayedPricingVariantId ?? null,
           displayed_billed_credits: displayedBilledCredits,
+          ...(isVideoGeneration && !isLipSyncSubmission
+            ? {
+                duration_seconds: requestedDurationSeconds,
+                output_duration_seconds: requestedDurationSeconds,
+              }
+            : {}),
           ...(isLipSyncSubmission
             ? {
                 lip_sync_audio_duration_ms: effectiveLipSyncAudio.durationMs ?? null,

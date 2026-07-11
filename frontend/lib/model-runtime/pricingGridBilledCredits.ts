@@ -12,6 +12,7 @@ import {
   shouldExpandAspectPricingVariants,
   shouldExpandCustomerVideoInputPricingVariants,
   shouldExpandResolutionPricingVariants,
+  shouldUseOutputDurationForCustomerQuantity,
 } from "./pricingGridVariantRules";
 import {
   getCreditsAtProviderCost,
@@ -169,6 +170,10 @@ const normalizePricingGridParams = (
       delete normalizedParams.inputVideoDurationSeconds;
       delete normalizedParams.sourceDurationSeconds;
     }
+  }
+
+  if (shouldUseOutputDurationForCustomerQuantity(config.pricingStrategy)) {
+    delete normalizedParams.sourceDurationSeconds;
   }
 
   if (

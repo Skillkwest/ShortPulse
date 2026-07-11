@@ -52,12 +52,14 @@ const resolveContextDurationSeconds = (context?: JsonObject | null): number | un
   if (!context) return undefined;
   const direct =
     asNumber(context.duration_seconds) ??
+    asNumber(context.output_duration_seconds) ??
     asNumber(context.source_duration_seconds) ??
     asNumber(context.audio_duration_seconds) ??
     asNumber(context.lip_sync_audio_duration_seconds);
   if (direct && direct > 0) return direct;
   const durationMs =
     asNumber(context.duration_ms) ??
+    asNumber(context.output_duration_ms) ??
     asNumber(context.source_duration_ms) ??
     asNumber(context.audio_duration_ms) ??
     asNumber(context.lip_sync_audio_duration_ms);

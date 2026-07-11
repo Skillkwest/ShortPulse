@@ -596,6 +596,8 @@ describe("useAiStudioTaskSubmission", () => {
         finalModel: FAL_OMNIHUMAN_V15_MODEL_ID,
         motionReferenceVideoUrl: null,
         shortpulseContext: expect.not.objectContaining({
+          duration_seconds: expect.anything(),
+          output_duration_seconds: expect.anything(),
           motion_reference_asset: expect.anything(),
         }),
         workflowReload: expect.objectContaining({
@@ -692,6 +694,8 @@ describe("useAiStudioTaskSubmission", () => {
           displayed_billed_credits: 47,
           pricing_display_source: "pricing_grid",
           lip_sync_audio_duration_ms: 30_000,
+          lip_sync_audio_duration_seconds: 30,
+          audio_duration_seconds: 30,
         }),
         workflowReload: expect.objectContaining({
           originTool: "video",
@@ -704,6 +708,12 @@ describe("useAiStudioTaskSubmission", () => {
             lipSyncTurboMode: true,
           }),
         }),
+      })
+    );
+    expect(vi.mocked(handleVideoModelSubmission).mock.calls[0]?.[0].shortpulseContext).toEqual(
+      expect.not.objectContaining({
+        duration_seconds: expect.anything(),
+        output_duration_seconds: expect.anything(),
       })
     );
   });
@@ -1618,6 +1628,8 @@ describe("useAiStudioTaskSubmission", () => {
       expect.objectContaining({
         workflowReload,
         shortpulseContext: expect.objectContaining({
+          duration_seconds: 8,
+          output_duration_seconds: 8,
           input_video_duration_seconds: 10,
           seedance_input_video_duration_seconds: 10,
         }),

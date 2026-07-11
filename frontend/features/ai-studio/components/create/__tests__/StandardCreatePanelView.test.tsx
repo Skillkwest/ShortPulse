@@ -158,12 +158,15 @@ describe("StandardCreatePanelView", () => {
 
     fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
     expect(screen.getByRole("status")).toHaveTextContent("Turn on chat mode to upload references.");
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
+    expect(screen.getByText("Chat Mode").closest(".agent-chat-mode-toggle-shell")).toBeTruthy();
 
     fireEvent.dragLeave(panelBody as Element, {
       dataTransfer: mediaTransfer,
       relatedTarget: null,
     });
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(panelBody).not.toHaveClass("is-chat-mode-drop-guidance-visible");
 
     fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
 
@@ -173,6 +176,7 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(mediaTransfer.dropEffect).toBe("none");
     expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(panelBody).toHaveClass("is-chat-mode-drop-guidance-visible");
     expect(screen.queryByRole("button", { name: "Turn on Chat Mode" })).not.toBeInTheDocument();
     expect(onChatModeEnabledChange).not.toHaveBeenCalled();
   });

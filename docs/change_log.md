@@ -30,6 +30,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Changed
 
+- Updated Seedance video-reference billing so customer credits use the requested output duration while provider-cost evidence still accounts for attached reference-video duration.
 - Updated Seedance pricing architecture so a reviewed profile-bearing policy can charge one output-duration price per model/resolution regardless of attached image, audio, or video assets, while legacy policy v9 remains unchanged.
 - Updated Seedance provider-cost evidence and reference-duration validation so video economics remain input-sensitive and missing or over-limit duration is rejected before credit reservation.
 - Updated model-pricing runtime reads so the current legacy v9 policy can use a complete in-memory billing artifact for customer pricing display and server debit while admin authoring reads stay unchanged until the next reviewed policy activation.
@@ -43,6 +44,8 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 - Updated Maya tester training, scoring, admin-publish checklists, and report templates to better separate browser evidence, ingest proof, and operator-admin verification.
 - Updated planning, docs governance, release checklist, backlog, routes, API references, data dictionary, database migration notes, and security checklist for the latest production-operations and remediation lanes.
 - Updated AI Studio Create composer guidance and tests around blocked reference drops and Chat Mode handoff.
+- Updated AI Studio Create composer drop guidance so blocked media drops make the Chat Mode requirement easier to spot.
+- Recorded the latest Gear Ball SOP score and improvement note for this production batch.
 
 ### Fixed
 

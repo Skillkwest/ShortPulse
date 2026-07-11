@@ -13,7 +13,10 @@ import {
   type ModelPricingPolicyDocument,
 } from "./pricingPolicy";
 import type { PricingParams } from "./pricingTypes";
-import { shouldExpandVideoInputPricingVariants } from "./pricingGridVariantRules";
+import {
+  shouldExpandVideoInputPricingVariants,
+  shouldUseOutputDurationForCustomerQuantity,
+} from "./pricingGridVariantRules";
 
 export type VideoBilledCreditLookup = {
   modelId: string;
@@ -73,6 +76,8 @@ export const normalizeVideoBilledPricingParams = (
   ) {
     delete normalized.inputVideoCount;
     delete normalized.inputVideoDurationSeconds;
+    delete normalized.sourceDurationSeconds;
+  } else if (shouldUseOutputDurationForCustomerQuantity(config?.pricingStrategy) && pricingPolicy) {
     delete normalized.sourceDurationSeconds;
   }
 

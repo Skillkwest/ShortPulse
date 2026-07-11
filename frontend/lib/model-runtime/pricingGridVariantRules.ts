@@ -35,6 +35,11 @@ const VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES = new Set<string>([
   "seedance-2-fast-per-second",
 ]);
 
+const CUSTOMER_OUTPUT_DURATION_INPUT_PRICING_STRATEGIES = new Set<string>([
+  "seedance-2-per-second",
+  "seedance-2-fast-per-second",
+]);
+
 export const shouldExpandAspectPricingVariants = (pricingStrategy?: string | null): boolean =>
   Boolean(pricingStrategy && ASPECT_EXPANDED_PRICING_STRATEGIES.has(pricingStrategy));
 
@@ -43,6 +48,13 @@ export const shouldExpandResolutionPricingVariants = (pricingStrategy?: string |
 
 export const shouldExpandVideoInputPricingVariants = (pricingStrategy?: string | null): boolean =>
   Boolean(pricingStrategy && VIDEO_INPUT_EXPANDED_PRICING_STRATEGIES.has(pricingStrategy));
+
+export const shouldUseOutputDurationForCustomerQuantity = (
+  pricingStrategy?: string | null
+): boolean =>
+  Boolean(
+    pricingStrategy && CUSTOMER_OUTPUT_DURATION_INPUT_PRICING_STRATEGIES.has(pricingStrategy)
+  );
 
 /**
  * Resolves the customer-facing video-input dimension for a model and policy.

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../../../model-runtime/klingMotionControlPricing";
-import { KIE_KLING_30_MODEL_ID } from "../../../../model-runtime/providerModelIds";
+import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../../model-runtime/falModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../../model-runtime/providerModelIds";
 import { buildPricingParams } from "../pricingParams";
 
 describe("buildPricingParams", () => {
@@ -86,6 +90,58 @@ describe("buildPricingParams", () => {
     ).toEqual(
       expect.objectContaining({
         durationSeconds: 10,
+      })
+    );
+  });
+
+  it("uses explicit video output duration evidence from submit context", () => {
+    expect(
+      buildPricingParams(
+        KIE_SEEDANCE_2_MODEL_ID,
+        {
+          prompt: "Animate the reference clip",
+          aspect_ratio: "9:16",
+          resolution: "720p",
+          reference_video_urls: ["https://example.com/reference.mp4"],
+        },
+        {
+          shortpulseContext: {
+            output_duration_seconds: 15,
+            input_video_count: 1,
+            input_video_duration_seconds: 4,
+          },
+        }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        durationSeconds: 15,
+        inputVideoCount: 1,
+        inputVideoDurationSeconds: 4,
+        sourceDurationSeconds: 4,
+      })
+    );
+  });
+
+  it("uses Lip Sync audio duration context when generic video output duration is absent", () => {
+    expect(
+      buildPricingParams(
+        FAL_OMNIHUMAN_V15_MODEL_ID,
+        {
+          image_url: "https://example.com/character.png",
+          audio_url: "https://example.com/voice.mp3",
+          resolution: "720p",
+        },
+        {
+          shortpulseContext: {
+            audio_duration_seconds: 30,
+            lip_sync_audio_duration_ms: 30_000,
+          },
+        }
+      )
+    ).toEqual(
+      expect.objectContaining({
+        durationSeconds: 30,
+        resolution: "720p",
       })
     );
   });

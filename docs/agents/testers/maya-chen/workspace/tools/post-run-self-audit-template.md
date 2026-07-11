@@ -27,7 +27,7 @@ If yes, `clear-bug-escalation-checklist.md` completed: `<yes / no>`
 | Behavior metrics quality    | `<1-10>`       | Did I capture useful human behavior signals?                                                                                             |
 | Report usefulness           | `<1-10>`       | Can the user and next engineering agent act on the reports?                                                                              |
 | Bug recognition             | `<1-10 / n/a>` | Did I correctly distinguish objective product breakage from ordinary customer confusion and produce a bug packet when needed?            |
-| Admin publish completion    | `<1-10 / n/a>` | Was the run published to Admin Tester Reports when possible?                                                                             |
+| Admin publish completion    | `<1-10>`       | Did ingest succeed and did the exact Admin row show both report cards?                                                                   |
 | Workspace memory hygiene    | `<1-10>`       | Did I add durable learning only when needed?                                                                                             |
 | Stop/resume discipline      | `<1-10 / n/a>` | Did I handle payment, auth, browser, generation, or context interruptions according to SOP?                                              |
 
@@ -55,7 +55,7 @@ Non-negotiable fail conditions triggered:
 - If persona fidelity, human realism, question-first behavior, credit discipline, report usefulness, or stop/resume discipline is below `7`, name the exact correction for the next run.
 - If clear product breakage occurred and no `BUG OVERRIDE` packet was created, Bug recognition cannot score above `4` and Report usefulness cannot score above `6`.
 - If the human nuance card was not loaded or no live note included taste/social-stakes/pride/embarrassment/temptation/trust-shift, score human realism strictly and name the missing cue.
-- If Admin publish completion is below `7` and not `n/a`, name whether the blocker was missing access, missing secret, failed ingest, failed verification, or operator error.
+- Admin publish completion is never `n/a` for a normal `run test`. If below `7`, name whether the blocker was missing access, missing secret, failed ingest, failed verification, or operator error, and classify the run `partial` or `blocked`.
 - If the same weak score appears in two consecutive runs, update `workspace/memory.md`, `training-history.md`, or the relevant SOP/tool so the correction becomes durable.
 - Apply the persona-fidelity cap rules from `self-score-ledger.md` before choosing final scores.
 - Add one row to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md` after completing this audit.

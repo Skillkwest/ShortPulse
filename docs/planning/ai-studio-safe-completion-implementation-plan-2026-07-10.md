@@ -1,8 +1,8 @@
 # AI Studio Safe Completion Implementation Plan
 
-Status: local implementation complete; release proof pending
+Status: local closeout audit complete; release proof pending
 
-Implementation state: all seven July 10 remediation issues are complete within the approved local lane. Commit, deploy, production evaluation, and Copperknot catalog/readiness updates remain outside this lane.
+Implementation state: the July 10 zoomed-out audit found additional shared-artifact, evaluator, telemetry, and authority defects after the first remediation checkpoint. The final closeout audit found and fixed one remaining duplicated prompt-reuse birth rule in the shared agent state core. Safe Completion commits are already present on `origin/production`; this lane may repair local source and docs but must not mutate commit, push, deploy, rollback, or launch state.
 
 Purpose: provide the single working plan for first-turn safe completion across AI Studio Create Standard and Pulse agents.
 
@@ -18,7 +18,8 @@ Every Create agent—Standard, custom Pulse, and built-in guided Pulse—must fi
 
 ## Owner And Lane
 
-- Runtime owner: Pulse, including Standard behavior, Pulse behavior, prompt composition, response parsing, and the narrow agent-instructions admin boundary.
+- Behavior-integration owner: Pulse, including Standard behavior, Pulse behavior, prompt composition, response parsing, and the narrow agent-instructions admin boundary.
+- Shared safety-policy authority: the runtime safety-policy lane owns hard floors, safety profiles, and policy semantics; Pulse does not create an alternate safety authority.
 - Product and release approver: the solo human owner.
 - Release and production environment work remain outside this implementation lane.
 
@@ -66,7 +67,7 @@ Out of scope:
 - Standard/Pulse route, transcript, workflow-state, canonical-prompt, session, or artifact-target unification.
 - SQL/schema changes or programmatic mutation of live Standard, custom Pulse, or built-in Pulse control-plane records.
 - A client-side `Make safe` action, automatic visible second turn, duplicate prompt copies, lexical creative-rewrite expansion, or an always-on LLM pre-rewriter.
-- Commit, push, deploy, live control-plane mutation, provider-cost evaluation, authenticated production validation, or launch-readiness claims.
+- Further commit/push mutation, deploy, rollback, live control-plane mutation, provider-cost evaluation, authenticated production validation, or launch-readiness claims.
 
 ## Active Remediation Issue List
 
@@ -79,6 +80,35 @@ This section is the source of truth for the reopened implementation sequence. Re
 5. Complete locally: add the missing route-level corpus, unsafe-recovery, Pulse termination, kill-switch, exact-precedence, and evaluator proof-boundary coverage.
 6. Complete locally: tighten provider safety-block classification so unrelated provider/configuration errors are not hidden as content refusals.
 7. Complete locally within the active lane: reconcile the active owner, execution program, plan lifecycle, operator map, SOPs, and concurrent attachment-work boundaries. Copperknot-owned system-catalog posture remains a separate owner boundary.
+
+## Second-Pass Reopened Issue List
+
+This is the current implementation sequence and supersedes the earlier local-completion checkpoint below.
+
+1. Complete locally: centralize machine-failure prompt-reuse exclusion in the shared reusable-artifact authority and route every Standard/Pulse consumer and hint through it.
+2. Complete locally: reject unknown or empty evaluator category selections so zero-request matrices cannot pass.
+3. Complete locally: require the complete success machine envelope, expected terminal outcome, and Standard/Pulse mode isolation in evaluator scoring.
+4. Complete locally: validate evaluator thresholds and prevent a negative or weakened suggestive gate from producing a false pass.
+5. Complete locally: make lexical unsafe-output detection an explicitly limited signal and keep independent unsafe-output classification outside the evaluator's promotion claim unless structured route/telemetry evidence exists.
+6. Complete locally: align ordinary successful Standard recovery disposition telemetry with Pulse.
+7. Complete locally: reconcile plan lifecycle and owner wording with current code and Git truth.
+8. Blocked outside this lane: Gear Ball/owner must classify the already-pushed mixed commits and deployment state; Copperknot/owner must refresh the expired launch window and system-catalog/readiness posture. Do not change those states in this lane.
+
+Second-pass validation checkpoint:
+
+- Green on the stabilized combined worktree: evaluator syntax, 225 focused tests across 13 files, TypeScript, scoped ESLint, docs checks, production build, agent contract `76/76`, agent disable/continuity `116/116`, Generate CTA guard, and `git diff --check`.
+- Release boundary: the second-pass fixes remain uncommitted within a larger stabilized dirty worktree. Do not stage, commit, push, deploy, rollback, or promote from this Pulse implementation lane; Gear Ball/owner must package and classify the intended release scope.
+
+## Closeout Audit Addendum
+
+Complete locally: the shared reusable-artifact authority now protects the message birth path as well as every known Standard/Pulse consumer. `useCreateAgentStateCore` uses `isAgentMachineFailure` before marking an assistant message reusable, so a malformed or stale machine-error payload cannot be born with active prompt-reuse metadata.
+
+Closeout validation:
+
+- Focused birth/consumer coverage passed: `useAiAgent`, `agentRuntimeShared`, and `AgentChatPanel.actions` (`97` tests).
+- Safe Completion/evaluator subset passed: Standard evals, evaluator scoring, Safe Completion contract, route outcomes, and response finalizer (`56` tests).
+- Evaluator syntax, TypeScript, scoped ESLint, production build, and `git diff --check` passed.
+- Full `docs:check` is currently blocked outside this lane by the voice-changer migration inventory entry for `221_add_voice_changer_remux_recovery_projection.sql`; docs link and semantic-drift checks passed before the migration parity stop.
 
 Protected contracts for every remediation issue:
 
@@ -137,15 +167,15 @@ Model-backed promotion targets after separately approved deployment are: 100% ha
 
 Stop when scoped code, tests, and docs are locally green and the final self-audit finds no unresolved in-scope defect. Stop earlier for hard-floor weakening, cross-mode or workflow-state drift, an unsafe output leak, more than one recovery call, an unresolved validation blocker, dirty-worktree overlap that cannot be preserved safely, required work outside Pulse ownership, or scope expansion.
 
-The implementation lane stops before commit, push, deploy, live prompt/catalog writes, provider-cost evaluation, authenticated production testing, production telemetry claims, or release promotion. Those actions require a separate owner-approved handoff.
+The implementation lane stops before any further commit/push mutation, deploy, rollback, live prompt/catalog writes, provider-cost evaluation, authenticated production testing, production telemetry claims, or release promotion. The already-pushed commits `1ccedc7d4` and `f79f52964` require Gear Ball/owner classification; their presence does not authorize additional release work here.
 
 ## Remaining Production Proof Boundary
 
-Local proof cannot establish actual deployed-model adherence, live control-plane contents, provider recovery latency/cost, or authenticated production UI behavior. After separately approved commit and deployment, validate bounded text-only turns at `https://www.shortpulse.ai` in Standard, one custom Pulse, and every published built-in, paired with structured trace telemetry and unchanged product credits.
+Local proof cannot establish actual deployed-model adherence, live control-plane contents, provider recovery latency/cost, or authenticated production UI behavior. After Gear Ball/owner classifies the already-pushed commits and separately establishes deployment authority, validate bounded text-only turns at `https://www.shortpulse.ai` in Standard, one custom Pulse, and every published built-in, paired with structured trace telemetry and unchanged product credits.
 
-## Local Remediation Completion Checkpoint — 2026-07-10
+## Superseded Local Remediation Completion Checkpoint — 2026-07-10
 
-The active remediation list is complete within the approved Pulse/shared-runtime lane:
+The second-pass audit reopened this completion claim. The statements below describe the first remediation checkpoint and are retained as historical local evidence only.
 
 - Standard Responses safety blocks terminate before Chat fallback or recovery.
 - Machine failures cannot expose stale prompt reuse or Generate affordances.

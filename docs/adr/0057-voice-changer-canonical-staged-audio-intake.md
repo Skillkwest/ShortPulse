@@ -1,6 +1,7 @@
 # ADR 0057: Voice Changer Canonical Staged-Audio Intake
 
 ## Status
+
 Accepted
 
 ## Context
@@ -34,6 +35,10 @@ Adopt one canonical Voice Changer intake path:
 6. When the staged audio was extracted from video, final conversion also remuxes the converted
    voice back onto the original video and publishes that remuxed clip as a sibling generated video
    output in AI Studio.
+7. The staged-audio namespace is server authority that remux is required. Missing original-video
+   storage authority is rejected before billing/provider work. After audio generation, the route
+   returns one explicit `remuxOutcome`; a failed assembly preserves the paid audio and may be retried
+   through `/api/media/voice-changer-remux` without another provider call or credit debit.
 
 Direct local multipart media uploads are not accepted on `/api/elevenlabs/speech-to-speech`.
 Local audio/video must stage first and then submit a storage path or trusted URL to final
@@ -46,5 +51,7 @@ generation.
 - Video-drop UX now matches the actual provider contract by staging audio rather than raw video.
 - Video-derived Voice Changer runs now emit two durable AI Studio outputs: converted audio plus a
   remuxed sibling video that preserves the original clip visuals.
+- Video-origin source UI retains poster identity while its processing asset is WAV; waveform controls
+  remain exclusive to genuine audio input.
 - The extraction runtime becomes an explicit application dependency; the repo now vendors
   `ffmpeg-static` instead of relying on a host-provided `ffmpeg` binary.

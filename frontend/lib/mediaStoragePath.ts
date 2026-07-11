@@ -64,6 +64,16 @@ export const isCharacterScopedMediaStoragePath = (path: string, userId: string):
   return normalizedPath.startsWith(`${normalizedUserId}/characters/`);
 };
 
+/** Returns whether a path is canonical durable Voice Changer source-video authority. */
+export const isVoiceChangerSourceVideoStoragePath = (path: string, userId: string): boolean => {
+  const normalizedPath = normalize(path);
+  const normalizedUserId = normalize(userId);
+  return (
+    isUserScopedMediaStoragePath(normalizedPath, normalizedUserId) &&
+    normalizedPath.startsWith(`${normalizedUserId}/voice-changer/source-video/`)
+  );
+};
+
 /**
  * Returns whether a path-like string or media URL points at the Character Manager namespace.
  */

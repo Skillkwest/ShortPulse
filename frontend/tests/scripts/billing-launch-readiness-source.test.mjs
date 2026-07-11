@@ -18,11 +18,25 @@ const requiredScheduleEvents = [
   "subscription_schedule.aborted",
 ];
 
+const requiredPaymentRecoveryEvents = [
+  "checkout.session.async_payment_failed",
+  "invoice.payment_failed",
+  "invoice.payment_action_required",
+];
+
 describe("billing launch readiness source", () => {
   it("requires Stripe subscription schedule events for period-end downgrade projection", () => {
     const source = fs.readFileSync(readinessHelpersPath, "utf8");
 
     for (const eventName of requiredScheduleEvents) {
+      expect(source).toContain(eventName);
+    }
+  });
+
+  it("requires Stripe payment-recovery events handled by the billing webhook", () => {
+    const source = fs.readFileSync(readinessHelpersPath, "utf8");
+
+    for (const eventName of requiredPaymentRecoveryEvents) {
       expect(source).toContain(eventName);
     }
   });

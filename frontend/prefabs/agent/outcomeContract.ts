@@ -32,3 +32,18 @@ export type AgentMachineOutcomeFields = {
   retryable?: boolean;
   fallback_reason?: string;
 };
+
+/** Returns whether machine outcome metadata marks a terminal refusal or error. */
+export const isAgentMachineFailure = ({
+  decision,
+  outcomeClass,
+}: {
+  decision?: AgentDecision | null;
+  outcomeClass?: AgentOutcomeClass | null;
+}): boolean =>
+  decision === "refuse" ||
+  decision === "error" ||
+  outcomeClass === "refusal_safety" ||
+  outcomeClass === "refusal_model" ||
+  outcomeClass === "upstream_error" ||
+  outcomeClass === "route_error";

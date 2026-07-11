@@ -11,6 +11,7 @@ import { MediaDurationBadge } from "../shared/MediaDurationBadge";
 import { CanvasAudioCard } from "./CanvasAudioCard";
 import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
 import { CanvasMediaActionOverlay } from "./CanvasMediaActionOverlay";
+import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
 
 const CANVAS_TEAR_OUT_GHOST_CURSOR_INSET_PX = 14;
 const CANVAS_VIEWPORT_CULL_OVERSCAN_PX = 480;
@@ -693,6 +694,29 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
     });
     return nextAttachedIds;
   }, [renderedItems]);
+  const renderedCanvasVideoCount = React.useMemo(
+    () => renderedItems.reduce((count, item) => count + (item.kind === "video" ? 1 : 0), 0),
+    [renderedItems]
+  );
+  React.useEffect(() => {
+    logMediaPerf("media.grid.memory.sample", {
+      surface: "canvas",
+      rendered_video_count: renderedCanvasVideoCount,
+      attached_video_source_count: attachedCanvasVideoItemIds.size,
+      attached_video_source_limit: CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS,
+    });
+  }, [attachedCanvasVideoItemIds, renderedCanvasVideoCount]);
+  React.useEffect(
+    () => () => {
+      logMediaPerf("media.grid.memory.sample", {
+        surface: "canvas",
+        rendered_video_count: 0,
+        attached_video_source_count: 0,
+        attached_video_source_limit: CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS,
+      });
+    },
+    []
+  );
   const activeMediaErrorKeys = React.useMemo(() => {
     const nextKeys = new Set<string>();
     renderedItems.forEach((item) => {
@@ -862,6 +886,8 @@ export function CanvasPropertiesPanel(props: CanvasPropertiesPanelProps) {
         data-canvas-rendered-item-count={renderedItems.length}
         data-canvas-total-item-count={items.length}
         data-canvas-culled-item-count={Math.max(0, items.length - renderedItems.length)}
+        data-canvas-rendered-video-count={renderedCanvasVideoCount}
+        data-canvas-attached-video-source-count={attachedCanvasVideoItemIds.size}
         tabIndex={0}
         onPointerDown={(event) => {
           setCanvasInteractionActive(true);

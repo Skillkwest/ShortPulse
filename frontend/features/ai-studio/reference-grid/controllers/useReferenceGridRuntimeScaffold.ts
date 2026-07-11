@@ -709,6 +709,7 @@ export const useReferenceGridRuntimeScaffold = ({
     runNonUrgentUpdate,
     mediaWorkBudget,
     adaptivePreviewRoutingEnabled,
+    validHydrationOutputIds,
     imageHydrationState,
     loadedMap,
     markLoaded,

@@ -20,8 +20,12 @@ const canSubmitVoiceChangerSourceUrl = (source: VoiceChangerSource): boolean => 
 
 export const canSubmitVoiceChangerSource = (
   source: VoiceChangerSource | null | undefined
-): boolean =>
-  Boolean(
-    source?.status === "ready" &&
-    (source.storagePath?.trim() || canSubmitVoiceChangerSourceUrl(source))
+): boolean => {
+  if (source?.status !== "ready") return false;
+  const hasProcessingAuthority = Boolean(
+    source.storagePath?.trim() || canSubmitVoiceChangerSourceUrl(source)
   );
+  if (!hasProcessingAuthority) return false;
+  if (source.displayKind !== "video") return true;
+  return Boolean(source.storagePath?.trim() && source.extractedFrom?.storagePath?.trim());
+};

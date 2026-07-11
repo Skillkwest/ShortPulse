@@ -47,6 +47,7 @@ export const useAiStudioState = ({
   prepareCreateCharacterWorkflowReload,
   prepareImageStyleWorkflowReload,
   prepareStandardCreateWorkflowReload,
+  resolveRerollPricingEvidence,
 }: AiStudioStateOptions = {}) => {
   const {
     promptRef,
@@ -617,6 +618,7 @@ export const useAiStudioState = ({
     referenceImageUrl,
     removedFromAllRefsIds,
     resolveReferenceInputsForTool,
+    resolveRerollPricingEvidence,
     seedance2InputMode,
     seedance2ReferenceAudioUrls,
     seedance2ReferenceImageUrls,

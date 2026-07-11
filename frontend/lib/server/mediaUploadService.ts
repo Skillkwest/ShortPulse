@@ -981,6 +981,83 @@ export const finalizeVoiceChangerSourceUploadForUser = async ({
   }
 };
 
+/**
+ * Persists already-verified Voice Changer source bytes into the canonical private source namespace.
+ * Used when trusted internal/remote media must become durable before video-derived generation.
+ */
+export const stageVoiceChangerSourceBufferForUser = async ({
+  userId,
+  kind,
+  buffer,
+  filename,
+  declaredMimeType,
+}: {
+  userId: string;
+  kind: VoiceChangerSourceKind;
+  buffer: Buffer;
+  filename: string;
+  declaredMimeType: string;
+}): Promise<{
+  url: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  name: string;
+}> => {
+  await assertMediaComplianceAcceptedForUpload(userId);
+  const normalizedFilename =
+    filename.trim() || `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
+
+  try {
+    const detectedMimeType = resolveFinalizedVoiceChangerSourceMimeType({
+      kind,
+      declaredMimeType: declaredMimeType.trim(),
+      filename: normalizedFilename,
+      buffer,
+    });
+    const staged =
+      kind === "video" && buffer.length > MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES
+        ? await normalizeVoiceChangerSourceVideoForProcessing({
+            buffer,
+            filename: normalizedFilename,
+            mimeType: detectedMimeType,
+            maxBytes: MAX_VOICE_CHANGER_VIDEO_PROCESSING_BYTES,
+          })
+        : {
+            buffer,
+            filename: normalizedFilename,
+            mimeType: detectedMimeType,
+          };
+    const uploaded = await uploadScopedStorageBuffer({
+      userId,
+      storageFolder: resolveVoiceChangerSourceStorageFolder(kind),
+      filename: staged.filename,
+      mimeType: staged.mimeType,
+      buffer: staged.buffer,
+    });
+    return {
+      url: uploaded.signedUrl,
+      path: uploaded.storagePath,
+      size: uploaded.size,
+      mimeType: staged.mimeType,
+      name: staged.filename,
+    };
+  } catch (error) {
+    if (error instanceof MediaUploadServiceError) throw error;
+    if (error instanceof MediaAudioExtractionInputError) {
+      throw new MediaUploadServiceError(error.statusCode, "Invalid request", error.message);
+    }
+    if (error instanceof VoiceChangerSourceVideoNormalizationError) {
+      throw new MediaUploadServiceError(error.status, error.message, error.details);
+    }
+    throw new MediaUploadServiceError(
+      500,
+      "Unable to stage voice changer source",
+      error instanceof Error ? error.message : "Unable to stage voice changer source."
+    );
+  }
+};
+
 export const uploadVoiceCloneSourceForUser = async ({
   req,
   userId,

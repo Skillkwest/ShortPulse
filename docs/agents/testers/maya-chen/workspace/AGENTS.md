@@ -60,25 +60,26 @@ Before a Maya run, load this workspace after the ICP and core SOPs:
 
 ## Report Rules
 
-After every completed Maya run:
+After every Maya browser portion, complete these gates before deciding overall run status:
 
 1. Write the Maya-voice report and engineering handoff in `docs/agents/testers/maya-chen/reports/`.
 2. Use `workspace/tools/report-intelligence-template.md` so the Maya report includes customer journey, product-decision signal, customer-service simulation, and what Maya would do next.
 3. Use `workspace/tools/report-intelligence-template.md` so the engineering handoff includes decision impact, issue tags, repeat-finding context, agent fix packet, acceptance criteria, validation steps, protected behavior, and validation boundary.
 4. Update `docs/agents/testers/maya-chen/reports/README.md`.
 5. Update `docs/agents/testers/maya-chen/monthly-credit-ledger.md` when credits are spent or checked.
-6. Publish the report bodies to Admin Tester Reports through `POST /api/internal/tester-reports/ingest` when `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` is available.
-7. Record admin publish status in the report index and engineering handoff.
-8. Complete the post-run self-audit/performance check, name required low-score corrections, and update `self-score-ledger.md`.
-9. Compare against `baseline-kpi-2026-07-05.md` when scoring drift, degradation, or improvement.
-10. Answer the post-run coach question: where did Maya stop acting like a real customer and start acting like a tester?
-11. Add a short memory entry only when the run changes Maya's future behavior.
+6. Publish the report bodies to Admin Tester Reports through `POST /api/internal/tester-reports/ingest` using the stable `externalRunId`.
+7. Verify the exact Admin row and both report cards in `/admin/tester-reports`.
+8. Record ingest proof and Admin verification in the report index and engineering handoff.
+9. Complete the post-run self-audit/performance check, name required low-score corrections, and update `self-score-ledger.md`.
+10. Compare against `baseline-kpi-2026-07-05.md` when scoring drift, degradation, or improvement.
+11. Answer the post-run coach question: where did Maya stop acting like a real customer and start acting like a tester?
+12. Add a short memory entry only when the run changes Maya's future behavior.
 
 Admin publishing happens after the customer-facing browser test. It must not bypass visible signup, payment, generation, saving, or find-it-again workflows.
 
 ## Completion Contract
 
-Do not mark a Maya run complete until the browser run, reports, metrics, credit ledger, report index, Admin publish status, self-audit/performance check, required low-score corrections, and self-score ledger are all complete or explicitly marked blocked/partial. If only the Chrome work is done, the run is not done.
+Before browser work, require Admin publish readiness and backfill the oldest unpublished Maya run when credentials are available. Do not mark a Maya run complete until the browser run, reports, metrics, credit ledger, report index, successful ingest, Admin-page verification of both report cards, self-audit/performance check, required low-score corrections, and self-score ledger are complete. Missing publish access is a pre-run stop unless the user explicitly approves a local-only partial run.
 
 ## Tool And Artifact Rules
 

@@ -41,6 +41,7 @@ import {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { createProjectRestoreSnapshot } from "../logic/projectRestoreSnapshot";
 import type { StudioOutput } from "../types";
+import { readMediaDurationProbeWorkload } from "../components/shared/MediaDurationBadge";
 
 const PERF_REFERENCE_IMAGE_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#2ad1ff"/><stop offset="1" stop-color="#0f6fff"/></linearGradient></defs><rect width="240" height="240" fill="url(#g)"/><circle cx="120" cy="94" r="50" fill="rgba(255,255,255,0.24)"/><rect x="48" y="152" width="144" height="56" rx="18" fill="rgba(0,0,0,0.24)"/></svg>'
@@ -90,6 +91,43 @@ export const queryAiStudioPerfAuditAll = <ElementType extends Element>(
   return root ? Array.from(root.querySelectorAll<ElementType>(selector)) : [];
 };
 
+/** Resolves the All References video card used to prove duplicate-source hover ownership. */
+export const resolveReferenceGridVideoChurnHoverTarget = (
+  root: ParentNode | null | undefined = resolveAiStudioPerfAuditRoot()
+): HTMLElement | null =>
+  root?.querySelector<HTMLElement>(
+    '[data-right-rail-drop-surface="all-refs"] .reference-card.has-video'
+  ) ?? null;
+
+/** Measures duplicate-card presence separately from the single attached video-source owner. */
+export const measureReferenceGridDuplicateHoverOwnership = (params: {
+  hoveredOutputId: string | null;
+  cardNodes: HTMLElement[];
+  mountedVideoNodes: HTMLVideoElement[];
+}): { measured: boolean; valid: boolean } => {
+  if (!params.hoveredOutputId) return { measured: false, valid: false };
+  const matchingCards = params.cardNodes.filter(
+    (node) => node.dataset.outputId === params.hoveredOutputId
+  );
+  const measured = Boolean(
+    matchingCards.some((node) => node.closest('[data-right-rail-drop-surface="quick-slot"]')) &&
+    matchingCards.some((node) => node.closest('[data-right-rail-drop-surface="all-refs"]'))
+  );
+  const attachedNodes = params.mountedVideoNodes.filter(
+    (node) =>
+      node.dataset.outputId === params.hoveredOutputId &&
+      Boolean(node.getAttribute("src") || node.currentSrc)
+  );
+  return {
+    measured,
+    valid: Boolean(
+      measured &&
+      attachedNodes.length === 1 &&
+      attachedNodes[0]?.dataset.referenceSurface === "all-refs"
+    ),
+  };
+};
+
 type AiStudioPerfWindow = Window & {
   __shortpulseAiStudioPerfMountDebug?: {
     enabled: boolean;
@@ -120,6 +158,43 @@ type AiStudioPerfWindow = Window & {
       outputIds: string[];
     };
     clearReferenceGrid: () => { activeCount: number; archivedCount: number; totalCount: number };
+    runReferenceGridVideoChurnAudit: (options?: { cycles?: number; idleMs?: number }) => Promise<{
+      ok: boolean;
+      generatedAt: string;
+      itemCount: number;
+      videoCount: number;
+      cycles: number;
+      idleMs: number;
+      samples: Array<{
+        phase: string;
+        heapMb: number | null;
+        mountedGridVideoCount: number;
+        trackedGridVideoCount: number;
+        attachedGridVideoSourceCount: number;
+        gridVideoAttachBudget: number;
+        quickSlotMountedVideoCount: number;
+        duplicateHoverOwnershipMeasured: boolean;
+        duplicateHoverOwnershipValid: boolean;
+        canvasAttachedVideoSourceCount: number;
+        durationProbeInflightCount: number;
+        durationProbeQueuedCount: number;
+        canvasMeasurementAvailable: boolean;
+      }>;
+      gates: {
+        trackedMatchesMounted: boolean;
+        attachedWithinBudget: boolean;
+        countsReturnedAfterIdle: boolean;
+        quickSlotOwnershipMeasured: boolean;
+        duplicateHoverOwnershipMeasured: boolean;
+        duplicateHoverOwnershipValid: boolean;
+        canvasMeasurementAvailable: boolean;
+        canvasSourcesReturnedAfterIdle: boolean;
+        durationProbesReturnedAfterIdle: boolean;
+        heapMeasured: boolean;
+        heapWithinIdleAllowance: boolean;
+        heapNotMonotonicGrowth: boolean;
+      };
+    }>;
     runReferenceGridAudit: (options?: {
       counts?: number[];
       clickSamples?: number;
@@ -294,6 +369,85 @@ type AiStudioPerfWindow = Window & {
     }>;
     getProjectWorkspaceAutosavePerfCounters: () => ProjectWorkspaceAutosavePerfCounters;
     resetProjectWorkspaceAutosavePerfCounters: () => void;
+  };
+};
+
+type ReferenceGridVideoChurnSample = {
+  phase: string;
+  heapMb: number | null;
+  mountedGridVideoCount: number;
+  trackedGridVideoCount: number;
+  attachedGridVideoSourceCount: number;
+  gridVideoAttachBudget: number;
+  quickSlotMountedVideoCount: number;
+  duplicateHoverOwnershipMeasured: boolean;
+  duplicateHoverOwnershipValid: boolean;
+  canvasAttachedVideoSourceCount: number;
+  canvasMeasurementAvailable: boolean;
+  durationProbeInflightCount: number;
+  durationProbeQueuedCount: number;
+};
+
+export const evaluateReferenceGridVideoChurnGates = (samples: ReferenceGridVideoChurnSample[]) => {
+  const warmUp = samples[0];
+  const finalIdle = samples[samples.length - 1];
+  const heapSamples = samples
+    .map((sample) => sample.heapMb)
+    .filter((value): value is number => typeof value === "number");
+  const heapGrowthSteps = heapSamples.slice(1).filter((value, index) => {
+    return value > (heapSamples[index] ?? value);
+  }).length;
+  const heapAllowanceMb = warmUp?.heapMb == null ? null : Math.max(50, warmUp.heapMb * 0.1);
+  const heapMeasured = Boolean(
+    heapSamples.length >= 3 && warmUp?.heapMb != null && finalIdle?.heapMb != null
+  );
+  const duplicateHoverSamples = samples.filter((sample) => sample.phase.endsWith("-hover"));
+  return {
+    trackedMatchesMounted: samples.every(
+      (sample) => sample.trackedGridVideoCount === sample.mountedGridVideoCount
+    ),
+    attachedWithinBudget: samples.every(
+      (sample) => sample.attachedGridVideoSourceCount <= sample.gridVideoAttachBudget + 1
+    ),
+    countsReturnedAfterIdle: Boolean(
+      warmUp &&
+      finalIdle &&
+      finalIdle.trackedGridVideoCount === warmUp.trackedGridVideoCount &&
+      finalIdle.attachedGridVideoSourceCount <= warmUp.attachedGridVideoSourceCount
+    ),
+    quickSlotOwnershipMeasured: samples.some((sample) => sample.quickSlotMountedVideoCount > 0),
+    duplicateHoverOwnershipMeasured: Boolean(
+      duplicateHoverSamples.length > 0 &&
+      duplicateHoverSamples.every((sample) => sample.duplicateHoverOwnershipMeasured)
+    ),
+    duplicateHoverOwnershipValid: Boolean(
+      duplicateHoverSamples.length > 0 &&
+      duplicateHoverSamples.every((sample) => sample.duplicateHoverOwnershipValid)
+    ),
+    canvasMeasurementAvailable: samples.every((sample) => sample.canvasMeasurementAvailable),
+    canvasSourcesReturnedAfterIdle: Boolean(
+      warmUp &&
+      finalIdle &&
+      finalIdle.canvasMeasurementAvailable &&
+      finalIdle.canvasAttachedVideoSourceCount <= warmUp.canvasAttachedVideoSourceCount
+    ),
+    durationProbesReturnedAfterIdle: Boolean(
+      warmUp &&
+      finalIdle &&
+      finalIdle.durationProbeInflightCount <= warmUp.durationProbeInflightCount &&
+      finalIdle.durationProbeQueuedCount <= warmUp.durationProbeQueuedCount
+    ),
+    heapMeasured,
+    heapWithinIdleAllowance: Boolean(
+      heapMeasured &&
+      warmUp?.heapMb != null &&
+      finalIdle?.heapMb != null &&
+      heapAllowanceMb != null &&
+      finalIdle.heapMb - warmUp.heapMb <= heapAllowanceMb
+    ),
+    heapNotMonotonicGrowth: Boolean(
+      heapMeasured && heapGrowthSteps <= Math.floor((heapSamples.length - 1) * 0.8)
+    ),
   };
 };
 
@@ -1141,6 +1295,187 @@ export function useAiStudioPerfAuditRuntime({
       };
     };
 
+    const createVideoChurnOutputs = (): StudioOutput[] => {
+      const itemCount = 81;
+      const videoCount = 23;
+      const runId = Date.now();
+      return Array.from({ length: itemCount }, (_, index) => {
+        if (index < videoCount) {
+          const previewUrl = `/dashboard/homepage-hero-background-lite.mp4?perf-video=${index}`;
+          const fullUrl = `/dashboard/homepage-hero-background-perf.mp4?perf-video=${index}`;
+          return {
+            id: `perf-video-churn-${runId}-${index}`,
+            prompt: `Perf video reference ${index + 1}`,
+            mode: "video",
+            aspect,
+            model: currentModelLabel,
+            modelId: model ?? undefined,
+            createdAt: new Date(Date.now() - index).toISOString(),
+            status: "ready",
+            taskState: "success",
+            timestamp: "Perf video churn seed",
+            previewUrl,
+            previewStoragePath: previewUrl,
+            fullStoragePath: fullUrl,
+            resultUrls: [fullUrl],
+            mediaSource: "generated",
+            previewTier: "preview_loop",
+            archivedAt: null,
+            archiveReason: null,
+            saveState: "idle",
+            saveError: null,
+          } satisfies StudioOutput;
+        }
+        const previewUrl = `${PERF_REFERENCE_IMAGE_SVG}#video-churn-${index}`;
+        return {
+          id: `perf-video-churn-${runId}-${index}`,
+          prompt: `Perf image reference ${index + 1}`,
+          mode: "image",
+          aspect,
+          model: currentModelLabel,
+          modelId: model ?? undefined,
+          createdAt: new Date(Date.now() - index).toISOString(),
+          status: "ready",
+          taskState: "success",
+          timestamp: "Perf video churn seed",
+          previewUrl,
+          previewStoragePath: previewUrl,
+          fullStoragePath: previewUrl,
+          mediaSource: "generated",
+          previewTier: "thumb",
+          archivedAt: null,
+          archiveReason: null,
+          saveState: "idle",
+          saveError: null,
+        } satisfies StudioOutput;
+      });
+    };
+
+    const captureVideoChurnSample = (phase: string, hoveredOutputId: string | null = null) => {
+      const panel = queryAiStudioPerfAudit<HTMLElement>(
+        ".reference-canvas-panel[data-grid-surface='reference-grid']"
+      );
+      const mountedVideoNodes =
+        queryAiStudioPerfAuditAll<HTMLVideoElement>(".reference-card-video");
+      const cardNodes = queryAiStudioPerfAuditAll<HTMLElement>(".reference-card[data-output-id]");
+      const attachedVideoNodes = mountedVideoNodes.filter((node) =>
+        Boolean(node.getAttribute("src") || node.currentSrc)
+      );
+      const quickSlotMountedVideoCount = queryAiStudioPerfAuditAll<HTMLVideoElement>(
+        '[data-right-rail-drop-surface="quick-slot"] .reference-card-video'
+      ).length;
+      const duplicateHoverOwnership = measureReferenceGridDuplicateHoverOwnership({
+        hoveredOutputId,
+        cardNodes,
+        mountedVideoNodes,
+      });
+      const canvasAttachedVideoSourceCount = queryAiStudioPerfAuditAll<HTMLElement>(
+        "[data-canvas-attached-video-source-count]"
+      ).reduce(
+        (count, node) => count + Number(node.dataset.canvasAttachedVideoSourceCount ?? 0),
+        0
+      );
+      const durationProbeWorkload = readMediaDurationProbeWorkload();
+      const canvasMeasurementAvailable = Boolean(
+        queryAiStudioPerfAudit<HTMLElement>("[data-canvas-attached-video-source-count]")
+      );
+      return {
+        phase,
+        heapMb: sampleHeapMb(),
+        mountedGridVideoCount: mountedVideoNodes.length,
+        trackedGridVideoCount: Number(panel?.dataset.gridTrackedVideoNodeCount ?? 0),
+        attachedGridVideoSourceCount: attachedVideoNodes.length,
+        gridVideoAttachBudget: Number(panel?.dataset.gridVideoAttachBudget ?? 0),
+        quickSlotMountedVideoCount,
+        duplicateHoverOwnershipMeasured: duplicateHoverOwnership.measured,
+        duplicateHoverOwnershipValid: duplicateHoverOwnership.valid,
+        canvasAttachedVideoSourceCount,
+        canvasMeasurementAvailable,
+        durationProbeInflightCount: durationProbeWorkload.inflightCount,
+        durationProbeQueuedCount: durationProbeWorkload.queuedCount,
+      };
+    };
+
+    const runReferenceGridVideoChurnAudit = async (options?: {
+      cycles?: number;
+      idleMs?: number;
+    }) => {
+      const cycles = Math.max(1, Math.floor(options?.cycles ?? 20));
+      const idleMs = Math.max(0, Math.floor(options?.idleMs ?? 60_000));
+      const seededOutputs = createVideoChurnOutputs();
+      resetReferenceGridState();
+      if (hydrateFromSessionSnapshot) {
+        const baseSnapshot = createEmptyAiStudioSessionSnapshot({
+          sessionId: `perf-video-churn-${Date.now()}`,
+          updatedAt: new Date().toISOString(),
+        });
+        const snapshot = patchAiStudioSessionSnapshotOutputs(baseSnapshot, {
+          active: seededOutputs,
+          archived: [],
+          activeOutputId: seededOutputs[0]?.id ?? null,
+          curatedReferenceIds: seededOutputs
+            .filter((output) => output.mode === "video")
+            .slice(0, 4)
+            .map((output) => output.id),
+          removedFromAllRefsIds: [],
+        });
+        hydrateFromSessionSnapshot(createProjectRestoreSnapshot(snapshot));
+      } else {
+        setOutputs(seededOutputs);
+        setActiveOutputId(seededOutputs[0]?.id ?? null);
+      }
+      await sleep(500);
+      await afterTwoFrames();
+
+      const scroller = queryAiStudioPerfAudit<HTMLElement>(".reference-canvas-scroll");
+      if (!scroller) {
+        throw new Error("Reference Grid video churn audit could not find its scroll surface.");
+      }
+      const samples = [captureVideoChurnSample("warm-up")];
+      for (let cycle = 1; cycle <= cycles; cycle += 1) {
+        scroller.scrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+        scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+        await afterTwoFrames();
+        await sleep(50);
+        samples.push(captureVideoChurnSample(`cycle-${cycle}-bottom`));
+
+        scroller.scrollTop = 0;
+        scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
+        await afterTwoFrames();
+        await sleep(50);
+        samples.push(captureVideoChurnSample(`cycle-${cycle}-top`));
+        const hoverTarget = resolveReferenceGridVideoChurnHoverTarget();
+        if (hoverTarget) {
+          const hoveredOutputId = hoverTarget.dataset.outputId;
+          hoverTarget.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+          await afterTwoFrames();
+          samples.push(captureVideoChurnSample(`cycle-${cycle}-hover`, hoveredOutputId ?? null));
+          hoverTarget.dispatchEvent(new PointerEvent("pointerout", { bubbles: true }));
+          await afterTwoFrames();
+        } else {
+          samples.push(captureVideoChurnSample(`cycle-${cycle}-hover`));
+        }
+      }
+      await sleep(idleMs);
+      await afterTwoFrames();
+      samples.push(captureVideoChurnSample("final-idle"));
+
+      const gates = evaluateReferenceGridVideoChurnGates(samples);
+      const result = {
+        ok: Object.values(gates).every(Boolean),
+        generatedAt: new Date().toISOString(),
+        itemCount: seededOutputs.length,
+        videoCount: seededOutputs.filter((output) => output.mode === "video").length,
+        cycles,
+        idleMs,
+        samples,
+        gates,
+      };
+      console.table(gates);
+      console.log("[shortpulse][reference-grid-video-churn-audit]", result);
+      return result;
+    };
+
     const dispatchSyntheticDividerDrag = async ({
       target,
       axis,
@@ -1528,6 +1863,7 @@ export function useAiStudioPerfAuditRuntime({
         resetReferenceGridState();
         return { activeCount: 0, archivedCount: 0, totalCount: 0 };
       },
+      runReferenceGridVideoChurnAudit,
       getReferenceGridAuditProgress: () => referenceGridAuditProgress,
       runReferenceGridAudit: async (options) => {
         const rawCounts =

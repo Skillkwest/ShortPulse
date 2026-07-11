@@ -246,12 +246,17 @@ const readApiErrorMessage = (payload: unknown): string => {
 };
 
 const buildApiError = (message: string, payload: unknown): Error => {
-  const error = new Error(message) as Error & { code?: string };
+  const error = new Error(message) as Error & {
+    code?: string;
+    pricingConflict?: Record<string, unknown>;
+  };
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    const code = (payload as Record<string, unknown>).code;
+    const record = payload as Record<string, unknown>;
+    const code = record.code;
     if (typeof code === "string" && code.trim()) {
       error.code = code.trim();
     }
+    error.pricingConflict = record;
   }
   return error;
 };

@@ -9,6 +9,10 @@ import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "../useAiStudioTasks";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import {
+  PRICING_POLICY_CONFLICT_EVENT,
+  PRICING_POLICY_REFRESH_REQUESTED_EVENT,
+} from "../../../../lib/model-runtime/pricingPolicyFreshness";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -4041,6 +4045,82 @@ describe("useAiStudioTaskSubmission", () => {
         }),
       })
     );
+  });
+
+  it("refreshes pricing and removes the optimistic output on a stale-policy conflict", async () => {
+    const setOutputs = vi.fn();
+    const setUiNotice = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const dispatchEvent = vi.spyOn(window, "dispatchEvent");
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    vi.mocked(handleImageModelSubmission).mockRejectedValueOnce(
+      Object.assign(new Error("Pricing changed before generation started."), {
+        code: "PRICING_POLICY_STALE",
+        pricingConflict: {
+          displayedBilledCredits: 7,
+          activeBilledCredits: 9,
+          activePricingPolicyVersion: 12,
+        },
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        currentCostCredits: 7,
+        selectedTool: "create",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(vi.fn()),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(vi.fn()),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById: vi.fn(),
+        startPollingTask: vi.fn(),
+        ensureGenerationRecord: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      await result.current("Character prompt", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        outputIdOverride: "out-stale-price",
+      });
+    });
+
+    expect(setOutputs).toHaveBeenCalledWith(expect.any(Function));
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "Pricing updated from 7 to 9 credits (policy 12). Review the new price, then click Generate again."
+    );
+    expect(dispatchEvent).toHaveBeenCalledTimes(2);
+    expect(dispatchEvent.mock.calls[0]?.[0]).toMatchObject({
+      type: PRICING_POLICY_REFRESH_REQUESTED_EVENT,
+    });
+    expect(dispatchEvent.mock.calls[1]?.[0]).toMatchObject({
+      type: PRICING_POLICY_CONFLICT_EVENT,
+    });
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
   it("fails fast when a provider handler does not return a request id", async () => {

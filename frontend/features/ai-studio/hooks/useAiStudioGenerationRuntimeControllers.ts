@@ -11,7 +11,9 @@ import type {
   StudioOutput,
   ToolId,
   VideoReferenceMode,
+  WorkflowReloadConfigV1,
 } from "../types";
+import type { RerollPricingEvidence } from "../logic/rerollPricingEvidence";
 import { getDefaultDurationSecondsForModel } from "./aiStudioStateConfig";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
@@ -48,6 +50,7 @@ type UseAiStudioGenerationRuntimeControllersParams = {
     referenceImageUrl: string | null;
     extraImageUrls: readonly (string | null)[];
   };
+  resolveRerollPricingEvidence?: (config: WorkflowReloadConfigV1) => RerollPricingEvidence | null;
   seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceAudioUrls: string[];
   seedance2ReferenceImageUrls: string[];
@@ -107,6 +110,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
   projectId,
   workspaceRuntimeKey = null,
   resolveReferenceInputsForTool,
+  resolveRerollPricingEvidence,
   seedance2InputMode,
   seedance2ReferenceAudioUrls,
   seedance2ReferenceImageUrls,
@@ -216,6 +220,7 @@ export const useAiStudioGenerationRuntimeControllers = ({
 
   const { rerollOutputFromReplay, rerollStudioOutputFromReplay } = useAiStudioRerollController({
     findOutputById,
+    resolvePricingEvidence: resolveRerollPricingEvidence,
     setUiNotice,
     submitTask,
   });

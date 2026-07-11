@@ -225,7 +225,7 @@ For browser test notes, use this shape:
 
 ## Report Destination
 
-After each completed Maya run, write the two local Markdown reports and publish the same report bodies into the Admin Tester Reports tab (`/admin/tester-reports`) through the internal tester-report ingest route when the required ingest secret is available.
+Before each normal Maya run, confirm Admin publishing readiness and backfill any older unpublished Maya report first. After the browser scenario, write the two local Markdown reports, publish the same bodies through the internal tester-report ingest route, and verify both report cards in the Admin Tester Reports tab (`/admin/tester-reports`). An unpublished or unverified run is `partial` or `blocked`, never `completed`, unless the user explicitly authorized a local-only partial run before browser work.
 
 Use `docs/agents/testers/maya-chen/authenticated-testing-and-reporting-sop.md` and `docs/sops/sop_admin_tester_reports_operations.md` as the publishing contract. Admin publishing happens after the customer-facing browser test and must not be used to bypass visible product workflows.
 

@@ -36,6 +36,12 @@ const toFiniteNumber = (value: unknown, fallback: number): number => {
 const toStringOrNull = (value: unknown): string | null =>
   typeof value === "string" ? value : null;
 
+const toNumberOrNull = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const next = Number(value);
+  return Number.isFinite(next) ? next : null;
+};
+
 const toMetadataRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -110,6 +116,9 @@ export const normalizeAdminCrashSessionsResponse = (data: {
       confidence: toConfidence(value.confidence),
       effectiveStatus: toStatus(value.effective_status ?? value.status),
       effectiveConfidence: toConfidence(value.effective_confidence ?? value.confidence),
+      effectiveReason: toStringOrNull(value.effective_reason),
+      maxUsedJsHeapSize: toNumberOrNull(value.max_used_js_heap_size),
+      maxHeapUsedToLimitRatio: toNumberOrNull(value.max_heap_used_to_limit_ratio),
       isStale: Boolean(value.is_stale),
       lastEvent: String(value.last_event ?? "unknown"),
       route: toStringOrNull(value.route),

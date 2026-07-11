@@ -29,6 +29,7 @@ import {
   resolveVoiceChangerMediaDurationMs,
   resolveVoiceChangerVideoAspect,
   signVoiceSourceStoragePath,
+  stageVoiceChangerVideoReferenceSource,
   uploadVoiceChangerSourceFile,
   uploadVoiceCloneSourceFile,
 } from "../voiceChangerSourceAsset";
@@ -208,6 +209,49 @@ describe("voiceChangerSourceAsset upload helpers", () => {
       file,
       expect.objectContaining({
         contentType: "audio/wav",
+      })
+    );
+  });
+
+  it("stages a trusted video reference through the canonical Voice Changer route", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        source: {
+          storagePath: "user-1/voice-changer/source-video/reference.mp4",
+          previewUrl: "https://signed.example/reference.mp4",
+          mimeType: "video/mp4",
+          name: "reference.mp4",
+          size: 1024,
+        },
+      }),
+    });
+
+    await expect(
+      stageVoiceChangerVideoReferenceSource({
+        sourceName: "reference.mp4",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: null,
+        sourceUrl: "https://cdn.shortpulse.test/reference.mp4",
+      })
+    ).resolves.toEqual({
+      storagePath: "user-1/voice-changer/source-video/reference.mp4",
+      signedUrl: "https://signed.example/reference.mp4",
+      mimeType: "video/mp4",
+      name: "reference.mp4",
+      size: 1024,
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/stage-voice-changer-source",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          sourceKind: "video",
+          sourceMimeType: "video/mp4",
+          sourceName: "reference.mp4",
+          sourceStoragePath: null,
+          sourceUrl: "https://cdn.shortpulse.test/reference.mp4",
+        }),
       })
     );
   });

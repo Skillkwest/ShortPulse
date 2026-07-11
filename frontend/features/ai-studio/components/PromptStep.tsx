@@ -198,10 +198,18 @@ export function PromptStep({
   };
   const handleComposerAttachmentDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    if (!chatModeEnabled) {
+      event.preventDefault();
+      return;
+    }
     onAgentAttachmentDragOver?.(event);
   };
   const handleComposerAttachmentDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    if (!chatModeEnabled) {
+      event.preventDefault();
+      return;
+    }
     onAgentAttachmentDragEnter?.(event);
   };
   const handleComposerAttachmentDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
@@ -228,6 +236,11 @@ export function PromptStep({
         agentInputRef.current?.focus();
         agentInputRef.current?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
       });
+      return;
+    }
+    if (!chatModeEnabled) {
+      event.preventDefault();
+      onAgentAttachmentDragLeave?.(event);
       return;
     }
     onAgentAttachmentDrop?.(event);
@@ -272,7 +285,8 @@ export function PromptStep({
         onDragEnter: undefined,
         onDragLeave: undefined,
       };
-  const showComposerAttachments = dropToInputComposer && stagedAttachments.length > 0;
+  const showComposerAttachments =
+    chatModeEnabled && dropToInputComposer && stagedAttachments.length > 0;
   React.useEffect(() => {
     if (!agentIsSending || !shouldRestoreAgentInputFocusRef.current) return undefined;
 

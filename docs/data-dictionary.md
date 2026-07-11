@@ -433,6 +433,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `workflow_reload` (jsonb, default `{}`): Versioned navigate-and-hydrate workflow metadata for reloading the originating AI Studio panel from a generated reference.
 - `display_title` (text, nullable, <= 40 chars): Compact generated display title for audio references, used by Reference Grid, project restore, generated-output reconciliation, and generated-audio Media Library presentation.
 - `error_payload` (jsonb, nullable): Raw provider/client failure payload for failed generated-output detail views; compact Reference Grid cards and banners must use normalized presentation copy instead.
+- `remux_recovery` (jsonb, nullable): Projection-only Voice Changer pending/failed video-assembly state used to reconstruct the deterministic retry card after refresh. Canonical storage paths and recovery authority remain in the caller-owned `ai_generations.metadata`; this projection contains only non-secret ids, status, stage, code, and retryability.
 - `publication_status` / `publication_id` / `published_at` (nullable): Publication tracking fields.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
@@ -636,20 +637,27 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `details` (text, default `''`): Trimmed operator notes, bounded to 1000 characters.
 - `status` (text, default `backlog`): `backlog | in_progress | review | complete | published`.
 - `sort_order` (integer, default `0`): Stable board ordering value for future manual ordering.
+- `source_type` (text, default `manual`): `manual | admin_error | planning_backlog`. Distinguishes manually created cards, Admin Errors/Ophestivus intake cards, and cards mirrored from `docs/planning/backlog.md`.
+- `source_key` (text, nullable): Stable source-local identity, unique with `source_type` when present. Planning backlog cards use the hidden `kanban:spb-pN-###` ids from `docs/planning/backlog.md`.
+- `source_path` / `source_section` / `source_line` (nullable): Source document location metadata for mirrored cards.
+- `source_fingerprint` (text, nullable): SHA-256 fingerprint of the parsed source item text.
+- `source_synced_at` / `source_missing_at` (timestamptz, nullable): Last source sync timestamp and soft missing-source marker. Missing planning-backlog cards are retained for review rather than deleted automatically.
 - `created_by` / `updated_by` / `archived_by` (uuid, nullable fk -> `auth.users.id`): Admin attribution.
 - `archived_at` (timestamptz, nullable): Soft-delete marker; active board APIs exclude archived rows.
 - `created_at` / `updated_at` (timestamptz, default UTC now).
 - RLS: enabled with no direct browser policies; trusted admin API routes use service-role access after `requireAdminUser`.
 - Integrity:
   - Status is constrained to the five shipped board columns.
+  - Source metadata is constrained to known source types, bounded source identity/metadata, and required `source_key` for planning backlog cards.
+  - A partial unique index on `(source_type, source_key)` prevents duplicate source cards without affecting manual cards that have no source key.
   - `updated_at` is stamped by trigger on row mutation.
-  - Partial active indexes support status/ordering reads while archived history remains retained.
+  - Partial active indexes support status/source/ordering reads while archived history remains retained.
 
 ### admin_kanban_activity
 
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `item_id` (uuid, fk -> `admin_kanban_items.id`): Parent task.
-- `action` (text): `created | updated | moved | archived`.
+- `action` (text): `created | updated | moved | archived | synced`.
 - `from_status` / `to_status` (text, nullable): Status transition metadata when applicable.
 - `note` (text, nullable): Compact human-readable mutation context.
 - `actor_user_id` (uuid, nullable fk -> `auth.users.id`): Operator id when available.
@@ -662,14 +670,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### Admin kanban RPC contract
 
-- `create_admin_kanban_item(p_title, p_details, p_actor_user_id, p_actor_email)`
+- `create_admin_kanban_item(p_title, p_details, p_actor_user_id, p_actor_email, p_source_type, p_source_key, p_source_path, p_source_section, p_source_line, p_source_fingerprint)`
 - `update_admin_kanban_item(p_item_id, p_title, p_details, p_actor_user_id, p_actor_email)`
 - `move_admin_kanban_item(p_item_id, p_status, p_actor_user_id, p_actor_email)`
 - `archive_admin_kanban_item(p_item_id, p_actor_user_id, p_actor_email)`
+- `sync_admin_kanban_planning_backlog_items(p_items, p_actor_user_id, p_actor_email, p_dry_run)`
   - Service-role-only execute posture (`security definer` + execute grant restricted to `service_role`).
   - Validate bounded task input and allowed statuses in-database.
   - Atomically mutate `admin_kanban_items` and insert the matching `admin_kanban_activity` row.
   - `move_admin_kanban_item` locks the active item row before computing `from_status`, preventing stale transition logs under concurrent moves.
+  - `sync_admin_kanban_planning_backlog_items` mirrors parsed `docs/planning/backlog.md` items as `planning_backlog` cards, updates mirrored title/details/source metadata, preserves current workflow status, skips archived source cards, and marks missing source cards without deleting them.
 
 ### agent_safety_policy_versions
 
@@ -1374,13 +1384,17 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `route` (text, nullable): Current route path with query values redacted to query-key presence.
 - `build_id` / `client_release` / `client_environment` (text, nullable): Build/runtime identifiers sent by the authenticated client when available.
 - `user_agent` / `host` / `vercel_id` (text, nullable): Trusted server request metadata captured at ingest.
-- `metadata` (jsonb): Allowlisted browser/session evidence only, including connection, memory pressure, lifecycle, stall, and Reporting API crash-report keys. Session updates merge metadata so ordinary heartbeats do not erase crash-adjacent pressure evidence. Explicit heap-ratio keys distinguish browser limit pressure (`heap_used_to_limit_ratio`) from adaptive-media pressure (`heap_used_to_total_ratio`); high-water fields such as `max_pressure_level`, `max_heap_used_to_total_ratio`, `max_heap_used_to_limit_ratio`, `pressure_event_count`, and `last_pressure_snapshot_at` are preserved for admin review. Browser-delivered crash-report metadata is limited to values such as `crash_report_source`, `crash_report_type`, `crash_report_url_path`, `crash_report_age_ms`, `crash_report_reason`, `crash_report_visibility_state`, `crash_report_is_top_level`, redacted route/build context, and pressure numbers from `CrashReportContext`. Do not store prompts, DOM text, signed URLs, raw storage paths, provider payloads, stack traces, or arbitrary browser data here.
+- `metadata` (jsonb): Allowlisted browser/session evidence only, including connection, memory pressure, lifecycle, stall, and Reporting API crash-report keys. Session updates merge metadata so ordinary heartbeats do not erase crash-adjacent pressure evidence. Explicit heap fields include `used_js_heap_size`, `total_js_heap_size`, and `js_heap_size_limit` bytes. Ratio keys distinguish browser limit pressure (`heap_used_to_limit_ratio`) from adaptive-media used-to-allocated pressure (`heap_used_to_total_ratio`); `heap_usage_ratio` is legacy evidence and must be labeled as such rather than presented as percent of the browser limit. High-water fields such as `max_pressure_level`, `max_heap_used_to_total_ratio`, `max_heap_used_to_limit_ratio`, `pressure_event_count`, and `last_pressure_snapshot_at` are preserved for admin review. Browser-delivered crash-report metadata is limited to values such as `crash_report_source`, `crash_report_type`, `crash_report_url_path`, `crash_report_age_ms`, `crash_report_reason`, `crash_report_visibility_state`, `crash_report_is_top_level`, redacted route/build context, and pressure numbers from `CrashReportContext`. Do not store prompts, DOM text, signed URLs, raw storage paths, provider payloads, stack traces, or arbitrary browser data here.
+- `max_used_js_heap_size` (bigint): Greatest explicit used-JS-heap byte count observed for the session.
+- `max_heap_used_to_limit_ratio` (double precision, nullable): Greatest explicit used-to-browser-heap-limit ratio observed for the session.
+- `high_memory_sample_count` / `high_memory_first_at` / `high_memory_last_at`: Typed sustained-memory evidence used by the canonical effective classifier.
+- `visible_severe_stall_at` / `peer_abandoned_at`: Typed timestamps for visible severe-stall and sibling-observed abandonment evidence.
 - `review_status` (text): Operator triage state: `open` | `resolved` | `ignored`. Product UI presents `resolved` as Reviewed; reviewed or ignored rows leave the active admin review queue without deleting evidence or changing the crash evidence `status`.
 - `reviewed_at` / `reviewed_by` / `reviewed_by_email` / `review_note`: Optional admin review audit fields for the last crash-session review state change and historical operator context.
 - `started_at` / `last_seen_at` / `ended_at` / `suspected_at` (timestamptz): Session timeline. Hard browser exits are inferred from stale `last_seen_at` and `previous_session_abandoned` reports on the next authenticated page load because the browser may not send a final authenticated event; a browser-delivered Reporting API `crash` report may set `ended_at` and `suspected_at` from report age.
 - `created_at` / `updated_at`
 - RLS: enabled with no client policies by default; table access is service-role-only.
-- Authority: browser crash/freeze evidence for `/admin/crashes`. It is not a grouped incident table and does not replace `app_error_logs` or `app_error_events`.
+- Authority: browser crash/freeze evidence for `/admin/crashes`. The service-role-only `record_browser_crash_session_event_v1` RPC is the only lifecycle/abandonment/native-report mutation authority; it locks per browser session, uses database receipt time for ordering, and atomically merges bounded evidence without intercepting Admin review-only updates. The service-role-only `list_browser_crash_sessions_v2` RPC is the canonical list, effective-status/reason, filtering, count, and pagination authority used by Admin and Badearsai. Derived `effective_status`, `effective_confidence`, `effective_reason`, and `is_stale` values are list results, not duplicate stored status columns. This table is not a grouped incident table and does not replace `app_error_logs` or `app_error_events`.
 
 ### storage.objects (Supabase bucket)
 

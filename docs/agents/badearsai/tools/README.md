@@ -4,7 +4,10 @@ Purpose: inventory helper tools and scripts for Badearsai's error-monitoring wor
 
 ## Current Status
 
-Badearsai now has a Crash Logs helper at `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
+Badearsai now has two production helpers:
+
+- Admin Errors helper: `docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs`.
+- Crash Logs helper: `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
 
 ## Manual Tools In Use
 
@@ -15,6 +18,10 @@ Badearsai now has a Crash Logs helper at `docs/agents/badearsai/tools/scripts/cr
 - Unauthenticated route probes for fail-closed checks when they are non-mutating.
 - Existing route/docs/test files for canonical source ownership.
 - Canonical status semantics: `frontend/pages/api/admin/errors-status.ts` and `frontend/pages/api/admin/errors-status-bulk.ts`.
+- Admin Errors read/status/update helper:
+  - `node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs queue --limit 20`,
+  - `node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs status --incident <incident-id>`,
+  - `node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs update --incident <incident-id> --status resolved|ignored|open --note "<rationale>" [--watch]`.
 - Crash Logs read/review helper:
   - `node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list`,
   - `node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list --status all --review-status open --limit 50`,
@@ -25,11 +32,31 @@ Badearsai now has a Crash Logs helper at `docs/agents/badearsai/tools/scripts/cr
   - `npm -C frontend run ophestivus:intake -- --incident <incident-id> --dry-run`,
   - `npm -C frontend run ophestivus:complete-error-ticket -- ... --dry-run`.
 
-## Planned Scripts
+## Implemented Scripts
+
+### Admin Errors Intake Helper
+
+Status: implemented. Queue reads mirror the Admin Errors default queue filters from `frontend/pages/api/admin/errors.ts`; status/update actions use the canonical `admin_update_app_error_status` RPC behind `frontend/pages/api/admin/errors-status.ts`.
+
+Goal: make packet status checks, final queue readback, and reviewed-row cleanup repeatable without hand-written Supabase snippets.
+
+Default output:
+
+- incident ID,
+- status, watch flag, severity, source, message,
+- route, endpoint, request ID, HTTP status,
+- redacted user boundary,
+- first/last seen and occurrence count,
+- app/client release and build,
+- generation/task/error identifiers when present,
+- exception stage/name when present,
+- metadata key inventory.
+
+The helper is read-only unless the `update` command is used. Updates must be one-row, note-backed status changes for reviewed incidents only. Use `--watch` only with `--status resolved`.
 
 ### Crash Log Intake Helper
 
-Status: implemented at `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
+Status: implemented. List reads consume the service-role-only `list_browser_crash_sessions_v2` authority introduced by migration `220`; review updates remain one-row, note-backed status changes.
 
 Goal: pull current `/admin/crashes` evidence directly from production so Badearsai can run the Crash Log SOP without pasted packets.
 
@@ -46,7 +73,11 @@ Default output:
 - allowlisted metadata keys,
 - pressure/crash-report summary.
 
+The list command does not copy Admin status derivation or filtering. It consumes returned effective status, reason, confidence, count, and pagination from the canonical RPC. If migration `220` is not applied in the target environment, stop and report the missing interface instead of adding a direct-table fallback.
+
 Review updates are guarded and must be one-row, note-backed status changes that match the canonical review fields owned by `frontend/pages/api/admin/crashes-status.ts`.
+
+## Planned Scripts
 
 ### Triage Packet Parser
 

@@ -129,6 +129,36 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
+  it("blocks wider-panel media drops while Chat Mode is off", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        promptStepProps={{
+          ...basePromptStepProps,
+          chatModeEnabled: false,
+          onAgentAttachmentDrop,
+        }}
+      />
+    );
+
+    const panelBody = container.querySelector(".create-composer-right-panel-inner");
+    const dropResult = fireEvent.drop(panelBody as Element, {
+      dataTransfer: {
+        types: ["text/reference-url", "text/plain"],
+        getData: (key: string) =>
+          key === "text/reference-url"
+            ? "https://example.com/reference.png"
+            : key === "text/plain"
+              ? "Image note"
+              : "",
+      },
+    });
+
+    expect(dropResult).toBe(false);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+  });
+
   it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
@@ -380,6 +410,68 @@ describe("StandardCreatePanelView", () => {
       registry.clearActiveTarget();
     });
     expect(panelBody).not.toHaveClass("is-drop-active");
+  });
+
+  it("does not register Canvas image intake while Chat Mode is off", async () => {
+    const registry = createCanvasTearOutComposerTargetRegistry();
+    const onAgentComposerDirectDrop = vi.fn();
+    const { container } = render(
+      <StandardCreatePanelView
+        {...baseProps}
+        canvasTearOutTargetRegistry={registry}
+        onAgentComposerDirectDrop={onAgentComposerDirectDrop}
+        promptStepProps={{ ...basePromptStepProps, chatModeEnabled: false }}
+      />
+    );
+    const panelRoot = screen.getByRole("group", { name: "Create composer" }) as HTMLElement;
+    const panelBody = container.querySelector(".create-composer-right-panel-inner") as HTMLElement;
+    panelRoot.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 10,
+          top: 10,
+          right: 410,
+          bottom: 410,
+          width: 400,
+          height: 400,
+          x: 10,
+          y: 10,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+    panelBody.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          left: 240,
+          top: 240,
+          right: 340,
+          bottom: 340,
+          width: 100,
+          height: 100,
+          x: 240,
+          y: 240,
+          toJSON: () => ({}),
+        }) as DOMRect
+    );
+    const imagePayload: AgentComposerDirectDropPayload = {
+      kind: "image",
+      internalPayload: null,
+      composerImagePayload: {
+        version: 1,
+        origin: "ai-studio-reference-grid",
+        referenceId: "canvas-image-off",
+        outputId: null,
+        mediaId: "media-off",
+        displayArtifactUrl: "https://example.com/canvas.png",
+        displayArtifactKind: "url",
+        sourceSurface: "all-refs",
+      },
+    };
+
+    await waitFor(() => {
+      expect(registry.resolveTargetAtPoint({ clientX: 20, clientY: 20 }, imagePayload)).toBeNull();
+    });
+    expect(onAgentComposerDirectDrop).not.toHaveBeenCalled();
   });
 
   it("routes hybrid internal prompt-reference drags from the wider create panel body into the composer", () => {

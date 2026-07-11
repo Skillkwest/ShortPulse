@@ -265,7 +265,7 @@ describe("useAdminErrorIncidentsPanelState", () => {
     expect(result.current.inProgressIncidentIds.has("incident-1")).toBe(true);
   });
 
-  it("copies only visible new incident packets and marks them in progress", async () => {
+  it("copies every visible incident packet and marks open rows in progress", async () => {
     copyToClipboardMock.mockResolvedValue(true);
     window.localStorage.setItem(
       "shortpulse.admin.errors.in_progress_incidents",
@@ -295,29 +295,29 @@ describe("useAdminErrorIncidentsPanelState", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.visibleNewIncidentCount).toBe(2);
+      expect(result.current.visibleIncidentCount).toBe(4);
     });
 
     await act(async () => {
-      await result.current.handleCopyVisibleNewIncidents();
+      await result.current.handleCopyVisibleIncidents();
     });
 
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
     const copiedText = String(copyToClipboardMock.mock.calls[0]?.[0] ?? "");
     expect(copiedText).toContain("First new issue");
     expect(copiedText).toContain("Second new issue");
-    expect(copiedText).not.toContain("Already copied issue");
-    expect(copiedText).not.toContain("Resolved issue");
-    expect(copiedText.match(/shortpulseIncidentVersion/g)).toHaveLength(2);
+    expect(copiedText).toContain("Already copied issue");
+    expect(copiedText).toContain("Resolved issue");
+    expect(copiedText.match(/shortpulseIncidentVersion/g)).toHaveLength(4);
     expect(copiedText).toContain("---");
-    expect(result.current.copiedVisibleNewIncidentCount).toBe(2);
-    expect(result.current.visibleNewIncidentCount).toBe(0);
+    expect(result.current.copiedVisibleIncidentCount).toBe(4);
+    expect(result.current.visibleIncidentCount).toBe(4);
     expect(result.current.inProgressIncidentIds.has("incident-new-1")).toBe(true);
     expect(result.current.inProgressIncidentIds.has("incident-new-2")).toBe(true);
     expect(result.current.inProgressIncidentIds.has("incident-in-progress")).toBe(true);
   });
 
-  it("does not mark visible new incidents in progress when bulk clipboard copy fails", async () => {
+  it("does not mark visible incidents in progress when bulk clipboard copy fails", async () => {
     copyToClipboardMock.mockResolvedValue(false);
     const incident = buildIncident({ id: "incident-copy-failure" });
 
@@ -325,15 +325,15 @@ describe("useAdminErrorIncidentsPanelState", () => {
       useAdminErrorIncidentsPanelState(buildParams({ errors: [incident] }))
     );
 
-    expect(result.current.visibleNewIncidentCount).toBe(1);
+    expect(result.current.visibleIncidentCount).toBe(1);
 
     await act(async () => {
-      await result.current.handleCopyVisibleNewIncidents();
+      await result.current.handleCopyVisibleIncidents();
     });
 
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
-    expect(result.current.copiedVisibleNewIncidentCount).toBeNull();
-    expect(result.current.visibleNewIncidentCount).toBe(1);
+    expect(result.current.copiedVisibleIncidentCount).toBeNull();
+    expect(result.current.visibleIncidentCount).toBe(1);
     expect(result.current.inProgressIncidentIds.has("incident-copy-failure")).toBe(false);
     expect(window.localStorage.getItem("shortpulse.admin.errors.in_progress_incidents")).toBeNull();
   });

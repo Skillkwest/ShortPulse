@@ -270,6 +270,7 @@ export default async function handler(
       modelId,
       payload: durationSeconds == null ? {} : { duration_seconds: durationSeconds },
       reason: "elevenlabs-music generation",
+      billingWorkflow: "audio",
       shortpulseContext,
     });
     if (!charge) return;

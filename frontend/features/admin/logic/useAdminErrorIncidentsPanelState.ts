@@ -39,7 +39,7 @@ type UseAdminErrorIncidentsPanelStateParams = {
 
 type UseAdminErrorIncidentsPanelStateResult = {
   copiedIncidentId: string | null;
-  copiedVisibleNewIncidentCount: number | null;
+  copiedVisibleIncidentCount: number | null;
   copiedEventId: string | null;
   selectedEventId: string | null;
   selectedEvent: AdminErrorEventRow | null;
@@ -47,7 +47,7 @@ type UseAdminErrorIncidentsPanelStateResult = {
   errorSourceOptions: string[];
   inProgressIncidentIds: Set<string>;
   visibleEvents: AdminErrorEventRow[];
-  visibleNewIncidentCount: number;
+  visibleIncidentCount: number;
   listedOpenIncidentCount: number;
   resolveVisibleTargetCount: number;
   bulkResolveSubmitting: boolean;
@@ -56,7 +56,7 @@ type UseAdminErrorIncidentsPanelStateResult = {
   openSelectedEvent: (eventId: string) => void;
   closeSelectedEvent: () => void;
   handleCopyIncident: (row: AdminErrorLogRow) => Promise<void>;
-  handleCopyVisibleNewIncidents: () => Promise<void>;
+  handleCopyVisibleIncidents: () => Promise<void>;
   handleCopyEvent: (row: AdminErrorEventRow) => Promise<void>;
   handleResolveEventRow: (row: AdminErrorEventRow) => Promise<void>;
   handleIgnoreEventRow: (row: AdminErrorEventRow) => Promise<void>;
@@ -95,9 +95,9 @@ export const useAdminErrorIncidentsPanelState = ({
   onUpdateErrorEventStatus,
 }: UseAdminErrorIncidentsPanelStateParams): UseAdminErrorIncidentsPanelStateResult => {
   const [copiedIncidentId, setCopiedIncidentId] = React.useState<string | null>(null);
-  const [copiedVisibleNewIncidentCount, setCopiedVisibleNewIncidentCount] = React.useState<
-    number | null
-  >(null);
+  const [copiedVisibleIncidentCount, setCopiedVisibleIncidentCount] = React.useState<number | null>(
+    null
+  );
   const [copiedEventId, setCopiedEventId] = React.useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null);
   const [eventDetailsById, setEventDetailsById] = React.useState<
@@ -163,11 +163,7 @@ export const useAdminErrorIncidentsPanelState = ({
     [errors]
   );
 
-  const visibleNewIncidents = React.useMemo(
-    () => errors.filter((row) => row.status === "open" && !inProgressIncidentIds.has(row.id)),
-    [errors, inProgressIncidentIds]
-  );
-  const visibleNewIncidentCount = visibleNewIncidents.length;
+  const visibleIncidentCount = errors.length;
 
   const eventMetadataText = React.useMemo(() => {
     if (!selectedEvent) return "";
@@ -178,7 +174,7 @@ export const useAdminErrorIncidentsPanelState = ({
     const success = await copyToClipboard(buildIncidentTriagePacket(row));
     if (!success) return;
     setCopiedIncidentId(row.id);
-    setCopiedVisibleNewIncidentCount(null);
+    setCopiedVisibleIncidentCount(null);
     setInProgressIncidentIds((current) => {
       const next = new Set(current);
       next.add(row.id);
@@ -190,16 +186,16 @@ export const useAdminErrorIncidentsPanelState = ({
     }, 1200);
   }, []);
 
-  const handleCopyVisibleNewIncidents = React.useCallback(async () => {
-    if (visibleNewIncidents.length === 0) return;
+  const handleCopyVisibleIncidents = React.useCallback(async () => {
+    if (errors.length === 0) return;
 
-    const copiedIds = visibleNewIncidents.map((row) => row.id);
-    const packetText = visibleNewIncidents.map(buildIncidentTriagePacket).join("\n\n---\n\n");
+    const copiedIds = errors.map((row) => row.id);
+    const packetText = errors.map(buildIncidentTriagePacket).join("\n\n---\n\n");
     const success = await copyToClipboard(packetText);
     if (!success) return;
 
     setCopiedIncidentId(null);
-    setCopiedVisibleNewIncidentCount(visibleNewIncidents.length);
+    setCopiedVisibleIncidentCount(errors.length);
     setInProgressIncidentIds((current) => {
       const next = new Set(current);
       copiedIds.forEach((id) => next.add(id));
@@ -207,11 +203,9 @@ export const useAdminErrorIncidentsPanelState = ({
       return next;
     });
     window.setTimeout(() => {
-      setCopiedVisibleNewIncidentCount((current) =>
-        current === visibleNewIncidents.length ? null : current
-      );
+      setCopiedVisibleIncidentCount((current) => (current === errors.length ? null : current));
     }, 1200);
-  }, [visibleNewIncidents]);
+  }, [errors]);
 
   const loadEventDetail = React.useCallback(
     async (eventId: string): Promise<AdminErrorEventRow | null> => {
@@ -376,7 +370,7 @@ export const useAdminErrorIncidentsPanelState = ({
 
   return {
     copiedIncidentId,
-    copiedVisibleNewIncidentCount,
+    copiedVisibleIncidentCount,
     copiedEventId,
     selectedEventId,
     selectedEvent,
@@ -384,7 +378,7 @@ export const useAdminErrorIncidentsPanelState = ({
     errorSourceOptions,
     inProgressIncidentIds,
     visibleEvents,
-    visibleNewIncidentCount,
+    visibleIncidentCount,
     listedOpenIncidentCount,
     resolveVisibleTargetCount,
     bulkResolveSubmitting,
@@ -393,7 +387,7 @@ export const useAdminErrorIncidentsPanelState = ({
     openSelectedEvent,
     closeSelectedEvent,
     handleCopyIncident,
-    handleCopyVisibleNewIncidents,
+    handleCopyVisibleIncidents,
     handleCopyEvent,
     handleResolveEventRow,
     handleIgnoreEventRow,

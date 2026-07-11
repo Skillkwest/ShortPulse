@@ -8,6 +8,7 @@ import type {
   ModelPricingPolicyDocument,
   ModelPricingPolicySnapshot,
 } from "../../../lib/model-runtime/pricingPolicy";
+import { PRICING_POLICY_REFRESH_REQUESTED_EVENT } from "../../../lib/model-runtime/pricingPolicyFreshness";
 
 type ModelPricingPolicyApiResponse = {
   modelPolicy: ModelPricingPolicySnapshot;
@@ -23,7 +24,7 @@ type UseActiveModelPricingPolicyResult = {
   modelPricingPolicyLoading: boolean;
   modelPricingPolicyError: string | null;
   modelPricingPolicyReady: boolean;
-  refreshModelPricingPolicy: () => Promise<void>;
+  refreshModelPricingPolicy: () => Promise<ModelPricingPolicySnapshot | null>;
 };
 
 let modelPricingPolicyInFlightPromise: Promise<ModelPricingPolicySnapshot> | null = null;
@@ -79,27 +80,38 @@ export const useActiveModelPricingPolicy = ({
     [modelPricingPolicySnapshot]
   );
 
-  const fetchModelPricingPolicy = useCallback(async () => {
-    if (!enabled) return;
+  const fetchModelPricingPolicy =
+    useCallback(async (): Promise<ModelPricingPolicySnapshot | null> => {
+      if (!enabled) return null;
 
-    setModelPricingPolicyLoading(true);
-    setModelPricingPolicyError(null);
+      setModelPricingPolicyLoading(true);
+      setModelPricingPolicyError(null);
 
-    try {
-      setModelPricingPolicySnapshot(await loadSharedModelPricingPolicySnapshot());
-    } catch (error) {
-      setModelPricingPolicySnapshot(null);
-      setModelPricingPolicyError(
-        error instanceof Error ? error.message : "Failed to load model pricing policy."
-      );
-    } finally {
-      setModelPricingPolicyLoading(false);
-    }
-  }, [enabled]);
+      try {
+        const snapshot = await loadSharedModelPricingPolicySnapshot();
+        setModelPricingPolicySnapshot(snapshot);
+        return snapshot;
+      } catch (error) {
+        setModelPricingPolicySnapshot(null);
+        setModelPricingPolicyError(
+          error instanceof Error ? error.message : "Failed to load model pricing policy."
+        );
+        return null;
+      } finally {
+        setModelPricingPolicyLoading(false);
+      }
+    }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
     void fetchModelPricingPolicy();
+  }, [enabled, fetchModelPricingPolicy]);
+
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") return;
+    const refresh = () => void fetchModelPricingPolicy();
+    window.addEventListener(PRICING_POLICY_REFRESH_REQUESTED_EVENT, refresh);
+    return () => window.removeEventListener(PRICING_POLICY_REFRESH_REQUESTED_EVENT, refresh);
   }, [enabled, fetchModelPricingPolicy]);
 
   return {

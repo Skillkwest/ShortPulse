@@ -43,6 +43,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   handleAddLibraryMediaReferences?: (payloads: LibraryMediaReferencePayload[]) => void;
   handleAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
   handleRerollOutput?: (id: string) => void;
+  handleRetryVoiceChangerVideo?: (output: StudioOutput) => void;
   handleReloadWorkflowOutput?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
@@ -90,6 +91,7 @@ export const useAiStudioReferenceGridProps = ({
   handleAddLibraryMediaReferences,
   handleAddLibraryPromptReference,
   handleRerollOutput,
+  handleRetryVoiceChangerVideo,
   handleReloadWorkflowOutput,
   deleteOutput,
   clearGenerationOutput,
@@ -233,6 +235,7 @@ export const useAiStudioReferenceGridProps = ({
             handleRerollOutput(output.id);
           }
         : undefined,
+      onRetryVoiceChangerVideo: handleRetryVoiceChangerVideo,
       onReloadWorkflowOutput: handleReloadWorkflowOutput
         ? (output, options) => {
             handleReloadWorkflowOutput(output, options);
@@ -266,6 +269,7 @@ export const useAiStudioReferenceGridProps = ({
       handlePasteTextReference,
       handleReloadWorkflowOutput,
       handleRerollOutput,
+      handleRetryVoiceChangerVideo,
       handleSaveReference,
       handleSelectOutput,
       isMediaStorageFull,

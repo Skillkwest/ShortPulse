@@ -1601,6 +1601,78 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
+  it("does not restore an attachment whose preparation finishes after composer reset", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Reference note",
+      referenceId: "out-reset",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-reset",
+      outputId: "out-reset",
+      imageIndex: 0,
+      mediaId: "media-reset",
+      mediaKind: "image",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+    let resolveInternalSource: ((value: ResolvedInternalReferenceSource) => void) | null = null;
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-reset")]),
+        resolveOutputPreviewUrlById: () => null,
+        resolveInternalImageDropSource: () =>
+          new Promise<ResolvedInternalReferenceSource>((resolve) => {
+            resolveInternalSource = resolve;
+          }),
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+    await waitFor(() => {
+      expect(result.current.agentAttachments[0]?.deliveryStatus).toBe("preparing");
+    });
+    act(() => {
+      result.current.resetAgentComposer({ preserveInput: true, preserveAttachments: false });
+      resolveInternalSource?.({
+        kind: "internal",
+        sourceKind: "generated_output",
+        sourceId: "out-reset",
+        provenance: {
+          origin: "ai-studio-reference-grid",
+          outputId: "out-reset",
+          mediaId: "media-reset",
+          imageIndex: 0,
+          sourceSurface: "curated",
+          resolutionReason: "saved_media_lookup",
+        },
+        outputId: "out-reset",
+        mediaId: "media-reset",
+        mediaSource: "generated",
+        preview: { url: "https://signed.example.com/reset.png" },
+        previewStoragePath: "user-1/generated/reset-preview.png",
+        fullStoragePath: "user-1/generated/reset-full.png",
+        promptText: "Resolved prompt",
+        preparedImageUrl: "https://signed.example.com/reset.png",
+        loadBlob: async () => new Blob(["image"]),
+      });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.agentAttachments).toEqual([]);
+  });
+
   it("ignores a stale duplicate drop completion after a newer drop has resolved", async () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,

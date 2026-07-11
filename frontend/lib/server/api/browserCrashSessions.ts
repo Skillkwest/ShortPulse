@@ -74,9 +74,9 @@ const MAX_METADATA_KEY_LENGTH = 80;
 const MAX_REVIEW_NOTE_LENGTH = 400;
 const MAX_CRASH_REPORTS_PER_REQUEST = 16;
 const MAX_CRASH_REPORT_AGE_MS = 24 * 60 * 60 * 1000;
-const ACTIVE_STALE_AFTER_MS = 10 * 60 * 1000;
+const MAX_CLIENT_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
 
-const BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
+const AUTHENTICATED_BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
   "session_start",
   "heartbeat",
   "visibility_hidden",
@@ -89,7 +89,6 @@ const BROWSER_SESSION_EVENT_TYPES = new Set<BrowserSessionEventType>([
   "main_thread_stall",
   "pressure_snapshot",
   "previous_session_abandoned",
-  "crash_report",
 ]);
 
 const ALLOWED_METADATA_KEYS = new Set([
@@ -127,6 +126,16 @@ const ALLOWED_METADATA_KEYS = new Set([
   "last_heartbeat_age_ms",
   "last_pressure_snapshot_at",
   "long_task_p95_ms",
+  "media_canvas_attached_video_source_count",
+  "media_canvas_rendered_video_count",
+  "media_duration_probe_cache_entry_count",
+  "media_duration_probe_inflight_count",
+  "media_duration_probe_queued_count",
+  "media_grid_attached_video_source_count",
+  "media_grid_autoplay_enabled_output_count",
+  "media_grid_duplicate_video_output_count",
+  "media_grid_tracked_video_node_count",
+  "media_grid_visible_video_key_count",
   "max_input_stall_ms",
   "max_heap_used_to_limit_ratio",
   "max_heap_used_to_total_ratio",
@@ -167,6 +176,8 @@ const ALLOWED_METADATA_KEYS = new Set([
   "abandonment_detected_visibility_state",
   "abandonment_detected_document_hidden",
   "abandonment_detected_document_was_discarded",
+  "abandonment_detection_source",
+  "previous_visibility_state",
 ]);
 
 const STORAGE_ESTIMATE_METADATA_KEYS = [
@@ -178,6 +189,16 @@ const STORAGE_ESTIMATE_METADATA_KEYS = [
 
 const PREVIOUS_SESSION_ABANDONED_METADATA_KEYS = [
   "last_heartbeat_age_ms",
+  "media_canvas_attached_video_source_count",
+  "media_canvas_rendered_video_count",
+  "media_duration_probe_cache_entry_count",
+  "media_duration_probe_inflight_count",
+  "media_duration_probe_queued_count",
+  "media_grid_attached_video_source_count",
+  "media_grid_autoplay_enabled_output_count",
+  "media_grid_duplicate_video_output_count",
+  "media_grid_tracked_video_node_count",
+  "media_grid_visible_video_key_count",
   "previous_last_seen_at",
   "status_reason",
 ] as const;
@@ -189,6 +210,90 @@ const ABANDONMENT_DETECTOR_METADATA_KEYS = [
   ["visibility_state", "abandonment_detected_visibility_state"],
   ["document_hidden", "abandonment_detected_document_hidden"],
   ["document_was_discarded", "abandonment_detected_document_was_discarded"],
+] as const;
+
+const HEAP_BYTE_METADATA_KEYS = new Set([
+  "used_js_heap_size",
+  "total_js_heap_size",
+  "js_heap_size_limit",
+]);
+const RATIO_METADATA_KEYS = new Set([
+  "heap_used_to_limit_ratio",
+  "heap_used_to_total_ratio",
+  "heap_usage_ratio",
+  "max_heap_used_to_limit_ratio",
+  "max_heap_used_to_total_ratio",
+]);
+const TIMING_METADATA_KEYS = new Set([
+  "stall_duration_ms",
+  "max_input_stall_ms",
+  "long_task_p95_ms",
+  "last_heartbeat_age_ms",
+]);
+const COUNT_METADATA_KEYS = new Set([
+  "pressure_event_count",
+  "media_canvas_attached_video_source_count",
+  "media_canvas_rendered_video_count",
+  "media_duration_probe_cache_entry_count",
+  "media_duration_probe_inflight_count",
+  "media_duration_probe_queued_count",
+  "media_grid_attached_video_source_count",
+  "media_grid_autoplay_enabled_output_count",
+  "media_grid_duplicate_video_output_count",
+  "media_grid_tracked_video_node_count",
+  "media_grid_visible_video_key_count",
+]);
+const BOOLEAN_METADATA_KEYS = new Set([
+  "document_hidden",
+  "document_was_discarded",
+  "crash_report_is_top_level",
+  "connection_save_data",
+  "is_secure_context",
+]);
+const CRITICAL_METADATA_KEY_ORDER = [
+  "build_id",
+  "client_release",
+  "client_environment",
+  "visibility_state",
+  "document_hidden",
+  "document_was_discarded",
+  "used_js_heap_size",
+  "total_js_heap_size",
+  "js_heap_size_limit",
+  "heap_used_to_total_ratio",
+  "heap_used_to_limit_ratio",
+  "max_heap_used_to_total_ratio",
+  "max_heap_used_to_limit_ratio",
+  "pressure_level",
+  "max_pressure_level",
+  "pressure_reason",
+  "pressure_transition",
+  "previous_pressure_level",
+  "pressure_event_count",
+  "last_pressure_snapshot_at",
+  "stall_duration_ms",
+  "max_input_stall_ms",
+  "long_task_p95_ms",
+  "media_canvas_attached_video_source_count",
+  "media_canvas_rendered_video_count",
+  "media_duration_probe_cache_entry_count",
+  "media_duration_probe_inflight_count",
+  "media_duration_probe_queued_count",
+  "media_grid_attached_video_source_count",
+  "media_grid_autoplay_enabled_output_count",
+  "media_grid_duplicate_video_output_count",
+  "media_grid_tracked_video_node_count",
+  "media_grid_visible_video_key_count",
+  "last_heartbeat_age_ms",
+  "previous_last_seen_at",
+  "previous_visibility_state",
+  "abandonment_detection_source",
+  "status_reason",
+  "crash_report_source",
+  "crash_report_type",
+  "crash_report_reason",
+  "crash_report_age_ms",
+  "crash_report_url_path",
 ] as const;
 
 const sanitizeText = (value: unknown, maxLength = MAX_TEXT_LENGTH): string | null => {
@@ -203,12 +308,19 @@ const readHeaderValue = (value: string | string[] | undefined, maxLength = MAX_T
   return sanitizeText(raw, maxLength);
 };
 
-const normalizeOccurredAt = (value: unknown): string => {
+const normalizeOccurredAt = (value: unknown, receivedAt: string): string => {
+  const receivedAtMs = new Date(receivedAt).getTime();
   if (typeof value === "string" && value.trim()) {
     const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    if (!Number.isNaN(parsed.getTime())) {
+      const boundedMs = Math.min(
+        receivedAtMs,
+        Math.max(receivedAtMs - MAX_CLIENT_EVENT_AGE_MS, parsed.getTime())
+      );
+      return new Date(boundedMs).toISOString();
+    }
   }
-  return new Date().toISOString();
+  return receivedAt;
 };
 
 const redactRoute = (value: unknown): string | null => {
@@ -233,20 +345,64 @@ const sanitizeMetadataValue = (value: unknown): string | number | boolean | null
   return sanitizeText(value, MAX_TEXT_LENGTH) ?? undefined;
 };
 
-const sanitizeMetadata = (value: unknown): JsonObject => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+const sanitizeMetadataValueForKey = (
+  key: string,
+  value: unknown
+): string | number | boolean | null | undefined => {
+  if (HEAP_BYTE_METADATA_KEYS.has(key)) {
+    return typeof value === "number" && Number.isFinite(value)
+      ? Math.round(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, value)))
+      : undefined;
+  }
+  if (RATIO_METADATA_KEYS.has(key)) {
+    return typeof value === "number" && Number.isFinite(value)
+      ? Math.min(1, Math.max(0, value))
+      : undefined;
+  }
+  if (TIMING_METADATA_KEYS.has(key)) {
+    return typeof value === "number" && Number.isFinite(value)
+      ? Math.round(Math.min(24 * 60 * 60 * 1000, Math.max(0, value)))
+      : undefined;
+  }
+  if (COUNT_METADATA_KEYS.has(key)) {
+    return typeof value === "number" && Number.isFinite(value)
+      ? Math.round(Math.min(10_000, Math.max(0, value)))
+      : undefined;
+  }
+  if (BOOLEAN_METADATA_KEYS.has(key)) {
+    return typeof value === "boolean" ? value : undefined;
+  }
+  if (key === "visibility_state" || key === "previous_visibility_state") {
+    return value === "visible" || value === "hidden" ? value : undefined;
+  }
+  return sanitizeMetadataValue(value);
+};
+
+const boundMetadataByPriority = (value: JsonObject): JsonObject => {
   const output: JsonObject = {};
-  for (const [rawKey, rawValue] of Object.entries(value as JsonObject).slice(
-    0,
-    MAX_METADATA_KEYS
-  )) {
-    const key = sanitizeText(rawKey, MAX_METADATA_KEY_LENGTH);
-    if (!key || !ALLOWED_METADATA_KEYS.has(key)) continue;
-    const sanitized = sanitizeMetadataValue(rawValue);
-    if (sanitized === undefined) continue;
-    output[key] = sanitized;
+  for (const key of CRITICAL_METADATA_KEY_ORDER) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+    output[key] = value[key];
+  }
+  for (const [key, metadataValue] of Object.entries(value)) {
+    if (Object.keys(output).length >= MAX_METADATA_KEYS) break;
+    if (Object.prototype.hasOwnProperty.call(output, key)) continue;
+    output[key] = metadataValue;
   }
   return output;
+};
+
+const sanitizeMetadata = (value: unknown): JsonObject => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const sanitizedValues: JsonObject = {};
+  for (const [rawKey, rawValue] of Object.entries(value as JsonObject)) {
+    const key = sanitizeText(rawKey, MAX_METADATA_KEY_LENGTH);
+    if (!key || !ALLOWED_METADATA_KEYS.has(key)) continue;
+    const sanitized = sanitizeMetadataValueForKey(key, rawValue);
+    if (sanitized === undefined) continue;
+    sanitizedValues[key] = sanitized;
+  }
+  return boundMetadataByPriority(sanitizedValues);
 };
 
 const isJsonObject = (value: unknown): value is JsonObject =>
@@ -254,7 +410,7 @@ const isJsonObject = (value: unknown): value is JsonObject =>
 
 const assignSanitizedMetadataValue = (output: JsonObject, key: string, value: unknown): void => {
   if (!ALLOWED_METADATA_KEYS.has(key)) return;
-  const sanitized = sanitizeMetadataValue(value);
+  const sanitized = sanitizeMetadataValueForKey(key, value);
   if (sanitized === undefined) return;
   output[key] = sanitized;
 };
@@ -313,55 +469,25 @@ const resolveHeapLimitUsageRatio = (metadata: JsonObject): number | null => {
   return usedJsHeapSize / jsHeapSizeLimit;
 };
 
-const isHiddenDocumentEvidence = (metadata: JsonObject): boolean =>
-  metadata.document_hidden === true || metadata.visibility_state === "hidden";
-
-const hasSevereFreezeEvidence = (metadata: JsonObject): boolean => {
-  const pressureLevel = maxMetadataNumber(metadata.pressure_level, metadata.max_pressure_level);
-  const stallDurationMs = metadataNumber(metadata, "stall_duration_ms");
-  const maxInputStallMs = metadataNumber(metadata, "max_input_stall_ms");
-  const canUseTimingEvidence = !isHiddenDocumentEvidence(metadata);
-  const heapPressureRatio = maxMetadataNumber(
-    metadata.heap_used_to_total_ratio,
-    metadata.max_heap_used_to_total_ratio,
-    resolveLegacyAdaptiveHeapUsageRatio(metadata)
-  );
-  const heapLimitUsageRatio = maxMetadataNumber(
-    resolveHeapLimitUsageRatio(metadata),
-    metadata.max_heap_used_to_limit_ratio
-  );
-  const longTaskP95Ms = metadataNumber(metadata, "long_task_p95_ms");
-  return (
-    (pressureLevel !== null && pressureLevel >= 2) ||
-    (canUseTimingEvidence && stallDurationMs !== null && stallDurationMs >= 2000) ||
-    (canUseTimingEvidence && maxInputStallMs !== null && maxInputStallMs >= 1000) ||
-    (heapPressureRatio !== null && heapPressureRatio >= 0.86) ||
-    (heapLimitUsageRatio !== null && heapLimitUsageRatio >= 0.86) ||
-    (canUseTimingEvidence && longTaskP95Ms !== null && longTaskP95Ms >= 250)
-  );
-};
-
-const resolveAbandonedSessionStatus = (
-  metadata: JsonObject
-): { status: BrowserCrashSessionStatus; confidence: BrowserCrashSessionConfidence } =>
-  hasSevereFreezeEvidence(metadata)
-    ? { status: "probable_freeze_or_crash", confidence: "high" }
-    : { status: "possible_ungraceful_exit", confidence: "low" };
+const resolveAbandonedSessionStatus = (): {
+  status: BrowserCrashSessionStatus;
+  confidence: BrowserCrashSessionConfidence;
+} => ({ status: "possible_ungraceful_exit", confidence: "low" });
 
 const resolveEventType = (value: unknown): BrowserSessionEventType => {
   const normalized = sanitizeText(value, 80);
-  return normalized && BROWSER_SESSION_EVENT_TYPES.has(normalized as BrowserSessionEventType)
+  return normalized &&
+    AUTHENTICATED_BROWSER_SESSION_EVENT_TYPES.has(normalized as BrowserSessionEventType)
     ? (normalized as BrowserSessionEventType)
     : "heartbeat";
 };
 
 const resolveSessionStatus = (
-  eventType: BrowserSessionEventType,
-  metadata: JsonObject
+  eventType: BrowserSessionEventType
 ): { status: BrowserCrashSessionStatus; confidence: BrowserCrashSessionConfidence } => {
   if (eventType === "crash_report") return { status: "confirmed_crash", confidence: "high" };
   if (eventType === "previous_session_abandoned") {
-    return resolveAbandonedSessionStatus(metadata);
+    return resolveAbandonedSessionStatus();
   }
   if (eventType === "clean_close") return { status: "clean_closed", confidence: "none" };
   return { status: "active", confidence: "none" };
@@ -508,6 +634,15 @@ const normalizeCrashReportMetadata = (
     "heap_used_to_limit_ratio",
     normalizeFiniteNumber(context.shortpulse_heap_used_to_limit_ratio)
   );
+  for (const [contextKey, metadataKey] of [
+    ["shortpulse_media_grid_tracked_video_nodes", "media_grid_tracked_video_node_count"],
+    ["shortpulse_media_grid_attached_video_sources", "media_grid_attached_video_source_count"],
+    ["shortpulse_media_canvas_attached_video_sources", "media_canvas_attached_video_source_count"],
+    ["shortpulse_media_duration_probe_inflight", "media_duration_probe_inflight_count"],
+    ["shortpulse_media_duration_probe_queued", "media_duration_probe_queued_count"],
+  ] as const) {
+    assignSanitizedMetadataValue(metadata, metadataKey, normalizeFiniteNumber(context[contextKey]));
+  }
 
   return {
     metadata: sanitizeMetadata(metadata),
@@ -566,7 +701,10 @@ const mergeSessionEventMetadata = (params: {
   }
 
   if (params.eventType === "pressure_snapshot") {
-    merged.pressure_event_count = positiveIntegerMetadata(previous, "pressure_event_count") + 1;
+    merged.pressure_event_count = Math.min(
+      10_000,
+      positiveIntegerMetadata(previous, "pressure_event_count") + 1
+    );
     merged.last_pressure_snapshot_at = params.occurredAt;
   } else if (previous.pressure_event_count !== undefined) {
     merged.pressure_event_count = previous.pressure_event_count;
@@ -578,7 +716,7 @@ const mergeSessionEventMetadata = (params: {
     merged.last_pressure_snapshot_at = previous.last_pressure_snapshot_at;
   }
 
-  return Object.fromEntries(Object.entries(merged).slice(0, MAX_METADATA_KEYS));
+  return boundMetadataByPriority(merged);
 };
 
 const buildSessionUpsert = (params: {
@@ -588,11 +726,11 @@ const buildSessionUpsert = (params: {
   sessionId: string;
   route: string | null;
   metadata: JsonObject;
-  previousMetadata?: unknown;
   occurredAt: string;
+  receivedAt: string;
 }) => {
   const metadata = mergeSessionEventMetadata({
-    previousMetadata: params.previousMetadata,
+    previousMetadata: null,
     metadata: params.metadata,
     eventType: params.eventType,
     occurredAt: params.occurredAt,
@@ -600,7 +738,7 @@ const buildSessionUpsert = (params: {
   const status =
     params.eventType === "previous_session_abandoned"
       ? { status: "active" as const, confidence: "none" as const }
-      : resolveSessionStatus(params.eventType, metadata);
+      : resolveSessionStatus(params.eventType);
   const release = resolveBuildMetadata(metadata);
   return {
     browser_session_id: params.sessionId,
@@ -619,13 +757,13 @@ const buildSessionUpsert = (params: {
     metadata,
     review_status: params.eventType === "session_start" ? "open" : undefined,
     started_at: resolveSessionStartedAt(params.eventType, params.occurredAt),
-    last_seen_at: params.occurredAt,
+    last_seen_at: params.receivedAt,
     ended_at: params.eventType === "clean_close" ? params.occurredAt : null,
     suspected_at:
       status.status === "probable_freeze_or_crash" || status.status === "confirmed_crash"
         ? params.occurredAt
         : null,
-    updated_at: params.occurredAt,
+    updated_at: params.receivedAt,
   };
 };
 
@@ -637,19 +775,31 @@ const compactUpsert = (value: Record<string, unknown>): Record<string, unknown> 
   return output;
 };
 
-const readExistingSessionMetadata = async (params: {
+const recordBrowserCrashSessionMutation = async (params: {
   supabaseAdmin: SupabaseClient;
-  user: AuthenticatedApiUser;
-  sessionId: string;
-}): Promise<unknown> => {
-  const { data, error } = await params.supabaseAdmin
-    .from("browser_crash_sessions")
-    .select("metadata")
-    .eq("browser_session_id", params.sessionId)
-    .eq("user_id", params.user.id)
-    .maybeSingle();
+  payload: Record<string, unknown>;
+  allowInsert: boolean;
+}): Promise<string | null> => {
+  const payload = params.payload;
+  const { data, error } = await params.supabaseAdmin.rpc("record_browser_crash_session_event_v1", {
+    p_browser_session_id: payload.browser_session_id,
+    p_user_id: payload.user_id ?? null,
+    p_user_email: payload.user_email ?? null,
+    p_event_type: payload.last_event,
+    p_route: payload.route ?? null,
+    p_build_id: payload.build_id ?? null,
+    p_client_release: payload.client_release ?? null,
+    p_client_environment: payload.client_environment ?? null,
+    p_user_agent: payload.user_agent ?? null,
+    p_host: payload.host ?? null,
+    p_vercel_id: payload.vercel_id ?? null,
+    p_metadata: payload.metadata ?? {},
+    p_occurred_at:
+      payload.ended_at ?? payload.suspected_at ?? payload.started_at ?? payload.last_seen_at,
+    p_allow_insert: params.allowInsert,
+  });
   if (error) throw new Error(error.message);
-  return (data as JsonObject | null)?.metadata;
+  return typeof data === "string" ? data : null;
 };
 
 const markPreviousSessionAbandoned = async (params: {
@@ -657,35 +807,28 @@ const markPreviousSessionAbandoned = async (params: {
   user: AuthenticatedApiUser;
   previousSessionId: string | null;
   occurredAt: string;
+  receivedAt: string;
   metadata: JsonObject;
 }): Promise<string | null> => {
   if (!params.previousSessionId) return null;
-  const { data: existing, error: selectError } = await params.supabaseAdmin
-    .from("browser_crash_sessions")
-    .select("id, metadata")
-    .eq("browser_session_id", params.previousSessionId)
-    .eq("user_id", params.user.id)
-    .maybeSingle();
-  if (selectError) throw new Error(selectError.message);
-  if (!existing || typeof existing.id !== "string") return null;
-
-  const metadata = mergePreviousSessionAbandonedMetadata(existing.metadata, params.metadata);
-  const evidenceStatus = resolveAbandonedSessionStatus(metadata);
-  const { data, error } = await params.supabaseAdmin
-    .from("browser_crash_sessions")
-    .update({
+  const metadata = mergePreviousSessionAbandonedMetadata(null, params.metadata);
+  const evidenceStatus = resolveAbandonedSessionStatus();
+  return recordBrowserCrashSessionMutation({
+    supabaseAdmin: params.supabaseAdmin,
+    allowInsert: false,
+    payload: compactUpsert({
+      browser_session_id: params.previousSessionId,
+      user_id: params.user.id,
+      user_email: sanitizeText(params.user.email, 320),
       status: evidenceStatus.status,
       confidence: evidenceStatus.confidence,
       last_event: "previous_session_abandoned",
       metadata,
-      suspected_at: params.occurredAt,
-      updated_at: params.occurredAt,
-    })
-    .eq("id", existing.id)
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return typeof data?.id === "string" ? data.id : null;
+      last_seen_at: params.receivedAt,
+      suspected_at: params.receivedAt,
+      updated_at: params.receivedAt,
+    }),
+  });
 };
 
 /**
@@ -701,7 +844,8 @@ export const recordBrowserSessionEvent = async (params: {
 
   const eventType = resolveEventType(params.payload.eventType);
   const previousSessionId = sanitizeText(params.payload.previousSessionId, MAX_SESSION_ID_LENGTH);
-  const occurredAt = normalizeOccurredAt(params.payload.occurredAt);
+  const receivedAt = new Date().toISOString();
+  const occurredAt = normalizeOccurredAt(params.payload.occurredAt, receivedAt);
   const metadata = sanitizeMetadata(params.payload.metadata);
   const route = redactRoute(params.payload.route);
   const supabaseAdmin = getSupabaseAdmin();
@@ -711,21 +855,13 @@ export const recordBrowserSessionEvent = async (params: {
     user: params.user,
     previousSessionId: eventType === "previous_session_abandoned" ? previousSessionId : null,
     occurredAt,
+    receivedAt,
     metadata,
   });
 
   if (eventType === "previous_session_abandoned") {
     return { sessionId, previousSessionId: previousId, eventType };
   }
-
-  const previousMetadata =
-    eventType === "session_start"
-      ? null
-      : await readExistingSessionMetadata({
-          supabaseAdmin,
-          user: params.user,
-          sessionId,
-        });
 
   const upsertPayload = compactUpsert(
     buildSessionUpsert({
@@ -735,15 +871,16 @@ export const recordBrowserSessionEvent = async (params: {
       sessionId,
       route,
       metadata,
-      previousMetadata,
       occurredAt,
+      receivedAt,
     })
   );
 
-  const { error } = await supabaseAdmin
-    .from("browser_crash_sessions")
-    .upsert(upsertPayload, { onConflict: "user_id,browser_session_id" });
-  if (error) throw new Error(error.message);
+  await recordBrowserCrashSessionMutation({
+    supabaseAdmin,
+    payload: upsertPayload,
+    allowInsert: true,
+  });
 
   return { sessionId, previousSessionId: previousId, eventType };
 };
@@ -780,46 +917,39 @@ export const recordBrowserCrashReports = async (params: {
     }
     supabaseAdmin ??= getSupabaseAdmin();
 
-    const { data: existing, error: selectError } = await supabaseAdmin
-      .from("browser_crash_sessions")
-      .select("id, metadata, route")
-      .eq("browser_session_id", sessionId)
-      .order("last_seen_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (selectError) throw new Error(selectError.message);
-    if (!existing || typeof existing.id !== "string") {
-      result.skipped += 1;
-      continue;
-    }
-
     const occurredAt = normalizeOccurredAtFromReport(report);
+    const receivedAt = new Date().toISOString();
     const { metadata: incomingMetadata, route } = normalizeCrashReportMetadata(report);
     const metadata = mergeSessionEventMetadata({
-      previousMetadata: existing.metadata,
+      previousMetadata: null,
       metadata: incomingMetadata,
       eventType: "crash_report",
       occurredAt,
     });
     const release = resolveBuildMetadata(metadata);
-    const { error: updateError } = await supabaseAdmin
-      .from("browser_crash_sessions")
-      .update({
+    const updatedId = await recordBrowserCrashSessionMutation({
+      supabaseAdmin,
+      allowInsert: false,
+      payload: {
+        browser_session_id: sessionId,
         status: "confirmed_crash",
         confidence: "high",
         last_event: "crash_report",
-        route: route ?? (typeof existing.route === "string" ? existing.route : null),
+        route,
         build_id: release.build_id,
         client_release: release.client_release,
         client_environment: release.client_environment,
         metadata,
-        last_seen_at: occurredAt,
+        last_seen_at: receivedAt,
         ended_at: occurredAt,
         suspected_at: occurredAt,
-        updated_at: occurredAt,
-      })
-      .eq("id", existing.id);
-    if (updateError) throw new Error(updateError.message);
+        updated_at: receivedAt,
+      },
+    });
+    if (!updatedId) {
+      result.skipped += 1;
+      continue;
+    }
 
     result.processed += 1;
     processedSessionIds.add(sessionId);
@@ -884,21 +1014,6 @@ export const updateBrowserCrashSessionReviewStatus = async (params: {
 
 const asIso = (value: unknown): string | null => (typeof value === "string" ? value : null);
 
-const resolveEffectiveStatus = (row: JsonObject, nowMs: number) => {
-  const status = row.status as BrowserCrashSessionStatus;
-  const lastSeenAt = asIso(row.last_seen_at);
-  const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : Number.NaN;
-  const stale =
-    status === "active" && Number.isFinite(lastSeenMs)
-      ? nowMs - lastSeenMs > ACTIVE_STALE_AFTER_MS
-      : false;
-  return {
-    effective_status: stale ? "possible_ungraceful_exit" : status,
-    effective_confidence: stale ? "low" : (row.confidence as BrowserCrashSessionConfidence),
-    is_stale: stale,
-  };
-};
-
 /**
  * Fetches paged crash sessions for the Admin Crash Logs tab.
  */
@@ -908,58 +1023,27 @@ export const fetchBrowserCrashSessions = async (
   sessions: JsonObject[];
   pagination: { page: number; perPage: number; totalCount: number; totalPages: number };
 }> => {
-  const supabaseAdmin = getSupabaseAdmin();
   const page = Math.max(1, Math.trunc(filters.page));
   const limit = Math.min(100, Math.max(1, Math.trunc(filters.limit)));
-  const offset = (page - 1) * limit;
-  const staleCutoff = new Date(Date.now() - ACTIVE_STALE_AFTER_MS).toISOString();
-  let query = supabaseAdmin
-    .from("browser_crash_sessions")
-    .select("*", { count: "exact" })
-    .order("last_seen_at", { ascending: false });
-
-  if (filters.status === "needs_review") {
-    query = query.in("status", ["probable_freeze_or_crash", "confirmed_crash"]);
-  } else if (filters.status === "possible_ungraceful_exit") {
-    query = query.or(
-      `status.eq.possible_ungraceful_exit,and(status.eq.active,last_seen_at.lt.${staleCutoff})`
-    );
-  } else if (filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-  if (filters.reviewStatus === "reviewed") {
-    query = query.in("review_status", ["resolved", "ignored"]);
-  } else if (filters.reviewStatus !== "all") {
-    query = query.eq("review_status", filters.reviewStatus);
-  }
-  if (filters.search.trim()) {
-    const pattern = `%${filters.search.trim().replace(/\s+/g, "%")}%`;
-    query = query.or(
-      [
-        `browser_session_id.ilike.${pattern}`,
-        `user_email.ilike.${pattern}`,
-        `route.ilike.${pattern}`,
-        `user_agent.ilike.${pattern}`,
-      ].join(",")
-    );
-  }
-
-  const { data, error, count } = await query.range(offset, offset + limit - 1);
+  const { data, error } = await getSupabaseAdmin().rpc("list_browser_crash_sessions_v2", {
+    p_page: page,
+    p_limit: limit,
+    p_status: filters.status,
+    p_review_status: filters.reviewStatus,
+    p_search: filters.search.trim().replace(/\s+/g, " ").slice(0, 120),
+  });
   if (error) throw new Error(error.message);
-
-  const now = Date.now();
-  const sessions = ((data ?? []) as JsonObject[]).map((row) => ({
-    ...row,
-    ...resolveEffectiveStatus(row, now),
-  }));
-  const totalCount = Math.max(0, Number(count ?? 0));
+  const result = isJsonObject(data) ? data : {};
+  const sessions = Array.isArray(result.sessions) ? (result.sessions as JsonObject[]) : [];
+  const rpcPagination = isJsonObject(result.pagination) ? result.pagination : {};
+  const totalCount = Math.max(0, Number(rpcPagination.totalCount ?? 0));
   return {
     sessions,
     pagination: {
-      page,
-      perPage: limit,
+      page: Math.max(1, Number(rpcPagination.page ?? page)),
+      perPage: Math.max(1, Number(rpcPagination.perPage ?? limit)),
       totalCount,
-      totalPages: Math.max(1, Math.ceil(totalCount / limit)),
+      totalPages: Math.max(1, Number(rpcPagination.totalPages ?? Math.ceil(totalCount / limit))),
     },
   };
 };

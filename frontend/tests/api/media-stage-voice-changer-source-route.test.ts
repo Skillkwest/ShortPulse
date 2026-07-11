@@ -5,6 +5,10 @@ import { resetApiRateLimitForTests } from "../../lib/server/api/rateLimit";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const finalizeVoiceChangerSourceUploadForUserMock = vi.fn();
+const stageVoiceChangerSourceBufferForUserMock = vi.fn();
+const assertTrustedRemoteMediaUrlMock = vi.fn();
+const readRemoteMediaBufferMock = vi.fn();
+const readStoredMediaBufferMock = vi.fn();
 const recordVoiceSourceLifecycleStateMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -15,6 +19,22 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 
+vi.mock("../../lib/server/api/trustedRemoteMediaUrl", () => ({
+  assertTrustedRemoteMediaUrl: (...args: unknown[]) => assertTrustedRemoteMediaUrlMock(...args),
+  TrustedRemoteMediaUrlError: class TrustedRemoteMediaUrlError extends Error {
+    statusCode = 400;
+  },
+}));
+
+vi.mock("../../lib/server/mediaAudioExtraction", () => ({
+  MAX_VOICE_CHANGER_SOURCE_BYTES: 40 * 1024 * 1024,
+  MediaAudioExtractionInputError: class MediaAudioExtractionInputError extends Error {
+    statusCode = 400;
+  },
+  readRemoteMediaBuffer: (...args: unknown[]) => readRemoteMediaBufferMock(...args),
+  readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
+}));
+
 vi.mock("../../lib/server/mediaUploadService", async () => {
   const actual = await vi.importActual<typeof import("../../lib/server/mediaUploadService")>(
     "../../lib/server/mediaUploadService"
@@ -23,6 +43,8 @@ vi.mock("../../lib/server/mediaUploadService", async () => {
     ...actual,
     finalizeVoiceChangerSourceUploadForUser: (...args: unknown[]) =>
       finalizeVoiceChangerSourceUploadForUserMock(...args),
+    stageVoiceChangerSourceBufferForUser: (...args: unknown[]) =>
+      stageVoiceChangerSourceBufferForUserMock(...args),
   };
 });
 
@@ -50,6 +72,26 @@ describe("POST /api/media/stage-voice-changer-source", () => {
       mimeType: "audio/wav",
       name: "sample.wav",
     });
+    stageVoiceChangerSourceBufferForUserMock.mockResolvedValue({
+      path: "user-1/voice-changer/source-video/copied.mp4",
+      url: "https://signed.example/copied.mp4",
+      size: 1024,
+      mimeType: "video/mp4",
+      name: "clip.mp4",
+    });
+    readStoredMediaBufferMock.mockResolvedValue({
+      buffer: Buffer.from("owned-video"),
+      contentType: "video/mp4",
+      size: Buffer.from("owned-video").length,
+    });
+    readRemoteMediaBufferMock.mockResolvedValue({
+      buffer: Buffer.from("remote-video"),
+      contentType: "video/mp4",
+      size: Buffer.from("remote-video").length,
+    });
+    assertTrustedRemoteMediaUrlMock.mockResolvedValue(
+      new URL("https://signed.example/user-1/video.mp4")
+    );
     recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
   });
 
@@ -144,6 +186,79 @@ describe("POST /api/media/stage-voice-changer-source", () => {
         size: 1024,
       },
     });
+  });
+
+  it("copies an owned noncanonical video into Voice Changer source authority", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        sourceKind: "video",
+        sourceMimeType: "video/mp4",
+        sourceName: "clip.mp4",
+        sourceStoragePath: "user-1/generations/video/video-1/clip.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(finalizeVoiceChangerSourceUploadForUserMock).not.toHaveBeenCalled();
+    expect(readStoredMediaBufferMock).toHaveBeenCalledWith({
+      storagePath: "user-1/generations/video/video-1/clip.mp4",
+      maxBytes: 40 * 1024 * 1024,
+    });
+    expect(stageVoiceChangerSourceBufferForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      kind: "video",
+      buffer: Buffer.from("owned-video"),
+      filename: "clip.mp4",
+      declaredMimeType: "video/mp4",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      source: {
+        storagePath: "user-1/voice-changer/source-video/copied.mp4",
+        previewUrl: "https://signed.example/copied.mp4",
+        mimeType: "video/mp4",
+        name: "clip.mp4",
+        size: 1024,
+      },
+    });
+  });
+
+  it("copies a trusted user-scoped video URL into Voice Changer source authority", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        sourceKind: "video",
+        sourceMimeType: "video/mp4",
+        sourceName: "clip.mp4",
+        sourceUrl: "https://signed.example/user-1/video.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(assertTrustedRemoteMediaUrlMock).toHaveBeenCalledWith({
+      rawUrl: "https://signed.example/user-1/video.mp4",
+      req,
+      userId: "user-1",
+      requireUserScope: true,
+      label: "Voice changer reference video URL",
+    });
+    expect(readRemoteMediaBufferMock).toHaveBeenCalledWith({
+      sourceUrl: "https://signed.example/user-1/video.mp4",
+      maxBytes: 40 * 1024 * 1024,
+    });
+    expect(stageVoiceChangerSourceBufferForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        kind: "video",
+        buffer: Buffer.from("remote-video"),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("rejects invalid requests before finalization", async () => {

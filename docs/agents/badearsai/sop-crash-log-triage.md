@@ -21,7 +21,7 @@ Run this SOP when the user says:
 - Review API: `frontend/pages/api/admin/crashes-status.ts`.
 - Persistence/classification owner: `frontend/lib/server/api/browserCrashSessions.ts`.
 - Schema/docs: `docs/data-dictionary.md`, `docs/monitoring.md`, and `docs/api/api-internal-routes.md`.
-- Helper: `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`.
+- Helper: `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs`. Its list command consumes the same service-role-only canonical list RPC as Admin; if that RPC is not applied in the target environment, stop instead of recreating direct-table status filters.
 
 Crash rows are evidence rows in `browser_crash_sessions`; they are not grouped Admin Errors incidents and must not be deleted during review.
 
@@ -34,7 +34,7 @@ Badearsai may not change UI/UX, browser instrumentation, crash-detection semanti
 ## Evidence Status Interpretation
 
 - `confirmed_crash`: high-confidence browser crash evidence from Chrome Reporting API; treat as real until proven duplicate, old, or already handled.
-- `probable_freeze_or_crash`: high-confidence inferred freeze/crash based on severe pressure, stall, heap, or abandoned-session evidence; usually needs trace/watch or owner-lane review.
+- `probable_freeze_or_crash`: high-confidence inferred freeze/crash based on calibrated absolute-memory evidence or a later native confirmation; a recovered stall remains forensic evidence but does not promote by itself.
 - `possible_ungraceful_exit`: low-confidence stale or abandoned session evidence; default to watch/ignore unless recurring, paired with app errors, or tied to a user-visible report.
 - `clean_closed`: normal close evidence; ignore unless contradictory adjacent evidence exists.
 - `active`: do not resolve as a crash while fresh; if stale, the Admin API may show effective `possible_ungraceful_exit`.
@@ -51,9 +51,10 @@ Review status is separate from evidence status:
 
 - Follow the root startup contract and Badearsai default load policy.
 - Load this SOP plus the crash source-of-truth docs/code above.
-- Use `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list` to pull current production rows instead of requiring pasted packets.
+- Use `docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list` to consume the canonical crash-session list authority instead of requiring pasted packets or deriving status locally.
 - Default list scope: `status=needs_review`, `reviewStatus=open`, latest rows first.
 - Preserve row IDs, routes, evidence status, confidence, review status, user/session boundary, release/build, last event, timeline fields, and metadata keys.
+- Record the returned effective reason when available. Read explicit JS heap bytes and percent-of-limit separately; never present legacy `heap_usage_ratio` as browser-limit usage.
 
 ### Step 2. Triage One Row At A Time
 

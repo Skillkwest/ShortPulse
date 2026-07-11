@@ -1,5 +1,9 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  clearMediaPerfEvents,
+  readMediaPerfCrashEvidence,
+} from "../../../../../lib/mediaPerfTelemetry";
 import { CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS } from "../CanvasPropertiesPanel";
 import { CANVAS_DEFAULT_CAMERA } from "../canvasGeometry";
 import type { CanvasWorkspaceSessionState } from "../canvasWorkspaceContracts";
@@ -73,6 +77,9 @@ const createVideoHeavySessionState = (): CanvasWorkspaceSessionState => ({
 });
 
 describe("Canvas viewport virtualization", () => {
+  beforeEach(() => {
+    clearMediaPerfEvents();
+  });
   it("does not mount ordinary scene items before the viewport is measurable", () => {
     render(<SeededCanvasHarness initialSessionState={createSessionState()} />);
 
@@ -117,7 +124,7 @@ describe("Canvas viewport virtualization", () => {
   });
 
   it("caps live video source attachment while keeping poster tiles mounted", async () => {
-    const { container } = render(
+    const { container, unmount } = render(
       <SeededCanvasHarness initialSessionState={createVideoHeavySessionState()} />
     );
     const viewport = screen.getByTestId("canvas-viewport");
@@ -142,5 +149,16 @@ describe("Canvas viewport virtualization", () => {
     expect(container.querySelectorAll("img.canvas-scene-item__video")).toHaveLength(
       videoItems.length - CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS
     );
+    expect(readMediaPerfCrashEvidence()).toMatchObject({
+      media_canvas_rendered_video_count: 12,
+      media_canvas_attached_video_source_count: CANVAS_MAX_ATTACHED_VIDEO_ELEMENTS,
+    });
+
+    unmount();
+
+    expect(readMediaPerfCrashEvidence()).toMatchObject({
+      media_canvas_rendered_video_count: 0,
+      media_canvas_attached_video_source_count: 0,
+    });
   });
 });

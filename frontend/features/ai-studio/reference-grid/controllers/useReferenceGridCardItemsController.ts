@@ -33,6 +33,7 @@ export type ReferenceGridVisibleCardItem = {
   videoPosterUrl?: string | null;
   audioBackgroundImageUrl?: string | null;
   playableMediaUrl?: string | null;
+  cardPlayablePreviewUrl?: string | null;
   fallbackUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
   targetLongEdgePx: number;
@@ -138,6 +139,7 @@ export const useReferenceGridCardItemsController = ({
             videoPosterUrl: null,
             audioBackgroundImageUrl: null,
             playableMediaUrl: null,
+            cardPlayablePreviewUrl: null,
             fallbackUrl: null,
             previewQualityBand: "high" as const,
             targetLongEdgePx: options.cardLongEdgePx,
@@ -219,6 +221,7 @@ export const useReferenceGridCardItemsController = ({
           videoPosterUrl: resolvedMedia.posterPreviewUrl,
           audioBackgroundImageUrl: resolvedMedia.companionArtUrl,
           playableMediaUrl: resolvedMedia.playableMediaUrl,
+          cardPlayablePreviewUrl: resolvedMedia.cardPlayablePreviewUrl,
           fallbackUrl: resolvedMedia.fallbackUrl,
           previewQualityBand: resolvedMedia.previewQualityBand,
           targetLongEdgePx: resolvedMedia.targetLongEdgePx,

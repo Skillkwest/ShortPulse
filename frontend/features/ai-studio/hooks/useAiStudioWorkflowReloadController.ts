@@ -314,6 +314,7 @@ const buildVoiceChangerSource = (
   return {
     id: `workflow-reload:${payload.voiceId}:${source.referenceOutputId ?? source.storagePath ?? source.sourceUrl ?? "source"}`,
     kind: "audio",
+    displayKind: extracted ? "video" : "audio",
     origin: normalizeVoiceChangerSourceOrigin(source),
     status: "ready",
     aspect: null,
@@ -322,6 +323,7 @@ const buildVoiceChangerSource = (
     mimeType: source.mimeType ?? null,
     file: null,
     previewUrl: null,
+    posterUrl: null,
     sourceUrl: source.sourceUrl ?? null,
     objectUrl: null,
     storagePath: source.storagePath ?? source.internalMediaRef?.storagePath ?? null,

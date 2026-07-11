@@ -209,7 +209,7 @@ describe("POST /api/ai/generate-style-preview", () => {
     });
   });
 
-  it("charges through Create image pricing, generates, resizes, captures, and returns a data URL", async () => {
+  it("charges through style-preview helper billing, generates, resizes, captures, and returns a data URL", async () => {
     const req = {
       method: "POST",
       body: {
@@ -233,6 +233,7 @@ describe("POST /api/ai/generate-style-preview", () => {
           enable_safety_checker: false,
         }),
         reason: "fal-flux-2-klein style preview generation",
+        billingWorkflow: "style_preview",
         shortpulseContext: {
           selected_tool: "create",
           mode: "image",

@@ -3,6 +3,7 @@ import {
   clearMediaPerfEvents,
   getMediaPerfFallbackStats,
   getMediaPerfResolveStats,
+  readMediaPerfCrashEvidence,
   getMediaPerfSnapshot,
   logMediaPerf,
   setMediaPerfSamplingPolicy,
@@ -69,6 +70,30 @@ describe("mediaPerfTelemetry sampling policy", () => {
 
     expect(getMediaPerfSnapshot()).toHaveLength(1);
     expect(getMediaPerfSnapshot()[0]?.event).toBe("media.panel.first_media_paint");
+  });
+
+  it("keeps one bounded causal snapshot even when memory samples are deferred", () => {
+    setMediaPerfSamplingPolicy("defer_non_critical");
+    logMediaPerf("media.grid.memory.sample", {
+      surface: "reference-grid",
+      tracked_video_node_count: 23,
+      attached_video_source_count: 3,
+      duplicate_video_output_count: 1,
+    });
+    logMediaPerf("media.grid.memory.sample", {
+      surface: "duration-probe",
+      duration_probe_inflight_count: 2,
+      duration_probe_queued_count: 5,
+    });
+
+    expect(getMediaPerfSnapshot()).toHaveLength(0);
+    expect(readMediaPerfCrashEvidence()).toEqual({
+      media_grid_tracked_video_node_count: 23,
+      media_grid_attached_video_source_count: 3,
+      media_grid_duplicate_video_output_count: 1,
+      media_duration_probe_inflight_count: 2,
+      media_duration_probe_queued_count: 5,
+    });
   });
 
   it("aggregates resolve-previews completion stats by surface", () => {

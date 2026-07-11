@@ -95,6 +95,10 @@ export type PricingObservabilityEvent = {
   mismatch: boolean | null;
   pricingDisplaySource: string | null;
   pricingPolicyReady: boolean | null;
+  displayedPricingPolicyVersion: number | null;
+  actualPricingPolicyVersion: number | null;
+  displayedPricingVariantId: string | null;
+  actualPricingVariantId: string | null;
 };
 
 export type StripeSubscriptionResponse = {
@@ -271,7 +275,32 @@ export const buildPricingObservabilityEvent = ({
       typeof observability.pricing_policy_ready === "boolean"
         ? observability.pricing_policy_ready
         : null,
+    displayedPricingPolicyVersion: asFiniteNumber(observability.displayed_pricing_policy_version),
+    actualPricingPolicyVersion: asFiniteNumber(observability.actual_pricing_policy_version),
+    displayedPricingVariantId: normalizeText(
+      typeof observability.displayed_pricing_variant_id === "string"
+        ? observability.displayed_pricing_variant_id
+        : null
+    ),
+    actualPricingVariantId: normalizeText(
+      typeof observability.actual_pricing_variant_id === "string"
+        ? observability.actual_pricing_variant_id
+        : null
+    ),
   };
+};
+
+export const dedupePricingObservabilityEventsByRun = (
+  events: PricingObservabilityEvent[]
+): PricingObservabilityEvent[] => {
+  const observedKeys = new Set<string>();
+  return events.filter((event) => {
+    const key =
+      event.sourceRef ?? event.requestId ?? `${event.sourceType}:${event.rowId ?? "unknown"}`;
+    if (observedKeys.has(key)) return false;
+    observedKeys.add(key);
+    return true;
+  });
 };
 
 export const pickPositiveNumber = (...values: Array<number | null | undefined>): number => {

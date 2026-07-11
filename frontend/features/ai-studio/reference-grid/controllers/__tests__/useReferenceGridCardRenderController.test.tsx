@@ -51,6 +51,72 @@ describe("useReferenceGridCardRenderController", () => {
     clearActivePlayer: vi.fn(),
   });
 
+  it("routes the dedicated no-charge video retry action", () => {
+    const onRetryVoiceChangerVideo = vi.fn();
+    const onSelectOutput = vi.fn();
+    const output = createOutput({
+      id: "voice-remux-failed:audio-1",
+      status: "ready",
+      taskState: "fail",
+      previewUrl: undefined,
+      remuxRecovery: {
+        sourceAudioGenerationId: "audio-1",
+        remuxRequestId: "voice-changer-remux:audio-1",
+        status: "failed",
+        code: "VOICE_CHANGER_REMUX_FAILED",
+        stage: "assembly",
+        retryable: true,
+      },
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "preview-only" as const,
+      cardPreviewUrl: null,
+      isVideoPreview: true,
+      isImagePreview: false,
+      isAudioPreview: false,
+      isPriorityHydration: true,
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectReferenceGridOutput: onSelectOutput,
+        onSelectQuickSlotOutput: onSelectOutput,
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+        onRetryVoiceChangerVideo,
+      })
+    );
+
+    const { getByLabelText } = render(<>{result.current.allRefsCardNodes}</>);
+    fireEvent.click(getByLabelText("Retry video"));
+
+    expect(onSelectOutput).toHaveBeenCalledWith(output.id);
+    expect(onRetryVoiceChangerVideo).toHaveBeenCalledWith(output);
+  });
+
   it("routes Quick Slot video workflow reload through the video media hint", () => {
     const onReloadWorkflowOutput = vi.fn();
     const onSelectOutput = vi.fn();
@@ -359,6 +425,94 @@ describe("useReferenceGridCardRenderController", () => {
     pauseMock.mockClear();
     fireEvent.click(playButtons[1] as HTMLButtonElement);
     expect(pauseMock).toHaveBeenCalled();
+  });
+
+  it("transfers one duplicated video source owner to All References during hover", async () => {
+    const output = createOutput({
+      id: "shared-video-1",
+      previewUrl: "https://example.com/shared-video-preview.mp4",
+      previewPosterUrl: "https://example.com/shared-video-poster.webp",
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://example.com/shared-video-poster.webp",
+      cardPlayablePreviewUrl: "https://example.com/shared-video-preview.mp4",
+      playableMediaUrl: "https://example.com/shared-video-full.mp4",
+      videoPosterUrl: "https://example.com/shared-video-poster.webp",
+      isVideoPreview: true,
+      isImagePreview: false,
+      isAudioPreview: false,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [visibleCard],
+        visibleQuickSlotIdSet: new Set([output.id]),
+        onSelectReferenceGridOutput: vi.fn(),
+        onSelectQuickSlotOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
+      })
+    );
+
+    const rendered = render(
+      <>
+        {result.current.curatedCardNodes}
+        {result.current.allRefsCardNodes}
+      </>
+    );
+    let cards = rendered.container.querySelectorAll(".reference-card");
+
+    expect(cards).toHaveLength(2);
+    expect(cards[0]?.querySelector("video")?.getAttribute("src")).toBeNull();
+    expect(cards[1]?.querySelector("video")).toBeNull();
+
+    fireEvent.pointerEnter(cards[1] as HTMLElement);
+    rendered.rerender(
+      <>
+        {result.current.curatedCardNodes}
+        {result.current.allRefsCardNodes}
+      </>
+    );
+    cards = rendered.container.querySelectorAll(".reference-card");
+    expect(cards[0]?.querySelector("video")).toBeNull();
+    expect(cards[1]?.querySelector("video")?.getAttribute("src")).toBe(
+      "https://example.com/shared-video-preview.mp4"
+    );
+    await waitFor(() => expect(playMock).toHaveBeenCalled());
+
+    fireEvent.pointerLeave(cards[1] as HTMLElement);
+    rendered.rerender(
+      <>
+        {result.current.curatedCardNodes}
+        {result.current.allRefsCardNodes}
+      </>
+    );
+    cards = rendered.container.querySelectorAll(".reference-card");
+    expect(cards[0]?.querySelector("video")?.getAttribute("src")).toBeNull();
+    expect(cards[1]?.querySelector("video")).toBeNull();
   });
 
   it("rejects supabase render-image audio cover art before rendering the player background", () => {

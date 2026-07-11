@@ -41,7 +41,7 @@ const usage = () => {
       "  NEXT_PUBLIC_SUPABASE_URL",
       "  SUPABASE_SERVICE_ROLE_KEY",
       "  SHORTPULSE_ADMIN_EMAILS",
-    ].join("\n")
+    ].join("\n"),
   );
 };
 
@@ -70,7 +70,9 @@ const emit = (payload, { jsonOnly }) => {
     console.log(`Severity: ${payload.incident.severity}`);
   }
   if (payload.handoff) {
-    console.log(`Removed open incidents: ${payload.handoff.removedIncidentIds.length}`);
+    console.log(
+      `Removed open incidents: ${payload.handoff.removedIncidentIds.length}`,
+    );
   }
   if (payload.nextAction) console.log(`Next: ${payload.nextAction}`);
 };
@@ -96,6 +98,8 @@ const toTicket = (item) => ({
   title: item.title,
   status: item.status,
   details: item.details ?? "",
+  sourceType: item.source_type ?? "manual",
+  sourceKey: item.source_key ?? null,
   sortOrder: item.sort_order ?? 0,
   updatedAt: item.updated_at,
 });
@@ -103,8 +107,17 @@ const toTicket = (item) => ({
 const isHumanReviewTicket = (ticket) => {
   const title = String(ticket?.title ?? "").trim();
   const details = String(ticket?.details ?? "");
-  return title.startsWith(HUMAN_REVIEW_TITLE_PREFIX) || details.includes(HUMAN_REVIEW_BANNER);
+  return (
+    title.startsWith(HUMAN_REVIEW_TITLE_PREFIX) ||
+    details.includes(HUMAN_REVIEW_BANNER)
+  );
 };
+
+const isPlanningBacklogTicket = (ticket) =>
+  ticket?.sourceType === "planning_backlog";
+
+const isRunnableBacklogTicket = (ticket) =>
+  !isHumanReviewTicket(ticket) && !isPlanningBacklogTicket(ticket);
 
 const toIncident = (incident) => ({
   id: incident.id,
@@ -122,7 +135,10 @@ const toIncident = (incident) => ({
 });
 
 const selectOpenIncidents = (supabase) =>
-  supabase.from("app_error_logs").select(INCIDENT_SELECT_COLUMNS).eq("status", "open");
+  supabase
+    .from("app_error_logs")
+    .select(INCIDENT_SELECT_COLUMNS)
+    .eq("status", "open");
 
 const orderIncidentPriority = (query, limit) =>
   query
@@ -133,8 +149,11 @@ const orderIncidentPriority = (query, limit) =>
 const readBacklogTicket = async (supabase) => {
   const { data, error } = await supabase
     .from("admin_kanban_items")
-    .select("id,title,details,status,sort_order,updated_at,created_at")
+    .select(
+      "id,title,details,status,source_type,source_key,sort_order,updated_at,created_at",
+    )
     .eq("status", "backlog")
+    .neq("source_type", "planning_backlog")
     .is("archived_at", null)
     .order("sort_order", { ascending: true })
     .order("updated_at", { ascending: false })
@@ -142,7 +161,7 @@ const readBacklogTicket = async (supabase) => {
 
   if (error) throw error;
   const tickets = (data ?? []).map(toTicket);
-  return tickets.find((ticket) => !isHumanReviewTicket(ticket)) ?? null;
+  return tickets.find(isRunnableBacklogTicket) ?? null;
 };
 
 const readIncident = async (supabase, incidentId) => {
@@ -161,7 +180,7 @@ const readNextOpenIncident = async (supabase) => {
   for (const severity of PRIORITY_SEVERITIES) {
     const { data, error } = await orderIncidentPriority(
       selectOpenIncidents(supabase).eq("severity", severity),
-      1
+      1,
     );
 
     if (error) throw error;
@@ -169,8 +188,12 @@ const readNextOpenIncident = async (supabase) => {
   }
 
   const { data, error } = await orderIncidentPriority(
-    selectOpenIncidents(supabase).not("severity", "in", `(${PRIORITY_SEVERITIES.join(",")})`),
-    1
+    selectOpenIncidents(supabase).not(
+      "severity",
+      "in",
+      `(${PRIORITY_SEVERITIES.join(",")})`,
+    ),
+    1,
   );
 
   if (error) throw error;
@@ -181,7 +204,7 @@ const readOpenIncidentsByFingerprint = async (supabase, fingerprint) => {
   if (!fingerprint) return [];
   const { data, error } = await orderIncidentPriority(
     selectOpenIncidents(supabase).eq("fingerprint", fingerprint),
-    500
+    500,
   );
 
   if (error) throw error;
@@ -189,17 +212,24 @@ const readOpenIncidentsByFingerprint = async (supabase, fingerprint) => {
 };
 
 const readOpenIncidentsForHandoff = async (supabase, incident) => {
-  const incidents = await readOpenIncidentsByFingerprint(supabase, incident.fingerprint);
+  const incidents = await readOpenIncidentsByFingerprint(
+    supabase,
+    incident.fingerprint,
+  );
   if (incidents.length === 0 && incident.status === "open") return [incident];
-  if (incidents.some((candidate) => candidate.id === incident.id)) return incidents;
+  if (incidents.some((candidate) => candidate.id === incident.id))
+    return incidents;
   return incident.status === "open" ? [incident, ...incidents] : incidents;
 };
 
 const readExistingTicketForIncident = async (supabase, incidentId) => {
   const { data, error } = await supabase
     .from("admin_kanban_items")
-    .select("id,title,details,status,sort_order,updated_at,created_at")
+    .select(
+      "id,title,details,status,source_type,source_key,sort_order,updated_at,created_at",
+    )
     .is("archived_at", null)
+    .neq("source_type", "planning_backlog")
     .ilike("details", `%${incidentId}%`)
     .order("updated_at", { ascending: false })
     .limit(1);
@@ -213,14 +243,18 @@ const readConfiguredAdminUser = async (supabase) => {
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
-  if (emails.length === 0) throw new Error("SHORTPULSE_ADMIN_EMAILS does not include an email.");
+  if (emails.length === 0)
+    throw new Error("SHORTPULSE_ADMIN_EMAILS does not include an email.");
 
   for (let page = 1; page <= 20; page += 1) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 100,
+    });
     if (error) throw error;
 
     const found = (data.users ?? []).find((user) =>
-      emails.includes(String(user.email ?? "").toLowerCase())
+      emails.includes(String(user.email ?? "").toLowerCase()),
     );
     if (found) return found;
     if (!data.users || data.users.length < 100) break;
@@ -243,15 +277,20 @@ const createTicketDetails = (incident) =>
       "Evidence source: ophestivus:intake",
       "Initial theory: needs audit.",
     ].join("\n"),
-    1000
+    1000,
   );
 
 const createBacklogTicket = async (supabase, incident) => {
   const { data, error } = await supabase.rpc("create_admin_kanban_item", {
-    p_title: truncate(`Ophestivus: ${incident.message || incident.source || "Admin Error"}`, 140),
+    p_title: truncate(
+      `Ophestivus: ${incident.message || incident.source || "Admin Error"}`,
+      140,
+    ),
     p_details: createTicketDetails(incident),
     p_actor_user_id: null,
     p_actor_email: ACTOR_EMAIL,
+    p_source_type: "admin_error",
+    p_source_key: incident.id,
   });
 
   if (error) throw error;
@@ -271,7 +310,7 @@ const updateTicketWithBlocker = async (supabase, ticket, incident, error) => {
       `Resume condition: incident and same-fingerprint duplicates are no longer open in Admin Errors.`,
       `Failure: ${error.message}`,
     ].join("\n"),
-    1000
+    1000,
   );
 
   await supabase.rpc("update_admin_kanban_item", {
@@ -283,7 +322,12 @@ const updateTicketWithBlocker = async (supabase, ticket, incident, error) => {
   });
 };
 
-const removeIncidentsFromOpenErrors = async (supabase, incident, ticket, adminUser) => {
+const removeIncidentsFromOpenErrors = async (
+  supabase,
+  incident,
+  ticket,
+  adminUser,
+) => {
   const openIncidents = await readOpenIncidentsForHandoff(supabase, incident);
   const removedIncidentIds = [];
 
@@ -300,7 +344,9 @@ const removeIncidentsFromOpenErrors = async (supabase, incident, ticket, adminUs
 
     const verify = await readIncident(supabase, openIncident.id);
     if (verify?.status === "open") {
-      throw new Error(`Incident ${openIncident.id} is still open after intake handoff.`);
+      throw new Error(
+        `Incident ${openIncident.id} is still open after intake handoff.`,
+      );
     }
     removedIncidentIds.push(openIncident.id);
   }
@@ -312,7 +358,7 @@ const removeIncidentsFromOpenErrors = async (supabase, incident, ticket, adminUs
     throw new Error(
       `Same-fingerprint incidents still open after intake handoff: ${remaining
         .map((candidate) => candidate.id)
-        .join(", ")}`
+        .join(", ")}`,
     );
   }
 
@@ -322,7 +368,12 @@ const removeIncidentsFromOpenErrors = async (supabase, incident, ticket, adminUs
 const completeOpenIncidentHandoff = async (supabase, incident, ticket) => {
   const adminUser = await readConfiguredAdminUser(supabase);
   try {
-    return await removeIncidentsFromOpenErrors(supabase, incident, ticket, adminUser);
+    return await removeIncidentsFromOpenErrors(
+      supabase,
+      incident,
+      ticket,
+      adminUser,
+    );
   } catch (error) {
     await updateTicketWithBlocker(supabase, ticket, incident, error);
     throw error;
@@ -344,18 +395,26 @@ const run = async () => {
 
   loadLocalEnv({
     argv: process.argv.slice(2),
-    defaultPaths: ["../.env.agent.local", ".env.development.local", ".env.local", "../.env.local"],
+    defaultPaths: [
+      "../.env.agent.local",
+      ".env.development.local",
+      ".env.local",
+      "../.env.local",
+    ],
   });
 
   const supabase = createClient(
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
   const backlogTicket = await readBacklogTicket(supabase);
   if (backlogTicket) {
-    const incident = await readIncident(supabase, parseIncidentIdFromDetails(backlogTicket.details));
+    const incident = await readIncident(
+      supabase,
+      parseIncidentIdFromDetails(backlogTicket.details),
+    );
     if (incident?.status === "open") {
       const handoff = dryRun
         ? await createDryRunHandoff(supabase, incident)
@@ -373,7 +432,7 @@ const run = async () => {
             ? "Run without --dry-run to remove the incident and same-fingerprint duplicates from open Admin Errors."
             : "Move this ticket to In progress and audit it.",
         },
-        { jsonOnly }
+        { jsonOnly },
       );
       return;
     }
@@ -386,7 +445,7 @@ const run = async () => {
         incident,
         nextAction: "Move this ticket to In progress and audit it.",
       },
-      { jsonOnly }
+      { jsonOnly },
     );
     return;
   }
@@ -401,12 +460,15 @@ const run = async () => {
         incident: null,
         nextAction: "No intake work found.",
       },
-      { jsonOnly }
+      { jsonOnly },
     );
     return;
   }
 
-  const existingTicket = await readExistingTicketForIncident(supabase, incident.id);
+  const existingTicket = await readExistingTicketForIncident(
+    supabase,
+    incident.id,
+  );
   if (existingTicket) {
     const handoff = dryRun
       ? await createDryRunHandoff(supabase, incident)
@@ -424,7 +486,7 @@ const run = async () => {
           ? "Run without --dry-run to remove the incident and same-fingerprint duplicates from open Admin Errors."
           : "Review existing ticket state before continuing.",
       },
-      { jsonOnly }
+      { jsonOnly },
     );
     return;
   }
@@ -437,9 +499,10 @@ const run = async () => {
         ticket: null,
         incident,
         handoff: await createDryRunHandoff(supabase, incident),
-        nextAction: "Run without --dry-run to create the backlog ticket and remove the incident from open Admin Errors.",
+        nextAction:
+          "Run without --dry-run to create the backlog ticket and remove the incident from open Admin Errors.",
       },
-      { jsonOnly }
+      { jsonOnly },
     );
     return;
   }
@@ -456,11 +519,12 @@ const run = async () => {
       handoff,
       nextAction: "Move this ticket to In progress and audit it.",
     },
-    { jsonOnly }
+    { jsonOnly },
   );
 };
 
-const isDirectRun = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isDirectRun =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
   run().catch((error) => {
@@ -470,7 +534,7 @@ if (isDirectRun) {
         error: error instanceof Error ? error.message : String(error),
         nextAction: "Fix the blocker, then rerun npm run ophestivus:intake.",
       },
-      { jsonOnly: hasFlag("--json") }
+      { jsonOnly: hasFlag("--json") },
     );
     process.exitCode = 1;
   });
@@ -479,6 +543,8 @@ if (isDirectRun) {
 export {
   completeOpenIncidentHandoff,
   isHumanReviewTicket,
+  isPlanningBacklogTicket,
+  isRunnableBacklogTicket,
   readNextOpenIncident,
   readOpenIncidentsByFingerprint,
   removeIncidentsFromOpenErrors,

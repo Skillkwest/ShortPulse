@@ -10,6 +10,8 @@ with expected_functions as (
     from (
         values
             ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
+            ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)', null),
+            ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)', null),
             ('public.create_admin_kanban_item(text,text,uuid,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),
@@ -188,6 +190,28 @@ function_checks(signature, check_name, check_pass, detail) as (
         'anon must not have EXECUTE' as detail
     from resolved r
 ),
+expected_fixed_search_path_functions as (
+    select *
+    from (
+        values
+            ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)'::text),
+            ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)'::text)
+    ) as f(signature)
+),
+function_search_path_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'fixed_empty_search_path'::text as check_name,
+        case
+            when to_regprocedure(f.signature) is null then false
+            else position(
+                $needle$set search_path to ''$needle$
+                in lower(pg_get_functiondef(to_regprocedure(f.signature)))
+            ) > 0
+        end as check_pass,
+        'crash RPC must pin an empty search_path'::text as detail
+    from expected_fixed_search_path_functions f
+),
 expected_schema_grants as (
     select *
     from (
@@ -279,6 +303,74 @@ table_checks(signature, check_name, check_pass, detail) as (
         format('%s must have %s on table %s.%s', e.grantee, e.privilege_type, e.schema_name, e.table_name) as detail
     from expected_table_grants e
 ),
+browser_crash_table_checks(signature, check_name, check_pass, detail) as (
+    select
+        'table public.browser_crash_sessions'::text,
+        'exists'::text,
+        to_regclass('public.browser_crash_sessions') is not null,
+        'browser crash evidence table must exist'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions'::text,
+        'rls_enabled'::text,
+        coalesce((
+            select c.relrowsecurity
+            from pg_class c
+            where c.oid = to_regclass('public.browser_crash_sessions')
+        ), false),
+        'browser crash evidence table must have RLS enabled'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions -> service_role'::text,
+        'table_all'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else has_table_privilege(
+                'service_role',
+                'public.browser_crash_sessions',
+                'SELECT,INSERT,UPDATE,DELETE'
+            )
+        end,
+        'service_role must have SELECT, INSERT, UPDATE, and DELETE'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions -> public'::text,
+        'table_none'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else not exists (
+                select 1
+                from pg_class c
+                join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl on true
+                where c.oid = to_regclass('public.browser_crash_sessions')
+                  and acl.grantee = 0
+                  and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+            )
+        end,
+        'public must not access browser crash evidence'::text
+
+    union all
+
+    select
+        format('table public.browser_crash_sessions -> %s', role_name),
+        'table_none'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else not has_table_privilege(
+                role_name,
+                'public.browser_crash_sessions',
+                'SELECT,INSERT,UPDATE,DELETE'
+            )
+        end,
+        format('%s must not access browser crash evidence', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+),
 expected_sequence_grants as (
     select *
     from (
@@ -348,9 +440,13 @@ function_body_checks(signature, check_name, check_pass, detail) as (
 all_checks as (
     select * from function_checks
     union all
+    select * from function_search_path_checks
+    union all
     select * from schema_checks
     union all
     select * from table_checks
+    union all
+    select * from browser_crash_table_checks
     union all
     select * from sequence_checks
     union all
@@ -371,6 +467,8 @@ with expected_functions as (
     from (
         values
             ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
+            ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)', null),
+            ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)', null),
             ('public.create_admin_kanban_item(text,text,uuid,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),
@@ -549,6 +647,28 @@ function_checks(signature, check_name, check_pass, detail) as (
         'anon must not have EXECUTE' as detail
     from resolved r
 ),
+expected_fixed_search_path_functions as (
+    select *
+    from (
+        values
+            ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)'::text),
+            ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)'::text)
+    ) as f(signature)
+),
+function_search_path_checks(signature, check_name, check_pass, detail) as (
+    select
+        f.signature,
+        'fixed_empty_search_path'::text as check_name,
+        case
+            when to_regprocedure(f.signature) is null then false
+            else position(
+                $needle$set search_path to ''$needle$
+                in lower(pg_get_functiondef(to_regprocedure(f.signature)))
+            ) > 0
+        end as check_pass,
+        'crash RPC must pin an empty search_path'::text as detail
+    from expected_fixed_search_path_functions f
+),
 expected_schema_grants as (
     select *
     from (
@@ -640,6 +760,74 @@ table_checks(signature, check_name, check_pass, detail) as (
         format('%s must have %s on table %s.%s', e.grantee, e.privilege_type, e.schema_name, e.table_name) as detail
     from expected_table_grants e
 ),
+browser_crash_table_checks(signature, check_name, check_pass, detail) as (
+    select
+        'table public.browser_crash_sessions'::text,
+        'exists'::text,
+        to_regclass('public.browser_crash_sessions') is not null,
+        'browser crash evidence table must exist'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions'::text,
+        'rls_enabled'::text,
+        coalesce((
+            select c.relrowsecurity
+            from pg_class c
+            where c.oid = to_regclass('public.browser_crash_sessions')
+        ), false),
+        'browser crash evidence table must have RLS enabled'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions -> service_role'::text,
+        'table_all'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else has_table_privilege(
+                'service_role',
+                'public.browser_crash_sessions',
+                'SELECT,INSERT,UPDATE,DELETE'
+            )
+        end,
+        'service_role must have SELECT, INSERT, UPDATE, and DELETE'::text
+
+    union all
+
+    select
+        'table public.browser_crash_sessions -> public'::text,
+        'table_none'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else not exists (
+                select 1
+                from pg_class c
+                join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl on true
+                where c.oid = to_regclass('public.browser_crash_sessions')
+                  and acl.grantee = 0
+                  and acl.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+            )
+        end,
+        'public must not access browser crash evidence'::text
+
+    union all
+
+    select
+        format('table public.browser_crash_sessions -> %s', role_name),
+        'table_none'::text,
+        case
+            when to_regclass('public.browser_crash_sessions') is null then false
+            else not has_table_privilege(
+                role_name,
+                'public.browser_crash_sessions',
+                'SELECT,INSERT,UPDATE,DELETE'
+            )
+        end,
+        format('%s must not access browser crash evidence', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+),
 expected_sequence_grants as (
     select *
     from (
@@ -709,9 +897,13 @@ function_body_checks(signature, check_name, check_pass, detail) as (
 all_checks as (
     select * from function_checks
     union all
+    select * from function_search_path_checks
+    union all
     select * from schema_checks
     union all
     select * from table_checks
+    union all
+    select * from browser_crash_table_checks
     union all
     select * from sequence_checks
     union all

@@ -438,3 +438,31 @@ Remaining friction:
 Next training focus:
 
 - On the next run, use normal Maya persona for customer exploration, but if objective breakage appears, create a `BUG OVERRIDE` packet and let the self-audit score bug recognition.
+
+## 2026-07-10: Admin Publishing Completion Gate
+
+### Supervised prompt
+
+The user asked Maya to ensure every future report is added correctly to the Admin Tester Reports panel and to make that behavior durable in the SOP and agent instructions.
+
+### Behavior learned
+
+- Local report completion is not the same as completed tester-run delivery.
+- Admin readiness must be checked before Chrome so a run does not knowingly create another unpublished report.
+- A normal run is complete only after ingest succeeds for the stable `externalRunId` and the exact Admin row shows both report cards.
+- Missing credentials require a pre-run stop unless the user explicitly authorizes a local-only partial run.
+- Older unpublished Maya reports must be backfilled oldest first before starting a new scenario when access returns.
+
+### SOP and tool updates
+
+- Hardened `authenticated-testing-and-reporting-sop.md` and `standard-operating-procedure.md` with a fail-closed Admin publish readiness gate.
+- Updated workspace `AGENTS.md`, run control, run checklist, Admin publish checklist, self-audit scoring, and memory.
+- Corrected the 2026-07-10 Quick Slot run from `completed` to `partial` and replaced the `n/a` Admin score with an evidence-based failure score.
+
+### Remaining friction
+
+- `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` is still unavailable in the canonical local environment, so the 2026-07-10 report remains queued for idempotent backfill.
+
+### Next training focus
+
+- On the next `run test`, prove the preflight stops before Chrome when publishing is unavailable, or backfill the pending run and verify both Admin report cards before starting the new scenario.

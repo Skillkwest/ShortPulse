@@ -1784,6 +1784,54 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
+  it("does not mark machine-error payloads reusable when stale prompt metadata is present", async () => {
+    const stalePrompt = "Stale prompt artifact that must not be reusable.";
+    const sendAgentTurn = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        message: "temporary upstream saturation",
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
+        retryable: true,
+      },
+    });
+    const resolveTransportSuccess = vi.fn(() => ({
+      actions: undefined,
+      workflowSession: null,
+      canonicalPrompt: null,
+      assistantContent: "temporary upstream saturation",
+      assistantOutputPrompt: stalePrompt,
+    }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "standard",
+        sendAgentTurn,
+        resolveTransportSuccess,
+      })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "make a portrait prompt",
+        payloadText: "make a portrait prompt",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "temporary upstream saturation",
+        outputPrompt: stalePrompt,
+        canUseAsPrompt: false,
+        decision: "error",
+        outcomeClass: "upstream_error",
+      })
+    );
+  });
+
   it("keeps legacy Standard prompt replies usable when outcome_class is omitted", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(

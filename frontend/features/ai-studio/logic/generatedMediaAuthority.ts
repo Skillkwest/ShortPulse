@@ -428,6 +428,44 @@ const hasVisibleGenerationDeliveryDisplayAuthority = (
   );
 };
 
+export const VOICE_CHANGER_REMUX_STALE_PENDING_MS = 10 * 60 * 1000;
+
+export const resolveProjectedVoiceChangerRemuxRecovery = (
+  value: unknown,
+  {
+    projectionRecencyMs = null,
+    nowMs = Date.now(),
+  }: { projectionRecencyMs?: number | null; nowMs?: number } = {}
+): StudioOutput["remuxRecovery"] | undefined => {
+  const record = asObject(value);
+  if (!record) return undefined;
+  const sourceAudioGenerationId = asTrimmedString(record.sourceAudioGenerationId);
+  const remuxRequestId = asTrimmedString(record.remuxRequestId);
+  const status = asTrimmedString(record.status);
+  if (
+    !sourceAudioGenerationId ||
+    !remuxRequestId ||
+    (status !== "pending" && status !== "failed")
+  ) {
+    return undefined;
+  }
+  const stageValue = asTrimmedString(record.stage);
+  const stage = stageValue === "assembly" || stageValue === "persistence" ? stageValue : null;
+  const isStalePending =
+    status === "pending" &&
+    typeof projectionRecencyMs === "number" &&
+    Number.isFinite(projectionRecencyMs) &&
+    nowMs - projectionRecencyMs >= VOICE_CHANGER_REMUX_STALE_PENDING_MS;
+  return {
+    sourceAudioGenerationId,
+    remuxRequestId,
+    status: isStalePending ? "failed" : status,
+    code: isStalePending ? "VOICE_CHANGER_REMUX_STALE_PENDING" : asTrimmedString(record.code),
+    stage: isStalePending ? null : stage,
+    retryable: isStalePending || (status === "failed" && record.retryable === true),
+  };
+};
+
 const toHydratedGeneratedOutput = (
   row: GenerationProjectionDeliveryRow | null | undefined
 ): StudioOutput | null => {
@@ -492,6 +530,9 @@ const toHydratedGeneratedOutput = (
   const errorMessageShort = asTrimmedString(row.error_message_short) ?? undefined;
   const errorDetail = asTrimmedString(row.error_detail) ?? undefined;
   const errorPayload = row.error_payload ?? null;
+  const remuxRecovery = resolveProjectedVoiceChangerRemuxRecovery(row.remux_recovery, {
+    projectionRecencyMs: resolveGenerationProjectionRecencyMs(row),
+  });
 
   return {
     id: `generated:${generationId}`,
@@ -535,7 +576,62 @@ const toHydratedGeneratedOutput = (
     styleContext,
     generationReplay,
     workflowReload,
+    remuxRecovery,
   };
+};
+
+export const expandVoiceChangerRemuxRecoveryOutputs = (output: StudioOutput): StudioOutput[] => {
+  const recovery = output.remuxRecovery;
+  if (!recovery) return [output];
+  const isPending = recovery.status === "pending";
+  const failedVideo: StudioOutput = {
+    id: `voice-changer-remux:${recovery.sourceAudioGenerationId}`,
+    prompt: `${output.prompt || output.title || "Voice Changer source"} video`,
+    title: output.title ?? null,
+    transcriptText: output.transcriptText ?? null,
+    mode: "video",
+    aspect: output.aspect,
+    model: output.model,
+    createdAt: output.createdAt ?? null,
+    modelId: output.modelId,
+    provider: output.provider,
+    sourceRef: recovery.remuxRequestId,
+    status: "ready",
+    timestamp: output.timestamp,
+    taskState: isPending ? "running" : "fail",
+    errorMessage: isPending
+      ? null
+      : "The new voice is ready, but the video could not be assembled. Retry video without another charge.",
+    errorMessageShort: isPending ? null : "Video assembly failed",
+    errorDetail: isPending ? null : "Video assembly can be retried without provider generation.",
+    previewTier: "preview_loop",
+    mimeType: "video/mp4",
+    audioSourceMode: null,
+    mediaSource: "generated",
+    localObjectUrl: null,
+    hiddenInReferenceGrid: false,
+    remuxRecovery: recovery,
+  };
+  return [failedVideo, { ...output, remuxRecovery: undefined }];
+};
+
+export const expandVoiceChangerRemuxRecoveryOutputList = (
+  outputs: StudioOutput[]
+): StudioOutput[] => {
+  const persistedVideoRequestIds = new Set(
+    outputs
+      .filter((output) => output.mode === "video" && output.taskState !== "fail")
+      .map((output) => asTrimmedString(output.taskId) ?? asTrimmedString(output.sourceRef))
+      .filter((requestId): requestId is string => Boolean(requestId))
+  );
+
+  return outputs.flatMap((output) => {
+    const recovery = output.remuxRecovery;
+    if (recovery && persistedVideoRequestIds.has(recovery.remuxRequestId)) {
+      return [{ ...output, remuxRecovery: undefined }];
+    }
+    return expandVoiceChangerRemuxRecoveryOutputs(output);
+  });
 };
 
 const toProjectionLifecycle = (
@@ -2349,9 +2445,10 @@ export const listVisibleGeneratedOutputs = async ({
       });
     }
 
-    const baseOutputs = data
+    const hydratedOutputs = data
       .map((row) => toHydratedGeneratedOutput(row as GenerationProjectionDeliveryRow))
       .filter((row): row is StudioOutput => Boolean(row));
+    const baseOutputs = expandVoiceChangerRemuxRecoveryOutputList(hydratedOutputs);
     const outputs = includeWorkflowContext
       ? baseOutputs
       : await hydrateGeneratedOutputErrorPayloads({

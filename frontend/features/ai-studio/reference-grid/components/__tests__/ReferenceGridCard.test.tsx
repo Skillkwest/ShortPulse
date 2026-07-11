@@ -829,6 +829,7 @@ describe("ReferenceGridCard", () => {
     const videoSource = videoNode?.querySelector("source");
 
     expect(videoNode?.draggable).toBe(false);
+    expect(card.dataset.outputId).toBe("out-1");
     expect(videoNode?.getAttribute("src")).toBeNull();
     expect(videoSource).toBeNull();
 
@@ -862,6 +863,25 @@ describe("ReferenceGridCard", () => {
     fireEvent.pointerEnter(card);
 
     expect(playMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps full playable media authoritative for drag while hover uses compact video", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video" }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/poster.jpg",
+          hoverVideoUrl: "https://example.com/preview-loop-360p.mp4",
+          playableMediaUrl: "https://example.com/full.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "none",
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    expect(card).toHaveAttribute("data-drag-playable-url", "https://example.com/full.mp4");
   });
 
   it("restores poster visibility when pressure suppresses hover video during hover", async () => {

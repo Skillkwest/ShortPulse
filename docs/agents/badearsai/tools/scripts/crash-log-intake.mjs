@@ -9,42 +9,15 @@
  */
 
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { loadLocalEnv } from "../../../../../scripts/lib/load_local_env.mjs";
 
 const DEFAULT_ENV_FILES = [
+  ".env.agent.local",
   "frontend/.vercel/.env.production.local",
   "frontend/.env.local",
   ".env.local",
 ];
-
-const SELECT_COLUMNS = [
-  "id",
-  "browser_session_id",
-  "user_id",
-  "user_email",
-  "status",
-  "confidence",
-  "last_event",
-  "route",
-  "build_id",
-  "client_release",
-  "client_environment",
-  "user_agent",
-  "host",
-  "vercel_id",
-  "metadata",
-  "review_status",
-  "reviewed_at",
-  "reviewed_by",
-  "reviewed_by_email",
-  "review_note",
-  "started_at",
-  "last_seen_at",
-  "ended_at",
-  "suspected_at",
-  "created_at",
-  "updated_at",
-].join(",");
 
 const VALID_STATUSES = new Set([
   "all",
@@ -63,8 +36,6 @@ const VALID_REVIEW_STATUSES = new Set([
   "all",
 ]);
 const VALID_REVIEW_WRITES = new Set(["open", "resolved", "ignored"]);
-const STALE_AFTER_MS = 10 * 60 * 1000;
-
 const usage = () => {
   console.log(`Usage:
   node docs/agents/badearsai/tools/scripts/crash-log-intake.mjs list [options]
@@ -200,6 +171,10 @@ const redactId = (value) => {
 
 const numberOrNull = (value) =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
+const positiveNumberOrNull = (value) => {
+  const number = numberOrNull(value);
+  return number !== null && number > 0 ? number : null;
+};
 
 const metadataSummary = (metadata) => {
   const value =
@@ -216,6 +191,8 @@ const metadataSummary = (metadata) => {
       maxHeapUsedToLimitRatio: numberOrNull(value.max_heap_used_to_limit_ratio),
       heapUsedToTotalRatio: numberOrNull(value.heap_used_to_total_ratio),
       maxHeapUsedToTotalRatio: numberOrNull(value.max_heap_used_to_total_ratio),
+      usedJsHeapSize: numberOrNull(value.used_js_heap_size),
+      jsHeapSizeLimit: numberOrNull(value.js_heap_size_limit),
       longTaskP95Ms: numberOrNull(value.long_task_p95_ms),
       maxInputStallMs: numberOrNull(value.max_input_stall_ms),
       stallDurationMs: numberOrNull(value.stall_duration_ms),
@@ -249,21 +226,6 @@ const metadataSummary = (metadata) => {
   };
 };
 
-const effectiveStatus = (row) => {
-  const lastSeenMs = row.last_seen_at
-    ? new Date(row.last_seen_at).getTime()
-    : Number.NaN;
-  const isStale =
-    row.status === "active" &&
-    Number.isFinite(lastSeenMs) &&
-    Date.now() - lastSeenMs > STALE_AFTER_MS;
-  return {
-    effectiveStatus: isStale ? "possible_ungraceful_exit" : row.status,
-    effectiveConfidence: isStale ? "low" : row.confidence,
-    isStale,
-  };
-};
-
 const normalizeRow = (row, options) => ({
   id: row.id,
   browserSessionId: options.showIdentifiers
@@ -275,7 +237,17 @@ const normalizeRow = (row, options) => ({
     : redactEmail(row.user_email),
   status: row.status,
   confidence: row.confidence,
-  ...effectiveStatus(row),
+  effectiveStatus: row.effective_status ?? row.status,
+  effectiveConfidence: row.effective_confidence ?? row.confidence,
+  effectiveReason: row.effective_reason ?? null,
+  maxUsedJsHeapSize:
+    positiveNumberOrNull(row.max_used_js_heap_size) ??
+    numberOrNull(row.metadata?.used_js_heap_size),
+  maxHeapUsedToLimitRatio:
+    positiveNumberOrNull(row.max_heap_used_to_limit_ratio) ??
+    numberOrNull(row.metadata?.max_heap_used_to_limit_ratio) ??
+    numberOrNull(row.metadata?.heap_used_to_limit_ratio),
+  isStale: Boolean(row.is_stale),
   lastEvent: row.last_event,
   route: row.route,
   buildId: row.build_id,
@@ -300,44 +272,35 @@ const normalizeRow = (row, options) => ({
     vercelId: row.vercel_id,
     userAgent: row.user_agent,
   },
-  metadata: metadataSummary(row.metadata),
+  metadata: metadataSummary({
+    ...(row.metadata &&
+    typeof row.metadata === "object" &&
+    !Array.isArray(row.metadata)
+      ? row.metadata
+      : {}),
+    used_js_heap_size:
+      positiveNumberOrNull(row.max_used_js_heap_size) ??
+      row.metadata?.used_js_heap_size ??
+      null,
+    max_heap_used_to_limit_ratio:
+      positiveNumberOrNull(row.max_heap_used_to_limit_ratio) ??
+      row.metadata?.max_heap_used_to_limit_ratio ??
+      null,
+  }),
 });
 
-const appendFilter = (url, key, value) => {
-  url.searchParams.append(key, value);
-};
-
-const buildListUrl = ({ config, args }) => {
-  const url = new URL(`${config.supabaseUrl}/rest/v1/browser_crash_sessions`);
-  url.searchParams.set("select", SELECT_COLUMNS);
-  url.searchParams.set("order", "last_seen_at.desc");
-  url.searchParams.set("limit", String(args.limit));
-
-  if (args.session) appendFilter(url, "id", `eq.${args.session}`);
-  if (args.status === "needs_review") {
-    appendFilter(
-      url,
-      "status",
-      "in.(probable_freeze_or_crash,confirmed_crash)",
-    );
-  } else if (args.status === "possible_ungraceful_exit") {
-    const staleCutoff = new Date(Date.now() - STALE_AFTER_MS).toISOString();
-    url.searchParams.set(
-      "or",
-      `(status.eq.possible_ungraceful_exit,and(status.eq.active,last_seen_at.lt.${staleCutoff}))`,
-    );
-  } else if (args.status !== "all") {
-    appendFilter(url, "status", `eq.${args.status}`);
-  }
-  if (args.reviewStatus === "reviewed") {
-    appendFilter(url, "review_status", "in.(resolved,ignored)");
-  } else if (args.reviewStatus !== "all") {
-    appendFilter(url, "review_status", `eq.${args.reviewStatus}`);
-  }
-  if (args.route)
-    appendFilter(url, "route", `ilike.*${args.route.replaceAll("*", "")}*`);
-  return url;
-};
+const buildCanonicalListRequest = ({ config, args }) => ({
+  url: new URL(
+    `${config.supabaseUrl}/rest/v1/rpc/list_browser_crash_sessions_v2`,
+  ),
+  body: {
+    p_page: 1,
+    p_limit: args.limit,
+    p_status: args.status,
+    p_review_status: args.reviewStatus,
+    p_search: args.session ?? args.route?.replaceAll("*", "") ?? "",
+  },
+});
 
 const listRows = async (config, args) => {
   if (!VALID_STATUSES.has(args.status))
@@ -348,27 +311,46 @@ const listRows = async (config, args) => {
   if (!Number.isFinite(args.limit) || args.limit < 1 || args.limit > 100) {
     throw new Error("--limit must be between 1 and 100.");
   }
-
-  const response = await fetch(buildListUrl({ config, args }), {
-    headers: restHeaders(config.serviceRoleKey, { Prefer: "count=exact" }),
-  });
-  if (!response.ok) {
+  if (args.session && args.route) {
     throw new Error(
-      `Supabase list failed: ${response.status} ${await response.text()}`,
+      "Use only one of --session or --route for canonical list search.",
     );
   }
-  const rows = await response.json();
-  return rows.map((row) => normalizeRow(row, args));
+
+  const request = buildCanonicalListRequest({ config, args });
+  const response = await fetch(request.url, {
+    method: "POST",
+    headers: restHeaders(config.serviceRoleKey, { Prefer: "count=exact" }),
+    body: JSON.stringify(request.body),
+  });
+  if (!response.ok) {
+    throw new Error(`Canonical crash-session list failed: ${response.status}.`);
+  }
+  const payload = await response.json();
+  const rows = Array.isArray(payload?.sessions) ? payload.sessions : [];
+  return {
+    rows: rows.map((row) => normalizeRow(row, args)),
+    pagination:
+      payload?.pagination && typeof payload.pagination === "object"
+        ? payload.pagination
+        : null,
+  };
 };
 
-const printTextRows = (rows) => {
-  console.log(`Badearsai crash-log intake: ${rows.length} row(s)`);
+const printTextRows = (rows, pagination) => {
+  const totalCount = numberOrNull(pagination?.totalCount);
+  console.log(
+    `Badearsai crash-log intake: ${rows.length} row(s)${totalCount !== null ? ` of ${totalCount}` : ""}`,
+  );
   for (const row of rows) {
     console.log("");
     console.log(`- ${row.id}`);
     console.log(
       `  evidence: ${row.status}/${row.confidence}; effective: ${row.effectiveStatus}/${row.effectiveConfidence}; review: ${row.reviewStatus}`,
     );
+    if (row.effectiveReason) {
+      console.log(`  reason: ${row.effectiveReason}`);
+    }
     console.log(`  route: ${row.route ?? "(unknown)"}`);
     console.log(
       `  last_event: ${row.lastEvent}; last_seen: ${row.timeline.lastSeenAt ?? "(unknown)"}`,
@@ -381,6 +363,17 @@ const printTextRows = (rows) => {
     );
     console.log(`  metadata_keys: ${row.metadata.keys.join(", ") || "(none)"}`);
     const pressure = row.metadata.pressure;
+    const heapBits = [
+      pressure.usedJsHeapSize !== null
+        ? `used_mb=${Math.round(pressure.usedJsHeapSize / (1024 * 1024))}`
+        : null,
+      pressure.maxHeapUsedToLimitRatio !== null
+        ? `max_limit_percent=${Math.round(pressure.maxHeapUsedToLimitRatio * 100)}`
+        : pressure.heapUsedToLimitRatio !== null
+          ? `limit_percent=${Math.round(pressure.heapUsedToLimitRatio * 100)}`
+          : null,
+    ].filter(Boolean);
+    if (heapBits.length) console.log(`  js_heap: ${heapBits.join("; ")}`);
     const pressureBits = [
       pressure.maxLevel !== null ? `max_pressure=${pressure.maxLevel}` : null,
       pressure.maxInputStallMs !== null
@@ -482,9 +475,9 @@ const main = async () => {
   const config = readSupabaseConfig();
 
   if (args.command === "list") {
-    const rows = await listRows(config, args);
-    if (args.json) console.log(JSON.stringify({ rows }, null, 2));
-    else printTextRows(rows);
+    const result = await listRows(config, args);
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else printTextRows(result.rows, result.pagination);
     return;
   }
 
@@ -502,9 +495,16 @@ const main = async () => {
   throw new Error(`Unknown command: ${args.command}`);
 };
 
-main().catch((error) => {
-  console.error(
-    `[badearsai-crash-log] ${error instanceof Error ? error.message : String(error)}`,
-  );
-  process.exit(1);
-});
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main().catch((error) => {
+    console.error(
+      `[badearsai-crash-log] ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  });
+}
+
+export { buildCanonicalListRequest, normalizeRow };

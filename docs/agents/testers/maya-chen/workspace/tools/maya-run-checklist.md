@@ -14,6 +14,9 @@ Use this checklist for every Maya browser test run.
   - `docs/agents/testers/maya-chen/workspace/human-nuance-card.md`
   - `docs/agents/testers/maya-chen/workspace/persona-runtime-card.md`
 - Check `docs/agents/testers/maya-chen/monthly-credit-ledger.md`.
+- Check Admin publish readiness before Chrome: ingest credential present without printing it, tested-account identifier known, and oldest unpublished Maya run identified.
+- Backfill the oldest unpublished Maya run before beginning a new scenario when publishing access is available.
+- If publish readiness is unavailable, stop before Chrome unless the user explicitly approves a local-only partial run.
 - Fill `workspace/tools/run-control-panel.md` before opening Chrome.
 - Read `docs/agents/testers/maya-chen/workspace/ugc-content-goal.md` and choose where this run fits in the project progress ladder.
 - Read `docs/agents/testers/maya-chen/workspace/active-next-scenarios.md` unless the user already gave a specific scenario.
@@ -136,9 +139,9 @@ I am Maya Chen. I am a practical creator with limited time and a small credit bu
 - Create or update the evidence manifest only for kept screenshots/downloads.
 - Update the reports index.
 - Update the credit ledger.
-- Publish to Admin Tester Reports when the ingest secret is available.
+- Publish to Admin Tester Reports using the stable `externalRunId`.
 - Use `workspace/tools/admin-publish-checklist.md` for Admin publish attempts.
-- Verify the run appears in `/admin/tester-reports` after successful ingest when admin browser/API access is available.
+- Verify the exact run appears in `/admin/tester-reports` and both report cards contain the expected bodies.
 - Record admin publish status in the reports index and engineering handoff.
 - Complete the post-run self-audit/performance check.
 - Use `workspace/tools/persona-fidelity-rubric.md` when scoring persona fidelity.

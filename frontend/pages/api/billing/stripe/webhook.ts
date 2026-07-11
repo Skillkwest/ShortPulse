@@ -805,6 +805,13 @@ const resolveFullPriceUpgradeIntentGrant = async (
   const stripeSubscriptionId = resolveInvoiceSubscriptionId(invoice);
   if (!stripeSubscriptionId) return null;
 
+  const invoiceCreatedAt = asIsoDate(typeof invoice.created === "number" ? invoice.created : null);
+  if (!invoiceCreatedAt) return null;
+  const invoiceCreatedAtUpperBound = asIsoDate(
+    typeof invoice.created === "number" ? invoice.created + 1 : null
+  );
+  if (!invoiceCreatedAtUpperBound) return null;
+
   const profile = await resolveVerifiedBillingProfileByCustomer(stripeCustomerId);
   if (!profile?.user_id) return null;
 
@@ -821,7 +828,11 @@ const resolveFullPriceUpgradeIntentGrant = async (
     .eq("target_offer_id", targetOffer.offerId)
     .eq("target_stripe_price_id", targetOffer.stripePriceId)
     .in("status", ["pending", "portal_created"])
-    .gt("expires_at", new Date().toISOString())
+    // Bind the paid invoice to an intent that was valid when Stripe created it.
+    // Stripe timestamps use whole seconds, so the exclusive next-second bound
+    // preserves valid same-second intent creation without using webhook time.
+    .lt("created_at", invoiceCreatedAtUpperBound)
+    .gt("expires_at", invoiceCreatedAt)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

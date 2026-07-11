@@ -350,6 +350,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 216.  `sql/migrations/217_repair_pulse_single_shot_builtin_catalog.sql`
 217.  `sql/migrations/218_add_admin_growth_cohorts_stats.sql`
 218.  `sql/migrations/219_add_account_storage_ownership_proof.sql`
+219.  `sql/migrations/220_harden_browser_crash_observability.sql`
+220.  `sql/migrations/221_add_voice_changer_remux_recovery_projection.sql`
+221.  `sql/migrations/222_add_admin_kanban_backlog_source_sync.sql`
       Rollback files:
 
 
@@ -469,6 +472,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/199_repair_create_pulse_builtin_catalog_rollback.sql`
     - `sql/migrations/rollback/200_add_credit_grant_lot_expiration_rollback.sql`
     - `sql/migrations/rollback/203_add_hybervees_tester_report_review_rollback.sql`
+    - `sql/migrations/rollback/220_harden_browser_crash_observability_rollback.sql`
+    - `sql/migrations/rollback/221_add_voice_changer_remux_recovery_projection_rollback.sql`
+    - `sql/migrations/rollback/222_add_admin_kanban_backlog_source_sync_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -487,7 +493,7 @@ Billing safety note:
   `column reference "source_ref" is ambiguous` failures in reservation-mode Fal submit paths.
 - Migration `014_harden_generation_reservation_rpc_security.sql` is required to enforce
   reservation RPC caller binding + execute grant hardening.
-- Migration `019_add_generation_recovery_fields.sql` adds minimal recovery-state durability
+- Migration `019_add_generation_recovery_fields.sql` adds minimal recovery-state durability and the partial unique `ai_generations_user_request_id_unique_idx` on `(user_id, request_id)` used by deterministic remux/recovery identity. The hosted schema contract checker verifies this index when run with the required hosted DB URL.
   (`failure_reason_code`, `recovery_state`, retry timing fields, and reconciler indexes) without a new attempts table in v1.
 - Migrations `020`-`023` converge runtime assumptions (no missing-column fallback), enforce status transitions,
   add media persistence idempotency keys, and provide `SKIP LOCKED` reconciler claim semantics.
@@ -601,6 +607,9 @@ Billing safety note:
 - Migration `195_rename_baseline_access_catalog_display.sql` restores the legacy `free` sentinel's operator-facing display name to `Baseline access`, leaving pricing, entitlements, Stripe linkage, and acquisition behavior unchanged. Hosted apply remains a separate approved Supabase operation.
 - Migration `196_add_browser_crash_sessions.sql` adds the service-role-only `browser_crash_sessions` table for authenticated browser freeze/crash session evidence, including stale-heartbeat/admin-list indexes and an explicit rollback. Hosted apply remains a separate approved Supabase operation.
 - Migration `197_add_browser_crash_session_review_status.sql` adds operator review state to `browser_crash_sessions` so `/admin/crashes` rows can be resolved or ignored without deleting evidence or changing browser-crash classification. Hosted apply remains a separate approved Supabase operation.
+- Migration `220_harden_browser_crash_observability.sql` backfills typed historical evidence and adds the service-role-only, per-session locked ingestion RPC plus canonical crash-session list RPC. Its rollback removes only those additive columns and RPCs. After apply, run `sql/check_browser_crash_classifier_calibration.sql` for the required privacy-safe 14-day aggregate threshold replay; it returns counts and heap percentiles without user/session identifiers. Hosted apply and replay remain separate approved Supabase operations.
+- Migration `221_add_voice_changer_remux_recovery_projection.sql` adds nullable, object-checked `generation_projection.remux_recovery` as a read projection of canonical Voice Changer retry metadata. Its rollback removes only that constraint and column. Hosted apply remains a separate approved Supabase operation.
+- Migration `222_add_admin_kanban_backlog_source_sync.sql` adds admin Kanban source metadata plus the service-role-only planning backlog sync RPC so `docs/planning/backlog.md` can mirror into `/admin/kanban` without becoming a duplicate backlog authority. Its rollback removes the sync RPC/source columns and normalizes `synced` activity rows back to `updated` before restoring the prior action constraint. Hosted apply and backlog sync remain separate approved operations.
 - Migration `198_allow_equal_timestamp_project_workspace_updates.sql` changes the project workspace freshness trigger to reject only strictly older `snapshot_updated_at` writes, so same-timestamp structural checkpoint updates can persist while out-of-order older autosaves still no-op. Hosted apply remains a separate approved Supabase operation.
 - Migration `199_repair_create_pulse_builtin_catalog.sql` repairs legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions. Hosted apply remains a separate approved Supabase operation.
 - Migration `200_add_credit_grant_lot_expiration.sql` adds grant-lot credit accounting, expiration-aware reservation/debit allocation, 60-day subscription credit expiration, non-expiring paid top-up lots, and the service-role expiration RPC. It also retires the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC so runtime reservations must use `admit_and_reserve_generation_credits(...)` with grant allocations. Hosted apply and scheduler enablement remain separate approved Supabase operations.

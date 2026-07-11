@@ -3,6 +3,7 @@
  * Encapsulates node registration, visibility observers, autoplay detachment, and cleanup.
  */
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
+import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
 
 type UseReferenceGridVideoLifecycleControllerArgs = {
   activeOutputId: string | null;
@@ -22,6 +23,8 @@ type UseReferenceGridVideoLifecycleControllerArgs = {
   videoIntersectionObserverBySurfaceRef: MutableRefObject<
     Map<"all-refs" | "curated", IntersectionObserver>
   >;
+  metricsTargetRef?: MutableRefObject<HTMLElement | null>;
+  autoplayEnabledIdsStateRef?: MutableRefObject<string[]>;
   autoplayDetachDelayMs: number;
   autoplayVisibilityThreshold: number;
   recomputeAutoplayBudget: () => void;
@@ -50,6 +53,8 @@ export const useReferenceGridVideoLifecycleController = ({
   videoNodeByKeyRef,
   videoDetachTimeoutByKeyRef,
   videoIntersectionObserverBySurfaceRef,
+  metricsTargetRef,
+  autoplayEnabledIdsStateRef,
   autoplayDetachDelayMs,
   autoplayVisibilityThreshold,
   recomputeAutoplayBudget,
@@ -60,11 +65,16 @@ export const useReferenceGridVideoLifecycleController = ({
     []
   );
   const recomputeAutoplayBudgetRafIdRef = useRef<number | null>(null);
+  const metricsRafIdRef = useRef<number | null>(null);
 
   const detachVideoNodeMedia = useCallback((node: HTMLVideoElement) => {
     node.pause();
     node.removeAttribute("src");
-    node.load();
+    try {
+      node.load();
+    } catch {
+      // Some browser/test environments throw while resetting detached media.
+    }
   }, []);
 
   const scheduleAutoplayBudgetRecompute = useCallback(() => {
@@ -79,26 +89,151 @@ export const useReferenceGridVideoLifecycleController = ({
     });
   }, [recomputeAutoplayBudget]);
 
+  const fallbackMetricsTargetRef = useRef<HTMLElement | null>(null);
+  const fallbackAutoplayEnabledIdsStateRef = useRef<string[]>(autoplayEnabledIds);
+  const resolvedMetricsTargetRef = metricsTargetRef ?? fallbackMetricsTargetRef;
+  const resolvedAutoplayEnabledIdsStateRef =
+    autoplayEnabledIdsStateRef ?? fallbackAutoplayEnabledIdsStateRef;
+  const metricsTargetRefStateRef = useRef(resolvedMetricsTargetRef);
+  const autoplayEnabledIdsRefStateRef = useRef(resolvedAutoplayEnabledIdsStateRef);
+
+  useEffect(() => {
+    metricsTargetRefStateRef.current = resolvedMetricsTargetRef;
+    autoplayEnabledIdsRefStateRef.current = resolvedAutoplayEnabledIdsStateRef;
+  }, [resolvedAutoplayEnabledIdsStateRef, resolvedMetricsTargetRef]);
+
+  useEffect(() => {
+    if (!autoplayEnabledIdsStateRef) {
+      fallbackAutoplayEnabledIdsStateRef.current = autoplayEnabledIds;
+    }
+  }, [autoplayEnabledIds, autoplayEnabledIdsStateRef]);
+
+  const emitVideoLifecycleMetrics = useCallback(() => {
+    const nodes = Array.from(videoNodeByKeyRef.current.entries());
+    const attachedSourceCount = nodes.reduce((count, [, node]) => {
+      return count + (node.getAttribute("src") || node.currentSrc ? 1 : 0);
+    }, 0);
+    const allRefsNodeCount = nodes.reduce(
+      (count, [nodeKey]) => count + (nodeKey.startsWith("curated:") ? 0 : 1),
+      0
+    );
+    const quickSlotNodeCount = nodes.length - allRefsNodeCount;
+    const outputNodeCounts = new Map<string, number>();
+    videoOutputIdByKeyRef.current.forEach((outputId) => {
+      outputNodeCounts.set(outputId, (outputNodeCounts.get(outputId) ?? 0) + 1);
+    });
+    const duplicateOutputCount = Array.from(outputNodeCounts.values()).filter(
+      (count) => count > 1
+    ).length;
+    const performanceMemory =
+      typeof performance === "undefined"
+        ? null
+        : (
+            performance as Performance & {
+              memory?: {
+                usedJSHeapSize?: number;
+                totalJSHeapSize?: number;
+                jsHeapSizeLimit?: number;
+              };
+            }
+          ).memory;
+    const usedJsHeapSize = performanceMemory?.usedJSHeapSize;
+    const totalJsHeapSize = performanceMemory?.totalJSHeapSize;
+    const jsHeapSizeLimit = performanceMemory?.jsHeapSizeLimit;
+    const metrics = {
+      tracked_video_node_count: nodes.length,
+      attached_video_source_count: attachedSourceCount,
+      visible_video_key_count: videoVisibleKeySetRef.current.size,
+      autoplay_enabled_output_count: autoplayEnabledIdsRefStateRef.current.current.length,
+      all_refs_video_node_count: allRefsNodeCount,
+      quick_slot_video_node_count: quickSlotNodeCount,
+      duplicate_video_output_count: duplicateOutputCount,
+      used_js_heap_size: typeof usedJsHeapSize === "number" ? Math.round(usedJsHeapSize) : null,
+      total_js_heap_size: typeof totalJsHeapSize === "number" ? Math.round(totalJsHeapSize) : null,
+      js_heap_size_limit: typeof jsHeapSizeLimit === "number" ? Math.round(jsHeapSizeLimit) : null,
+    };
+    const metricsTarget = metricsTargetRefStateRef.current.current;
+    if (metricsTarget) {
+      metricsTarget.dataset.gridTrackedVideoNodeCount = String(metrics.tracked_video_node_count);
+      metricsTarget.dataset.gridAttachedVideoSourceCount = String(
+        metrics.attached_video_source_count
+      );
+      metricsTarget.dataset.gridVisibleVideoKeyCount = String(metrics.visible_video_key_count);
+      metricsTarget.dataset.gridAutoplayEnabledOutputCount = String(
+        metrics.autoplay_enabled_output_count
+      );
+      metricsTarget.dataset.gridAllRefsVideoNodeCount = String(metrics.all_refs_video_node_count);
+      metricsTarget.dataset.gridQuickSlotVideoNodeCount = String(
+        metrics.quick_slot_video_node_count
+      );
+      metricsTarget.dataset.gridDuplicateVideoOutputCount = String(
+        metrics.duplicate_video_output_count
+      );
+    }
+    logMediaPerf("media.grid.memory.sample", {
+      surface: "reference-grid",
+      ...metrics,
+    });
+  }, [
+    autoplayEnabledIdsRefStateRef,
+    metricsTargetRefStateRef,
+    videoNodeByKeyRef,
+    videoOutputIdByKeyRef,
+    videoVisibleKeySetRef,
+  ]);
+
+  const scheduleVideoLifecycleMetrics = useCallback(() => {
+    if (typeof window === "undefined") {
+      emitVideoLifecycleMetrics();
+      return;
+    }
+    if (metricsRafIdRef.current != null) return;
+    metricsRafIdRef.current = window.requestAnimationFrame(() => {
+      metricsRafIdRef.current = null;
+      emitVideoLifecycleMetrics();
+    });
+  }, [emitVideoLifecycleMetrics]);
+
+  const releaseRegisteredVideoNode = useCallback(
+    (nodeKey: string, expectedNode?: HTMLVideoElement | null) => {
+      const currentNode = videoNodeByKeyRef.current.get(nodeKey);
+      if (!currentNode || (expectedNode && currentNode !== expectedNode)) return false;
+      const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
+      if (detachTimeout != null) {
+        window.clearTimeout(detachTimeout);
+        videoDetachTimeoutByKeyRef.current.delete(nodeKey);
+      }
+      videoIntersectionObserverBySurfaceRef.current.forEach((observer) => {
+        observer.unobserve(currentNode);
+      });
+      detachVideoNodeMedia(currentNode);
+      videoNodeByKeyRef.current.delete(nodeKey);
+      videoOutputIdByKeyRef.current.delete(nodeKey);
+      const visibilityChanged = videoVisibleKeySetRef.current.delete(nodeKey);
+      if (visibilityChanged) scheduleAutoplayBudgetRecompute();
+      scheduleVideoLifecycleMetrics();
+      return true;
+    },
+    [
+      detachVideoNodeMedia,
+      scheduleAutoplayBudgetRecompute,
+      scheduleVideoLifecycleMetrics,
+      videoDetachTimeoutByKeyRef,
+      videoIntersectionObserverBySurfaceRef,
+      videoNodeByKeyRef,
+      videoOutputIdByKeyRef,
+      videoVisibleKeySetRef,
+    ]
+  );
+
   const registerVideoNode = useCallback(
     (nodeKey: string, outputId: string, node: HTMLVideoElement | null) => {
       const currentNode = videoNodeByKeyRef.current.get(nodeKey);
       if (currentNode && currentNode !== node) {
-        videoIntersectionObserverBySurfaceRef.current.forEach((observer) => {
-          observer.unobserve(currentNode);
-        });
-        videoNodeByKeyRef.current.delete(nodeKey);
+        releaseRegisteredVideoNode(nodeKey, currentNode);
       }
       if (!node) {
-        const detachTimeout = videoDetachTimeoutByKeyRef.current.get(nodeKey);
-        if (detachTimeout) {
-          window.clearTimeout(detachTimeout);
-          videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-        }
-        videoNodeByKeyRef.current.delete(nodeKey);
-        videoOutputIdByKeyRef.current.delete(nodeKey);
-        if (videoVisibleKeySetRef.current.delete(nodeKey)) {
-          scheduleAutoplayBudgetRecompute();
-        }
+        releaseRegisteredVideoNode(nodeKey);
         return;
       }
       const surface = resolveVideoSurfaceFromNodeKey(nodeKey);
@@ -108,15 +243,15 @@ export const useReferenceGridVideoLifecycleController = ({
       videoNodeByKeyRef.current.set(nodeKey, node);
       videoOutputIdByKeyRef.current.set(nodeKey, outputId);
       videoIntersectionObserverBySurfaceRef.current.get(surface)?.observe(node);
+      scheduleVideoLifecycleMetrics();
     },
     [
+      releaseRegisteredVideoNode,
       resolveVideoSurfaceFromNodeKey,
-      scheduleAutoplayBudgetRecompute,
-      videoDetachTimeoutByKeyRef,
       videoIntersectionObserverBySurfaceRef,
       videoNodeByKeyRef,
       videoOutputIdByKeyRef,
-      videoVisibleKeySetRef,
+      scheduleVideoLifecycleMetrics,
     ]
   );
 
@@ -128,20 +263,7 @@ export const useReferenceGridVideoLifecycleController = ({
       if (videoVisibleKeySetRef.current.delete(nodeKey)) {
         removedAny = true;
       }
-      const timeoutId = videoDetachTimeoutByKeyRef.current.get(nodeKey);
-      if (timeoutId != null) {
-        window.clearTimeout(timeoutId);
-      }
-      videoDetachTimeoutByKeyRef.current.delete(nodeKey);
-      const node = videoNodeByKeyRef.current.get(nodeKey);
-      if (node) {
-        videoIntersectionObserverBySurfaceRef.current.forEach((observer) =>
-          observer.unobserve(node)
-        );
-        detachVideoNodeMedia(node);
-      }
-      videoNodeByKeyRef.current.delete(nodeKey);
-      videoOutputIdByKeyRef.current.delete(nodeKey);
+      releaseRegisteredVideoNode(nodeKey);
     });
     videoDetachTimeoutByKeyRef.current.forEach((timeoutId, nodeKey) => {
       if (videoOutputIdByKeyRef.current.has(nodeKey)) return;
@@ -153,7 +275,7 @@ export const useReferenceGridVideoLifecycleController = ({
     }
   }, [
     validOutputIds,
-    detachVideoNodeMedia,
+    releaseRegisteredVideoNode,
     scheduleAutoplayBudgetRecompute,
     videoDetachTimeoutByKeyRef,
     videoIntersectionObserverBySurfaceRef,
@@ -174,6 +296,7 @@ export const useReferenceGridVideoLifecycleController = ({
           entries.forEach((entry) => {
             const nodeKey = (entry.target as HTMLElement).dataset.outputKey;
             if (!nodeKey) return;
+            if (videoNodeByKeyRef.current.get(nodeKey) !== entry.target) return;
             const isVisible =
               entry.isIntersecting && entry.intersectionRatio >= autoplayVisibilityThreshold;
             if (isVisible) {
@@ -189,6 +312,7 @@ export const useReferenceGridVideoLifecycleController = ({
           });
           if (changed) {
             scheduleAutoplayBudgetRecompute();
+            scheduleVideoLifecycleMetrics();
           }
         },
         {
@@ -216,6 +340,7 @@ export const useReferenceGridVideoLifecycleController = ({
     isCuratedSplitEnabled,
     resolveVideoSurfaceFromNodeKey,
     scheduleAutoplayBudgetRecompute,
+    scheduleVideoLifecycleMetrics,
     scrollContainerRef,
     videoIntersectionObserverBySurfaceRef,
     videoNodeByKeyRef,
@@ -277,23 +402,38 @@ export const useReferenceGridVideoLifecycleController = ({
   ]);
 
   useEffect(() => {
+    scheduleVideoLifecycleMetrics();
+  }, [autoplayEnabledIds, scheduleVideoLifecycleMetrics]);
+
+  useEffect(() => {
     const detachTimeoutById = videoDetachTimeoutByKeyRef.current;
     const videoNodeByKey = videoNodeByKeyRef.current;
     return () => {
-      if (recomputeAutoplayBudgetRafIdRef.current != null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(recomputeAutoplayBudgetRafIdRef.current);
-        recomputeAutoplayBudgetRafIdRef.current = null;
-      }
       detachTimeoutById.forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
       detachTimeoutById.clear();
-      videoNodeByKey.forEach((node) => {
-        detachVideoNodeMedia(node);
+      Array.from(videoNodeByKey.keys()).forEach((nodeKey) => {
+        releaseRegisteredVideoNode(nodeKey);
       });
-      videoNodeByKey.clear();
+      logMediaPerf("media.grid.memory.sample", {
+        surface: "reference-grid",
+        tracked_video_node_count: 0,
+        attached_video_source_count: 0,
+        visible_video_key_count: 0,
+        autoplay_enabled_output_count: 0,
+        duplicate_video_output_count: 0,
+      });
+      if (recomputeAutoplayBudgetRafIdRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(recomputeAutoplayBudgetRafIdRef.current);
+        recomputeAutoplayBudgetRafIdRef.current = null;
+      }
+      if (metricsRafIdRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(metricsRafIdRef.current);
+        metricsRafIdRef.current = null;
+      }
     };
-  }, [detachVideoNodeMedia, videoDetachTimeoutByKeyRef, videoNodeByKeyRef]);
+  }, [releaseRegisteredVideoNode, videoDetachTimeoutByKeyRef, videoNodeByKeyRef]);
 
   return {
     registerVideoNode,

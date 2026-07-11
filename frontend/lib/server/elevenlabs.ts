@@ -841,6 +841,7 @@ export const persistGeneratedVideoAsset = async ({
     project_id: resolvedProjectId,
     workspace_runtime_key: resolvedWorkspaceRuntimeKey,
     ...extraMetadata,
+    ...(Object.keys(generationReplay).length > 0 ? { generation_replay: generationReplay } : {}),
     ...(Object.keys(workflowReload).length > 0 ? { workflow_reload: workflowReload } : {}),
   };
 
@@ -860,6 +861,10 @@ export const persistGeneratedVideoAsset = async ({
     .select("id")
     .single();
   if (generationInsert.error) {
+    await supabaseAdmin.storage
+      .from(MEDIA_BUCKET)
+      .remove([storagePath])
+      .catch(() => undefined);
     throw new Error(generationInsert.error.message || "Unable to record video generation.");
   }
 

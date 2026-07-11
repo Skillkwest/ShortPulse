@@ -16,6 +16,7 @@ const REQUIRED_TABLES = [
       "workflow_reload",
       "save_error",
       "display_title",
+      "remux_recovery",
     ],
   },
   {
@@ -44,6 +45,14 @@ const REQUIRED_TABLES = [
       "reviewed_by_email",
       "review_note",
     ],
+  },
+];
+
+const REQUIRED_INDEXES = [
+  {
+    schema: "public",
+    table: "ai_generations",
+    index: "ai_generations_user_request_id_unique_idx",
   },
 ];
 
@@ -118,21 +127,45 @@ const checkDbContract = (dbUrl) => {
         `('public', ${quoteSqlLiteral(table)}, ${quoteSqlLiteral(column)})`,
     ),
   ).join(",\n");
+  const indexValues = REQUIRED_INDEXES.map(
+    ({ schema, table, index }) =>
+      `(${quoteSqlLiteral(schema)}, ${quoteSqlLiteral(table)}, ${quoteSqlLiteral(index)})`,
+  ).join(",\n");
   const sql = `
-with expected(table_schema, table_name, column_name) as (
+with expected_columns(table_schema, table_name, column_name) as (
   values
 ${values}
 ),
-missing as (
-  select expected.*
-  from expected
+missing_columns as (
+  select expected_columns.*
+  from expected_columns
   left join information_schema.columns existing
-    on existing.table_schema = expected.table_schema
-   and existing.table_name = expected.table_name
-   and existing.column_name = expected.column_name
+    on existing.table_schema = expected_columns.table_schema
+   and existing.table_name = expected_columns.table_name
+   and existing.column_name = expected_columns.column_name
   where existing.column_name is null
+),
+expected_indexes(table_schema, table_name, index_name) as (
+  values
+${indexValues}
+),
+missing_indexes as (
+  select expected_indexes.*
+  from expected_indexes
+  left join pg_indexes existing
+    on existing.schemaname = expected_indexes.table_schema
+   and existing.tablename = expected_indexes.table_name
+   and existing.indexname = expected_indexes.index_name
+  where existing.indexname is null
+),
+missing as (
+  select table_schema, table_name, column_name, null::text as index_name
+  from missing_columns
+  union all
+  select table_schema, table_name, null::text as column_name, index_name
+  from missing_indexes
 )
-select coalesce(json_agg(missing order by table_name, column_name), '[]'::json)
+select coalesce(json_agg(missing order by table_name, column_name, index_name), '[]'::json)
 from missing;
 `;
   const output = execFileSync(
@@ -145,12 +178,13 @@ from missing;
   ).trim();
   const missing = toJson(output) ?? [];
   if (!Array.isArray(missing) || !missing.length) {
-    console.log("[schema-contract:db] required columns ok");
+    console.log("[schema-contract:db] required columns and indexes ok");
     return [];
   }
-  return missing.map(
-    (row) =>
-      `${row.table_schema}.${row.table_name}.${row.column_name} is missing`,
+  return missing.map((row) =>
+    row.column_name
+      ? `${row.table_schema}.${row.table_name}.${row.column_name} is missing`
+      : `${row.table_schema}.${row.table_name} index ${row.index_name} is missing`,
   );
 };
 
@@ -160,9 +194,14 @@ const run = async () => {
   let failures = [];
 
   if (restConfig) {
-    failures = await checkRestContract(restConfig);
-  } else if (dbUrl) {
-    failures = checkDbContract(dbUrl);
+    failures.push(...(await checkRestContract(restConfig)));
+  }
+  if (dbUrl) {
+    failures.push(...checkDbContract(dbUrl));
+  } else if (restConfig) {
+    console.warn(
+      "[schema-contract:db] index verification skipped because SUPABASE_DB_URL is unavailable",
+    );
   } else {
     throw new Error(
       "Missing schema contract target. Provide SUPABASE_URL plus a Supabase API key, or SUPABASE_DB_URL.",

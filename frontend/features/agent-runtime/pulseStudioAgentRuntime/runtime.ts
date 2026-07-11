@@ -42,6 +42,7 @@ import {
   applyStudioAgentVisionSummariesToContext,
   buildStudioAgentImageSummaryMap,
   describeStudioAgentVisionSummaryError,
+  isStudioAgentVisionSummaryAbortError,
 } from "../studioAgentVisionSummaries";
 import {
   buildPromptCompilerCacheScopeKey,
@@ -451,16 +452,18 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         "[studio-agent] server vision summary failed",
         describeStudioAgentVisionSummaryError(error)
       );
-      await logApiRouteException({
-        req,
-        error,
-        routeLabel: PULSE_ROUTE_LABEL,
-        metadata: {
-          user_id: user.id,
-          conversation_id: normalizedConversationId,
-          stage: "vision_summary",
-        },
-      });
+      if (!isStudioAgentVisionSummaryAbortError(error)) {
+        await logApiRouteException({
+          req,
+          error,
+          routeLabel: PULSE_ROUTE_LABEL,
+          metadata: {
+            user_id: user.id,
+            conversation_id: normalizedConversationId,
+            stage: "vision_summary",
+          },
+        });
+      }
     } finally {
       markStage("vision_summary", visionStartedAt);
     }

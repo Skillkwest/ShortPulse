@@ -11,6 +11,7 @@ import type {
   AgentConversationState,
   AgentMessage,
 } from "../../prefabs/agent";
+import { isAgentMachineFailure } from "../../prefabs/agent";
 import { removeAspectRatioLanguage } from "../agent-core/promptText";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -370,9 +371,10 @@ export const useCreateAgentStateCore = ({
         if (assistantMessagePayload.content) {
           const canUseAssistantMessageAsPrompt =
             Boolean(assistantMessagePayload.outputPrompt) &&
-            data.decision !== "refuse" &&
-            data.outcome_class !== "refusal_safety" &&
-            data.outcome_class !== "refusal_model";
+            !isAgentMachineFailure({
+              decision: data.decision ?? null,
+              outcomeClass: data.outcome_class ?? null,
+            });
           const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
             id: createAgentMessageId("assistant"),
             content: assistantMessagePayload.content,

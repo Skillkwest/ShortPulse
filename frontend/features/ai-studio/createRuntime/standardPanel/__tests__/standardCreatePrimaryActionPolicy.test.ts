@@ -99,6 +99,32 @@ describe("standardCreatePrimaryActionPolicy", () => {
     });
   });
 
+  it.each(["preparing", "failed"] as const)(
+    "ignores %s chat attachments when Chat Mode is off",
+    (deliveryStatus) => {
+      expect(
+        resolveStandardCreatePrimaryActionDecision({
+          selectedTool: "create",
+          chatModeEnabled: false,
+          agentInput: "hidden chat draft",
+          prompt: "authored prompt",
+          createGenerateCostCredits: 3,
+          agentAttachments: [
+            {
+              id: "image-1",
+              kind: "image",
+              imageUrl: "data:image/png;base64,preview",
+              submissionImageUrl: null,
+              text: null,
+              deliveryStatus,
+              deliveryError: deliveryStatus === "failed" ? "Preparation failed" : null,
+            },
+          ],
+        })
+      ).toMatchObject({ kind: "generate", prompt: "authored prompt" });
+    }
+  );
+
   it("returns a no-op when an upstream generate guardrail disables submission", () => {
     expect(
       resolveStandardCreatePrimaryActionDecision({

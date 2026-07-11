@@ -2,7 +2,7 @@
  * Card render controller for Reference Grid.
  * Keeps per-card action wiring and visual state mapping out of ReferenceGrid.
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput, WorkflowReloadMediaKindHint } from "../../types";
@@ -31,6 +31,7 @@ export type ReferenceGridVisibleCard = {
   videoPosterUrl?: string | null;
   audioBackgroundImageUrl?: string | null;
   playableMediaUrl?: string | null;
+  cardPlayablePreviewUrl?: string | null;
   fallbackUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -81,6 +82,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   onAutoplayStopped: (id: string) => void;
   audioPlaybackController: ReferenceGridSingleAudioPlaybackController;
   onRerollOutput?: (output: StudioOutput) => void;
+  onRetryVoiceChangerVideo?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
@@ -154,6 +156,7 @@ export const useReferenceGridCardRenderController = ({
   onAutoplayStopped,
   audioPlaybackController,
   onRerollOutput,
+  onRetryVoiceChangerVideo,
   onReloadWorkflowOutput,
   onDeleteOutput,
   onClearGenerationOutput,
@@ -165,6 +168,7 @@ export const useReferenceGridCardRenderController = ({
   onPinPromptReference,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
   const resolvedAudioPlaybackController = audioPlaybackController ?? NOOP_AUDIO_PLAYBACK_CONTROLLER;
+  const [allRefsVideoOwnerId, setAllRefsVideoOwnerId] = useState<string | null>(null);
   incrementFreezeInvestigationCounter("referenceGrid.cardRender.recompute");
   setFreezeInvestigationGauge(
     "referenceGrid.cardRender.visibleCardItemsCount",
@@ -189,12 +193,19 @@ export const useReferenceGridCardRenderController = ({
       const isHydrationLoading = hydrationLoadingCardIdSet.has(currentOutput.id);
       const shouldClearAsGeneration =
         isGenerationLoading && currentOutput.mediaSource === "generated";
+      const isAllRefsVideoOwner =
+        !options.isCuratedSurface && allRefsVideoOwnerId === currentOutput.id;
+      const shouldYieldToAllRefsVideoOwner =
+        options.isCuratedSurface && allRefsVideoOwnerId === currentOutput.id;
       const shouldPreferCuratedSurface =
-        !options.isCuratedSurface && visibleQuickSlotIdSet.has(currentOutput.id);
+        !options.isCuratedSurface &&
+        visibleQuickSlotIdSet.has(currentOutput.id) &&
+        !isAllRefsVideoOwner;
       const suppressDuplicateAllRefsLoading = shouldPreferCuratedSurface && !isGenerationLoading;
       const shouldWarmVideoPreview =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
+        !shouldYieldToAllRefsVideoOwner &&
         (activeOutputId === currentOutput.id || autoplayEnabledIdSet.has(currentOutput.id));
       const isLocalVideoPersistenceLoading = isLocalVideoReferencePendingPersistence(currentOutput);
       const suppressDormantVideoLoading =
@@ -225,10 +236,13 @@ export const useReferenceGridCardRenderController = ({
       const canAutoplayVideo =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
+        !shouldYieldToAllRefsVideoOwner &&
         autoplayEnabledIdSet.has(currentOutput.id) &&
         perfDegradeLevel < 2;
       const suppressHoverVideo =
-        card.isVideoPreview && perfDegradeLevel >= 2 && activeOutputId !== currentOutput.id;
+        shouldPreferCuratedSurface ||
+        shouldYieldToAllRefsVideoOwner ||
+        (card.isVideoPreview && perfDegradeLevel >= 2 && activeOutputId !== currentOutput.id);
       const isPromptOnly = !card.cardPreviewUrl && !!currentOutput.previewText;
       const isLinkedPromptReference =
         isPromptOnly && linkedPromptReferenceIdSet.has(currentOutput.id);
@@ -242,6 +256,7 @@ export const useReferenceGridCardRenderController = ({
       const hoverVideoUrl =
         currentOutput.mode === "video"
           ? currentOutput.localObjectUrl?.trim() ||
+            card.cardPlayablePreviewUrl?.trim() ||
             card.playableMediaUrl?.trim() ||
             (card.isVideoPreview ? card.cardPreviewUrl : "") ||
             (card.fallbackUrl && isVideoUrl(card.fallbackUrl) ? card.fallbackUrl : "") ||
@@ -307,6 +322,16 @@ export const useReferenceGridCardRenderController = ({
       const handleSelectOutput = options.isCuratedSurface
         ? onSelectQuickSlotOutput
         : onSelectReferenceGridOutput;
+      const handleMediaHoverChange = options.isCuratedSurface
+        ? undefined
+        : (active: boolean) => {
+            if (currentOutput.mode === "video" && visibleQuickSlotIdSet.has(currentOutput.id)) {
+              setAllRefsVideoOwnerId((current) =>
+                active ? currentOutput.id : current === currentOutput.id ? null : current
+              );
+            }
+            onAllRefsMediaHoverChange?.(active);
+          };
       return (
         <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
@@ -377,6 +402,7 @@ export const useReferenceGridCardRenderController = ({
           onAudioPlaybackStarted={resolvedAudioPlaybackController.markPlaying}
           onAudioPlaybackStopped={resolvedAudioPlaybackController.clearActivePlayer}
           onRerollOutput={onRerollOutput}
+          onRetryVoiceChangerVideo={onRetryVoiceChangerVideo}
           onReloadWorkflowOutput={
             onReloadWorkflowOutput
               ? (_output, reloadOptions) => {
@@ -388,7 +414,7 @@ export const useReferenceGridCardRenderController = ({
           onClearLoadingOutput={clearLoadingOutputHandler}
           loadingClearLabel={clearLoadingLabel}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
-          onMediaHoverChange={options.isCuratedSurface ? undefined : onAllRefsMediaHoverChange}
+          onMediaHoverChange={handleMediaHoverChange}
           showCuratedRemoveAction={options.isCuratedSurface}
           isMediaStorageFull={isMediaStorageFull}
           onSaveToLibrary={onSaveToLibrary}
@@ -427,6 +453,7 @@ export const useReferenceGridCardRenderController = ({
       onRemoveCuratedReference,
       onReloadWorkflowOutput,
       onRerollOutput,
+      onRetryVoiceChangerVideo,
       isMediaStorageFull,
       onSaveToLibrary,
       onSelectQuickSlotOutput,
@@ -436,6 +463,7 @@ export const useReferenceGridCardRenderController = ({
       registerVideoNode,
       suspendBackgroundVisualWork,
       visibleQuickSlotIdSet,
+      allRefsVideoOwnerId,
     ]
   );
 

@@ -93,9 +93,9 @@ Customer risk:
 
 ## Admin Publish Status
 
-- Status: <published / not published / failed>
+- Status: <published and verified / partial - ingest failed / partial - verification unproven / blocked - readiness unavailable>
 - External run id: <id or not applicable>
-- Admin tab verification: <verified / unproven / not applicable>
+- Admin tab verification: <both report cards verified / unproven / blocked>
 - Notes: <admin publish response or blocker without secrets>
 
 ## Maya Self-Audit Summary
@@ -104,6 +104,6 @@ Customer risk:
 - Human realism: <1-10>
 - Question-first behavior: <1-10>
 - Evidence quality: <1-10>
-- Admin publish completion: <1-10 / n/a>
+- Admin publish completion: <1-10; never n/a for a normal run test>
 - Stop/resume discipline: <1-10 / n/a>
 - Next improvement: <one sentence>

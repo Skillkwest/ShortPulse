@@ -11,6 +11,7 @@ export type AcceptedVoiceSourceKind = VoiceChangerSourceKind;
 export type VoiceChangerSource = {
   id: string;
   kind: VoiceChangerSourceKind;
+  displayKind: VoiceChangerSourceKind;
   origin: VoiceChangerSourceOrigin;
   status: VoiceChangerSourceStatus;
   aspect: string | null;
@@ -19,6 +20,7 @@ export type VoiceChangerSource = {
   mimeType: string | null;
   file: File | null;
   previewUrl: string | null;
+  posterUrl: string | null;
   sourceUrl: string | null;
   objectUrl: string | null;
   storagePath: string | null;
@@ -37,6 +39,10 @@ export type VoiceChangerSource = {
     referenceMediaId: string | null;
   } | null;
 };
+
+export type VoiceChangerSourceMetadataPatch = Partial<
+  Pick<VoiceChangerSource, "durationMs" | "posterUrl" | "aspect">
+>;
 
 export type ResolveVoiceChangerInternalReferenceSource = (
   payload: InternalReferenceDragPayload

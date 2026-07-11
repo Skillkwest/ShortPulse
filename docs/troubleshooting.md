@@ -1263,3 +1263,16 @@ Checklist:
 
 - Run `npm -C frontend run build` and fix type errors first.
 - Watch for accidental Node-only usage in the client (e.g., `fs`, server-only env vars).
+
+## Voice Changer returns audio but not the remuxed video
+
+Checklist:
+
+- Confirm the staged audio path is under the caller's `voice-changer/staged-audio/` namespace.
+- Confirm the audio generation metadata records `expects_remux`, `original_video_storage_path`,
+  `generated_audio_storage_path`, `remux_request_id`, and `remux_status`.
+- A pre-charge `VOICE_CHANGER_ORIGINAL_VIDEO_REQUIRED` response means source provenance was incomplete;
+  reselect the original video rather than paying for another conversion.
+- A post-charge failed `remuxOutcome` preserves the generated audio. Use the failed card's
+  `Retry video` action, which calls `/api/media/voice-changer-remux` without billing or ElevenLabs.
+- Do not use Re-roll for video assembly recovery; Re-roll is the paid provider-generation path.

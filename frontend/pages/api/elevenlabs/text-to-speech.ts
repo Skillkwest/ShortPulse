@@ -202,6 +202,7 @@ export default async function handler(
         text_characters: text.length,
       },
       reason: "elevenlabs-text-to-speech generation",
+      billingWorkflow: "audio",
       shortpulseContext,
     });
     if (!charge) return;

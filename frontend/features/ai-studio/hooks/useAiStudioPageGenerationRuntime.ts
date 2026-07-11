@@ -2,7 +2,7 @@
  * AI Studio page generation runtime.
  * Owns page-scoped generation/view-model orchestration so the page shell stays focused on composition.
  */
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, type Dispatch, type SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import {
   type CharacterModeFallbackSummary,
@@ -22,6 +22,8 @@ import type {
 } from "./contracts/generationSubmissionContracts";
 import type { LipSyncAudioState, StudioMode, StudioOutput, ToolId } from "../types";
 import { createEmptyLipSyncAudioState } from "../logic/lipSyncAudioState";
+import type { ModelPricingPolicySnapshot } from "../../../lib/model-runtime/pricingPolicy";
+import { PRICING_POLICY_CONFLICT_EVENT } from "../../../lib/model-runtime/pricingPolicyFreshness";
 
 type OptimisticDebitEntry = {
   credits: number;
@@ -66,6 +68,8 @@ type UseAiStudioPageGenerationRuntimeParams = {
   modelPricingPolicyError?: string | null;
   modelPricingPolicyLoading?: boolean;
   modelPricingPolicyReady?: boolean;
+  activePricingPolicyVersion?: number | null;
+  refreshModelPricingPolicy?: () => Promise<ModelPricingPolicySnapshot | null>;
   lipSyncAudio?: LipSyncAudioState;
   motionReferenceVideoPending: boolean;
   motionReferenceVideoError: string | null;
@@ -181,6 +185,8 @@ export const useAiStudioPageGenerationRuntime = ({
   modelPricingPolicyError,
   modelPricingPolicyLoading,
   modelPricingPolicyReady,
+  activePricingPolicyVersion,
+  refreshModelPricingPolicy,
   lipSyncAudio = createEmptyLipSyncAudioState(),
   motionReferenceVideoPending,
   motionReferenceVideoError,
@@ -231,6 +237,18 @@ export const useAiStudioPageGenerationRuntime = ({
   videoReferenceText,
   videoResolution,
 }: UseAiStudioPageGenerationRuntimeParams) => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clearRejectedOptimisticDebit = (event: Event) => {
+      const outputId = (event as CustomEvent<{ outputId?: string | null }>).detail?.outputId;
+      if (!outputId) return;
+      setOptimisticDebitEntries((prev) => prev.filter((entry) => entry.outputId !== outputId));
+    };
+    window.addEventListener(PRICING_POLICY_CONFLICT_EVENT, clearRejectedOptimisticDebit);
+    return () =>
+      window.removeEventListener(PRICING_POLICY_CONFLICT_EVENT, clearRejectedOptimisticDebit);
+  }, [setOptimisticDebitEntries]);
+
   const selectedToolReferenceInputs = resolveReferenceInputsForTool(selectedTool);
   const effectiveReferenceImageUrl = selectedToolReferenceInputs.referenceImageUrl;
   const effectiveExtraImageUrls = selectedToolReferenceInputs.extraImageUrls;
@@ -266,6 +284,7 @@ export const useAiStudioPageGenerationRuntime = ({
 
   const {
     currentCostCredits,
+    currentPricingVariantId,
     promptReferenceGenerateCostCredits,
     resolveModelPickerCredits,
     hasSufficientCreditsForPromptReferenceGenerate,
@@ -361,6 +380,8 @@ export const useAiStudioPageGenerationRuntime = ({
       resolveSelectedCharacterIdForTool,
       selectedStyleContext,
       currentCostCredits,
+      currentPricingVariantId,
+      activePricingPolicyVersion,
       resolveCostCreditsForModel: resolveModelPickerCredits,
       isGenerateDisabled: effectiveIsGenerateDisabled,
       isCreditGuardrail,
@@ -389,14 +410,18 @@ export const useAiStudioPageGenerationRuntime = ({
     voicesIsGenerating,
     soundEffectsIsGenerating,
     handleVoicesGenerate,
+    handleRetryVoiceChangerVideo,
     handleMusicGenerate,
     handleSoundEffectsGenerate,
   } = useAiStudioAudioGeneration({
     projectId,
     workspaceRuntimeKey,
+    activePricingPolicyVersion,
+    refreshModelPricingPolicy,
     balanceCredits,
     outputs: outputs ?? [],
     setUiError,
+    setUiNotice,
     insertOptimisticGenerationPlaceholder,
     notifyGenerationFailure,
     updateOutputById,
@@ -426,6 +451,7 @@ export const useAiStudioPageGenerationRuntime = ({
     handleToolSelect,
     handleVideoPromptTextChange,
     handleVoicesGenerate,
+    handleRetryVoiceChangerVideo,
     hasSufficientCreditsForPromptReferenceGenerate,
     isTemplateView,
     musicIsGenerating,

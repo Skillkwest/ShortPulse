@@ -161,6 +161,57 @@ describe("useAiStudioState rerollOutputFromReplay", () => {
     );
   });
 
+  it("forwards resolved pricing evidence through replay submit options", () => {
+    findOutputByIdMock.mockReturnValue(
+      makeGeneratedImageOutput("out-reroll-priced", {
+        generationReplay: {
+          version: 1,
+          mode: "image",
+          submitTool: "create",
+          modelId: "fal-ai/nano-banana-2",
+          displayPrompt: "Visible priced prompt",
+          submissionPrompt: "Submission priced prompt",
+          aspect: "1:1",
+          imageResolution: "1K",
+          referenceInputs: [],
+          capturedAt: "2026-02-26T00:00:00.000Z",
+        },
+      })
+    );
+    const resolveRerollPricingEvidence = vi.fn(() => ({
+      displayedBilledCredits: 5,
+      displayedPricingPolicyVersion: 17,
+      displayedPricingVariantId: "default|res:1K|aspect:auto",
+    }));
+
+    const { result } = renderHook(() =>
+      useAiStudioState({
+        resolveRerollPricingEvidence,
+      })
+    );
+
+    act(() => {
+      result.current.rerollOutputFromReplay("out-reroll-priced");
+    });
+
+    expect(resolveRerollPricingEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { id: "fal-ai/nano-banana-2" },
+      })
+    );
+    expect(submitTaskMock).toHaveBeenCalledWith(
+      "Submission priced prompt",
+      [],
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        displayedBilledCredits: 5,
+        displayedPricingPolicyVersion: 17,
+        displayedPricingVariantId: "default|res:1K|aspect:auto",
+      })
+    );
+  });
+
   it("submits direct saved-media reroll without requiring output lookup", () => {
     const mediaLibraryOutput = makeGeneratedImageOutput("media-library:media-1", {
       generationReplay: {

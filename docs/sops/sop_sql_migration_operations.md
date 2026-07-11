@@ -83,6 +83,9 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/213_add_billing_subscription_change_intents.sql`: add the service-role-only full-price subscription-upgrade intent proof table used by the Stripe paid-invoice webhook.
 - `sql/migrations/215_add_billing_subscription_scheduled_changes.sql`: add the service-role-only Stripe subscription schedule projection used by Profile and AI Studio to show pending period-end downgrades while current contracts remain active.
 - `sql/migrations/219_add_account_storage_ownership_proof.sql`: add service-role-only inactive-account storage ownership proof RPCs for report-only active/inactive/deleted/missing-owner classification without deletion authority.
+- `sql/migrations/220_harden_browser_crash_observability.sql`: add typed browser crash high-water evidence, monotonic transition protection, and the service-role-only canonical Admin Crash Logs list RPC.
+- `sql/migrations/221_add_voice_changer_remux_recovery_projection.sql`: add the projection-only Voice Changer remux retry contract used to reconstruct a failed video card after refresh while `ai_generations.metadata` remains recovery authority.
+- `sql/migrations/222_add_admin_kanban_backlog_source_sync.sql`: add admin Kanban source metadata and the service-role-only planning backlog sync RPC for mirroring `docs/planning/backlog.md` into `/admin/kanban`.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -344,6 +347,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `217_repair_pulse_single_shot_builtin_catalog.sql`
 - `218_add_admin_growth_cohorts_stats.sql`
 - `219_add_account_storage_ownership_proof.sql`
+- `220_harden_browser_crash_observability.sql`
+- `221_add_voice_changer_remux_recovery_projection.sql`
+- `222_add_admin_kanban_backlog_source_sync.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 
@@ -389,7 +395,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 8. Verify hosted runtime schema contract after hosted migration applies.
 
 - Run `node scripts/check_hosted_schema_contract.mjs` against the target environment.
-- The script checks migration-sensitive Project Persistence and generated-output columns such as `generation_projection.workspace_runtime_key`, `generation_projection.display_title`, `project_workspace_states.checkpoint_revision`, and `project_output_display_items.display_title`.
+- The script checks migration-sensitive Project Persistence and generated-output columns such as `generation_projection.workspace_runtime_key`, `generation_projection.display_title`, `generation_projection.remux_recovery`, `project_workspace_states.checkpoint_revision`, and `project_output_display_items.display_title`.
 - Prefer PostgREST `limit=0` probes when Supabase URL/API credentials are available; in hosted migration workflows, the script may use `SUPABASE_DB_URL` to verify the same required table/column contract without exposing secrets.
 - Treat failures as hosted schema drift. Apply the missing forward migration or repair the environment before assuming AI Studio restore/autosave code is broken.
 

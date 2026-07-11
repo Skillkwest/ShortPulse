@@ -66,6 +66,8 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   resolveSelectedCharacterIdForTool?: (tool: ToolId | null) => string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   currentCostCredits: number | null;
+  currentPricingVariantId?: string | null;
+  activePricingPolicyVersion?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
@@ -132,6 +134,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   resolveSelectedCharacterIdForTool,
   selectedStyleContext = null,
   currentCostCredits,
+  currentPricingVariantId = null,
+  activePricingPolicyVersion = null,
   resolveCostCreditsForModel,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -293,6 +297,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           selectedToolOverride: effectiveTool,
           modelIdOverride: effectiveModelId,
           displayedBilledCredits: requiredCredits,
+          displayedPricingPolicyVersion: activePricingPolicyVersion,
+          displayedPricingVariantId:
+            effectiveModelId === model && requiredCredits === currentCostCredits
+              ? currentPricingVariantId
+              : null,
           suppressStyle: options.suppressStyle,
           suppressCharacter: true,
           ignoreGenerationGuardrail: options.ignoreGenerationGuardrail,
@@ -338,6 +347,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         selectedToolOverride: effectiveTool,
         modelIdOverride: effectiveModelId,
         displayedBilledCredits: requiredCredits,
+        displayedPricingPolicyVersion: activePricingPolicyVersion,
+        displayedPricingVariantId:
+          effectiveModelId === model && requiredCredits === currentCostCredits
+            ? currentPricingVariantId
+            : null,
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
@@ -361,7 +375,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       };
     },
     [
+      activePricingPolicyVersion,
       currentCostCredits,
+      currentPricingVariantId,
       balanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
@@ -516,6 +532,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         modelIdOverride: effectiveModelId,
         outputIdOverride: options?.outputIdOverride,
         displayedBilledCredits: requiredCredits,
+        displayedPricingPolicyVersion: activePricingPolicyVersion,
+        displayedPricingVariantId:
+          effectiveModelId === model && requiredCredits === currentCostCredits
+            ? currentPricingVariantId
+            : null,
         submissionPromptOverride: resolvedSubmissionPromptOverride,
         displayPromptOverride: resolvedDisplayPromptOverride,
         referenceInputsOverride:
@@ -547,7 +568,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [
       activeOutputId,
+      activePricingPolicyVersion,
       currentCostCredits,
+      currentPricingVariantId,
       balanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,

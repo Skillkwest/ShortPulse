@@ -99,6 +99,8 @@ const buildTaskSubmitOptions = ({
   selectedToolOverride,
   displayPromptOverride,
   displayedBilledCredits,
+  displayedPricingPolicyVersion,
+  displayedPricingVariantId,
   internalMediaRefsOverride,
   characterContextOverride,
   styleContextOverrideToSubmit,
@@ -115,6 +117,8 @@ const buildTaskSubmitOptions = ({
   selectedToolOverride?: AiStudioTaskSubmitOptions["selectedToolOverride"];
   displayPromptOverride: string;
   displayedBilledCredits?: AiStudioTaskSubmitOptions["displayedBilledCredits"];
+  displayedPricingPolicyVersion?: AiStudioTaskSubmitOptions["displayedPricingPolicyVersion"];
+  displayedPricingVariantId?: AiStudioTaskSubmitOptions["displayedPricingVariantId"];
   internalMediaRefsOverride?: AiStudioTaskSubmitOptions["internalMediaRefsOverride"];
   characterContextOverride?: AiStudioTaskSubmitOptions["characterContextOverride"];
   styleContextOverrideToSubmit?: AiStudioTaskSubmitOptions["styleContextOverride"];
@@ -132,6 +136,8 @@ const buildTaskSubmitOptions = ({
     ...(selectedToolOverride !== undefined ? { selectedToolOverride } : {}),
     displayPromptOverride,
     displayedBilledCredits,
+    displayedPricingPolicyVersion,
+    displayedPricingVariantId,
     internalMediaRefsOverride,
     characterContextOverride,
     modelIdOverride,
@@ -269,6 +275,8 @@ export const useAiStudioGenerationPromptComposer = ({
           selectedToolOverride: options?.selectedToolOverride,
           displayPromptOverride: displayPromptToSubmit,
           displayedBilledCredits: options?.displayedBilledCredits,
+          displayedPricingPolicyVersion: options?.displayedPricingPolicyVersion,
+          displayedPricingVariantId: options?.displayedPricingVariantId,
           internalMediaRefsOverride: options?.internalMediaRefsOverride,
           characterContextOverride: options?.characterContextOverride,
           styleContextOverrideToSubmit,
@@ -359,6 +367,8 @@ export const useAiStudioGenerationPromptComposer = ({
           selectedToolOverride: effectiveTool,
           displayPromptOverride: displayPromptToUse,
           displayedBilledCredits: options?.displayedBilledCredits,
+          displayedPricingPolicyVersion: options?.displayedPricingPolicyVersion,
+          displayedPricingVariantId: options?.displayedPricingVariantId,
           internalMediaRefsOverride: options?.internalMediaRefsOverride,
           characterContextOverride: options?.characterContextOverride,
           styleContextOverrideToSubmit,

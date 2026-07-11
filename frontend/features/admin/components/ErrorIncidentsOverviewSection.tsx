@@ -14,9 +14,9 @@ type ErrorIncidentsOverviewSectionProps = {
   errorSearch: string;
   errorPagination: AdminPagination;
   copiedIncidentId: string | null;
-  copiedVisibleNewIncidentCount: number | null;
+  copiedVisibleIncidentCount: number | null;
   inProgressIncidentIds: Set<string>;
-  visibleNewIncidentCount: number;
+  visibleIncidentCount: number;
   statusUpdatingErrorId: string | null;
   onErrorIncidentViewModeChange: (value: AdminErrorIncidentViewMode) => void;
   onErrorSearchChange: (value: string) => void;
@@ -24,7 +24,7 @@ type ErrorIncidentsOverviewSectionProps = {
   onNextPage: () => void;
   onRefresh: () => void;
   onCopyIncident: (row: AdminErrorLogRow) => void;
-  onCopyVisibleNewIncidents: () => void;
+  onCopyVisibleIncidents: () => void;
   onResolveIncident: (row: AdminErrorLogRow) => void;
   onResolveWatchIncident: (row: AdminErrorLogRow, note: string) => void;
 };
@@ -37,9 +37,9 @@ export function ErrorIncidentsOverviewSection({
   errorSearch,
   errorPagination,
   copiedIncidentId,
-  copiedVisibleNewIncidentCount,
+  copiedVisibleIncidentCount,
   inProgressIncidentIds,
-  visibleNewIncidentCount,
+  visibleIncidentCount,
   statusUpdatingErrorId,
   onErrorIncidentViewModeChange,
   onErrorSearchChange,
@@ -47,7 +47,7 @@ export function ErrorIncidentsOverviewSection({
   onNextPage,
   onRefresh,
   onCopyIncident,
-  onCopyVisibleNewIncidents,
+  onCopyVisibleIncidents,
   onResolveIncident,
   onResolveWatchIncident,
 }: ErrorIncidentsOverviewSectionProps) {
@@ -102,15 +102,13 @@ export function ErrorIncidentsOverviewSection({
           <button
             type="button"
             className="ghost-btn mini"
-            onClick={onCopyVisibleNewIncidents}
-            disabled={errorsLoading || visibleNewIncidentCount === 0}
-            title={`Copy triage packets for ${visibleNewIncidentCount} new visible error row${
-              visibleNewIncidentCount === 1 ? "" : "s"
+            onClick={onCopyVisibleIncidents}
+            disabled={errorsLoading || visibleIncidentCount === 0}
+            title={`Copy triage packets for all ${visibleIncidentCount} visible error row${
+              visibleIncidentCount === 1 ? "" : "s"
             }`}
           >
-            {copiedVisibleNewIncidentCount
-              ? `Copied ${copiedVisibleNewIncidentCount}`
-              : "Copy all new"}
+            {copiedVisibleIncidentCount ? `Copied ${copiedVisibleIncidentCount}` : "Copy all"}
           </button>
           <button
             type="button"
@@ -189,7 +187,7 @@ export function ErrorIncidentsOverviewSection({
           </div>
         ) : (
           errors.map((row) => {
-            const isInProgress = inProgressIncidentIds.has(row.id);
+            const isInProgress = row.status === "open" && inProgressIncidentIds.has(row.id);
             const isUpdatingStatus = statusUpdatingErrorId === row.id;
             const canResolve = row.status === "open";
             const statusLabel = isInProgress

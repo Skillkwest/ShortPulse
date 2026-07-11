@@ -158,3 +158,9 @@ export const applyStudioAgentVisionSummariesToContext = (
 
 export const describeStudioAgentVisionSummaryError = (error: unknown): string =>
   formatStudioAgentErrorMessage(error);
+
+export const isStudioAgentVisionSummaryAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  if (error instanceof Error && error.name === "AbortError") return true;
+  return false;
+};

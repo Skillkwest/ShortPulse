@@ -65,6 +65,7 @@ export type RunStandardCreateAgentSendParams = Pick<
   setAgentOnlineLookupPending?: (value: boolean) => void;
   textOverride?: string;
   options?: AgentSendOptions;
+  isSendAuthorized: () => boolean;
 };
 
 const cloneMessageAttachments = (
@@ -109,10 +110,12 @@ export const runStandardCreateAgentSend = async ({
   setAgentOnlineLookupPending,
   textOverride,
   options,
+  isSendAuthorized,
 }: RunStandardCreateAgentSendParams): Promise<{
   prompt: string;
   referenceTitle?: string | null;
 } | void> => {
+  if (!isSendAuthorized()) return;
   if (!agentBootstrapReady) {
     notifyBootstrapPending();
     return;
@@ -243,6 +246,7 @@ export const runStandardCreateAgentSend = async ({
   const restoreComposerDraft = () => {
     if (!composerCleared) return;
     composerCleared = false;
+    if (!isSendAuthorized()) return;
     if (sentFromComposer) {
       setAgentInput(originalAgentInput);
     }
@@ -262,6 +266,11 @@ export const runStandardCreateAgentSend = async ({
     if (!optimisticUserMessageId) return;
     removeMessageById(optimisticUserMessageId);
   };
+  const cancelIfSendAuthorizationWasRevoked = () => {
+    if (isSendAuthorized()) return false;
+    discardOptimisticUserMessage();
+    return true;
+  };
   try {
     const attachmentPreparationStartedAt = Date.now();
     const {
@@ -275,6 +284,7 @@ export const runStandardCreateAgentSend = async ({
     try {
       preparedImageUrls = await fitEphemeralImageUrlsToSendBudget(ephemeralImageUrls);
     } catch {
+      if (cancelIfSendAuthorizationWasRevoked()) return;
       const failedIds = Array.from(ephemeralImageUrls.keys());
       updateOptimisticAttachmentDelivery(failedIds, "failed", EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
       updateComposerAttachmentDelivery(failedIds, "failed", EPHEMERAL_IMAGE_TOO_LARGE_MESSAGE);
@@ -290,6 +300,7 @@ export const runStandardCreateAgentSend = async ({
       restoreComposerDraft();
       return;
     }
+    if (cancelIfSendAuthorizationWasRevoked()) return;
     if (imageAttachmentIds.length > 0) {
       if (failedEphemeralImageIds.length > 0) {
         updateOptimisticAttachmentDelivery(
@@ -321,6 +332,7 @@ export const runStandardCreateAgentSend = async ({
         attachments: durableImageAttachments,
         preparedImageUrlCache: preparedImageUrlCacheRef.current,
       });
+      if (cancelIfSendAuthorizationWasRevoked()) return;
       if (!preparedImageResult.ok) {
         if (preparedImageResult.reason === "missing_url") {
           updateOptimisticAttachmentDelivery(
@@ -375,6 +387,7 @@ export const runStandardCreateAgentSend = async ({
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
 
+    if (cancelIfSendAuthorizationWasRevoked()) return;
     clearComposerDraft();
 
     const requestContext = mergeAttachmentContext({

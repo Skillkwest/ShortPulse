@@ -68,6 +68,7 @@ describe("Admin generation trace page", () => {
           ledgerEntries: 0,
           errorEvents: 0,
           pricingObservabilityMismatches: 1,
+          pricingPolicyConflicts: 1,
         },
         pricingObservabilityMismatchRows: [
           {
@@ -84,6 +85,23 @@ describe("Admin generation trace page", () => {
             mismatch: true,
             pricingDisplaySource: "shared_adapter",
             pricingPolicyReady: true,
+          },
+        ],
+        pricingPolicyConflictRows: [
+          {
+            rowId: "err-1",
+            requestId: null,
+            sourceRef: "source-ref-1",
+            observedAt: "2026-05-10T12:00:01.000Z",
+            code: "PRICING_POLICY_STALE",
+            message: "Pricing changed before generation started.",
+            modelId: "fal-ai/nano-banana-2",
+            displayedBilledCredits: 9,
+            activeBilledCredits: 11,
+            displayedPricingPolicyVersion: 4,
+            activePricingPolicyVersion: 5,
+            displayedPricingVariantId: "default|res:1K|aspect:auto",
+            activePricingVariantId: "edit|res:1K|aspect:auto",
           },
         ],
         generations: [],
@@ -114,5 +132,10 @@ describe("Admin generation trace page", () => {
     expect(screen.getByText(/"displayedBilledCredits": 8/)).toBeInTheDocument();
     expect(screen.getByText(/"actualBilledCredits": 10/)).toBeInTheDocument();
     expect(screen.getByText(/"pricingDisplaySource": "shared_adapter"/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Pricing policy conflicts" })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/"code": "PRICING_POLICY_STALE"/)).toBeInTheDocument();
+    expect(screen.getByText(/"sourceRef": "source-ref-1"/)).toBeInTheDocument();
   });
 });

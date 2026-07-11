@@ -12,6 +12,7 @@ export const REQUIRED_INTERVALS = ["month", "year"];
 export const REQUIRED_STRIPE_WEBHOOK_EVENTS = [
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
+  "checkout.session.async_payment_failed",
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
@@ -22,6 +23,8 @@ export const REQUIRED_STRIPE_WEBHOOK_EVENTS = [
   "subscription_schedule.canceled",
   "subscription_schedule.aborted",
   "invoice.payment_succeeded",
+  "invoice.payment_failed",
+  "invoice.payment_action_required",
 ];
 export const REQUIRED_ROUTE_PATHS = [
   "/pricing",

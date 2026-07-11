@@ -185,6 +185,7 @@ export default async function handler(
       modelId,
       payload: billingPayload,
       reason: "elevenlabs-sound-effects generation",
+      billingWorkflow: "audio",
       shortpulseContext,
     });
     if (!charge) return;

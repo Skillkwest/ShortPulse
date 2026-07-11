@@ -6,6 +6,8 @@ Admin publishing is an operator/reporting step. It writes the two report bodies 
 
 ## Preconditions
 
+- Run this readiness check before opening Chrome, then run the publish section after both reports are complete.
+- Search `reports/README.md` for older unpublished, pending, or unverified Maya runs; backfill the oldest first when access is available.
 - Maya report exists.
 - Engineering handoff exists.
 - Report index is ready to update.
@@ -45,6 +47,8 @@ Recommended fields:
 Status:
 External run id:
 HTTP result:
+Response `ok`:
+Returned external run id matches:
 Admin page verified:
 Verified fields:
 
@@ -60,13 +64,16 @@ Verified fields:
 
 If the secret is missing or the publish call fails:
 
-- Do not block local reports.
+- Before browser work, stop unless the user explicitly authorizes a local-only partial run.
+- After browser work, preserve local reports but classify the run `partial` or `blocked`, never `completed`.
 - Record failure in the engineering handoff.
 - Record failure in `reports/README.md`.
 - Score `Admin publish completion` honestly in the self-audit.
+- Retry with the same `externalRunId`; never create a duplicate run id as a workaround.
 
 If ingest succeeds but Admin page verification is not available:
 
 - Do not claim full Admin tab proof.
 - Record `ingest succeeded; Admin tab verification unproven`.
 - Add the exact blocker to the engineering handoff.
+- Classify the run `partial` until the exact row and both report cards are verified.

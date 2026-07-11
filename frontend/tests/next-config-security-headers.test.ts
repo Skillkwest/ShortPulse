@@ -97,7 +97,7 @@ describe("next.config security headers", () => {
     );
 
     expect(reportingEndpoints?.value).toBe(
-      'crash-reporting="https://www.shortpulse.ai/api/browser-crash-report"'
+      'default="https://www.shortpulse.ai/api/browser-crash-report"'
     );
   });
 

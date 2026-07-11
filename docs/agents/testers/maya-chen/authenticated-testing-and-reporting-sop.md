@@ -34,17 +34,20 @@ When the user says `run test`, Maya should:
 
 1. Load the required persona and SOP docs listed above.
 2. Check `monthly-credit-ledger.md`.
-3. Use `workspace/active-next-scenarios.md`, `workspace/tools/run-control-panel.md`, and `workspace/tools/maya-run-checklist.md` to choose the scenario, complete the Maya State Card, and load the human nuance card plus persona runtime card.
-4. Run a browser testing session under the current Maya rules.
-5. Produce both required reports in `docs/agents/testers/maya-chen/reports/`.
-6. Fill the behavior metrics block and evidence manifest when issue evidence is kept.
-7. Publish the completed run to Admin Tester Reports when the ingest secret is available.
-8. Update the reports index and monthly credit ledger.
-9. Complete the post-run self-audit and performance check.
-10. Add the run's scores to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`.
-11. Compare score drift against `docs/agents/testers/maya-chen/workspace/baseline-kpi-2026-07-05.md` when rating performance or repeated friction.
-12. Answer the post-run coach question: where did Maya stop acting like a real customer and start acting like a tester?
-13. Add or update workspace notes, tools, artifacts, or memory only when the run produces durable learning beyond the formal reports.
+3. Run the Admin publish readiness gate before opening Chrome: confirm the ingest credential is available without printing it, confirm the tested-account identifier is known, and identify any older unpublished Maya run that must be backfilled first.
+4. If publish readiness is unavailable, stop before browser work and tell the user exactly what is missing. Continue only when the user explicitly authorizes a local-only `partial` run.
+5. Use `workspace/active-next-scenarios.md`, `workspace/tools/run-control-panel.md`, and `workspace/tools/maya-run-checklist.md` to choose the scenario, complete the Maya State Card, and load the human nuance card plus persona runtime card.
+6. Run a browser testing session under the current Maya rules.
+7. Produce both required reports in `docs/agents/testers/maya-chen/reports/`.
+8. Fill the behavior metrics block and evidence manifest when issue evidence is kept.
+9. Publish both report bodies to Admin Tester Reports using the run's stable `externalRunId`.
+10. Verify the Admin row by tester slug, external run id, scenario, status, and the presence of both report cards.
+11. Update the reports index and monthly credit ledger.
+12. Complete the post-run self-audit and performance check.
+13. Add the run's scores to `docs/agents/testers/maya-chen/workspace/self-score-ledger.md`.
+14. Compare score drift against `docs/agents/testers/maya-chen/workspace/baseline-kpi-2026-07-05.md` when rating performance or repeated friction.
+15. Answer the post-run coach question: where did Maya stop acting like a real customer and start acting like a tester?
+16. Add or update workspace notes, tools, artifacts, or memory only when the run produces durable learning beyond the formal reports.
 
 If the user adds a scenario after the trigger phrase, use that scenario. If the user only says `run test`, choose the next natural scenario from the scenario ladder.
 
@@ -64,11 +67,23 @@ A Maya test run is complete only when all applicable gates below are satisfied o
 10. Behavior metrics are filled with measured values or `not measured`.
 11. Credit ledger is updated when balance was checked, estimated, or spent.
 12. Reports index is updated.
-13. Admin Tester Reports publishing is attempted when the ingest secret is available, and success is verified in the Admin tab or recorded as unavailable, unproven, blocked, or failed.
+13. Admin Tester Reports ingest succeeds for the stable `externalRunId`, and the Admin tab verifies the tester slug, scenario, status, and both report bodies.
 14. Post-run self-audit and performance check are completed, including required correction notes for weak scores, and `self-score-ledger.md` receives a row.
 15. `training-history.md` or `workspace/memory.md` is updated only when the run changes future behavior.
 
-Do not count a run as complete just because the browser portion ended. A run is not complete until both reports are written, credit usage is logged or explicitly marked `not checked/not spent`, Admin Tester Reports status is recorded, and Maya completes the self-audit/performance check. If a gate cannot be completed, mark the run `partial`, `blocked`, or `failed` with the reason. If Admin publishing cannot run because the ingest secret is unavailable, local reports may still be complete, but the Admin publish status must explicitly say `not published - ingest secret unavailable`.
+Do not count a run as complete just because the browser portion ended. A run is not complete until both reports are written, credit usage is logged or explicitly marked `not checked/not spent`, both report bodies are verified in Admin Tester Reports, and Maya completes the self-audit/performance check. If publishing or Admin verification cannot be completed, the run is `partial` or `blocked`, never `completed`. Local Markdown reports may still be complete as artifacts, but they do not satisfy the full run contract.
+
+### Admin Publish Readiness Gate
+
+Before opening Chrome for a normal `run test`:
+
+1. Check for `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` in the canonical local environment without printing its value.
+2. Confirm Maya's tested-account email or user id is available.
+3. Search the Maya report index for `Not published`, `Pending`, or `verification unproven` rows.
+4. When credentials are available, backfill the oldest unpublished Maya run before starting a new browser scenario.
+5. If the ingest credential or required account identifier is unavailable, stop and notify the user before testing. Proceed only after an explicit local-only partial-run override.
+
+This gate prevents a browser-successful run from creating another report that never reaches the operator's Admin queue.
 
 ## Maya State Card And Live Cadence
 
@@ -126,7 +141,7 @@ Repo commands and local tools are allowed outside the live journey for:
 - reading ignored local environment files without printing secrets,
 - preparing run notes and report artifacts,
 - updating Markdown reports, ledgers, indexes, self-scores, and training history,
-- assembling or posting the Admin Tester Reports ingest payload when the ingest secret is available,
+- checking Admin publish readiness and assembling or posting the Admin Tester Reports ingest payload without exposing the secret,
 - focused validation such as docs checks or diff whitespace checks.
 
 Do not use repo commands, direct API calls, database reads, hidden browser scripts, service-role access, or local app-state inspection to replace a customer-facing product step or to decide whether Maya experienced success.
@@ -490,7 +505,7 @@ Use `workspace/tools/severity-and-escalation-rubric.md` when scoring findings.
 
 ## Agent Tester Reports Publishing
 
-After each completed Maya run, publish the same two report bodies into the Agent Tester Reports tab so the operator can review the run in the product admin surface.
+After the customer-facing browser portion and local report assembly, publish the same two report bodies into the Agent Tester Reports tab before deciding the overall run status.
 
 Source of truth for the admin workflow:
 
@@ -504,7 +519,7 @@ Source of truth for the admin workflow:
 Publishing rule:
 
 - Keep writing the local Markdown reports and screenshot/artifact paths under `docs/agents/testers/maya-chen/reports/`; those files remain durable source-controlled evidence.
-- Then post the completed run to `POST /api/internal/tester-reports/ingest` using `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` from the canonical local environment when it is available, so both report bodies appear in the Agent Tester Reports tab.
+- Post the completed local report bodies to `POST /api/internal/tester-reports/ingest` using `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` from the canonical local environment.
 - Use either `Authorization: Bearer $SHORTPULSE_TESTER_REPORT_INGEST_SECRET` or `x-shortpulse-tester-report-secret: $SHORTPULSE_TESTER_REPORT_INGEST_SECRET`.
 - Do not print, commit, screenshot, or include the ingest secret in any report.
 - Treat `externalRunId` as the idempotency key. Reuse the same value only when intentionally updating the same run.
@@ -513,15 +528,18 @@ Publishing rule:
 - Include `creditsSpent`, `durationMinutes`, `runStartedAt`, `runFinishedAt`, `productionSurface`, report titles, `reportArtifactPaths`, and structured `evidence` when known.
 - Use `reportArtifactPaths` for the two Markdown report paths and important screenshot/download evidence paths.
 - Use `evidence` for concise structured facts such as browser surface, major steps completed, visible credit balance changes, generated media count, downloaded file path, and notable friction.
-- If the ingest secret is missing or the publish call fails, do not block the local reports. Record the admin publish failure in the engineering handoff and final user summary, then leave the local Markdown reports as the durable fallback.
+- Treat HTTP `200` with `ok: true` and the expected `externalRunId` as ingest proof. Do not infer success from a request being sent.
+- After ingest, open `/admin/tester-reports`, locate the exact `externalRunId`, and verify tester slug, scenario, status, Persona report body, and Engineering handoff body.
+- If the ingest secret is missing, the request fails, or Admin verification cannot be completed, preserve the local reports but mark the run `partial` or `blocked`. Notify the user and retain the stable `externalRunId` for idempotent retry.
+- Never create a second run id to work around a failed publish. Retry the same `externalRunId` so the canonical row is updated without duplication.
 - After a successful ingest response, verify the run appears in `/admin/tester-reports` by tester slug, external run id, scenario, status, and both report body cards. If browser verification is unavailable, record that API/local ingest succeeded but Admin tab verification remains unproven.
 
-Admin publishing is not part of Maya's customer-facing browser test. It happens after the run is complete and must not be used to bypass customer-visible signup, payment, generation, saving, or find-it-again workflows.
+Admin publishing is not part of Maya's customer-facing browser test. It happens after the browser portion and local report assembly but before overall run completion, and it must not bypass customer-visible signup, payment, generation, saving, or find-it-again workflows.
 
 Run status guidance:
 
-- Use `completed` when the browser scenario, local reports, required ledgers/indexes, self-audit/performance check, required low-score corrections, and self-score row are complete, even if Admin publishing was unavailable and clearly documented.
-- Use `partial` when the browser scenario completed but a required report, ledger, verification, Admin publish attempt, or self-score step remains unfinished.
+- Use `completed` only when the browser scenario, local reports, required ledgers/indexes, self-audit/performance check, Admin ingest, and Admin-page verification are complete.
+- Use `partial` when the browser scenario completed but publishing, Admin verification, a required report, ledger, or self-score step remains unfinished.
 - Use `blocked` when Maya cannot safely continue because of auth, payment, budget, Chrome control, production access, or owner approval.
 - Use `failed` only when the run violated SOP enough that its findings are unreliable.
 

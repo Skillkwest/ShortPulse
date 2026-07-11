@@ -65,7 +65,7 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
   - `music_v1` (music) by requested duration
 - Voiceover Enhance (`POST /api/ai/voiceover-enhance`) is a non-audio helper route. It prepares script text for `eleven_v3` and does not reserve ElevenLabs generation credits or persist media.
 - `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
-- Billable submit paths now attach `shortpulse_context.displayed_billed_credits` plus `pricing_display_source` and `pricing_policy_ready` so server-side billing can persist `pricing_observability` deltas for operator diagnostics.
+- Billable submit paths attach `shortpulse_context.displayed_billed_credits`, `displayed_pricing_policy_version`, and the displayed variant identifier when available, plus `pricing_display_source` and `pricing_policy_ready` for diagnostics. The server rejects missing or stale evidence before reservation on covered image, video, and audio lanes; see `docs/adr/0100-pricing-policy-submit-handshake.md`.
 
 ## Current strategies
 

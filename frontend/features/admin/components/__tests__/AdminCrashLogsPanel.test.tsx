@@ -22,6 +22,9 @@ const crashSession: AdminCrashSessionRow = {
   confidence: "none",
   effectiveStatus: "probable_freeze_or_crash",
   effectiveConfidence: "medium",
+  effectiveReason: null,
+  maxUsedJsHeapSize: 677_380_096,
+  maxHeapUsedToLimitRatio: 0.154,
   isStale: false,
   lastEvent: "previous_session_abandoned",
   route: "/ai-studio",
@@ -35,6 +38,7 @@ const crashSession: AdminCrashSessionRow = {
     pressure_level: 5,
     stall_duration_ms: 2400,
     heap_usage_ratio: 0.87,
+    js_heap_size_limit: 4_395_630_592,
   },
   reviewStatus: "open",
   reviewedAt: null,
@@ -92,7 +96,9 @@ describe("AdminCrashLogsPanel", () => {
     expect(screen.getByText("Previous session ended without clean close")).toBeInTheDocument();
     expect(screen.getByText("alpha@example.com")).toBeInTheDocument();
     expect(screen.getByText("Chrome · production")).toBeInTheDocument();
-    expect(screen.getByText(/pressure 5 · stall 2400ms · heap 87%/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/JS heap 646 MB · 15% of limit · pressure 5 · stall 2400ms/)
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText("Session browser-session-1")).toBeInTheDocument();
@@ -173,5 +179,85 @@ describe("AdminCrashLogsPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Reopen" }));
     expect(onUpdateReviewStatus).toHaveBeenCalledWith("crash-1", "open");
+  });
+
+  it("shows the recorded evidence reason before fallback lifecycle copy", () => {
+    render(
+      <AdminCrashLogsPanel
+        sessions={[
+          {
+            ...crashSession,
+            lastEvent: "crash_report",
+            effectiveReason: "browser_oom",
+            metadata: {
+              ...crashSession.metadata,
+              crash_report_reason: "oom",
+            },
+          },
+        ]}
+        loading={false}
+        error={null}
+        pagination={{
+          page: 1,
+          perPage: 50,
+          totalCount: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        }}
+        viewMode="needs_review"
+        statusFilter="needs_review"
+        reviewStatusFilter="open"
+        search=""
+        updatingReviewSessionId={null}
+        onViewModeChange={vi.fn()}
+        onStatusFilterChange={vi.fn()}
+        onReviewStatusFilterChange={vi.fn()}
+        onSearchChange={vi.fn()}
+        onUpdateReviewStatus={vi.fn()}
+        onPrevPage={vi.fn()}
+        onNextPage={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("browser oom")).toBeInTheDocument();
+  });
+
+  it("describes the active empty queue instead of claiming all crash evidence is clear", () => {
+    render(
+      <AdminCrashLogsPanel
+        sessions={[]}
+        loading={false}
+        error={null}
+        pagination={{
+          page: 1,
+          perPage: 50,
+          totalCount: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        }}
+        viewMode="needs_review"
+        statusFilter="needs_review"
+        reviewStatusFilter="open"
+        search=""
+        updatingReviewSessionId={null}
+        onViewModeChange={vi.fn()}
+        onStatusFilterChange={vi.fn()}
+        onReviewStatusFilterChange={vi.fn()}
+        onSearchChange={vi.fn()}
+        onUpdateReviewStatus={vi.fn()}
+        onPrevPage={vi.fn()}
+        onNextPage={vi.fn()}
+        onRefresh={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("No open probable or confirmed crash sessions matched Needs Review.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("No matches")).toBeInTheDocument();
+    expect(screen.queryByText("Clear")).not.toBeInTheDocument();
   });
 });

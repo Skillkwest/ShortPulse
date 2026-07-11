@@ -147,6 +147,10 @@ export type AdminPricingObservabilityEventSnapshot = {
   mismatch: boolean | null;
   pricingDisplaySource: string | null;
   pricingPolicyReady: boolean | null;
+  displayedPricingPolicyVersion: number | null;
+  actualPricingPolicyVersion: number | null;
+  displayedPricingVariantId: string | null;
+  actualPricingVariantId: string | null;
 };
 
 export type AdminPricingObservabilitySnapshot = {
@@ -546,6 +550,9 @@ export type AdminCrashSessionRow = {
   confidence: AdminCrashSessionConfidence;
   effectiveStatus: AdminCrashSessionStatus;
   effectiveConfidence: AdminCrashSessionConfidence;
+  effectiveReason: string | null;
+  maxUsedJsHeapSize: number | null;
+  maxHeapUsedToLimitRatio: number | null;
   isStale: boolean;
   lastEvent: string;
   route: string | null;

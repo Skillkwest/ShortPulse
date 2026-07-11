@@ -121,6 +121,36 @@ describe("standardSessionMemory", () => {
     expect(memory.workingState.lastAcceptedPrompt).toBe("Recovered prompt artifact");
   });
 
+  it("does not retain a restored machine failure as an accepted prompt artifact", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-failure",
+        role: "assistant",
+        content: "Request failed",
+        outputPrompt: "Stale prompt artifact",
+        canUseAsPrompt: true,
+        decision: "error",
+        outcomeClass: "route_error",
+      }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        createMessage({
+          id: `message-${index + 1}`,
+          role: index % 2 === 0 ? "user" : "assistant",
+          content: `recent-${index + 1}`,
+        })
+      ),
+    ];
+
+    const memory = buildStandardSessionMemory({
+      messages,
+      latestPromptArtifact: null,
+      promptOrigin: "agent",
+    });
+
+    expect(memory.transcriptWindow.map((message) => message.id)).not.toContain("assistant-failure");
+    expect(memory.workingState.lastAcceptedPrompt).toBeNull();
+  });
+
   it("persists the Standard runtime through the memory contract without changing the snapshot shape", () => {
     const runtime = createPersistedStandardAgentRuntime({
       messages: [

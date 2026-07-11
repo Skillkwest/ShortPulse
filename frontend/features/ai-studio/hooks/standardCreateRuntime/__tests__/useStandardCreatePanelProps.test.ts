@@ -161,4 +161,30 @@ describe("buildStandardCreatePanelProps", () => {
       "Attached image failed to prepare. Remove it or retry the attachment."
     );
   });
+
+  it("removes composer attachment state and ingress handlers from the chat-off panel contract", () => {
+    const props = buildStandardCreatePanelProps({
+      ...baseParams,
+      chatModeEnabled: false,
+      prompt: "ready authored prompt",
+      isAgentDropActive: true,
+      agentAttachments: [
+        {
+          id: "img-1",
+          kind: "image",
+          imageUrl: "data:image/png;base64,preview",
+          submissionImageUrl: null,
+          text: null,
+          deliveryStatus: "ready",
+          deliveryError: null,
+        },
+      ],
+    });
+
+    expect(props.stagedAttachments).toEqual([]);
+    expect(props.agentDropActive).toBe(false);
+    expect(props.onAgentAttachmentDrop).toBeUndefined();
+    expect(props.onAgentComposerDirectDrop).toBeUndefined();
+    expect(props.isGenerateDisabled).toBe(false);
+  });
 });

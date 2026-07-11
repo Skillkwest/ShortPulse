@@ -1358,7 +1358,7 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
     let recoveryEligible = false;
     let recoveryAttempted = false;
     let recoveryOutcome: SafeCompletionRecoveryOutcome = "not_attempted";
-    let recoverySkipReason: SafeCompletionRecoverySkipReason | null = null;
+    let recoverySkipReason: SafeCompletionRecoverySkipReason | null = "not_model_refusal";
     let recoveryLatencyMs: number | null = null;
 
     if (directResult.refusal) {

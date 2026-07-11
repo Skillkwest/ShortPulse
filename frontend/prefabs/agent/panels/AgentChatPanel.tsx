@@ -26,6 +26,7 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateRequest,
 } from "../types";
+import { isAgentMachineFailure } from "../outcomeContract";
 
 const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
 const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
@@ -33,13 +34,7 @@ const CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX = 24;
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
 const isAssistantMachineFailure = (message: AgentMessage): boolean =>
-  message.role === "assistant" &&
-  (message.decision === "refuse" ||
-    message.decision === "error" ||
-    message.outcomeClass === "refusal_safety" ||
-    message.outcomeClass === "refusal_model" ||
-    message.outcomeClass === "upstream_error" ||
-    message.outcomeClass === "route_error");
+  message.role === "assistant" && isAgentMachineFailure(message);
 
 const resolveAssistantPromptArtifactText = (message: AgentMessage): string | null => {
   if (message.role !== "assistant" || isAssistantMachineFailure(message)) return null;

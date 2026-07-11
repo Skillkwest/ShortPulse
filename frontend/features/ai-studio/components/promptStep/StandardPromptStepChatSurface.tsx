@@ -19,6 +19,7 @@ import type {
 } from "../../../../prefabs/agent";
 import { AgentComposerAttachmentStrip } from "./AgentComposerAttachmentStrip";
 import { AGENT_IMAGE_ATTACHMENT_MAX_ITEMS } from "../../../../prefabs/agent/attachmentPolicy";
+import { canUseAssistantMessageAsPrompt } from "../../createRuntime/agentRuntimeShared";
 
 type StandardPromptStepChatSurfaceProps = {
   chatOnly: boolean;
@@ -180,13 +181,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   const shouldBlurComposerUnderlay = isAgentInputExpanded && agentInputVisualRowCount >= 8;
   const hasReturnedPromptToDrag =
     Boolean(stagedPrompt?.trim()) ||
-    agentMessages.some(
-      (message) =>
-        message.role === "assistant" &&
-        message.canUseAsPrompt === true &&
-        typeof message.outputPrompt === "string" &&
-        message.outputPrompt.trim().length > 0
-    );
+    agentMessages.some((message) => canUseAssistantMessageAsPrompt(message));
   const showDragGenerateHint =
     chatModeEnabled && agentInput.trim().length === 0 && hasReturnedPromptToDrag;
   const handleAgentInputVisualRowCountChange = React.useCallback(

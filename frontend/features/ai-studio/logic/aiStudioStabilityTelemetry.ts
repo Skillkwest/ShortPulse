@@ -95,6 +95,7 @@ const normalizePressureMetadataForBrowserSession = (
   if (typeof heapUsageRatio === "number" && pressureMetadata.heap_used_to_total_ratio == null) {
     pressureMetadata.heap_used_to_total_ratio = heapUsageRatio;
   }
+  delete pressureMetadata.heap_usage_ratio;
   if (typeof pressureMetadata.reason === "string" && pressureMetadata.pressure_reason == null) {
     pressureMetadata.pressure_reason = pressureMetadata.reason;
   }

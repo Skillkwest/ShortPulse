@@ -23,6 +23,55 @@ Secondary touched surfaces are Profile billing UI, admin billing diagnostics, SQ
 - Billing/credits SQL bootstrap and migrations: `sql/create_billing_credit_tables.sql`, `sql/migrations/`
 - Billing operations SOP: `docs/sops/sop_billing_credits_operations.md`
 
+## July 10 Production Audit Follow-Up
+
+The production audit of a failed Starter-to-Media upgrade established this ordered issue list:
+
+1. **Webhook delivery gap:** the live Stripe endpoint omits
+   `checkout.session.async_payment_failed`, `invoice.payment_failed`, and
+   `invoice.payment_action_required`, even though the canonical webhook handles them.
+2. **Recovery-window mismatch:** the local full-price upgrade intent expires before Stripe's
+   recoverable pending update, so a late paid invoice may not resolve the intended upgrade credit
+   allocation.
+3. **Repeated Portal-session noise:** a new upgrade request expires the prior local intent and
+   creates a fresh Stripe Portal session, allowing rapid retries to leave void invoices and canceled
+   PaymentIntents in transaction history.
+
+Status:
+
+- Issue 1 repo guard: implemented by requiring the three recovery events in
+  `scripts/lib/billing_launch_readiness_helpers.mjs`, consumed by
+  `scripts/check_billing_launch_readiness.mjs`; production Stripe configuration remains an explicit
+  apply boundary.
+- Issue 2 repo fix: implemented by binding paid full-price upgrade invoices to the local intent window
+  using Stripe's `invoice.created` timestamp instead of webhook processing time; production deploy
+  and replay proof remain explicit boundaries.
+- Issue 3 repo fix: implemented recovery-first routing for a live, unexpired pending update that
+  matches the requested subscription item and target price. The authenticated change route retrieves
+  and independently verifies Stripe's open invoice, then returns its Hosted Invoice Page instead of
+  creating another Portal update session or local intent. Expired or absent pending updates retain the
+  existing fresh Portal path; production deploy and authenticated recovery proof remain explicit
+  boundaries.
+
+Repo validation checkpoint (`2026-07-10`):
+
+- focused readiness, webhook, and subscription-change coverage passes (`3` files, `79` tests),
+  including matching recovery, expired recovery, different-target replacement, unsafe invoice
+  id/customer/subscription/status/amount/host rejection, delayed paid-invoice intent matching, and
+  timing fail-closed cases;
+- focused ESLint, script syntax checks, `git diff --check`, and `npm -C frontend run docs:check` pass;
+- `npm -C frontend run type-check` and `npm -C frontend run build` pass in the current shared
+  worktree;
+- full lint remains blocked by the unrelated `backfill_video_posters.mjs` `URL` global error;
+  release-snapshot lint must be rerun after that owning lane reconciles the shared worktree.
+
+Protected contracts for this follow-up:
+
+- failed or action-required events never mint credits or directly project subscription status;
+- Stripe-paid invoices remain the recurring-credit authority;
+- existing subscribers remain on Stripe-hosted payment and subscription-change surfaces;
+- public prices, plan names, paid-access semantics, and Profile UI behavior remain unchanged.
+
 ## Approved Scope
 
 - Centralize subscription status semantics for paid access, recovery/grace, and revoked states.

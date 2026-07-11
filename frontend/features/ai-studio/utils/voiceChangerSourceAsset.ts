@@ -14,6 +14,7 @@ const PREPARE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS = 20_000;
 const UPLOAD_VOICE_CHANGER_SOURCE_STORAGE_TIMEOUT_MS = 180_000;
 const FINALIZE_VOICE_CHANGER_SOURCE_UPLOAD_TIMEOUT_MS = 60_000;
 const STAGE_VOICE_CLONE_SOURCE_TIMEOUT_MS = 180_000;
+const STAGE_VOICE_CHANGER_VIDEO_REFERENCE_TIMEOUT_MS = 180_000;
 const EXTRACT_VOICE_CHANGER_AUDIO_TIMEOUT_MS = 180_000;
 const GENERIC_UPLOAD_MIME_TYPES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 
@@ -22,6 +23,7 @@ type VoiceChangerSourceStage =
   | "prepare_voice_source_upload"
   | "upload_voice_source_storage"
   | "finalize_voice_source_upload"
+  | "stage_voice_video_reference"
   | "stage_voice_clone_source"
   | "extract_voice_video_audio";
 
@@ -132,6 +134,8 @@ const resolveVoiceChangerSourceTimeoutLabel = (stage: VoiceChangerSourceStage): 
       return "voice source storage upload";
     case "finalize_voice_source_upload":
       return "voice source upload finalization";
+    case "stage_voice_video_reference":
+      return "voice video reference staging";
     case "stage_voice_clone_source":
       return "voice clone source staging";
     case "extract_voice_video_audio":
@@ -399,6 +403,67 @@ export const uploadVoiceChangerSourceFile = async ({
     filenameFallbackPrefix: "voice-changer-source",
     stageError: "Unable to stage the voice changer source.",
   });
+
+export const stageVoiceChangerVideoReferenceSource = async ({
+  sourceName,
+  sourceMimeType,
+  sourceStoragePath,
+  sourceUrl,
+}: {
+  sourceName: string;
+  sourceMimeType: string | null;
+  sourceStoragePath: string | null;
+  sourceUrl: string | null;
+}): Promise<{
+  storagePath: string;
+  signedUrl: string;
+  mimeType: string;
+  name: string;
+  size: number;
+}> => {
+  const response = await runAbortableVoiceChangerSourceStep({
+    stage: "stage_voice_video_reference",
+    timeoutMs: STAGE_VOICE_CHANGER_VIDEO_REFERENCE_TIMEOUT_MS,
+    run: async (signal) =>
+      await fetchWithAuth("/api/media/stage-voice-changer-source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceKind: "video",
+          sourceMimeType: sourceMimeType ?? "video/mp4",
+          sourceName,
+          sourceStoragePath,
+          sourceUrl,
+        }),
+        signal,
+        shortpulseLogScope: "generation",
+        shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+      }),
+  });
+  const payload = (await response.json().catch(() => null)) as StagedVoiceSourcePayload;
+  const source = payload?.source;
+  const storagePath = typeof source?.storagePath === "string" ? source.storagePath.trim() : "";
+  const signedUrl = typeof source?.previewUrl === "string" ? source.previewUrl.trim() : "";
+  const mimeType = typeof source?.mimeType === "string" ? source.mimeType.trim() : "";
+  const name = typeof source?.name === "string" ? source.name.trim() : "";
+  const size = typeof source?.size === "number" ? source.size : NaN;
+  if (!response.ok || !storagePath || !signedUrl || !mimeType || !name) {
+    const error =
+      typeof payload?.details === "string" && payload.details.trim()
+        ? payload.details.trim()
+        : typeof payload?.error === "string" && payload.error.trim()
+          ? payload.error.trim()
+          : "Unable to stage the Voice Changer video reference.";
+    throw new Error(error);
+  }
+  return {
+    storagePath,
+    signedUrl,
+    mimeType,
+    name,
+    size: Number.isFinite(size) ? size : 0,
+  };
+};
 
 export const uploadVoiceCloneSourceFile = async ({ file }: { file: File }) =>
   (async () => {

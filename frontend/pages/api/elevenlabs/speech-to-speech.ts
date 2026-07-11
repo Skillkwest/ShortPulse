@@ -20,26 +20,33 @@ import {
   TrustedRemoteMediaUrlError,
 } from "../../../lib/server/api/trustedRemoteMediaUrl";
 import { markAudioCompanionArtPendingBestEffort } from "../../../lib/server/audioCompanionArt/routePending";
-import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
-  createRemuxedVoiceChangerVideo,
+  assertUserScopedMediaStoragePath,
+  isVoiceChangerSourceVideoStoragePath,
+} from "../../../lib/mediaStoragePath";
+import {
   generateElevenLabsVoiceChanger,
   listElevenLabsVoices,
   persistGeneratedAudioAsset,
-  persistGeneratedVideoAsset,
   readRemoteSourceBuffer,
 } from "../../../lib/server/elevenlabs";
+import {
+  buildVoiceChangerRemuxRequestId,
+  executeVoiceChangerRemux,
+  patchVoiceChangerRemuxMetadata,
+  type VoiceChangerRemuxFailure,
+} from "../../../lib/server/voiceChangerRemux";
 import { resolveVoiceAccessForUser } from "../../../lib/server/elevenlabsVoiceLibrary";
 import {
   MAX_VOICE_CHANGER_SOURCE_BYTES,
   MediaAudioExtractionInputError,
   probeMediaDurationSeconds,
-  readRemoteMediaBuffer,
   readStoredMediaBuffer,
 } from "../../../lib/server/mediaAudioExtraction";
 import { transcribeAudioBuffer } from "../../../lib/server/openAiAudioTranscription";
 import { readGenerationWorkspaceRuntimeKeyFromContext } from "../../../lib/server/api/generationWorkspaceRuntimeKey";
 import { generateAudioReferenceTitleBestEffort } from "../../../lib/server/audioTitleGeneration";
+import { detectVideoMimeType } from "../../../lib/server/uploadSignature";
 import {
   recordVoiceSourceLifecycleState,
   VOICE_CHANGER_SOURCE_RETENTION_DAYS,
@@ -70,23 +77,32 @@ type GenerateAudioSuccessResponse = {
     saveState: "saved" | "idle" | "failed" | "blocked_storage";
     saveError: string | null;
   };
-  remuxedVideo?: {
-    provider: "elevenlabs";
-    mode: "video";
-    generationId: string;
-    mediaFileId: string | null;
-    requestId: string;
-    previewUrl: string;
-    previewPosterUrl: string | null;
-    resultUrls: string[];
-    previewPosterStoragePath: string | null;
-    previewStoragePath: string;
-    fullStoragePath: string;
-    mimeType: "video/mp4" | "video/webm";
-    modelId: string;
-    transcriptText: string | null;
-    saveState: "saved" | "idle" | "failed" | "blocked_storage";
-    saveError: string | null;
+  remuxOutcome: {
+    status: "not_requested" | "succeeded" | "failed";
+    code: string | null;
+    stage: "assembly" | "persistence" | null;
+    retryable: boolean;
+    message: string | null;
+    audioGenerationId: string;
+    remuxRequestId: string | null;
+    video: {
+      provider: "elevenlabs";
+      mode: "video";
+      generationId: string;
+      mediaFileId: string | null;
+      requestId: string;
+      previewUrl: string;
+      previewPosterUrl: string | null;
+      resultUrls: string[];
+      previewPosterStoragePath: string | null;
+      previewStoragePath: string;
+      fullStoragePath: string;
+      mimeType: "video/mp4" | "video/webm";
+      modelId: string;
+      transcriptText: string | null;
+      saveState: "saved" | "idle" | "failed" | "blocked_storage";
+      saveError: string | null;
+    } | null;
   };
 };
 
@@ -262,11 +278,10 @@ export default async function handler(
     const inputFormat = readFieldString(fields.inputFormat);
     const sourceUrl = readFieldString(fields.sourceUrl);
     const sourceStoragePath = readFieldString(fields.sourceStoragePath);
+    const expectsRemux = parseBooleanField(fields.expectsRemux);
     const sourceName = readFieldString(fields.sourceName) ?? "Voice changer source";
-    const originalVideoSourceUrl = readFieldString(fields.originalVideoSourceUrl);
     const originalVideoStoragePath = readFieldString(fields.originalVideoStoragePath);
     const originalVideoName = readFieldString(fields.originalVideoName);
-    const originalVideoMimeType = readFieldString(fields.originalVideoMimeType);
     const originalVideoAspect = readFieldString(fields.originalVideoAspect);
     const projectId = readFieldString(fields.project_id) ?? readFieldString(fields.projectId);
     const shortpulseContext = parseJsonObjectField(readFieldString(fields.shortpulseContext));
@@ -333,6 +348,7 @@ export default async function handler(
     let remuxVideoBuffer: Buffer | null = null;
     let remuxVideoMimeType: string | null = null;
     let remuxVideoFilename: string | null = null;
+    let serverRequiresRemux = false;
 
     if (sourceStoragePath) {
       const trustedStoragePath = assertUserScopedMediaStoragePath({
@@ -341,6 +357,7 @@ export default async function handler(
         label: "Voice changer source storage path",
       });
       lifecycleSourceStoragePath = trustedStoragePath;
+      serverRequiresRemux = trustedStoragePath.startsWith(`${user.id}/voice-changer/staged-audio/`);
       const storedSource = await readStoredMediaBuffer({ storagePath: trustedStoragePath });
       sourceBuffer = storedSource.buffer;
       sourceMimeType = storedSource.contentType;
@@ -353,6 +370,9 @@ export default async function handler(
         requireUserScope: true,
         label: "Voice changer source URL",
       });
+      serverRequiresRemux = trustedSourceUrl.pathname.includes(
+        `/${user.id}/voice-changer/staged-audio/`
+      );
       const remoteSource = await readRemoteSourceBuffer({ sourceUrl: trustedSourceUrl.toString() });
       sourceBuffer = remoteSource.buffer;
       sourceMimeType = remoteSource.contentType;
@@ -364,6 +384,56 @@ export default async function handler(
         error: "Invalid request",
         details: "sourceStoragePath or sourceUrl is required.",
       });
+    }
+
+    if (serverRequiresRemux !== expectsRemux) {
+      return res.status(400).json({
+        error: "Invalid request",
+        code: "VOICE_CHANGER_REMUX_EXPECTATION_MISMATCH",
+        details: serverRequiresRemux
+          ? "This staged video source requires video assembly. Re-select the source and try again."
+          : "This audio source does not have canonical video-derived staging authority.",
+      });
+    }
+
+    if (serverRequiresRemux && !originalVideoStoragePath) {
+      return res.status(400).json({
+        error: "Invalid request",
+        code: "VOICE_CHANGER_ORIGINAL_VIDEO_REQUIRED",
+        details: "The original staged video is required before voice conversion can begin.",
+      });
+    }
+
+    if (serverRequiresRemux && originalVideoStoragePath) {
+      const trustedStoragePath = assertUserScopedMediaStoragePath({
+        path: originalVideoStoragePath,
+        userId: user.id,
+        label: "Voice changer source video storage path",
+      });
+      if (!isVoiceChangerSourceVideoStoragePath(trustedStoragePath, user.id)) {
+        return res.status(400).json({
+          error: "Invalid request",
+          code: "VOICE_CHANGER_ORIGINAL_VIDEO_AUTHORITY_INVALID",
+          details: "The original video must be staged through the Voice Changer source-video path.",
+        });
+      }
+      lifecycleOriginalVideoStoragePath = trustedStoragePath;
+      const storedVideo = await readStoredMediaBuffer({
+        storagePath: trustedStoragePath,
+        maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
+      });
+      const verifiedVideoMimeType = detectVideoMimeType(storedVideo.buffer);
+      if (!verifiedVideoMimeType) {
+        return res.status(400).json({
+          error: "Invalid request",
+          code: "VOICE_CHANGER_ORIGINAL_VIDEO_INVALID",
+          details: "The staged original source is not a verified supported video.",
+        });
+      }
+      remuxVideoBuffer = storedVideo.buffer;
+      remuxVideoMimeType = verifiedVideoMimeType;
+      remuxVideoFilename =
+        originalVideoName ?? trustedStoragePath.split("/").filter(Boolean).pop() ?? "source-video";
     }
 
     const sourceDurationSeconds = await probeMediaDurationSeconds({
@@ -386,6 +456,7 @@ export default async function handler(
         source_duration_seconds: sourceDurationSeconds,
       },
       reason: "elevenlabs-speech-to-speech generation",
+      billingWorkflow: "audio",
       shortpulseContext,
     });
     if (!charge) return;
@@ -401,13 +472,7 @@ export default async function handler(
       },
     });
 
-    if (originalVideoStoragePath) {
-      const trustedStoragePath = assertUserScopedMediaStoragePath({
-        path: originalVideoStoragePath,
-        userId: user.id,
-        label: "Voice changer source video storage path",
-      });
-      lifecycleOriginalVideoStoragePath = trustedStoragePath;
+    if (lifecycleOriginalVideoStoragePath) {
       await recordVoiceChangerLifecycleBestEffort({
         storagePath: lifecycleOriginalVideoStoragePath,
         sourceKind: "video",
@@ -417,32 +482,6 @@ export default async function handler(
           source_name: originalVideoName ?? sourceName,
         },
       });
-      const storedVideo = await readStoredMediaBuffer({
-        storagePath: trustedStoragePath,
-        maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
-      });
-      remuxVideoBuffer = storedVideo.buffer;
-      remuxVideoMimeType = originalVideoMimeType ?? storedVideo.contentType;
-      remuxVideoFilename =
-        originalVideoName ?? trustedStoragePath.split("/").filter(Boolean).pop() ?? "source-video";
-    } else if (originalVideoSourceUrl) {
-      const trustedSourceUrl = await assertTrustedRemoteMediaUrl({
-        rawUrl: originalVideoSourceUrl,
-        req,
-        userId: user.id,
-        requireUserScope: true,
-        label: "Voice changer source video URL",
-      });
-      const remoteVideo = await readRemoteMediaBuffer({
-        sourceUrl: trustedSourceUrl.toString(),
-        maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
-      });
-      remuxVideoBuffer = remoteVideo.buffer;
-      remuxVideoMimeType = originalVideoMimeType ?? remoteVideo.contentType;
-      remuxVideoFilename =
-        originalVideoName ??
-        trustedSourceUrl.pathname.split("/").filter(Boolean).pop() ??
-        "source-video";
     }
 
     const generated = await generateElevenLabsVoiceChanger({
@@ -491,18 +530,19 @@ export default async function handler(
       }).catch(() => undefined);
       transcriptText = null;
     }
+    const voiceChangerSourceLabel = originalVideoName ?? sourceName;
     const voiceChangerTitle = await generateAudioReferenceTitleBestEffort({
       sourceMode: "voice-changer",
-      promptText: `${sourceName} -> ${effectiveVoiceName}`,
+      promptText: `${voiceChangerSourceLabel} -> ${effectiveVoiceName}`,
       transcriptText,
-      sourceName,
+      sourceName: voiceChangerSourceLabel,
       voiceName: effectiveVoiceName,
       uniqueSeed: charge.sourceRef,
     });
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
-      promptText: `${sourceName} -> ${effectiveVoiceName}`,
+      promptText: `${voiceChangerSourceLabel} -> ${effectiveVoiceName}`,
       transcriptText,
       provider: "elevenlabs",
       modelId,
@@ -527,6 +567,14 @@ export default async function handler(
         source_duration_ms: Math.round(sourceDurationSeconds * 1000),
         source_duration_seconds: sourceDurationSeconds,
         voice_changer_title: voiceChangerTitle,
+        expects_remux: serverRequiresRemux,
+        remux_status: serverRequiresRemux ? "pending" : "not_requested",
+        remux_request_id: null,
+        original_video_storage_path: lifecycleOriginalVideoStoragePath,
+        original_video_name: originalVideoName,
+        original_video_mime_type: remuxVideoMimeType,
+        original_video_aspect: originalVideoAspect,
+        ...(originalVideoAspect ? { generation_replay: { aspect: originalVideoAspect } } : {}),
         ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
       beforeVisibleSettlement: async ({ generationId }) => {
@@ -550,6 +598,33 @@ export default async function handler(
       },
     });
     const persistedVoiceChangerTitle = persisted.displayTitle ?? voiceChangerTitle;
+    try {
+      await patchVoiceChangerRemuxMetadata({
+        userId: user.id,
+        audioGenerationId: persisted.generationId,
+        patch: {
+          generated_audio_storage_path: persisted.storagePath,
+          remux_request_id: serverRequiresRemux
+            ? buildVoiceChangerRemuxRequestId(persisted.generationId)
+            : null,
+        },
+      });
+    } catch (metadataError) {
+      await writeAppErrorLog({
+        source: "telemetry.voice_changer.remux_metadata_update_failed",
+        message:
+          "Voice Changer audio persisted successfully, but its remux metadata did not converge.",
+        requestId: charge.sourceRef,
+        userId: user.id,
+        statusCode: 200,
+        metadata: {
+          generation_id: persisted.generationId,
+          provider_request_id: providerRequestId,
+          remux_phase: "audio_persisted",
+          error: toErrorMessage(metadataError, "remux_metadata_update_failed"),
+        },
+      }).catch(() => undefined);
+    }
     await recordVoiceChangerLifecycleBestEffort({
       storagePath: lifecycleSourceStoragePath,
       sourceKind: "audio",
@@ -569,35 +644,36 @@ export default async function handler(
       user,
     });
 
-    let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
-    let persistedRemuxedVideo: Awaited<ReturnType<typeof persistGeneratedVideoAsset>> | null = null;
+    let remuxOutcome: GenerateAudioSuccessResponse["remuxOutcome"] = {
+      status: "not_requested",
+      code: null,
+      stage: null,
+      retryable: false,
+      message: null,
+      audioGenerationId: persisted.generationId,
+      remuxRequestId: null,
+      video: null,
+    };
 
     if (remuxVideoBuffer && remuxVideoFilename) {
       try {
-        remuxedVideo = await createRemuxedVoiceChangerVideo({
+        const remuxResult = await executeVoiceChangerRemux({
+          userId: user.id,
+          audioGenerationId: persisted.generationId,
           sourceVideoBuffer: remuxVideoBuffer,
           sourceVideoFilename: remuxVideoFilename,
           sourceVideoMimeType: remuxVideoMimeType,
           convertedAudioBuffer: generated.buffer,
           convertedAudioContentType: generated.contentType,
-        });
-
-        persistedRemuxedVideo = await persistGeneratedVideoAsset({
-          userId: user.id,
           promptText: `${originalVideoName ?? sourceName} -> ${effectiveVoiceName} video`,
           transcriptText,
-          provider: "elevenlabs",
           modelId,
           providerRequestId,
           projectId,
           workspaceRuntimeKey,
-          sourceMode: "voice-changer",
-          outputBuffer: remuxedVideo.buffer,
-          outputContentType: remuxedVideo.contentType,
-          generationReplay: originalVideoAspect ? { aspect: originalVideoAspect } : undefined,
+          aspect: originalVideoAspect,
           workflowReload,
           extraMetadata: {
-            derivative_kind: "voice_changer_remuxed_video",
             billing_source_ref: charge.sourceRef,
             debited_credits: charge.credits,
             pricing_metadata: charge.chargeMetadata,
@@ -609,6 +685,62 @@ export default async function handler(
             ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
           },
         });
+        const { remuxedVideo, persistedVideo } = remuxResult;
+        remuxOutcome = {
+          status: "succeeded",
+          code: null,
+          stage: null,
+          retryable: false,
+          message: null,
+          audioGenerationId: persisted.generationId,
+          remuxRequestId: persistedVideo.requestId,
+          video: {
+            provider: "elevenlabs",
+            mode: "video",
+            generationId: persistedVideo.generationId,
+            mediaFileId: persistedVideo.mediaFileId,
+            requestId: persistedVideo.requestId,
+            previewUrl: persistedVideo.signedUrl,
+            previewPosterUrl: persistedVideo.previewPosterUrl,
+            resultUrls: [persistedVideo.signedUrl],
+            previewPosterStoragePath: persistedVideo.previewPosterStoragePath,
+            previewStoragePath: persistedVideo.previewStoragePath,
+            fullStoragePath: persistedVideo.fullStoragePath,
+            mimeType: remuxedVideo.contentType,
+            modelId,
+            transcriptText,
+            saveState: persistedVideo.saveState,
+            saveError: persistedVideo.saveError,
+          },
+        };
+        try {
+          await patchVoiceChangerRemuxMetadata({
+            userId: user.id,
+            audioGenerationId: persisted.generationId,
+            patch: {
+              remux_status: "succeeded",
+              remuxed_video_generation_id: persistedVideo.generationId,
+              remux_failure_code: null,
+              remux_failure_stage: null,
+            },
+          });
+        } catch (metadataError) {
+          await writeAppErrorLog({
+            source: "telemetry.voice_changer.remux_metadata_update_failed",
+            message:
+              "Voice Changer video persisted successfully, but its remux metadata did not converge.",
+            requestId: charge.sourceRef,
+            userId: user.id,
+            statusCode: 200,
+            metadata: {
+              generation_id: persisted.generationId,
+              remuxed_video_generation_id: persistedVideo.generationId,
+              provider_request_id: providerRequestId,
+              remux_phase: "video_persisted",
+              error: toErrorMessage(metadataError, "remux_metadata_update_failed"),
+            },
+          }).catch(() => undefined);
+        }
       } catch (remuxError) {
         await logApiRouteException({
           req,
@@ -617,21 +749,42 @@ export default async function handler(
           scope: "generation",
           user,
         });
-        remuxedVideo = null;
-        persistedRemuxedVideo = null;
+        const failure = remuxError as VoiceChangerRemuxFailure;
+        await patchVoiceChangerRemuxMetadata({
+          userId: user.id,
+          audioGenerationId: persisted.generationId,
+          patch: {
+            generated_audio_storage_path: persisted.storagePath,
+            remux_request_id: buildVoiceChangerRemuxRequestId(persisted.generationId),
+            remux_status: "failed",
+            remux_failure_code: failure.code ?? "VOICE_CHANGER_REMUX_FAILED",
+            remux_failure_stage: failure.stage ?? "persistence",
+          },
+        }).catch(() => undefined);
+        remuxOutcome = {
+          status: "failed",
+          code: failure.code ?? "VOICE_CHANGER_REMUX_FAILED",
+          stage: failure.stage ?? "persistence",
+          retryable: true,
+          message:
+            "The new voice is ready, but the video could not be assembled. Retry video without another charge.",
+          audioGenerationId: persisted.generationId,
+          remuxRequestId: buildVoiceChangerRemuxRequestId(persisted.generationId),
+          video: null,
+        };
       }
     }
     await recordVoiceChangerLifecycleBestEffort({
       storagePath: lifecycleOriginalVideoStoragePath,
       sourceKind: "video",
-      state: "terminal_success",
-      generationId: persistedRemuxedVideo?.generationId ?? persisted.generationId,
+      state: remuxOutcome.status === "succeeded" ? "terminal_success" : "terminal_failure",
+      generationId: remuxOutcome.video?.generationId ?? persisted.generationId,
       providerRequestId,
       metadata: {
         source_duration_seconds: sourceDurationSeconds,
         generated_audio_generation_id: persisted.generationId,
-        remuxed_video_generation_id: persistedRemuxedVideo?.generationId ?? null,
-        remux_status: persistedRemuxedVideo ? "persisted" : "not_persisted",
+        remuxed_video_generation_id: remuxOutcome.video?.generationId ?? null,
+        remux_status: remuxOutcome.status,
       },
     });
 
@@ -660,28 +813,7 @@ export default async function handler(
         saveState: persisted.saveState,
         saveError: persisted.saveError,
       },
-      ...(persistedRemuxedVideo && remuxedVideo
-        ? {
-            remuxedVideo: {
-              provider: "elevenlabs" as const,
-              mode: "video" as const,
-              generationId: persistedRemuxedVideo.generationId,
-              mediaFileId: persistedRemuxedVideo.mediaFileId,
-              requestId: persistedRemuxedVideo.requestId,
-              previewUrl: persistedRemuxedVideo.signedUrl,
-              previewPosterUrl: persistedRemuxedVideo.previewPosterUrl,
-              resultUrls: [persistedRemuxedVideo.signedUrl],
-              previewPosterStoragePath: persistedRemuxedVideo.previewPosterStoragePath,
-              previewStoragePath: persistedRemuxedVideo.previewStoragePath,
-              fullStoragePath: persistedRemuxedVideo.fullStoragePath,
-              mimeType: remuxedVideo.contentType,
-              modelId,
-              transcriptText,
-              saveState: persistedRemuxedVideo.saveState,
-              saveError: persistedRemuxedVideo.saveError,
-            },
-          }
-        : {}),
+      remuxOutcome,
     });
   } catch (error) {
     if (charge) {

@@ -44,6 +44,87 @@ describe("useAiStudioAudioGeneration", () => {
     fetchWithAuthMock.mockReset();
   });
 
+  it("preserves failed-card prompt, title, and aspect after no-charge video retry", async () => {
+    const failedVideo: StudioOutput = {
+      id: "voice-changer-remux:audio-1",
+      prompt: "demo-clip.mp4 -> Laura video",
+      title: "Demo Clip",
+      mode: "video",
+      aspect: "9:16",
+      model: "Voice Changer",
+      modelId: "eleven_multilingual_sts_v2",
+      provider: "elevenlabs",
+      status: "ready",
+      taskState: "fail",
+      timestamp: "Failed",
+      mediaSource: "generated",
+      previewTier: "preview_loop",
+      remuxRecovery: {
+        sourceAudioGenerationId: "audio-1",
+        remuxRequestId: "voice-changer-remux:audio-1",
+        status: "failed",
+        code: "VOICE_CHANGER_REMUX_ASSEMBLY_FAILED",
+        stage: "assembly",
+        retryable: true,
+      },
+    };
+    let outputs = [failedVideo];
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "succeeded",
+        video: {
+          provider: "elevenlabs",
+          mode: "video",
+          generationId: "video-1",
+          mediaFileId: "media-1",
+          requestId: "voice-changer-remux:audio-1",
+          previewUrl: "https://example.com/video.mp4",
+          previewPosterUrl: null,
+          resultUrls: ["https://example.com/video.mp4"],
+          previewPosterStoragePath: null,
+          previewStoragePath: "user-1/generations/video/video-1/preview.mp4",
+          fullStoragePath: "user-1/generations/video/video-1/video.mp4",
+          mimeType: "video/mp4",
+          modelId: "eleven_multilingual_sts_v2",
+          transcriptText: null,
+          saveState: "saved",
+          saveError: null,
+        },
+      }),
+    });
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        outputs,
+        setUiError: asDispatch<string | null>(vi.fn()),
+        insertOptimisticGenerationPlaceholder: vi.fn(),
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleRetryVoiceChangerVideo(failedVideo);
+    });
+
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      id: "generated:video-1",
+      prompt: "demo-clip.mp4 -> Laura video",
+      title: "Demo Clip",
+      aspect: "9:16",
+      taskState: "success",
+    });
+    expect(outputs[0]?.prompt).not.toContain("Converted voice");
+  });
+
   it("updates the optimistic placeholder when music generation succeeds", async () => {
     let outputs: StudioOutput[] = [];
     let uiError: string | null = "stale";
@@ -639,23 +720,32 @@ describe("useAiStudioAudioGeneration", () => {
           saveState: "blocked_storage",
           saveError: "Storage is full. Delete media or upgrade storage to save this output.",
         },
-        remuxedVideo: {
-          provider: "elevenlabs",
-          mode: "video",
-          generationId: "gen-voice-video",
-          mediaFileId: "media-voice-video",
-          requestId: "req-voice-video",
-          previewUrl: "https://example.com/voice.mp4",
-          previewPosterUrl: "https://example.com/voice-poster.jpg",
-          resultUrls: ["https://example.com/voice.mp4"],
-          previewPosterStoragePath: "preview/posters/voice.jpg",
-          previewStoragePath: "preview/voice.mp4",
-          fullStoragePath: "full/voice.mp4",
-          mimeType: "video/mp4",
-          modelId: "eleven_multilingual_sts_v2",
-          transcriptText: "I can hear the city waking up below us.",
-          saveState: "blocked_storage",
-          saveError: "Storage is full. Delete media or upgrade storage to save this video.",
+        remuxOutcome: {
+          status: "succeeded",
+          code: null,
+          stage: null,
+          retryable: false,
+          message: null,
+          audioGenerationId: "gen-voice",
+          remuxRequestId: "req-voice-video",
+          video: {
+            provider: "elevenlabs",
+            mode: "video",
+            generationId: "gen-voice-video",
+            mediaFileId: "media-voice-video",
+            requestId: "req-voice-video",
+            previewUrl: "https://example.com/voice.mp4",
+            previewPosterUrl: "https://example.com/voice-poster.jpg",
+            resultUrls: ["https://example.com/voice.mp4"],
+            previewPosterStoragePath: "preview/posters/voice.jpg",
+            previewStoragePath: "preview/voice.mp4",
+            fullStoragePath: "full/voice.mp4",
+            mimeType: "video/mp4",
+            modelId: "eleven_multilingual_sts_v2",
+            transcriptText: "I can hear the city waking up below us.",
+            saveState: "blocked_storage",
+            saveError: "Storage is full. Delete media or upgrade storage to save this video.",
+          },
         },
       }),
     });
@@ -683,6 +773,7 @@ describe("useAiStudioAudioGeneration", () => {
         source: {
           id: "src-1",
           kind: "audio",
+          displayKind: "video",
           origin: "local",
           status: "ready",
           aspect: null,
@@ -691,6 +782,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/wav",
           file: null,
           previewUrl: null,
+          posterUrl: "https://example.com/clip-poster.jpg",
           sourceUrl: "https://example.com/take.wav",
           objectUrl: null,
           storagePath: "users/demo/take.wav",
@@ -738,6 +830,7 @@ describe("useAiStudioAudioGeneration", () => {
     );
     const formData = fetchWithAuthMock.mock.calls[0]?.[1]?.body as FormData;
     expect(formData.get("project_id")).toBe("project-1");
+    expect(formData.get("expectsRemux")).toBe("true");
     expect(uiError).toBeNull();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(outputs).toHaveLength(2);
@@ -799,21 +892,30 @@ describe("useAiStudioAudioGeneration", () => {
           voiceName: "Narrator",
           transcriptText: "I can hear the city waking up below us.",
         },
-        remuxedVideo: {
-          provider: "elevenlabs",
-          mode: "video",
-          generationId: "gen-voice-video",
-          mediaFileId: "media-voice-video",
-          requestId: "req-voice-video",
-          previewUrl: "https://example.com/voice.mp4",
-          previewPosterUrl: "https://example.com/voice-poster.jpg",
-          resultUrls: ["https://example.com/voice.mp4"],
-          previewPosterStoragePath: "preview/posters/voice.jpg",
-          previewStoragePath: "preview/voice.mp4",
-          fullStoragePath: "full/voice.mp4",
-          mimeType: "video/mp4",
-          modelId: "eleven_multilingual_sts_v2",
-          transcriptText: "I can hear the city waking up below us.",
+        remuxOutcome: {
+          status: "succeeded",
+          code: null,
+          stage: null,
+          retryable: false,
+          message: null,
+          audioGenerationId: "gen-voice",
+          remuxRequestId: "req-voice-video",
+          video: {
+            provider: "elevenlabs",
+            mode: "video",
+            generationId: "gen-voice-video",
+            mediaFileId: "media-voice-video",
+            requestId: "req-voice-video",
+            previewUrl: "https://example.com/voice.mp4",
+            previewPosterUrl: "https://example.com/voice-poster.jpg",
+            resultUrls: ["https://example.com/voice.mp4"],
+            previewPosterStoragePath: "preview/posters/voice.jpg",
+            previewStoragePath: "preview/voice.mp4",
+            fullStoragePath: "full/voice.mp4",
+            mimeType: "video/mp4",
+            modelId: "eleven_multilingual_sts_v2",
+            transcriptText: "I can hear the city waking up below us.",
+          },
         },
       }),
     });
@@ -842,6 +944,7 @@ describe("useAiStudioAudioGeneration", () => {
         source: {
           id: "src-1",
           kind: "audio",
+          displayKind: "video",
           origin: "local",
           status: "ready",
           aspect: null,
@@ -850,6 +953,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/wav",
           file: null,
           previewUrl: null,
+          posterUrl: "https://example.com/clip-poster.jpg",
           sourceUrl: "https://example.com/take.wav",
           objectUrl: null,
           storagePath: "users/demo/take.wav",
@@ -919,6 +1023,7 @@ describe("useAiStudioAudioGeneration", () => {
         source: {
           id: "src-1",
           kind: "audio",
+          displayKind: "audio",
           origin: "local",
           status: "ready",
           aspect: null,
@@ -927,6 +1032,7 @@ describe("useAiStudioAudioGeneration", () => {
           mimeType: "audio/wav",
           file: null,
           previewUrl: null,
+          posterUrl: null,
           sourceUrl: "https://example.com/take.wav",
           objectUrl: null,
           storagePath: "users/demo/take.wav",

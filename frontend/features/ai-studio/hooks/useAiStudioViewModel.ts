@@ -588,6 +588,10 @@ export const useAiStudioViewModel = ({
   const currentCostCredits = characterModeReferenceReadiness.shouldBlockGenerate
     ? null
     : (currentCost?.credits ?? null);
+  const currentPricingVariantId =
+    currentCost && "variantId" in currentCost && typeof currentCost.variantId === "string"
+      ? currentCost.variantId
+      : null;
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
     if (characterModeReferenceReadiness.shouldBlockGenerate) return null;
@@ -1193,6 +1197,7 @@ export const useAiStudioViewModel = ({
   return {
     currentCost,
     currentCostCredits,
+    currentPricingVariantId,
     modelPickerCostCredits,
     resolveModelPickerCredits,
     promptGenerateCostCredits,

@@ -417,6 +417,14 @@ export type StudioOutput = {
   styleContext?: StudioOutputStyleContext;
   generationReplay?: GenerationReplayConfig;
   workflowReload?: WorkflowReloadConfig;
+  remuxRecovery?: {
+    sourceAudioGenerationId: string;
+    remuxRequestId: string;
+    status: "pending" | "failed";
+    code: string | null;
+    stage: "assembly" | "persistence" | null;
+    retryable: boolean;
+  };
 };
 
 export type ToolId =

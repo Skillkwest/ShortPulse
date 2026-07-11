@@ -17,6 +17,7 @@ import {
   type ResolveVoiceChangerInternalReferenceSource,
   type VoiceChangerSource,
 } from "../logic/voiceChangerSourceIntake";
+import type { VoiceChangerSourceMetadataPatch } from "../logic/voiceChangerSourceTypes";
 import {
   formatVoiceRecordingDuration,
   useVoiceSourceRecorder,
@@ -39,6 +40,7 @@ export {
 type VoiceChangerSourceDropzoneProps = {
   source: VoiceChangerSource | null;
   onSourceChange: (nextSource: VoiceChangerSource | null) => void;
+  onSourceMetadataChange?: (sourceId: string, patch: VoiceChangerSourceMetadataPatch) => void;
   resolveInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
   acceptedKinds?: AcceptedVoiceSourceKind[];
   copy?: Partial<VoiceSourceDropzoneCopy>;
@@ -140,6 +142,7 @@ const shouldShowSourceLoadingPreview = (source: VoiceChangerSource): boolean =>
 export function VoiceChangerSourceDropzone({
   source,
   onSourceChange,
+  onSourceMetadataChange,
   resolveInternalReferenceSource,
   acceptedKinds = ["audio", "video"],
   copy: copyOverrides,
@@ -151,6 +154,7 @@ export function VoiceChangerSourceDropzone({
   const acceptsAudioOnly = acceptedKinds.length === 1 && acceptedKinds[0] === "audio";
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const dragDepthRef = React.useRef(0);
+  const sourceSelectionRequestIdRef = React.useRef(0);
   const [isDragActive, setIsDragActive] = React.useState(false);
   const [sourceSelectionError, setSourceSelectionError] = React.useState<string | null>(null);
   const [sourceSelectionRecoveryHint, setSourceSelectionRecoveryHint] = React.useState<
@@ -161,9 +165,14 @@ export function VoiceChangerSourceDropzone({
     fileInputRef.current?.click();
   }, []);
 
-  const handleSourceSelection = React.useCallback(
+  const commitSourceSelection = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
-      if (!nextSource) return;
+      if (!nextSource) {
+        setSourceSelectionError(null);
+        setSourceSelectionRecoveryHint(null);
+        onSourceChange(null);
+        return;
+      }
       if (!acceptedKinds.includes(nextSource.kind)) {
         setSourceSelectionError(copy.unableReferenceError);
         setSourceSelectionRecoveryHint(null);
@@ -176,7 +185,23 @@ export function VoiceChangerSourceDropzone({
     [acceptedKinds, copy.unableReferenceError, onSourceChange]
   );
 
+  const handleSourceSelection = React.useCallback(
+    (nextSource: VoiceChangerSource | null) => {
+      sourceSelectionRequestIdRef.current += 1;
+      commitSourceSelection(nextSource);
+    },
+    [commitSourceSelection]
+  );
+
+  React.useEffect(
+    () => () => {
+      sourceSelectionRequestIdRef.current += 1;
+    },
+    []
+  );
+
   const handleBeforeRecord = React.useCallback(() => {
+    sourceSelectionRequestIdRef.current += 1;
     setSourceSelectionError(null);
     setSourceSelectionRecoveryHint(null);
   }, []);
@@ -191,12 +216,9 @@ export function VoiceChangerSourceDropzone({
       ) {
         return;
       }
-      onSourceChange({
-        ...source,
-        durationMs,
-      });
+      onSourceMetadataChange?.(source.id, { durationMs });
     },
-    [onSourceChange, source]
+    [onSourceMetadataChange, source]
   );
 
   const {
@@ -271,6 +293,8 @@ export function VoiceChangerSourceDropzone({
       event.preventDefault();
       dragDepthRef.current = 0;
       setIsDragActive(false);
+      const selectionRequestId = sourceSelectionRequestIdRef.current + 1;
+      sourceSelectionRequestIdRef.current = selectionRequestId;
 
       const dropSnapshot = captureVoiceSourceDropSnapshot(event.dataTransfer);
       const transferSnapshot = buildVoiceSourceDropSnapshotTransfer(dropSnapshot);
@@ -283,7 +307,7 @@ export function VoiceChangerSourceDropzone({
 
       if (!internalPayload || !resolveInternalReferenceSource) {
         if (directSource) {
-          handleSourceSelection(directSource);
+          commitSourceSelection(directSource);
           return;
         }
         setSourceSelectionError(copy.unableReferenceError);
@@ -294,19 +318,21 @@ export function VoiceChangerSourceDropzone({
       void (async () => {
         try {
           const resolvedSource = await resolveInternalReferenceSource(internalPayload);
+          if (sourceSelectionRequestIdRef.current !== selectionRequestId) return;
           if (resolvedSource && acceptedKinds.includes(resolvedSource.kind)) {
-            handleSourceSelection(resolvedSource);
+            commitSourceSelection(resolvedSource);
             return;
           }
           if (directSource) {
-            handleSourceSelection(directSource);
+            commitSourceSelection(directSource);
             return;
           }
           setSourceSelectionError(copy.unableReferenceError);
           setSourceSelectionRecoveryHint(null);
         } catch {
+          if (sourceSelectionRequestIdRef.current !== selectionRequestId) return;
           if (directSource) {
-            handleSourceSelection(directSource);
+            commitSourceSelection(directSource);
             return;
           }
           setSourceSelectionError(copy.unableReferenceError);
@@ -318,7 +344,7 @@ export function VoiceChangerSourceDropzone({
       acceptedKinds,
       canResolveInternalReference,
       copy.unableReferenceError,
-      handleSourceSelection,
+      commitSourceSelection,
       resolveInternalReferenceSource,
     ]
   );
@@ -363,6 +389,33 @@ export function VoiceChangerSourceDropzone({
           onDrop={handleDrop}
         >
           <div className="voices-properties-voice-changer-dropzone-preview">
+            {source.displayKind === "video" && source.posterUrl ? (
+              // Posters can be local data URLs; Next Image cannot provide useful optimization here.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="voices-properties-voice-changer-dropzone-video"
+                src={source.posterUrl}
+                alt={`${source.extractedFrom?.name ?? source.name} video poster`}
+              />
+            ) : source.displayKind === "video" ? (
+              <div
+                className="voices-properties-voice-changer-dropzone-video-placeholder"
+                role="img"
+                aria-label="Video source preview unavailable"
+              >
+                <span>Preview unavailable</span>
+              </div>
+            ) : source.kind === "audio" && source.sourceUrl ? (
+              <div className="voices-properties-voice-changer-dropzone-audio-preview">
+                <VoiceChangerAudioSourcePreview
+                  key={source.id}
+                  audioUrl={source.sourceUrl}
+                  onDurationResolved={handleAudioDurationResolved}
+                />
+              </div>
+            ) : (
+              <div className="voices-properties-voice-changer-dropzone-audio-preview" />
+            )}
             {shouldShowSourceLoadingPreview(source) ? (
               <div
                 className="voices-properties-voice-changer-dropzone-loading-preview"
@@ -377,25 +430,7 @@ export function VoiceChangerSourceDropzone({
                   <CircleNotch size={34} weight="bold" />
                 </span>
               </div>
-            ) : source.kind === "video" && source.previewUrl ? (
-              <video
-                className="voices-properties-voice-changer-dropzone-video"
-                src={source.previewUrl}
-                playsInline
-                muted
-                preload="metadata"
-              />
-            ) : source.kind === "audio" && source.sourceUrl ? (
-              <div className="voices-properties-voice-changer-dropzone-audio-preview">
-                <VoiceChangerAudioSourcePreview
-                  key={source.id}
-                  audioUrl={source.sourceUrl}
-                  onDurationResolved={handleAudioDurationResolved}
-                />
-              </div>
-            ) : (
-              <div className="voices-properties-voice-changer-dropzone-audio-preview" />
-            )}
+            ) : null}
           </div>
 
           <div className="voices-properties-voice-changer-dropzone-meta">
@@ -422,6 +457,16 @@ export function VoiceChangerSourceDropzone({
                   {resolveSourceStatusDetail(source, copy)}
                 </p>
               ) : null}
+              {source.displayKind === "video" ? (
+                <div className="voices-properties-voice-changer-dropzone-source-identity">
+                  <span className="voices-properties-voice-changer-dropzone-source-kind">
+                    Video source
+                  </span>
+                  <span className="voices-properties-voice-changer-dropzone-source-name">
+                    {source.extractedFrom?.name ?? source.name}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div className="voices-properties-voice-changer-dropzone-actions">
@@ -436,7 +481,7 @@ export function VoiceChangerSourceDropzone({
               <button
                 type="button"
                 className="voices-properties-voice-changer-dropzone-action is-secondary"
-                onClick={() => onSourceChange(null)}
+                onClick={() => handleSourceSelection(null)}
               >
                 <X size={14} weight="bold" />
                 <span>Remove</span>

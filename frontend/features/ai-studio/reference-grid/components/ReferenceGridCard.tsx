@@ -103,6 +103,7 @@ export type ReferenceGridCardProps = {
   onAudioPlaybackStarted?: (player: ExclusiveSoundPlayer) => void;
   onAudioPlaybackStopped?: (instanceKey: string) => void;
   onRerollOutput?: (output: StudioOutput) => void;
+  onRetryVoiceChangerVideo?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }
@@ -194,6 +195,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onAudioPlaybackStarted,
   onAudioPlaybackStopped,
   onRerollOutput,
+  onRetryVoiceChangerVideo,
   onReloadWorkflowOutput,
   onClearLoadingOutput,
   loadingClearLabel,
@@ -213,6 +215,24 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
   const hoverAutoplayStartedRef = React.useRef(false);
   const attachedVideoSourceRef = React.useRef<string | null>(null);
+  const mediaHoverSignaledRef = React.useRef(false);
+  const mediaHoverCallbackRef = React.useRef(onMediaHoverChange);
+  React.useEffect(() => {
+    mediaHoverCallbackRef.current = onMediaHoverChange;
+  }, [onMediaHoverChange]);
+  React.useEffect(
+    () => () => {
+      if (mediaHoverSignaledRef.current) {
+        mediaHoverCallbackRef.current?.(false);
+      }
+    },
+    []
+  );
+  const signalMediaHover = (active: boolean) => {
+    mediaHoverSignaledRef.current = active;
+    onMediaHoverChange?.(active);
+  };
+  const [isVideoHoverIntentActive, setIsVideoHoverIntentActive] = React.useState(false);
   const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
   const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const [hasPosterImageError, setHasPosterImageError] = React.useState(false);
@@ -338,6 +358,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     resolvedHoverVideoUrl &&
     (canAutoplayVideo ||
       isHoveringVideo ||
+      isVideoHoverIntentActive ||
       isHoverVideoVisible ||
       isSelected ||
       hasPosterImageError)
@@ -419,6 +440,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   ]);
 
   const startHoverPlayback = React.useCallback(() => {
+    setIsVideoHoverIntentActive(true);
     if (!resolvedHoverVideoUrl) return;
     setIsHoveringVideo(true);
     const node = videoNodeRef.current;
@@ -451,16 +473,23 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     hoverAutoplayStartedRef.current = true;
     void node.play().catch(() => {
       hoverAutoplayStartedRef.current = false;
+      setIsVideoHoverIntentActive(false);
       setIsHoveringVideo(false);
       setIsHoverVideoVisible(false);
     });
   }, [item.id, onAutoplayStarted, resolvedHoverVideoUrl]);
   const stopHoverPlayback = React.useCallback(() => {
+    setIsVideoHoverIntentActive(false);
     setIsHoveringVideo(false);
     if (!hoverAutoplayStartedRef.current || canAutoplayVideo) return;
     hoverAutoplayStartedRef.current = false;
     videoNodeRef.current?.pause();
   }, [canAutoplayVideo]);
+
+  React.useEffect(() => {
+    if (!isVideoHoverIntentActive || !resolvedHoverVideoUrl || isHoveringVideo) return;
+    startHoverPlayback();
+  }, [isHoveringVideo, isVideoHoverIntentActive, resolvedHoverVideoUrl, startHoverPlayback]);
 
   React.useEffect(() => {
     if (resolvedHoverVideoUrl) return;
@@ -559,9 +588,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       role="button"
       aria-busy={effectiveIsLoading}
       data-loading={effectiveIsLoading ? "true" : "false"}
+      data-output-id={item.id}
       data-reference-authority-tier={authorityTier}
       data-drag-preview-url={cardPreviewUrl ?? undefined}
-      data-drag-playable-url={resolvedHoverVideoUrl ?? undefined}
+      data-drag-playable-url={playableMediaUrl?.trim() || resolvedHoverVideoUrl || undefined}
       data-drag-image-src={dragImageSrc}
       data-drag-preview-kind={dragPreviewKind}
       tabIndex={0}
@@ -593,19 +623,19 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDragLeave={onCardDragLeave ? (event) => onCardDragLeave(event, item) : undefined}
       onPointerEnter={() => {
         startHoverPlayback();
-        if (shouldSignalMediaHover) onMediaHoverChange?.(true);
+        if (shouldSignalMediaHover) signalMediaHover(true);
       }}
       onMouseEnter={startHoverPlayback}
       onPointerLeave={() => {
         stopHoverPlayback();
-        if (shouldSignalMediaHover) onMediaHoverChange?.(false);
+        if (shouldSignalMediaHover) signalMediaHover(false);
       }}
       onMouseLeave={stopHoverPlayback}
       onFocus={() => {
-        if (shouldSignalMediaHover) onMediaHoverChange?.(true);
+        if (shouldSignalMediaHover) signalMediaHover(true);
       }}
       onBlur={() => {
-        if (shouldSignalMediaHover) onMediaHoverChange?.(false);
+        if (shouldSignalMediaHover) signalMediaHover(false);
       }}
     >
       {shouldRenderVideoElement ? (
@@ -626,6 +656,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             }
           }}
           onError={() => {
+            setIsVideoHoverIntentActive(false);
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
             if (!effectiveIsLoading) {
@@ -860,6 +891,23 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {item.remuxRecovery?.retryable && onRetryVoiceChangerVideo ? (
+        <button
+          type="button"
+          className="reference-card-action-btn reference-card-reroll-btn"
+          aria-label="Retry video"
+          title="Retry video without another charge"
+          disabled={item.remuxRecovery.status === "pending"}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectOutput(item.id);
+            onRetryVoiceChangerVideo(item);
+          }}
+        >
+          <ArrowClockwise size={16} weight="bold" aria-hidden />
+          <span>Retry video</span>
+        </button>
       ) : null}
       {!hideReferenceActions && shouldShowReferenceActionRow ? (
         <div className="reference-card-actions" aria-label="Reference actions">

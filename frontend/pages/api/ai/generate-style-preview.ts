@@ -1,7 +1,7 @@
 /**
  * Generates a square style-card preview image for prompt-only custom Styles Library creation.
- * The route bills through the canonical Create image pricing path but returns only a compact
- * data URL for style preference persistence, avoiding normal Reference Grid/media artifacts.
+ * The route bills as a style-preview helper and returns only a compact data URL for style
+ * preference persistence, avoiding normal Reference Grid/media artifacts.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import sharp from "sharp";
@@ -168,6 +168,7 @@ export default async function handler(
       modelId: FAL_FLUX_2_KLEIN_STYLE_PREVIEW_MODEL_ID,
       payload: providerPayload,
       reason: "fal-flux-2-klein style preview generation",
+      billingWorkflow: "style_preview",
       shortpulseContext,
     });
     if (!charge) return;

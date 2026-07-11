@@ -1001,6 +1001,7 @@ export const createFalSubmitHandler = ({
       modelId,
       payload: billingPayload,
       reason: `${routeLabel} generation`,
+      billingWorkflow: generationMode === "video" ? "video" : "image",
       skipBilling,
     });
     if (!charge) return;

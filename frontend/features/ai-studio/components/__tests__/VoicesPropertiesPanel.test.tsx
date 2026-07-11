@@ -30,6 +30,7 @@ import { preparePromptReferenceDrag, prepareReferenceDrag } from "../../utils/dr
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
 const uploadVoiceChangerSourceFileMock = vi.hoisted(() => vi.fn());
+const stageVoiceChangerVideoReferenceSourceMock = vi.hoisted(() => vi.fn());
 const uploadVoiceCloneSourceFileMock = vi.hoisted(() => vi.fn());
 const extractVoiceChangerVideoSourceMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerMediaDurationMsMock = vi.hoisted(() => vi.fn());
@@ -152,6 +153,8 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 
 vi.mock("../../utils/voiceChangerSourceAsset", () => ({
   uploadVoiceChangerSourceFile: (...args: unknown[]) => uploadVoiceChangerSourceFileMock(...args),
+  stageVoiceChangerVideoReferenceSource: (...args: unknown[]) =>
+    stageVoiceChangerVideoReferenceSourceMock(...args),
   uploadVoiceCloneSourceFile: (...args: unknown[]) => uploadVoiceCloneSourceFileMock(...args),
   extractVoiceChangerVideoSource: (...args: unknown[]) =>
     extractVoiceChangerVideoSourceMock(...args),
@@ -182,6 +185,7 @@ describe("VoicesPropertiesPanel", () => {
     fetchWithAuthMock.mockReset();
     extractAudioWaveformPeaksFromUrlMock.mockReset();
     uploadVoiceChangerSourceFileMock.mockReset();
+    stageVoiceChangerVideoReferenceSourceMock.mockReset();
     uploadVoiceCloneSourceFileMock.mockReset();
     extractVoiceChangerVideoSourceMock.mockReset();
     resolveVoiceChangerMediaDurationMsMock.mockReset();
@@ -199,6 +203,15 @@ describe("VoicesPropertiesPanel", () => {
       name: file.name,
       size: file.size,
     }));
+    stageVoiceChangerVideoReferenceSourceMock.mockImplementation(
+      async ({ sourceName }: { sourceName: string }) => ({
+        storagePath: `user-1/voice-changer/source-video/${sourceName}`,
+        signedUrl: `https://signed.example/${encodeURIComponent(sourceName)}`,
+        mimeType: "video/mp4",
+        name: sourceName,
+        size: 1024,
+      })
+    );
     uploadVoiceCloneSourceFileMock.mockImplementation(async ({ file }: { file: File }) => ({
       storagePath: `user-1/voice-clone/source-audio/${file.name}`,
       signedUrl: `https://signed.example/${encodeURIComponent(file.name)}`,
@@ -1127,8 +1140,16 @@ describe("VoicesPropertiesPanel", () => {
     expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalled();
     expect(screen.queryByText(/using extracted audio/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/5 B ready for conversion/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("demo-clip.mp4")).not.toBeInTheDocument();
-    expect(screen.queryByText("Video source")).not.toBeInTheDocument();
+    expect(screen.getByText("demo-clip.mp4")).toBeInTheDocument();
+    expect(screen.getByText("Video source")).toBeInTheDocument();
+    expect(screen.getByText("Preview unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Video source preview unavailable" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /source audio preview/i })).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".voices-properties-voice-changer-audio-waveform")
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("From your computer")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
@@ -1273,6 +1294,7 @@ describe("VoicesPropertiesPanel", () => {
         voiceChangerSource={{
           id: "source-without-authority",
           kind: "audio",
+          displayKind: "audio",
           origin: "local",
           status: "ready",
           aspect: null,
@@ -1281,6 +1303,7 @@ describe("VoicesPropertiesPanel", () => {
           mimeType: "audio/wav",
           file: null,
           previewUrl: null,
+          posterUrl: null,
           sourceUrl: null,
           objectUrl: null,
           storagePath: null,
@@ -1329,6 +1352,7 @@ describe("VoicesPropertiesPanel", () => {
         voiceChangerSource={{
           id: "blob-only-source",
           kind: "audio",
+          displayKind: "audio",
           origin: "local",
           status: "ready",
           aspect: null,
@@ -1337,6 +1361,7 @@ describe("VoicesPropertiesPanel", () => {
           mimeType: "audio/wav",
           file: null,
           previewUrl: null,
+          posterUrl: null,
           sourceUrl: "blob:http://localhost:3000/unstaged-source",
           objectUrl: "blob:http://localhost:3000/unstaged-source",
           storagePath: null,
@@ -1511,9 +1536,9 @@ describe("VoicesPropertiesPanel", () => {
     expect(
       container.querySelector(".voices-properties-voice-changer-dropzone-loading-preview")
     ).toBeNull();
-    await waitFor(() => {
-      expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
-    });
+    expect(revokeObjectUrlMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1));
   });
 
   it("keeps the voice changer source loaded across panel unmounts within the page session", async () => {
@@ -1883,9 +1908,11 @@ describe("VoicesPropertiesPanel", () => {
 
   it("promotes resolved voice changer audio preview duration back to the source", () => {
     const onSourceChange = vi.fn();
+    const onSourceMetadataChange = vi.fn();
     const source: VoiceChangerSource = {
       id: "source-audio",
       kind: "audio",
+      displayKind: "audio",
       origin: "local",
       status: "ready",
       aspect: null,
@@ -1894,6 +1921,7 @@ describe("VoicesPropertiesPanel", () => {
       mimeType: "audio/mpeg",
       file: null,
       previewUrl: null,
+      posterUrl: null,
       sourceUrl: "https://example.com/voice-source.mp3",
       objectUrl: null,
       storagePath: "users/demo/voice-source.mp3",
@@ -1904,7 +1932,11 @@ describe("VoicesPropertiesPanel", () => {
     };
 
     const { container } = render(
-      <VoiceChangerSourceDropzone source={source} onSourceChange={onSourceChange} />
+      <VoiceChangerSourceDropzone
+        source={source}
+        onSourceChange={onSourceChange}
+        onSourceMetadataChange={onSourceMetadataChange}
+      />
     );
     const audioNode = container.querySelector(
       ".voices-properties-voice-changer-audio-element"
@@ -1919,10 +1951,55 @@ describe("VoicesPropertiesPanel", () => {
 
     fireEvent.loadedMetadata(audioNode as HTMLAudioElement);
 
-    expect(onSourceChange).toHaveBeenCalledWith({
-      ...source,
-      durationMs: 15_000,
-    });
+    expect(onSourceMetadataChange).toHaveBeenCalledWith(source.id, { durationMs: 15_000 });
+    expect(onSourceChange).not.toHaveBeenCalled();
+  });
+
+  it("renders a poster instead of waveform controls for extracted video audio", () => {
+    const source: VoiceChangerSource = {
+      id: "source-video-derived",
+      kind: "audio",
+      displayKind: "video",
+      origin: "local",
+      status: "ready",
+      aspect: null,
+      durationMs: 10_000,
+      name: "clip.wav",
+      mimeType: "audio/wav",
+      file: null,
+      previewUrl: null,
+      posterUrl: "data:image/jpeg;base64,poster",
+      sourceUrl: "https://example.com/clip.wav",
+      objectUrl: null,
+      storagePath: "users/demo/clip.wav",
+      referenceOutputId: null,
+      referenceMediaId: null,
+      errorMessage: null,
+      extractedFrom: {
+        kind: "video",
+        name: "clip.mp4",
+        mimeType: "video/mp4",
+        previewUrl: null,
+        sourceUrl: "https://example.com/clip.mp4",
+        storagePath: "users/demo/clip.mp4",
+        aspect: "16:9",
+        referenceOutputId: null,
+        referenceMediaId: null,
+      },
+    };
+
+    const { container } = render(
+      <VoiceChangerSourceDropzone source={source} onSourceChange={vi.fn()} />
+    );
+
+    expect(screen.getByRole("img", { name: "clip.mp4 video poster" })).toHaveAttribute(
+      "src",
+      source.posterUrl
+    );
+    expect(screen.queryByRole("button", { name: /source audio preview/i })).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".voices-properties-voice-changer-audio-waveform")
+    ).not.toBeInTheDocument();
   });
 
   it("accepts a native local audio file drag into the voice changer drop zone", async () => {
@@ -1962,6 +2039,97 @@ describe("VoicesPropertiesPanel", () => {
 
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Play source audio preview" })).toBeInTheDocument();
+  });
+
+  it("ignores a delayed internal reference resolution after a newer source selection", async () => {
+    const resolution = createDeferred<VoiceChangerSource | null>();
+    const onSourceChange = vi.fn();
+    const { container } = render(
+      <VoiceChangerSourceDropzone
+        source={null}
+        onSourceChange={onSourceChange}
+        resolveInternalReferenceSource={() => resolution.promise}
+      />
+    );
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    const internalTransfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-url"],
+      files: [],
+      getData: (type: string) =>
+        ({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-output-id": "output-slow",
+          "text/reference-url": "https://cdn.shortpulse.test/slow-reference.mp3",
+        })[type] ?? "",
+      dropEffect: "none",
+    };
+
+    fireEvent.drop(dropZone, { dataTransfer: internalTransfer });
+
+    const newerFile = new File(["newer"], "newer-source.mp3", { type: "audio/mpeg" });
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [newerFile] } });
+
+    expect(onSourceChange).toHaveBeenCalledTimes(1);
+    expect(onSourceChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: "newer-source.mp3" })
+    );
+
+    await act(async () => {
+      resolution.resolve(
+        createVoiceChangerSourceFromFile(
+          new File(["slow"], "slow-reference.mp3", { type: "audio/mpeg" })
+        )
+      );
+      await resolution.promise;
+    });
+
+    expect(onSourceChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not restore a delayed internal reference after the source is removed", async () => {
+    const resolution = createDeferred<VoiceChangerSource | null>();
+    const onSourceChange = vi.fn();
+    render(
+      <VoiceChangerSourceDropzone
+        source={createVoiceChangerSourceFromFile(
+          new File(["current"], "current-source.mp3", { type: "audio/mpeg" })
+        )}
+        onSourceChange={onSourceChange}
+        resolveInternalReferenceSource={() => resolution.promise}
+      />
+    );
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    const internalTransfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-url"],
+      files: [],
+      getData: (type: string) =>
+        ({
+          "text/reference-origin": "ai-studio-reference-grid",
+          "text/reference-output-id": "output-slow",
+          "text/reference-url": "https://cdn.shortpulse.test/slow-reference.mp3",
+        })[type] ?? "",
+      dropEffect: "none",
+    };
+
+    fireEvent.drop(dropZone, { dataTransfer: internalTransfer });
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(onSourceChange).toHaveBeenCalledTimes(1);
+    expect(onSourceChange).toHaveBeenCalledWith(null);
+
+    await act(async () => {
+      resolution.resolve(
+        createVoiceChangerSourceFromFile(
+          new File(["slow"], "slow-reference.mp3", { type: "audio/mpeg" })
+        )
+      );
+      await resolution.promise;
+    });
+
+    expect(onSourceChange).toHaveBeenCalledTimes(1);
   });
 
   it("treats a staged audio webm as audio even when the local file initially looks like video", async () => {
@@ -2072,16 +2240,22 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.drop(dropZone, { dataTransfer });
 
     await waitFor(() => {
-      expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalledWith({
+      expect(stageVoiceChangerVideoReferenceSourceMock).toHaveBeenCalledWith({
         sourceName: "shot-01.mp4",
-        sourceOrigin: "reference-grid",
         sourceMimeType: "video/mp4",
         sourceStoragePath: null,
         sourceUrl: "https://cdn.shortpulse.test/renders/shot-01.mp4",
       });
+      expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalledWith({
+        sourceName: "shot-01.mp4",
+        sourceOrigin: "reference-grid",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: "user-1/voice-changer/source-video/shot-01.mp4",
+        sourceUrl: "https://signed.example/shot-01.mp4",
+      });
     });
 
-    expect(screen.queryByText("shot-01.mp4")).not.toBeInTheDocument();
+    expect(screen.getByText("shot-01.mp4")).toBeInTheDocument();
     expect(screen.queryByText("Reference Grid")).not.toBeInTheDocument();
     expect(screen.getByText("Extracted audio is ready for conversion.")).toBeInTheDocument();
     expect(screen.queryByText(/using extracted audio/i)).not.toBeInTheDocument();
@@ -2458,16 +2632,22 @@ describe("VoicesPropertiesPanel", () => {
     fireEvent.drop(dropZone, { dataTransfer });
 
     await waitFor(() => {
-      expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalledWith({
+      expect(stageVoiceChangerVideoReferenceSourceMock).toHaveBeenCalledWith({
         sourceName: "shot-02.mp4",
-        sourceOrigin: "reference-grid",
         sourceMimeType: "video/mp4",
         sourceStoragePath: null,
         sourceUrl: "https://cdn.shortpulse.test/renders/shot-02.mp4",
       });
+      expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalledWith({
+        sourceName: "shot-02.mp4",
+        sourceOrigin: "reference-grid",
+        sourceMimeType: "video/mp4",
+        sourceStoragePath: "user-1/voice-changer/source-video/shot-02.mp4",
+        sourceUrl: "https://signed.example/shot-02.mp4",
+      });
     });
 
-    expect(screen.queryByText("shot-02.mp4")).not.toBeInTheDocument();
+    expect(screen.getByText("shot-02.mp4")).toBeInTheDocument();
     expect(screen.queryByText("Reference Grid")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });

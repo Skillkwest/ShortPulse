@@ -160,6 +160,7 @@ export const useAiStudioAgentOrchestration = ({
           preparedImageUrlCacheRef,
           textOverride,
           options,
+          isSendAuthorized: () => runtimePolicy.kind === "standard",
         });
       }
 

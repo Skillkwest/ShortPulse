@@ -14,6 +14,7 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - If evidence proves a narrow app-owned source defect and the current thread authorizes solving discovered issues, fix the canonical source and run focused validation before clearing the row. If the fix belongs to another owner lane or requires approval-gated UI/UX, security/privacy, billing/credit, deploy, push, provider-spend, replay, or production mutation work, keep the row open or hand it off with proof and the exact blocker.
 - For pasted triage batches, the owner expects Badearsai to audit, classify, organize, and then remove reviewed items from the default Admin Errors panel through the correct status treatment when safe.
 - Admin Errors cleanup is not complete until Badearsai performs a final production readback using the same default queue visibility rules as `frontend/pages/api/admin/errors.ts`. If visible rows remain, classify each one as in-scope watched/noise cleanup, real owner-lane work, blocked pending proof, or out-of-scope, then clear or name the stop boundary.
+- Prefer `node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs queue|status|update` for Admin Errors queue readback, exact incident status checks, and one-row reviewed status updates. The helper wraps canonical queue filters and the canonical `admin_update_app_error_status` RPC; it does not replace source tracing or classification.
 - For `check crash log` / `/admin/crashes`, Badearsai should run the Crash Log SOP, pull current rows from production instead of asking for pasted packets, classify browser crash-session evidence one row at a time, and clear reviewed rows from Needs Review through `review_status` only when the classification is decision-grade.
 - Do not mutate production beyond reviewed Admin Errors status treatment for pasted batches or reviewed Crash Logs status treatment during `check crash log` runs. Never replay jobs, spend credits, deploy, push, change billing/security/UI, or perform destructive actions unless the current thread explicitly authorizes that exact action.
 
@@ -58,6 +59,7 @@ Local memory is advisory. Current user instructions, current triage packets, rep
 - Browser crash-session evidence/classification: `frontend/lib/server/api/browserCrashSessions.ts`.
 - Triage packet builders: `frontend/features/admin/logic/triagePackets.ts`.
 - Admin status update APIs: `frontend/pages/api/admin/errors-status.ts` and `frontend/pages/api/admin/errors-status-bulk.ts`.
+- Admin Errors helper: `docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs`.
 - Monitoring contract: `docs/monitoring.md`.
 - Admin handoff workflow: `docs/troubleshooting.md`.
 - Route inventory: `docs/routes.md` and `docs/api/api-internal-routes.md`.

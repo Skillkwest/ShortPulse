@@ -4,6 +4,7 @@
  * crash-session table without changing visible app behavior.
  */
 import { readCachedSupabaseAccessToken } from "./supabaseAccessTokenHints";
+import { readMediaPerfCrashEvidence } from "./mediaPerfTelemetry";
 
 type BrowserSessionEventType =
   | "session_start"
@@ -17,8 +18,7 @@ type BrowserSessionEventType =
   | "clean_close"
   | "main_thread_stall"
   | "pressure_snapshot"
-  | "previous_session_abandoned"
-  | "crash_report";
+  | "previous_session_abandoned";
 
 type BrowserSessionRecord = {
   sessionId: string;
@@ -28,15 +28,23 @@ type BrowserSessionRecord = {
   tabId: string | null;
 };
 
-type ActiveTabSessionRecord = {
+type PeerBrowserSessionRecord = {
+  version: 2;
+  tabId: string;
   sessionId: string;
   updatedAt: number;
+  cleanClosedAt: number | null;
+  bfcacheSuspended: boolean;
+  route: string | null;
+  visibilityState: DocumentVisibilityState | null;
+  abandonmentReportedAt: number | null;
 };
 
 type BrowserSessionMonitorState = {
   sessionId: string;
   tabId: string;
   heartbeatId: number | null;
+  peerScanId: number | null;
   stallProbeId: number | null;
   lastStallTickMs: number;
   lastStallReportMs: number;
@@ -56,32 +64,25 @@ declare global {
       set?: (key: string, value: string) => void;
       delete?: (key: string) => void;
     };
-    ReportingObserver?: new (
-      callback: (
-        reports: Array<{
-          type?: string;
-          url?: string;
-        }>
-      ) => void,
-      options?: { types?: string[]; buffered?: boolean }
-    ) => {
-      observe: () => void;
-      disconnect: () => void;
-    };
   }
 }
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
+const PEER_SCAN_INTERVAL_MS = 15_000;
 const STALL_PROBE_INTERVAL_MS = 1000;
 const MAIN_THREAD_STALL_THRESHOLD_MS = 2000;
 const STALL_REPORT_COOLDOWN_MS = 60_000;
 const ABANDONED_SESSION_MIN_AGE_MS = HEARTBEAT_INTERVAL_MS * 3;
 const ABANDONED_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const ACTIVE_TAB_STALE_AFTER_MS = HEARTBEAT_INTERVAL_MS * 2 + 5000;
+const VISIBLE_PEER_STALE_AFTER_MS = HEARTBEAT_INTERVAL_MS * 2 + 5000;
+const HIDDEN_PEER_STALE_AFTER_MS = 10 * 60 * 1000;
 const CURRENT_SESSION_STORAGE_KEY = "shortpulse.browser_session.current.v1";
 const LAST_SESSION_STORAGE_KEY = "shortpulse.browser_session.last.v1";
 const TAB_ID_STORAGE_KEY = "shortpulse.browser_session.tab_id.v1";
 const ACTIVE_TABS_STORAGE_KEY = "shortpulse.browser_session.active_tabs.v1";
+const PEER_SESSION_STORAGE_PREFIX = "shortpulse.browser_session.peer.v2.";
+const MAX_PEER_SESSION_RECORDS = 64;
+const MAX_PEER_SESSION_KEYS_SCANNED = 128;
 const TERMINAL_SESSION_EVENTS = new Set<BrowserSessionEventType>([
   "visibility_hidden",
   "pagehide",
@@ -94,6 +95,8 @@ let crashReportContextInitialization: Promise<void> | null = null;
 let pendingCrashReportContext: { sessionId: string; metadata: JsonObject } | null = null;
 let latestBrowserStorageEstimateMetadata: JsonObject = {};
 let browserStorageEstimateRefreshInFlight: Promise<void> | null = null;
+const abandonmentReportsInFlight = new Set<string>();
+const cleanCloseReportsInFlight = new Set<string>();
 
 const nowMs = (): number => Date.now();
 
@@ -119,7 +122,7 @@ const readOrCreateTabId = (): string => {
 
 const currentRoute = (): string | null => {
   if (typeof window === "undefined") return null;
-  return `${window.location.pathname}${window.location.search}`.slice(0, 320);
+  return redactedPathFromUrl(`${window.location.pathname}${window.location.search}`);
 };
 
 const redactedCurrentRoute = (): string | null => {
@@ -194,6 +197,11 @@ const clearCrashReportContext = (): void => {
     "shortpulse_long_task_p95_ms",
     "shortpulse_heap_used_to_total_ratio",
     "shortpulse_heap_used_to_limit_ratio",
+    "shortpulse_media_grid_tracked_video_nodes",
+    "shortpulse_media_grid_attached_video_sources",
+    "shortpulse_media_canvas_attached_video_sources",
+    "shortpulse_media_duration_probe_inflight",
+    "shortpulse_media_duration_probe_queued",
   ]) {
     try {
       window.crashReport.delete(key);
@@ -223,6 +231,26 @@ const syncCrashReportContext = (sessionId: string, metadata: JsonObject): void =
     "shortpulse_heap_used_to_limit_ratio",
     metadata.heap_used_to_limit_ratio
   );
+  writeCrashReportContextValue(
+    "shortpulse_media_grid_tracked_video_nodes",
+    metadata.media_grid_tracked_video_node_count
+  );
+  writeCrashReportContextValue(
+    "shortpulse_media_grid_attached_video_sources",
+    metadata.media_grid_attached_video_source_count
+  );
+  writeCrashReportContextValue(
+    "shortpulse_media_canvas_attached_video_sources",
+    metadata.media_canvas_attached_video_source_count
+  );
+  writeCrashReportContextValue(
+    "shortpulse_media_duration_probe_inflight",
+    metadata.media_duration_probe_inflight_count
+  );
+  writeCrashReportContextValue(
+    "shortpulse_media_duration_probe_queued",
+    metadata.media_duration_probe_queued_count
+  );
 };
 
 const readStoredSessionRecord = (): BrowserSessionRecord | null => {
@@ -244,75 +272,121 @@ const readStoredSessionRecord = (): BrowserSessionRecord | null => {
   }
 };
 
-const writeStoredSessionRecord = (record: BrowserSessionRecord): void => {
-  if (typeof window === "undefined") return;
+const peerSessionStorageKey = (tabId: string, sessionId: string): string =>
+  `${PEER_SESSION_STORAGE_PREFIX}${tabId}.${sessionId}`;
+
+const parsePeerSessionRecord = (raw: string | null): PeerBrowserSessionRecord | null => {
+  if (!raw) return null;
   try {
-    window.localStorage.setItem(LAST_SESSION_STORAGE_KEY, JSON.stringify(record));
+    const value = JSON.parse(raw) as Partial<PeerBrowserSessionRecord>;
+    if (
+      value.version !== 2 ||
+      typeof value.tabId !== "string" ||
+      typeof value.sessionId !== "string" ||
+      typeof value.updatedAt !== "number"
+    ) {
+      return null;
+    }
+    return {
+      version: 2,
+      tabId: value.tabId,
+      sessionId: value.sessionId,
+      updatedAt: value.updatedAt,
+      cleanClosedAt: typeof value.cleanClosedAt === "number" ? value.cleanClosedAt : null,
+      bfcacheSuspended: value.bfcacheSuspended === true,
+      route: typeof value.route === "string" ? value.route : null,
+      visibilityState:
+        value.visibilityState === "visible" || value.visibilityState === "hidden"
+          ? value.visibilityState
+          : null,
+      abandonmentReportedAt:
+        typeof value.abandonmentReportedAt === "number" ? value.abandonmentReportedAt : null,
+    };
   } catch {
-    // Best-effort local recovery marker only.
+    return null;
   }
 };
 
-const readActiveTabRecords = (): Record<string, ActiveTabSessionRecord> => {
-  if (typeof window === "undefined") return {};
+const readPeerSessionRecord = (
+  tabId: string,
+  sessionId: string
+): PeerBrowserSessionRecord | null => {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(ACTIVE_TABS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, Partial<ActiveTabSessionRecord>>;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const output: Record<string, ActiveTabSessionRecord> = {};
-    for (const [tabId, record] of Object.entries(parsed)) {
-      if (
-        typeof tabId === "string" &&
-        typeof record?.sessionId === "string" &&
-        typeof record.updatedAt === "number"
-      ) {
-        output[tabId] = {
-          sessionId: record.sessionId,
-          updatedAt: record.updatedAt,
-        };
+    return parsePeerSessionRecord(
+      window.localStorage.getItem(peerSessionStorageKey(tabId, sessionId))
+    );
+  } catch {
+    return null;
+  }
+};
+
+const writePeerSessionRecord = (record: PeerBrowserSessionRecord): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      peerSessionStorageKey(record.tabId, record.sessionId),
+      JSON.stringify(record)
+    );
+  } catch {
+    // Best-effort per-tab recovery evidence only.
+  }
+};
+
+const clearPeerSessionRecord = (tabId: string, sessionId: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(peerSessionStorageKey(tabId, sessionId));
+  } catch {
+    // Best-effort per-tab recovery evidence only.
+  }
+};
+
+const listPeerSessionRecords = (): PeerBrowserSessionRecord[] => {
+  if (typeof window === "undefined") return [];
+  const records: PeerBrowserSessionRecord[] = [];
+  try {
+    const keys = Array.from({ length: window.localStorage.length }, (_, index) =>
+      window.localStorage.key(index)
+    ).filter((key): key is string => Boolean(key?.startsWith(PEER_SESSION_STORAGE_PREFIX)));
+    const currentTime = nowMs();
+    for (const [index, key] of keys.entries()) {
+      if (index >= MAX_PEER_SESSION_KEYS_SCANNED) {
+        window.localStorage.removeItem(key);
+        continue;
       }
+      const record = parsePeerSessionRecord(window.localStorage.getItem(key));
+      const ageMs = record ? currentTime - record.updatedAt : Number.POSITIVE_INFINITY;
+      if (
+        !record ||
+        record.abandonmentReportedAt !== null ||
+        !Number.isFinite(ageMs) ||
+        ageMs < 0 ||
+        ageMs > ABANDONED_SESSION_MAX_AGE_MS
+      ) {
+        window.localStorage.removeItem(key);
+        continue;
+      }
+      records.push(record);
     }
-    return output;
+    records.sort((left, right) => right.updatedAt - left.updatedAt);
+    for (const record of records.slice(MAX_PEER_SESSION_RECORDS)) {
+      clearPeerSessionRecord(record.tabId, record.sessionId);
+    }
   } catch {
-    return {};
+    return [];
   }
+  return records.slice(0, MAX_PEER_SESSION_RECORDS);
 };
 
-const writeActiveTabRecords = (records: Record<string, ActiveTabSessionRecord>): void => {
+const clearLegacySessionMarkers = (): void => {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(ACTIVE_TABS_STORAGE_KEY, JSON.stringify(records));
+    window.localStorage.removeItem(LAST_SESSION_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVE_TABS_STORAGE_KEY);
   } catch {
-    // Best-effort cross-tab coordination only.
+    // One-release legacy marker retirement is best effort.
   }
-};
-
-const pruneActiveTabRecords = (
-  records: Record<string, ActiveTabSessionRecord>,
-  updatedAt: number
-): Record<string, ActiveTabSessionRecord> => {
-  const output: Record<string, ActiveTabSessionRecord> = {};
-  for (const [tabId, record] of Object.entries(records)) {
-    const ageMs = updatedAt - record.updatedAt;
-    if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= ACTIVE_TAB_STALE_AFTER_MS) {
-      output[tabId] = record;
-    }
-  }
-  return output;
-};
-
-const touchActiveTabRecord = (tabId: string, sessionId: string, updatedAt: number): void => {
-  writeActiveTabRecords({
-    ...pruneActiveTabRecords(readActiveTabRecords(), updatedAt),
-    [tabId]: { sessionId, updatedAt },
-  });
-};
-
-const clearActiveTabRecord = (tabId: string, updatedAt: number): void => {
-  const records = pruneActiveTabRecords(readActiveTabRecords(), updatedAt);
-  delete records[tabId];
-  writeActiveTabRecords(records);
 };
 
 const writeCurrentSessionId = (sessionId: string): void => {
@@ -321,6 +395,16 @@ const writeCurrentSessionId = (sessionId: string): void => {
     window.sessionStorage.setItem(CURRENT_SESSION_STORAGE_KEY, sessionId);
   } catch {
     // Diagnostic correlation only.
+  }
+};
+
+const readCurrentSessionId = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.sessionStorage.getItem(CURRENT_SESSION_STORAGE_KEY);
+    return value?.trim() || null;
+  } catch {
+    return null;
   }
 };
 
@@ -343,9 +427,8 @@ const readBrowserMemoryMetadata = (): JsonObject => {
     used_js_heap_size: Math.round(used),
     total_js_heap_size: Math.round(total),
     js_heap_size_limit: typeof limit === "number" ? Math.round(limit) : null,
+    heap_used_to_total_ratio: Math.round((used / total) * 1000) / 1000,
     heap_used_to_limit_ratio:
-      typeof limit === "number" && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
-    heap_usage_ratio:
       typeof limit === "number" && limit > 0 ? Math.round((used / limit) * 1000) / 1000 : null,
   };
 };
@@ -446,6 +529,7 @@ const readRuntimeMetadata = (): JsonObject => {
         ? window.isSecureContext
         : null,
     ...readBrowserMemoryMetadata(),
+    ...readMediaPerfCrashEvidence(),
     ...readDeviceMetadata(),
   };
 };
@@ -455,12 +539,15 @@ const sendBrowserSessionEvent = async (params: {
   sessionId: string;
   previousSessionId?: string | null;
   metadata?: JsonObject;
-}): Promise<void> => {
+  route?: string | null;
+  occurredAt?: string;
+  includeRuntimeMetadata?: boolean;
+}): Promise<boolean> => {
   const token = readCachedSupabaseAccessToken();
-  if (!token) return;
+  if (!token) return false;
   maybeRefreshBrowserStorageEstimateMetadata(params.eventType);
 
-  await fetch("/api/log/browser-session", {
+  const response = await fetch("/api/log/browser-session", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -470,16 +557,17 @@ const sendBrowserSessionEvent = async (params: {
       eventType: params.eventType,
       sessionId: params.sessionId,
       previousSessionId: params.previousSessionId ?? null,
-      route: currentRoute(),
-      occurredAt: new Date().toISOString(),
+      route: params.route === undefined ? currentRoute() : params.route,
+      occurredAt: params.occurredAt ?? new Date().toISOString(),
       metadata: {
-        ...readRuntimeMetadata(),
-        ...latestBrowserStorageEstimateMetadata,
+        ...(params.includeRuntimeMetadata === false ? {} : readRuntimeMetadata()),
+        ...(params.includeRuntimeMetadata === false ? {} : latestBrowserStorageEstimateMetadata),
         ...(params.metadata ?? {}),
       },
     }),
     keepalive: true,
   });
+  return response.ok;
 };
 
 const reportEvent = (
@@ -488,43 +576,139 @@ const reportEvent = (
   previousSessionId: string | null = null
 ): void => {
   if (!activeMonitor) return;
+  const monitor = activeMonitor;
   const updatedAt = nowMs();
-  const cleanClosedAt = eventType === "clean_close" ? updatedAt : null;
-  writeStoredSessionRecord({
-    sessionId: activeMonitor.sessionId,
+  const previousRecord = readPeerSessionRecord(monitor.tabId, monitor.sessionId);
+  const cleanClosedAt =
+    eventType === "clean_close" ? updatedAt : (previousRecord?.cleanClosedAt ?? null);
+  const bfcacheSuspended =
+    eventType === "pagehide"
+      ? metadata.pagehide_persisted === true
+      : eventType === "pageshow" || eventType === "clean_close"
+        ? false
+        : (previousRecord?.bfcacheSuspended ?? false);
+  writePeerSessionRecord({
+    version: 2,
+    tabId: monitor.tabId,
+    sessionId: monitor.sessionId,
     updatedAt,
     cleanClosedAt,
+    bfcacheSuspended,
     route: currentRoute(),
-    tabId: activeMonitor.tabId,
+    visibilityState: document.visibilityState,
+    abandonmentReportedAt:
+      previousRecord?.sessionId === activeMonitor.sessionId
+        ? previousRecord.abandonmentReportedAt
+        : null,
   });
-  if (eventType === "clean_close") {
-    clearActiveTabRecord(activeMonitor.tabId, updatedAt);
-  } else {
-    touchActiveTabRecord(activeMonitor.tabId, activeMonitor.sessionId, updatedAt);
-  }
-  syncCrashReportContext(activeMonitor.sessionId, {
+  syncCrashReportContext(monitor.sessionId, {
     ...readRuntimeMetadata(),
     ...metadata,
   });
   void sendBrowserSessionEvent({
     eventType,
-    sessionId: activeMonitor.sessionId,
+    sessionId: monitor.sessionId,
     previousSessionId,
     metadata,
-  }).catch(() => undefined);
+  })
+    .then((sent) => {
+      if (!sent || eventType !== "clean_close") return;
+      const current = readPeerSessionRecord(monitor.tabId, monitor.sessionId);
+      if (current?.cleanClosedAt === cleanClosedAt) {
+        clearPeerSessionRecord(current.tabId, current.sessionId);
+      }
+    })
+    .catch(() => undefined);
 };
 
-const maybeReportPreviousAbandonedSession = (
-  currentSessionId: string,
-  currentTabId: string,
-  previous: BrowserSessionRecord | null
+const reportCleanClosedPeerSession = (record: PeerBrowserSessionRecord): void => {
+  if (!activeMonitor || record.cleanClosedAt === null) return;
+  if (record.sessionId === activeMonitor.sessionId) return;
+  if (cleanCloseReportsInFlight.has(record.sessionId)) return;
+  cleanCloseReportsInFlight.add(record.sessionId);
+  void sendBrowserSessionEvent({
+    eventType: "clean_close",
+    sessionId: record.sessionId,
+    route: record.route,
+    occurredAt: new Date(record.cleanClosedAt).toISOString(),
+    includeRuntimeMetadata: false,
+  })
+    .then((sent) => {
+      if (!sent) return;
+      const current = readPeerSessionRecord(record.tabId, record.sessionId);
+      if (current?.cleanClosedAt === record.cleanClosedAt) {
+        clearPeerSessionRecord(record.tabId, record.sessionId);
+      }
+    })
+    .catch(() => undefined)
+    .finally(() => cleanCloseReportsInFlight.delete(record.sessionId));
+};
+
+const reportAbandonedPeerSession = (
+  record: PeerBrowserSessionRecord,
+  options: { sameTabReplacement?: boolean } = {}
 ): void => {
-  if (!previous || previous.cleanClosedAt !== null) return;
-  if (previous.sessionId === currentSessionId) return;
-  if (previous.tabId && previous.tabId !== currentTabId) {
-    const previousTab = readActiveTabRecords()[previous.tabId];
-    if (previousTab?.sessionId === previous.sessionId) return;
+  if (
+    !activeMonitor ||
+    record.cleanClosedAt !== null ||
+    record.bfcacheSuspended ||
+    record.abandonmentReportedAt !== null
+  )
+    return;
+  if (record.sessionId === activeMonitor.sessionId) return;
+  const ageMs = nowMs() - record.updatedAt;
+  const staleAfterMs =
+    record.visibilityState === "hidden" ? HIDDEN_PEER_STALE_AFTER_MS : VISIBLE_PEER_STALE_AFTER_MS;
+  if (
+    !Number.isFinite(ageMs) ||
+    ageMs < (options.sameTabReplacement ? 0 : staleAfterMs) ||
+    ageMs > ABANDONED_SESSION_MAX_AGE_MS
+  ) {
+    return;
   }
+  if (abandonmentReportsInFlight.has(record.sessionId)) return;
+  abandonmentReportsInFlight.add(record.sessionId);
+  const metadata = {
+    last_heartbeat_age_ms: Math.max(0, ageMs),
+    previous_last_seen_at: new Date(record.updatedAt).toISOString(),
+    previous_visibility_state: record.visibilityState,
+    abandonment_detection_source: options.sameTabReplacement ? "same_tab_replacement" : "peer_scan",
+    status_reason: "previous_session_missing_clean_close",
+  };
+  void sendBrowserSessionEvent({
+    eventType: "previous_session_abandoned",
+    sessionId: activeMonitor.sessionId,
+    previousSessionId: record.sessionId,
+    metadata,
+  })
+    .then((sent) => {
+      if (!sent) return;
+      const current = readPeerSessionRecord(record.tabId, record.sessionId);
+      if (current?.sessionId === record.sessionId) {
+        writePeerSessionRecord({ ...current, abandonmentReportedAt: nowMs() });
+      }
+    })
+    .catch(() => undefined)
+    .finally(() => abandonmentReportsInFlight.delete(record.sessionId));
+};
+
+const scanAbandonedPeerSessions = (): void => {
+  if (!activeMonitor) return;
+  for (const record of listPeerSessionRecords()) {
+    if (record.sessionId === activeMonitor.sessionId) continue;
+    if (record.cleanClosedAt !== null) {
+      reportCleanClosedPeerSession(record);
+      continue;
+    }
+    reportAbandonedPeerSession(record, {
+      sameTabReplacement: record.tabId === activeMonitor.tabId,
+    });
+  }
+};
+
+const maybeReportLegacyAbandonedSession = (previous: BrowserSessionRecord | null): void => {
+  if (!activeMonitor || !previous || previous.cleanClosedAt !== null) return;
+  if (previous.sessionId === activeMonitor.sessionId) return;
   const ageMs = nowMs() - previous.updatedAt;
   if (
     !Number.isFinite(ageMs) ||
@@ -538,6 +722,7 @@ const maybeReportPreviousAbandonedSession = (
     {
       last_heartbeat_age_ms: ageMs,
       previous_last_seen_at: new Date(previous.updatedAt).toISOString(),
+      abandonment_detection_source: "legacy_marker_migration",
       status_reason: "previous_session_missing_clean_close",
     },
     previous.sessionId
@@ -594,7 +779,13 @@ const installHeartbeat = (): number | null => {
   if (typeof window === "undefined") return null;
   return window.setInterval(() => {
     reportEvent("heartbeat", { heartbeat_interval_ms: HEARTBEAT_INTERVAL_MS });
+    scanAbandonedPeerSessions();
   }, HEARTBEAT_INTERVAL_MS);
+};
+
+const installPeerScan = (): number | null => {
+  if (typeof window === "undefined") return null;
+  return window.setInterval(scanAbandonedPeerSessions, PEER_SCAN_INTERVAL_MS);
 };
 
 const installStallProbe = (state: BrowserSessionMonitorState): number | null => {
@@ -617,30 +808,6 @@ const installStallProbe = (state: BrowserSessionMonitorState): number | null => 
   }, STALL_PROBE_INTERVAL_MS);
 };
 
-const installCrashReportObserver = (): (() => void) => {
-  if (typeof window === "undefined" || typeof window.ReportingObserver !== "function") {
-    return () => undefined;
-  }
-  try {
-    const observer = new window.ReportingObserver(
-      (reports) => {
-        reports.forEach((report) => {
-          if (report.type !== "crash") return;
-          reportEvent("crash_report", {
-            crash_report_type: report.type,
-            crash_report_url_path: redactedPathFromUrl(report.url),
-          });
-        });
-      },
-      { types: ["crash"], buffered: true }
-    );
-    observer.observe();
-    return () => observer.disconnect();
-  } catch {
-    return () => undefined;
-  }
-};
-
 /**
  * Reports extra low-cardinality pressure evidence for the active browser session.
  */
@@ -660,13 +827,18 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
 
   const sessionId = createSessionId();
   const tabId = readOrCreateTabId();
-  const previousSession = readStoredSessionRecord();
+  const previousSessionId = readCurrentSessionId();
+  const previousSameTabSession = previousSessionId
+    ? readPeerSessionRecord(tabId, previousSessionId)
+    : (listPeerSessionRecords().find((record) => record.tabId === tabId) ?? null);
+  const previousLegacySession = readStoredSessionRecord();
   writeCurrentSessionId(sessionId);
 
   const state: BrowserSessionMonitorState = {
     sessionId,
     tabId,
     heartbeatId: null,
+    peerScanId: null,
     stallProbeId: null,
     lastStallTickMs: nowMs(),
     lastStallReportMs: 0,
@@ -675,16 +847,21 @@ export const installBrowserSessionHealthMonitor = (): (() => void) => {
   activeMonitor = state;
 
   reportEvent("session_start");
-  maybeReportPreviousAbandonedSession(sessionId, tabId, previousSession);
+  if (previousSameTabSession) {
+    reportAbandonedPeerSession(previousSameTabSession, { sameTabReplacement: true });
+  }
+  maybeReportLegacyAbandonedSession(previousLegacySession);
+  clearLegacySessionMarkers();
+  scanAbandonedPeerSessions();
 
   const cleanupLifecycle = installLifecycleListeners(state);
-  const cleanupCrashReportObserver = installCrashReportObserver();
   state.heartbeatId = installHeartbeat();
+  state.peerScanId = installPeerScan();
   state.stallProbeId = installStallProbe(state);
   state.cleanup = () => {
     cleanupLifecycle();
-    cleanupCrashReportObserver();
     if (state.heartbeatId !== null) window.clearInterval(state.heartbeatId);
+    if (state.peerScanId !== null) window.clearInterval(state.peerScanId);
     if (state.stallProbeId !== null) window.clearInterval(state.stallProbeId);
     clearCrashReportContext();
     if (activeMonitor === state) activeMonitor = null;
@@ -700,4 +877,6 @@ export const resetBrowserSessionHealthMonitorForTests = (): void => {
   pendingCrashReportContext = null;
   latestBrowserStorageEstimateMetadata = {};
   browserStorageEstimateRefreshInFlight = null;
+  abandonmentReportsInFlight.clear();
+  cleanCloseReportsInFlight.clear();
 };

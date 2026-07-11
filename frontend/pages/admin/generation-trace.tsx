@@ -25,6 +25,7 @@ type GenerationTraceResponse = {
     ledgerEntries: number;
     errorEvents: number;
     pricingObservabilityMismatches: number;
+    pricingPolicyConflicts?: number;
   };
   pricingObservabilityMismatchRows: Array<{
     sourceType: "generation" | "reservation" | "ledger";
@@ -40,6 +41,21 @@ type GenerationTraceResponse = {
     mismatch: boolean;
     pricingDisplaySource: string | null;
     pricingPolicyReady: boolean | null;
+  }>;
+  pricingPolicyConflictRows?: Array<{
+    rowId: string | null;
+    requestId: string | null;
+    sourceRef: string | null;
+    observedAt: string | null;
+    code: string | null;
+    message: string | null;
+    modelId: string | null;
+    displayedBilledCredits: number | null;
+    activeBilledCredits: number | null;
+    displayedPricingPolicyVersion: number | null;
+    activePricingPolicyVersion: number | null;
+    displayedPricingVariantId: string | null;
+    activePricingVariantId: string | null;
   }>;
   generations: Array<Record<string, unknown>>;
   generationAttempts: Array<Record<string, unknown>>;
@@ -310,6 +326,10 @@ export default function AdminGenerationTracePage() {
           <h2 className={styles.adminSectionTitle}>Pricing observability mismatches</h2>
           <pre className={styles.adminPreBlock}>
             {pretty(result.pricingObservabilityMismatchRows)}
+          </pre>
+          <h2 className={styles.adminSectionTitle}>Pricing policy conflicts</h2>
+          <pre className={styles.adminPreBlock}>
+            {pretty(result.pricingPolicyConflictRows ?? [])}
           </pre>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
             <button

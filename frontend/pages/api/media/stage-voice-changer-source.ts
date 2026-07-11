@@ -8,8 +8,20 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { enforceApiRateLimit } from "../../../lib/server/api/rateLimit";
 import {
+  assertTrustedRemoteMediaUrl,
+  TrustedRemoteMediaUrlError,
+} from "../../../lib/server/api/trustedRemoteMediaUrl";
+import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import {
+  MAX_VOICE_CHANGER_SOURCE_BYTES,
+  MediaAudioExtractionInputError,
+  readRemoteMediaBuffer,
+  readStoredMediaBuffer,
+} from "../../../lib/server/mediaAudioExtraction";
+import {
   finalizeVoiceChangerSourceUploadForUser,
   MediaUploadServiceError,
+  stageVoiceChangerSourceBufferForUser,
 } from "../../../lib/server/mediaUploadService";
 import {
   recordVoiceSourceLifecycleState,
@@ -21,6 +33,7 @@ type StageVoiceChangerSourceRequestBody = {
   sourceMimeType?: unknown;
   sourceName?: unknown;
   sourceStoragePath?: unknown;
+  sourceUrl?: unknown;
 };
 
 type StageVoiceChangerSourceSuccessResponse = {
@@ -97,6 +110,7 @@ export default async function handler(
     const sourceName = normalizeOptionalString(body.sourceName);
     const sourceMimeType = normalizeOptionalString(body.sourceMimeType).toLowerCase();
     const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);
+    const sourceUrl = normalizeOptionalString(body.sourceUrl);
 
     if (!sourceKind) {
       return res.status(400).json({
@@ -116,20 +130,75 @@ export default async function handler(
         details: "Voice changer source mime type is required.",
       });
     }
-    if (!sourceStoragePath) {
+    if (!sourceStoragePath && !sourceUrl) {
       return res.status(400).json({
         error: "Invalid request",
-        details: "Voice changer source storage path is required.",
+        details: "Voice changer source storage path or trusted URL is required.",
       });
     }
 
-    const staged = await finalizeVoiceChangerSourceUploadForUser({
-      userId: user.id,
-      kind: sourceKind,
-      storagePath: sourceStoragePath,
-      filename: sourceName,
-      declaredMimeType: sourceMimeType,
-    });
+    const canonicalPrefix = `${user.id}/voice-changer/${
+      sourceKind === "video" ? "source-video" : "source-audio"
+    }/`;
+    let sourceDerivation = "direct_upload";
+    const staged = await (async () => {
+      if (sourceStoragePath?.startsWith(canonicalPrefix)) {
+        return await finalizeVoiceChangerSourceUploadForUser({
+          userId: user.id,
+          kind: sourceKind,
+          storagePath: sourceStoragePath,
+          filename: sourceName,
+          declaredMimeType: sourceMimeType,
+        });
+      }
+      if (sourceKind !== "video") {
+        throw new MediaUploadServiceError(
+          400,
+          "Invalid request",
+          "Non-upload Voice Changer source promotion is supported only for video."
+        );
+      }
+
+      let sourceBuffer: Buffer;
+      let authoritativeMimeType = sourceMimeType;
+      if (sourceStoragePath) {
+        const safeStoragePath = assertUserScopedMediaStoragePath({
+          path: sourceStoragePath,
+          userId: user.id,
+          label: "Voice changer reference video storage path",
+        });
+        const stored = await readStoredMediaBuffer({
+          storagePath: safeStoragePath,
+          maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
+        });
+        sourceBuffer = stored.buffer;
+        authoritativeMimeType = stored.contentType ?? authoritativeMimeType;
+        sourceDerivation = "owned_storage_reference";
+      } else {
+        const trustedSourceUrl = await assertTrustedRemoteMediaUrl({
+          rawUrl: sourceUrl!,
+          req,
+          userId: user.id,
+          requireUserScope: true,
+          label: "Voice changer reference video URL",
+        });
+        const remote = await readRemoteMediaBuffer({
+          sourceUrl: trustedSourceUrl.toString(),
+          maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
+        });
+        sourceBuffer = remote.buffer;
+        authoritativeMimeType = remote.contentType ?? authoritativeMimeType;
+        sourceDerivation = "trusted_url_reference";
+      }
+
+      return await stageVoiceChangerSourceBufferForUser({
+        userId: user.id,
+        kind: "video",
+        buffer: sourceBuffer,
+        filename: sourceName,
+        declaredMimeType: authoritativeMimeType,
+      });
+    })();
     await recordVoiceSourceLifecycleState({
       userId: user.id,
       workflowKind: "voice_changer",
@@ -142,6 +211,7 @@ export default async function handler(
         source_name: staged.name,
         mime_type: staged.mimeType,
         size_bytes: staged.size,
+        source_derivation: sourceDerivation,
       },
     }).catch((lifecycleError) =>
       logApiRouteException({
@@ -163,6 +233,15 @@ export default async function handler(
       },
     });
   } catch (error) {
+    if (
+      error instanceof TrustedRemoteMediaUrlError ||
+      error instanceof MediaAudioExtractionInputError
+    ) {
+      return res.status(error.statusCode).json({
+        error: "Invalid request",
+        details: error.message,
+      });
+    }
     if (error instanceof MediaUploadServiceError) {
       if (error.status >= 500) {
         await logApiRouteException({

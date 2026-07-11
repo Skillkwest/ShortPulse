@@ -16,7 +16,10 @@ import {
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   ADMIN_KANBAN_COLUMNS,
+  ADMIN_KANBAN_STATUS_LABELS,
+  ADMIN_KANBAN_STATUS_ORDER,
   type AdminKanbanActionLogEntry,
+  type AdminKanbanColumn,
   type AdminKanbanItem,
   type AdminKanbanStatus,
   parseAdminKanbanActionLog,
@@ -39,7 +42,7 @@ const formatActionDate = (value: string): string =>
   });
 
 const formatStatusLabel = (status: AdminKanbanStatus | null): string | null =>
-  ADMIN_KANBAN_COLUMNS.find((column) => column.id === status)?.label ?? null;
+  status ? ADMIN_KANBAN_STATUS_LABELS[status] : null;
 
 const HUMAN_REVIEW_TITLE_PREFIX = "[HUMAN REVIEW]";
 const HUMAN_REVIEW_BANNER = "*** HUMAN REVIEW REQUIRED ***";
@@ -50,6 +53,30 @@ const isHumanReviewItem = (item: AdminKanbanItem): boolean =>
 
 const getVisibleItemDetails = (item: AdminKanbanItem): string =>
   item.details.replace(HUMAN_REVIEW_BANNER, "").trim();
+
+const getSourceBadgeLabel = (item: AdminKanbanItem): string | null => {
+  if (item.sourceType === "planning_backlog") return "Backlog doc";
+  if (item.sourceType === "admin_error") return "Admin error";
+  return null;
+};
+
+const getColumnItems = (items: AdminKanbanItem[], column: AdminKanbanColumn): AdminKanbanItem[] =>
+  items.filter((item) => {
+    if (item.status !== column.status) return false;
+    if (column.sourceType) return item.sourceType === column.sourceType;
+    if (column.excludeSourceType) return item.sourceType !== column.excludeSourceType;
+    return true;
+  });
+
+const getAdjacentStatus = (
+  status: AdminKanbanStatus,
+  direction: "previous" | "next"
+): AdminKanbanStatus | null => {
+  const index = ADMIN_KANBAN_STATUS_ORDER.indexOf(status);
+  if (index === -1) return null;
+  const nextIndex = direction === "previous" ? index - 1 : index + 1;
+  return ADMIN_KANBAN_STATUS_ORDER[nextIndex] ?? null;
+};
 
 const formatActionLabel = (entry: AdminKanbanActionLogEntry): string => {
   if (entry.action === "created") return "Created item";
@@ -133,20 +160,14 @@ export function AdminKanbanBoardSection() {
     };
   }, []);
 
-  const itemCountsByStatus = useMemo(
+  const itemCountsByColumn = useMemo(
     () =>
-      ADMIN_KANBAN_COLUMNS.reduce<Record<AdminKanbanStatus, number>>(
+      ADMIN_KANBAN_COLUMNS.reduce<Record<string, number>>(
         (counts, column) => ({
           ...counts,
-          [column.id]: items.filter((item) => item.status === column.id).length,
+          [column.id]: getColumnItems(items, column).length,
         }),
-        {
-          backlog: 0,
-          in_progress: 0,
-          review: 0,
-          complete: 0,
-          published: 0,
-        }
+        {}
       ),
     [items]
   );
@@ -263,9 +284,9 @@ export function AdminKanbanBoardSection() {
     }
   };
 
-  const handleDrop = (status: AdminKanbanStatus) => {
+  const handleDrop = (column: AdminKanbanColumn) => {
     if (!draggedItemId) return;
-    void moveItem(draggedItemId, status);
+    void moveItem(draggedItemId, column.status);
     setDraggedItemId(null);
   };
 
@@ -334,23 +355,21 @@ export function AdminKanbanBoardSection() {
       </div>
 
       <div className={styles.columns} aria-label="Admin task status columns">
-        {ADMIN_KANBAN_COLUMNS.map((column, columnIndex) => {
-          const columnItems = items.filter((item) => item.status === column.id);
-          const previousColumn = ADMIN_KANBAN_COLUMNS[columnIndex - 1] ?? null;
-          const nextColumn = ADMIN_KANBAN_COLUMNS[columnIndex + 1] ?? null;
+        {ADMIN_KANBAN_COLUMNS.map((column) => {
+          const columnItems = getColumnItems(items, column);
 
           return (
             <section
               key={column.id}
               className={`${styles.column} ${draggedItemId ? styles.columnDragging : ""}`}
               onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDrop(column.id)}
+              onDrop={() => handleDrop(column)}
               aria-label={`${column.label} tasks`}
             >
               <div className={styles.columnHeader}>
                 <div className={styles.columnTitleRow}>
                   <h3 className={styles.columnTitle}>{column.label}</h3>
-                  <span className={styles.columnCount}>{itemCountsByStatus[column.id]}</span>
+                  <span className={styles.columnCount}>{itemCountsByColumn[column.id] ?? 0}</span>
                 </div>
                 <p className={styles.columnHelper}>{column.helper}</p>
               </div>
@@ -361,72 +380,81 @@ export function AdminKanbanBoardSection() {
                 ) : columnItems.length === 0 ? (
                   <div className={styles.emptyState}>Drop tasks here</div>
                 ) : (
-                  columnItems.map((item) => (
-                    <article
-                      key={item.id}
-                      className={styles.itemCard}
-                      draggable
-                      onDragStart={() => setDraggedItemId(item.id)}
-                      onDragEnd={() => setDraggedItemId(null)}
-                    >
-                      <div className={styles.itemTopRow}>
-                        <span className={styles.dragHandle} aria-hidden="true">
-                          <DotsSixVertical size={18} weight="bold" />
-                        </span>
-                        <div className={styles.itemContent}>
-                          <h4 className={styles.itemTitle}>{item.title}</h4>
-                          {isHumanReviewItem(item) ? (
-                            <span className={styles.humanReviewBadge}>Human review required</span>
-                          ) : null}
-                          {getVisibleItemDetails(item) ? (
-                            <p className={styles.itemDetails}>{getVisibleItemDetails(item)}</p>
-                          ) : null}
-                        </div>
-                        <button
-                          type="button"
-                          className={`${styles.iconButton} ${styles.deleteButton}`}
-                          onClick={() => void archiveItem(item.id)}
-                          disabled={actionItemId === item.id}
-                          aria-label={`Archive ${item.title}`}
-                          title={`Archive ${item.title}`}
-                        >
-                          <Trash size={16} weight="bold" />
-                        </button>
-                      </div>
+                  columnItems.map((item) => {
+                    const previousStatus = getAdjacentStatus(item.status, "previous");
+                    const nextStatus = getAdjacentStatus(item.status, "next");
+                    const sourceBadgeLabel = getSourceBadgeLabel(item);
 
-                      <div className={styles.itemActions}>
-                        <span className={styles.itemMeta}>
-                          Updated {formatItemDate(item.updatedAt)}
-                        </span>
-                        <div className={styles.moveActions}>
+                    return (
+                      <article
+                        key={item.id}
+                        className={styles.itemCard}
+                        draggable
+                        onDragStart={() => setDraggedItemId(item.id)}
+                        onDragEnd={() => setDraggedItemId(null)}
+                      >
+                        <div className={styles.itemTopRow}>
+                          <span className={styles.dragHandle} aria-hidden="true">
+                            <DotsSixVertical size={18} weight="bold" />
+                          </span>
+                          <div className={styles.itemContent}>
+                            <h4 className={styles.itemTitle}>{item.title}</h4>
+                            {sourceBadgeLabel ? (
+                              <span className={styles.sourceBadge}>{sourceBadgeLabel}</span>
+                            ) : null}
+                            {isHumanReviewItem(item) ? (
+                              <span className={styles.humanReviewBadge}>Human review required</span>
+                            ) : null}
+                            {getVisibleItemDetails(item) ? (
+                              <p className={styles.itemDetails}>{getVisibleItemDetails(item)}</p>
+                            ) : null}
+                          </div>
                           <button
                             type="button"
-                            className={styles.iconButton}
-                            onClick={() => {
-                              if (previousColumn) void moveItem(item.id, previousColumn.id);
-                            }}
-                            disabled={!previousColumn || actionItemId === item.id}
-                            aria-label={`Move ${item.title} left`}
-                            title={`Move ${item.title} left`}
+                            className={`${styles.iconButton} ${styles.deleteButton}`}
+                            onClick={() => void archiveItem(item.id)}
+                            disabled={actionItemId === item.id}
+                            aria-label={`Archive ${item.title}`}
+                            title={`Archive ${item.title}`}
                           >
-                            <ArrowLeft size={15} weight="bold" />
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.iconButton}
-                            onClick={() => {
-                              if (nextColumn) void moveItem(item.id, nextColumn.id);
-                            }}
-                            disabled={!nextColumn || actionItemId === item.id}
-                            aria-label={`Move ${item.title} right`}
-                            title={`Move ${item.title} right`}
-                          >
-                            <ArrowRight size={15} weight="bold" />
+                            <Trash size={16} weight="bold" />
                           </button>
                         </div>
-                      </div>
-                    </article>
-                  ))
+
+                        <div className={styles.itemActions}>
+                          <span className={styles.itemMeta}>
+                            Updated {formatItemDate(item.updatedAt)}
+                          </span>
+                          <div className={styles.moveActions}>
+                            <button
+                              type="button"
+                              className={styles.iconButton}
+                              onClick={() => {
+                                if (previousStatus) void moveItem(item.id, previousStatus);
+                              }}
+                              disabled={!previousStatus || actionItemId === item.id}
+                              aria-label={`Move ${item.title} left`}
+                              title={`Move ${item.title} left`}
+                            >
+                              <ArrowLeft size={15} weight="bold" />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.iconButton}
+                              onClick={() => {
+                                if (nextStatus) void moveItem(item.id, nextStatus);
+                              }}
+                              disabled={!nextStatus || actionItemId === item.id}
+                              aria-label={`Move ${item.title} right`}
+                              title={`Move ${item.title} right`}
+                            >
+                              <ArrowRight size={15} weight="bold" />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
                 )}
               </div>
             </section>

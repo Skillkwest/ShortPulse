@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reportAppError } from "../../../../lib/appErrorReporter";
+import { reportBrowserSessionHealthEvent } from "../../../../lib/browserSessionHealth";
 import {
   applyAiStudioPressureQuarantineLevel,
   clearAiStudioPressureQuarantineForTests,
@@ -13,12 +14,17 @@ import {
 vi.mock("../../../../lib/appErrorReporter", () => ({
   reportAppError: vi.fn(),
 }));
+vi.mock("../../../../lib/browserSessionHealth", () => ({
+  reportBrowserSessionHealthEvent: vi.fn(),
+}));
 
 const reportAppErrorMock = vi.mocked(reportAppError);
+const reportBrowserSessionHealthEventMock = vi.mocked(reportBrowserSessionHealthEvent);
 
 describe("aiStudioStabilityTelemetry", () => {
   beforeEach(() => {
     reportAppErrorMock.mockClear();
+    reportBrowserSessionHealthEventMock.mockClear();
     clearAiStudioPressureQuarantineForTests();
     window.history.pushState(null, "", "/");
   });
@@ -58,6 +64,24 @@ describe("aiStudioStabilityTelemetry", () => {
 
     expect(marked).toBe(false);
     expect(resolveAiStudioPressureQuarantineLevel()).toBe(0);
+  });
+
+  it("sends explicit used-to-total evidence without the ambiguous legacy ratio", () => {
+    reportAiStudioStabilityEvent("pressure_level_changed", {
+      heap_usage_ratio: 0.91,
+      pressure_level: 2,
+    });
+
+    expect(reportBrowserSessionHealthEventMock).toHaveBeenCalledWith(
+      "pressure_snapshot",
+      expect.objectContaining({
+        heap_used_to_total_ratio: 0.91,
+        pressure_level: 2,
+      })
+    );
+    expect(reportBrowserSessionHealthEventMock.mock.calls[0]?.[1]).not.toHaveProperty(
+      "heap_usage_ratio"
+    );
   });
 
   it("marks level-2 quarantine for severe input stalls", () => {

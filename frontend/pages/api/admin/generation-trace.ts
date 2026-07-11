@@ -22,6 +22,25 @@ type PricingObservabilityRecord = {
   mismatch: boolean;
   pricingDisplaySource: string | null;
   pricingPolicyReady: boolean | null;
+  displayedPricingPolicyVersion: number | null;
+  actualPricingPolicyVersion: number | null;
+  displayedPricingVariantId: string | null;
+  actualPricingVariantId: string | null;
+};
+type PricingPolicyConflictRecord = {
+  rowId: string | null;
+  requestId: string | null;
+  sourceRef: string | null;
+  observedAt: string | null;
+  code: string | null;
+  message: string | null;
+  modelId: string | null;
+  displayedBilledCredits: number | null;
+  activeBilledCredits: number | null;
+  displayedPricingPolicyVersion: number | null;
+  activePricingPolicyVersion: number | null;
+  displayedPricingVariantId: string | null;
+  activePricingVariantId: string | null;
 };
 
 const asSingleString = (value: unknown): string | null => {
@@ -127,6 +146,13 @@ const readPricingObservability = (row: JsonRow): JsonRow | null => {
   return null;
 };
 
+const readMetadataObject = (row: JsonRow): JsonRow | null => {
+  const metadata = row.metadata;
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as JsonRow)
+    : null;
+};
+
 const readFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -168,6 +194,33 @@ const buildPricingObservabilityRecord = ({
       typeof observability.pricing_policy_ready === "boolean"
         ? observability.pricing_policy_ready
         : null,
+    displayedPricingPolicyVersion: readFiniteNumber(observability.displayed_pricing_policy_version),
+    actualPricingPolicyVersion: readFiniteNumber(observability.actual_pricing_policy_version),
+    displayedPricingVariantId: readNullableString(observability.displayed_pricing_variant_id),
+    actualPricingVariantId: readNullableString(observability.actual_pricing_variant_id),
+  };
+};
+
+const buildPricingPolicyConflictRecord = (row: JsonRow): PricingPolicyConflictRecord | null => {
+  if (readNullableString(row.source) !== "api.generation_billing_pricing_policy_conflict") {
+    return null;
+  }
+  const metadata = readMetadataObject(row);
+  if (!metadata) return null;
+  return {
+    rowId: readNullableString(row.id),
+    requestId: readNullableString(row.request_id),
+    sourceRef: readNullableString(metadata.source_ref),
+    observedAt: readNullableString(row.occurred_at) ?? readNullableString(row.created_at),
+    code: readNullableString(metadata.code),
+    message: readNullableString(row.message),
+    modelId: readNullableString(metadata.model_id),
+    displayedBilledCredits: readFiniteNumber(metadata.displayed_billed_credits),
+    activeBilledCredits: readFiniteNumber(metadata.active_billed_credits),
+    displayedPricingPolicyVersion: readFiniteNumber(metadata.displayed_pricing_policy_version),
+    activePricingPolicyVersion: readFiniteNumber(metadata.active_pricing_policy_version),
+    displayedPricingVariantId: readNullableString(metadata.displayed_pricing_variant_id),
+    activePricingVariantId: readNullableString(metadata.active_pricing_variant_id),
   };
 };
 
@@ -829,6 +882,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .order("created_at", { ascending: false })
           .limit(200)
       );
+      errorQueries.push(
+        supabaseAdmin
+          .from("app_error_events")
+          .select(selectErrorEventFields)
+          .contains("metadata", { source_ref: traceId })
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
     }
     if (errorQueries.length) {
       const errorResults = await Promise.all(errorQueries);
@@ -862,6 +923,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...dedupedReservations,
       ...dedupedLedger,
     ].filter(readPricingObservabilityMismatch).length;
+    const pricingPolicyConflictRows = dedupedErrors
+      .map(buildPricingPolicyConflictRecord)
+      .filter((row): row is PricingPolicyConflictRecord => row != null);
 
     return res.status(200).json({
       query: {
@@ -880,6 +944,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ledgerEntries: dedupedLedger.length,
         errorEvents: dedupedErrors.length,
         pricingObservabilityMismatches,
+        pricingPolicyConflicts: pricingPolicyConflictRows.length,
       },
       generations,
       generationAttempts: dedupedAttempts,
@@ -889,6 +954,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       reservations: dedupedReservations,
       ledgerEntries: dedupedLedger,
       pricingObservabilityMismatchRows,
+      pricingPolicyConflictRows,
       errorEvents: dedupedErrors,
       warnings,
     });

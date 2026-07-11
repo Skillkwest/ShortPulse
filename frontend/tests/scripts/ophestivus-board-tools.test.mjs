@@ -4,6 +4,10 @@ import {
   buildNote,
 } from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_append_ticket_note.mjs";
 import {
+  isPlanningBacklogTicket,
+  isRunnableBacklogTicket,
+} from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_intake.mjs";
+import {
   DEFAULT_ALLOWED_TARGETS,
   normalizeStatus,
 } from "../../../docs/records/artifacts/agent/ophestivus/tools/ophestivus_move_ticket.mjs";
@@ -24,6 +28,29 @@ import path from "node:path";
 import process from "node:process";
 
 describe("ophestivus board helpers", () => {
+  it("skips planning-backlog cards during Admin Errors intake", () => {
+    const planningTicket = {
+      title: "Make paid generation cost obvious",
+      details: "Program: Program 1",
+      sourceType: "planning_backlog",
+    };
+    const adminErrorTicket = {
+      title: "Ophestivus: API error",
+      details: "Incident: incident-1",
+      sourceType: "admin_error",
+    };
+
+    expect(isPlanningBacklogTicket(planningTicket)).toBe(true);
+    expect(isRunnableBacklogTicket(planningTicket)).toBe(false);
+    expect(isRunnableBacklogTicket(adminErrorTicket)).toBe(true);
+    expect(
+      isRunnableBacklogTicket({
+        ...adminErrorTicket,
+        title: "[HUMAN REVIEW] API error",
+      })
+    ).toBe(false);
+  });
+
   it("builds and compacts appended ticket notes", () => {
     const note = buildNote({ label: "Approval", note: "Passed validation ".repeat(20) });
     const result = buildAppendedDetails("Existing details", note, {

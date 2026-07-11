@@ -141,6 +141,41 @@ Before treating an AI Studio freeze or console CSP violation as app-owned perfor
 8. Remove a quick-slot card using the explicit remove control on the active card.
 9. Drag the lower horizontal divider with pointer and keyboard (`ArrowUp`, `ArrowDown`, `Home`, `End`) and verify quick-slot/all-refs resizing.
 
+### 3c) Validate Video Lifecycle Recovery
+
+Use the existing perf-audit runtime only in a disposable AI Studio audit
+project with no unsaved work. This harness resets the current Reference Grid
+and hydrates 81 synthetic outputs; canonical project autosave may persist that
+audit state. Never run it against a customer project, the reported incident
+project, or any workspace whose current state must be preserved. Creating and
+selecting the disposable project is an operator prerequisite; the harness does
+not back up or restore project state.
+
+After confirming that boundary, run:
+
+```js
+await window.__shortpulseAiStudioPerf?.runReferenceGridVideoChurnAudit();
+```
+
+The default scenario seeds exactly 81 mixed Reference Grid outputs including 23
+videos, runs 20 bottom/top virtualization cycles, waits 60 seconds idle, and
+samples mounted/tracked/attached Grid video nodes, the active Grid attachment
+budget, Canvas attached video sources, duration-probe workload, and JS heap.
+
+Require all returned gates to pass:
+
+- tracked Grid video nodes equal mounted Grid video nodes at every sample;
+- attached Grid sources remain within the active budget plus the one selected-card allowance;
+- tracked and attached counts return to the warm-up window after idle;
+- final idle heap stays within the larger of 50 MiB or 10% above warm-up;
+- heap samples do not show sustained monotonic growth across the run;
+- the gate fails as not measurable when `performance.memory`, Canvas counters, or Quick Slot ownership evidence is unavailable;
+- Canvas attached sources and duration-probe inflight/queued work return to their warm-up window after idle.
+
+This harness is browser/runtime proof only. Unit tests establish registration,
+release, duplicate-surface ownership, and preview/full source contracts, but do
+not prove Chrome player-pipeline or heap recovery on a deployed build.
+
 ### 4) Validate Usage Accuracy
 
 1. Confirm Media Library storage usage uses RPC-backed total:
@@ -204,6 +239,11 @@ Key indicators:
   - `nonGridRerendersPerOutputStatusTick`
 - crash-adjacent local browser evidence via:
   - `window.__shortpulseAiStudioCrashEvidence?.snapshot()`
+- deterministic mixed-video lifecycle evidence via:
+  - `await window.__shortpulseAiStudioPerf?.runReferenceGridVideoChurnAudit()`
+  - returned per-sample `mountedGridVideoCount`, `trackedGridVideoCount`,
+    `attachedGridVideoSourceCount`, `canvasAttachedVideoSourceCount`,
+    `durationProbeInflightCount`, `durationProbeQueuedCount`, and `heapMb`
 - When extension interference is suspected, run the same local telemetry flow once in the affected profile and once in a clean extension-disabled profile. Treat the clean profile as the app-owned baseline and the affected profile as environment evidence.
 
 ## Tuning Knobs

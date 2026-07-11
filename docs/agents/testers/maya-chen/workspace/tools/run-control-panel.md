@@ -15,6 +15,8 @@ Baseline comparison needed: <yes / no>
 Allowed spend this run:
 Hard stop condition:
 Admin publish available: <yes / no / unknown>
+Oldest unpublished Maya run: <none / externalRunId>
+Admin readiness decision: <ready / stop / user-approved partial override>
 ```
 
 ## Live Run Spine
@@ -50,7 +52,7 @@ If the run blocks early, stop early and report the blocker. Do not click aimless
 
 Use one status for the run:
 
-- `completed`: Browser scenario completed, local reports are written, required ledgers/indexes/self-score are updated, required low-score corrections are named, and Admin publish either succeeded or was not required/available and is documented.
+- `completed`: Browser scenario completed, local reports and ledgers are complete, ingest succeeded, the exact Admin row and both report cards were verified, and self-scoring is complete.
 - `partial`: Browser scenario mostly completed, but a required verification, report step, Admin publish attempt, or self-score step remains incomplete.
 - `blocked`: Maya cannot safely continue because of auth, payment, budget, Chrome control, production access, or owner approval.
 - `failed`: The run violated SOP enough that its findings are unreliable.
@@ -61,7 +63,8 @@ Admin publishing is a post-run operator step:
 
 - If the ingest secret is available, attempt publish and verify the row in `/admin/tester-reports`.
 - If ingest succeeds but Admin tab verification is unavailable, record `ingest succeeded; Admin tab verification unproven`.
-- If the ingest secret is missing, local reports can still be complete. Record `not published - ingest secret unavailable` in both reports, the report index, and the self-audit.
+- If the ingest secret is missing before the run, stop before Chrome unless the user explicitly approves a local-only partial run.
+- Missing ingest or Admin verification means the run cannot be `completed`.
 
 ## Final Gate
 
@@ -72,7 +75,8 @@ Before saying the run is done, confirm:
 - Behavior metrics filled with measured values or `not measured`.
 - Credit ledger updated if credits were checked or spent.
 - Reports index updated.
-- Admin publish status recorded.
+- Ingest returned `200`, `ok: true`, and the expected `externalRunId`.
+- Exact Admin row and both report cards verified.
 - Self-audit/performance check completed.
 - Baseline comparison completed or marked not needed.
 - Post-run coach question answered.

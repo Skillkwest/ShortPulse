@@ -263,6 +263,7 @@ describe("GET /api/admin/generation-trace", () => {
           ledgerEntries: 1,
           errorEvents: 1,
           pricingObservabilityMismatches: 0,
+          pricingPolicyConflicts: 0,
         },
       })
     );
@@ -315,6 +316,70 @@ describe("GET /api/admin/generation-trace", () => {
             actualBilledCredits: null,
             deltaCredits: null,
             mismatch: true,
+          }),
+        ],
+      })
+    );
+  });
+
+  it("surfaces pricing policy conflict error events by source_ref trace lookup", async () => {
+    const pricingConflictEvent = {
+      id: "err-pricing-conflict-1",
+      source: "api.generation_billing_pricing_policy_conflict",
+      scope: "api",
+      severity: "warn",
+      message:
+        "Pricing changed before generation started. Refresh pricing and review the new amount.",
+      endpoint: "/api/fal/submit",
+      request_id: null,
+      metadata: {
+        code: "PRICING_POLICY_STALE",
+        model_id: "fal-ai/nano-banana-2",
+        source_ref: "source-ref-1",
+        displayed_pricing_policy_version: 22,
+        active_pricing_policy_version: 23,
+        displayed_billed_credits: 5,
+        active_billed_credits: 7,
+        displayed_pricing_variant_id: "default|res:1K|aspect:auto",
+        active_pricing_variant_id: "edit|res:1K|aspect:auto",
+      },
+      created_at: "2026-07-10T17:00:00.000Z",
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "app_error_events":
+            return createQueryBuilder([pricingConflictEvent]);
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { traceId: "source-ref-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          errorEvents: 1,
+          pricingPolicyConflicts: 1,
+        }),
+        pricingPolicyConflictRows: [
+          expect.objectContaining({
+            rowId: "err-pricing-conflict-1",
+            sourceRef: "source-ref-1",
+            code: "PRICING_POLICY_STALE",
+            modelId: "fal-ai/nano-banana-2",
+            displayedBilledCredits: 5,
+            activeBilledCredits: 7,
+            displayedPricingPolicyVersion: 22,
+            activePricingPolicyVersion: 23,
+            displayedPricingVariantId: "default|res:1K|aspect:auto",
+            activePricingVariantId: "edit|res:1K|aspect:auto",
           }),
         ],
       })

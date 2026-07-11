@@ -98,11 +98,11 @@ export function ErrorIncidentsPanel({
 }: ErrorIncidentsPanelProps) {
   const {
     copiedIncidentId,
-    copiedVisibleNewIncidentCount,
+    copiedVisibleIncidentCount,
     inProgressIncidentIds,
-    visibleNewIncidentCount,
+    visibleIncidentCount,
     handleCopyIncident,
-    handleCopyVisibleNewIncidents,
+    handleCopyVisibleIncidents,
   } = useAdminErrorIncidentsPanelState({
     errors,
     errorEvents,
@@ -124,9 +124,9 @@ export function ErrorIncidentsPanel({
         errorSearch={errorSearch}
         errorPagination={errorPagination}
         copiedIncidentId={copiedIncidentId}
-        copiedVisibleNewIncidentCount={copiedVisibleNewIncidentCount}
+        copiedVisibleIncidentCount={copiedVisibleIncidentCount}
         inProgressIncidentIds={inProgressIncidentIds}
-        visibleNewIncidentCount={visibleNewIncidentCount}
+        visibleIncidentCount={visibleIncidentCount}
         statusUpdatingErrorId={statusUpdatingErrorId}
         onErrorIncidentViewModeChange={onErrorIncidentViewModeChange}
         onErrorSearchChange={onErrorSearchChange}
@@ -136,8 +136,8 @@ export function ErrorIncidentsPanel({
         onCopyIncident={(row) => {
           void handleCopyIncident(row);
         }}
-        onCopyVisibleNewIncidents={() => {
-          void handleCopyVisibleNewIncidents();
+        onCopyVisibleIncidents={() => {
+          void handleCopyVisibleIncidents();
         }}
         onResolveIncident={(row) => {
           void onUpdateErrorStatus(row.id, "resolved");

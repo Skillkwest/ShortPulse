@@ -51,6 +51,7 @@ import {
   type SharedVoiceOption,
 } from "../hooks/useSharedVoicesGrid";
 import type { ToolId } from "../types";
+import type { VoiceChangerSourceMetadataPatch } from "../logic/voiceChangerSourceTypes";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
 import { VoiceLibraryContent } from "./VoiceLibraryContent";
@@ -145,6 +146,10 @@ export type VoicesPropertiesPanelProps = {
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
   onSelectedVoiceIdChange?: (voiceId: string) => void;
   onVoiceChangerSourceChange?: (source: VoiceChangerSource | null) => void;
+  onVoiceChangerSourceMetadataChange?: (
+    sourceId: string,
+    patch: VoiceChangerSourceMetadataPatch
+  ) => void;
   onVoicePromptChange?: (value: string) => void;
   onVoiceScriptChange?: (value: string) => void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
@@ -200,6 +205,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   onGenerate,
   onSelectedVoiceIdChange,
   onVoiceChangerSourceChange: onControlledVoiceChangerSourceChange,
+  onVoiceChangerSourceMetadataChange: onControlledVoiceChangerSourceMetadataChange,
   onVoicePromptChange: onControlledVoicePromptChange,
   onVoiceScriptChange: onControlledVoiceScriptChange,
   onActiveVoiceChangerSourceVideoChange,
@@ -274,6 +280,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const {
     voiceChangerSource: uncontrolledVoiceChangerSource,
     handleVoiceChangerSourceChange: handleUncontrolledVoiceChangerSourceChange,
+    handleVoiceChangerSourceMetadataChange: handleUncontrolledVoiceChangerSourceMetadataChange,
   } = useVoiceChangerSourceController();
   const {
     cloneVoiceSource,
@@ -1437,6 +1444,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <VoiceChangerSourceDropzone
                   source={voiceChangerSource}
                   onSourceChange={handleVoiceChangerSourceChange}
+                  onSourceMetadataChange={
+                    onControlledVoiceChangerSourceMetadataChange ??
+                    handleUncontrolledVoiceChangerSourceMetadataChange
+                  }
                   resolveInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
                 />
               )}

@@ -58,6 +58,100 @@ const createSupabaseMock = (
     upsertPayloads.push(payload);
     return Promise.resolve({ error: null });
   });
+  const rpcMock = vi.fn(async (functionName: string, args: Record<string, unknown>) => {
+    if (functionName !== "record_browser_crash_session_event_v1") {
+      return { data: null, error: new Error(`Unexpected RPC: ${functionName}`) };
+    }
+    const eventType = String(args.p_event_type);
+    const existingMetadata =
+      selectedPreviousRow?.metadata && typeof selectedPreviousRow.metadata === "object"
+        ? (selectedPreviousRow.metadata as Record<string, unknown>)
+        : {};
+    const incomingMetadata = (args.p_metadata ?? {}) as Record<string, unknown>;
+    const mergedMetadata: Record<string, unknown> = {
+      ...existingMetadata,
+      ...Object.fromEntries(Object.entries(incomingMetadata).filter(([, value]) => value !== null)),
+    };
+    if (eventType === "pressure_snapshot") {
+      mergedMetadata.pressure_event_count = Math.min(
+        10_000,
+        Number(existingMetadata.pressure_event_count ?? 0) + 1
+      );
+      mergedMetadata.last_pressure_snapshot_at = args.p_occurred_at;
+    }
+    const maxPressureLevel = Math.max(
+      Number(existingMetadata.max_pressure_level ?? existingMetadata.pressure_level ?? 0),
+      Number(incomingMetadata.pressure_level ?? 0)
+    );
+    if (maxPressureLevel > 0) mergedMetadata.max_pressure_level = maxPressureLevel;
+    const maxHeapUsedToTotalRatio = Math.max(
+      Number(
+        existingMetadata.max_heap_used_to_total_ratio ??
+          existingMetadata.heap_used_to_total_ratio ??
+          0
+      ),
+      Number(incomingMetadata.heap_used_to_total_ratio ?? 0)
+    );
+    if (maxHeapUsedToTotalRatio > 0) {
+      mergedMetadata.max_heap_used_to_total_ratio = maxHeapUsedToTotalRatio;
+    }
+    const prioritizedMetadata = Object.fromEntries(
+      [
+        ...Object.keys(incomingMetadata),
+        ...Object.keys(mergedMetadata).filter(
+          (key) => !Object.prototype.hasOwnProperty.call(incomingMetadata, key)
+        ),
+      ]
+        .slice(0, 48)
+        .map((key) => [key, mergedMetadata[key]])
+    );
+    const payload = {
+      browser_session_id: args.p_browser_session_id,
+      user_id: args.p_user_id,
+      user_email: args.p_user_email,
+      last_event: eventType,
+      route: args.p_route,
+      build_id: args.p_build_id,
+      client_release: args.p_client_release,
+      client_environment: args.p_client_environment,
+      user_agent: args.p_user_agent,
+      host: args.p_host,
+      vercel_id: args.p_vercel_id,
+      metadata: prioritizedMetadata,
+      started_at: eventType === "session_start" ? args.p_occurred_at : undefined,
+      last_seen_at: args.p_occurred_at,
+      ended_at:
+        eventType === "clean_close" || eventType === "crash_report" ? args.p_occurred_at : null,
+      suspected_at:
+        eventType === "previous_session_abandoned" || eventType === "crash_report"
+          ? args.p_occurred_at
+          : null,
+      updated_at: args.p_occurred_at,
+      status:
+        eventType === "crash_report"
+          ? "confirmed_crash"
+          : eventType === "clean_close"
+            ? "clean_closed"
+            : eventType === "previous_session_abandoned"
+              ? "possible_ungraceful_exit"
+              : "active",
+      confidence:
+        eventType === "crash_report"
+          ? "high"
+          : eventType === "previous_session_abandoned"
+            ? "low"
+            : "none",
+      review_status: eventType === "session_start" ? "open" : undefined,
+    };
+    const updateOnly = args.p_allow_insert !== true;
+    if (updateOnly && !selectedPreviousRow) return { data: null, error: null };
+    if (updateOnly) updateMock(payload);
+    else void upsertMock(payload);
+    return {
+      data: String(selectedPreviousRow?.id ?? "current-row-id"),
+      error: null,
+    };
+  });
   const fromMock = vi.fn(() => ({
     select: selectMock,
     update: updateMock,
@@ -65,14 +159,20 @@ const createSupabaseMock = (
   }));
 
   return {
-    client: { from: fromMock },
+    client: { from: fromMock, rpc: rpcMock },
     eqMock: updateEqMock,
     fromMock,
     selectMaybeSingleMock,
     upsertMock,
     updatePayloads,
     upsertPayloads,
+    rpcMock,
   };
+};
+
+const createListRpcMock = (data: Record<string, unknown>) => {
+  const rpc = vi.fn().mockResolvedValue({ data, error: null });
+  return { client: { rpc }, rpc };
 };
 
 describe("browserCrashSessions", () => {
@@ -116,7 +216,7 @@ describe("browserCrashSessions", () => {
       status: "possible_ungraceful_exit",
       confidence: "low",
       last_event: "previous_session_abandoned",
-      suspected_at: "2026-07-05T12:00:00.000Z",
+      suspected_at: expect.any(String),
     });
     expect(supabase.upsertMock).not.toHaveBeenCalled();
   });
@@ -161,8 +261,8 @@ describe("browserCrashSessions", () => {
     });
 
     expect(supabase.updatePayloads[0]).toMatchObject({
-      status: "probable_freeze_or_crash",
-      confidence: "high",
+      status: "possible_ungraceful_exit",
+      confidence: "low",
       metadata: {
         build_id: "previous-build",
         client_release: "previous-release",
@@ -272,6 +372,89 @@ describe("browserCrashSessions", () => {
     });
   });
 
+  it("does not let authenticated lifecycle input self-assert a confirmed crash", async () => {
+    const supabase = createSupabaseMock(null);
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    const result = await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "crash_report",
+        sessionId: "buffered-crash-session",
+        route: "/ai-studio?projectId=secret",
+        occurredAt: "2026-07-05T12:00:00.000Z",
+        metadata: { crash_report_type: "crash" },
+      },
+    });
+
+    expect(result).toEqual({
+      sessionId: "buffered-crash-session",
+      previousSessionId: null,
+      eventType: "heartbeat",
+    });
+    expect(supabase.rpcMock).toHaveBeenCalledWith(
+      "record_browser_crash_session_event_v1",
+      expect.objectContaining({
+        p_user_id: "user-1",
+        p_event_type: "heartbeat",
+        p_allow_insert: true,
+      })
+    );
+    expect(supabase.upsertPayloads[0]).toMatchObject({
+      status: "active",
+      confidence: "none",
+      ended_at: null,
+      suspected_at: null,
+    });
+  });
+
+  it("uses bounded client occurrence time but server receipt time for session ordering", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-10T20:00:00.000Z"));
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "session_start",
+        sessionId: "clock-skew-session",
+        occurredAt: "2099-01-01T00:00:00.000Z",
+      },
+    });
+
+    expect(supabase.rpcMock.mock.calls[0]?.[1]).toMatchObject({
+      p_occurred_at: "2026-07-10T20:00:00.000Z",
+    });
+    vi.useRealTimers();
+  });
+
+  it("sends only sanitized incoming metadata and leaves row merging to the database guard", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      metadata: { pressure_level: 2, pressure_event_count: 4 },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "atomic-session",
+        metadata: { visibility_state: "visible" },
+      },
+    });
+
+    expect(supabase.selectMaybeSingleMock).not.toHaveBeenCalled();
+    expect(supabase.rpcMock.mock.calls[0]?.[1]?.p_metadata).toMatchObject({
+      visibility_state: "visible",
+    });
+    expect(supabase.rpcMock.mock.calls[0]?.[1]?.p_metadata).not.toHaveProperty("pressure_level");
+  });
+
   it("preserves browser storage estimate metadata through the crash-session allowlist", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue(supabase.client);
@@ -310,6 +493,205 @@ describe("browserCrashSessions", () => {
     expect(
       (supabase.upsertMock.mock.calls[0]?.[0] as { metadata?: Record<string, unknown> }).metadata
     ).not.toHaveProperty("storage_estimate_raw_detail");
+  });
+
+  it("bounds oversized heap evidence and rejects malformed numeric fields", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "current-session",
+        occurredAt: "2026-07-05T12:01:00.000Z",
+        metadata: {
+          used_js_heap_size: 1e100,
+          total_js_heap_size: "not-a-number",
+          js_heap_size_limit: -10,
+          heap_used_to_limit_ratio: "0.9",
+          heap_used_to_total_ratio: 4,
+          stall_duration_ms: 1e100,
+          document_hidden: "false",
+          visibility_state: "sideways",
+        },
+      },
+    });
+
+    expect(supabase.upsertPayloads[0]?.metadata).toMatchObject({
+      used_js_heap_size: Number.MAX_SAFE_INTEGER,
+      js_heap_size_limit: 0,
+      heap_used_to_total_ratio: 1,
+      stall_duration_ms: 86_400_000,
+    });
+    expect(supabase.upsertPayloads[0]?.metadata).not.toHaveProperty("total_js_heap_size");
+    expect(supabase.upsertPayloads[0]?.metadata).not.toHaveProperty("heap_used_to_limit_ratio");
+    expect(supabase.upsertPayloads[0]?.metadata).not.toHaveProperty("document_hidden");
+    expect(supabase.upsertPayloads[0]?.metadata).not.toHaveProperty("visibility_state");
+  });
+
+  it("prioritizes critical crash evidence after more than 48 earlier metadata keys", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+    const leadingNoise = Object.fromEntries(
+      Array.from({ length: 60 }, (_, index) => [`untrusted_noise_${index}`, index])
+    );
+
+    await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "pressure_snapshot",
+        sessionId: "priority-session",
+        occurredAt: "2026-07-05T12:01:00.000Z",
+        metadata: {
+          ...leadingNoise,
+          used_js_heap_size: 646 * 1024 * 1024,
+          js_heap_size_limit: 4_395_630_592,
+          heap_used_to_limit_ratio: 0.154,
+          visibility_state: "visible",
+          document_hidden: false,
+          stall_duration_ms: 2100,
+          pressure_level: 2,
+          max_pressure_level: 2,
+          pressure_reason: "heap_pressure",
+        },
+      },
+    });
+
+    expect(supabase.upsertPayloads[0]?.metadata).toMatchObject({
+      used_js_heap_size: 646 * 1024 * 1024,
+      js_heap_size_limit: 4_395_630_592,
+      heap_used_to_limit_ratio: 0.154,
+      visibility_state: "visible",
+      document_hidden: false,
+      stall_duration_ms: 2100,
+      pressure_level: 2,
+      max_pressure_level: 2,
+      pressure_reason: "heap_pressure",
+    });
+    expect(Object.keys(supabase.upsertPayloads[0]?.metadata as object).length).toBeLessThanOrEqual(
+      48
+    );
+  });
+
+  it("keeps incoming critical evidence when merging a full prior metadata row", async () => {
+    const priorKeys = [
+      "build_id",
+      "client_release",
+      "client_environment",
+      "connection_downlink",
+      "connection_effective_type",
+      "connection_rtt",
+      "connection_save_data",
+      "crash_report_age_ms",
+      "crash_report_is_top_level",
+      "crash_report_reason",
+      "crash_report_source",
+      "crash_report_type",
+      "crash_report_url_path",
+      "crash_report_visibility_state",
+      "device_memory",
+      "device_pixel_ratio",
+      "document_was_discarded",
+      "dom_audios",
+      "dom_canvases",
+      "dom_images",
+      "dom_nodes",
+      "dom_videos",
+      "extension_roots",
+      "hardware_concurrency",
+      "heartbeat_interval_ms",
+      "is_secure_context",
+      "last_heartbeat_age_ms",
+      "last_pressure_snapshot_at",
+      "long_task_p95_ms",
+      "max_heap_used_to_limit_ratio",
+      "max_heap_used_to_total_ratio",
+      "max_input_stall_ms",
+      "max_pressure_level",
+      "navigation_type",
+      "pagehide_persisted",
+      "pageshow_persisted",
+      "pressure_event_count",
+      "pressure_transition",
+      "previous_pressure_level",
+      "previous_last_seen_at",
+      "rendered_item_count",
+      "resource_api_count",
+      "resource_decoded_bytes",
+      "resource_fetch_count",
+      "resource_count",
+      "resource_transfer_bytes",
+      "screen_height",
+      "screen_width",
+      "session_age_ms",
+      "storage_estimate_available_bytes",
+      "storage_estimate_quota_bytes",
+    ];
+    const previousMetadata = Object.fromEntries(
+      priorKeys.map((key) => {
+        if (
+          [
+            "connection_save_data",
+            "crash_report_is_top_level",
+            "document_was_discarded",
+            "is_secure_context",
+            "pagehide_persisted",
+            "pageshow_persisted",
+          ].includes(key)
+        ) {
+          return [key, false];
+        }
+        return [
+          key,
+          key.includes("_id") ||
+          key.includes("source") ||
+          key.includes("type") ||
+          key.includes("reason") ||
+          key.includes("path") ||
+          key.includes("transition") ||
+          key.includes("at")
+            ? "value"
+            : 1,
+        ];
+      })
+    );
+    const supabase = createSupabaseMock({ id: "current-row-id", metadata: previousMetadata });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: { headers: {} } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "heartbeat",
+        sessionId: "current-session",
+        occurredAt: "2026-07-05T12:02:00.000Z",
+        metadata: {
+          used_js_heap_size: 646 * 1024 * 1024,
+          js_heap_size_limit: 4_395_630_592,
+          visibility_state: "visible",
+          document_hidden: false,
+          stall_duration_ms: 2200,
+          pressure_level: 2,
+          pressure_reason: "heap_pressure",
+        },
+      },
+    });
+
+    expect(supabase.upsertPayloads[0]?.metadata).toMatchObject({
+      used_js_heap_size: 646 * 1024 * 1024,
+      js_heap_size_limit: 4_395_630_592,
+      visibility_state: "visible",
+      document_hidden: false,
+      stall_duration_ms: 2200,
+      pressure_level: 2,
+      pressure_reason: "heap_pressure",
+    });
+    expect(Object.keys(supabase.upsertPayloads[0]?.metadata as object).length).toBeLessThanOrEqual(
+      48
+    );
   });
 
   it("keeps prior browser storage estimate metadata when later events send nulls", async () => {
@@ -376,7 +758,7 @@ describe("browserCrashSessions", () => {
       },
     });
 
-    expect(supabase.upsertMock.mock.calls[0]?.[0]).not.toHaveProperty("review_status");
+    expect(supabase.rpcMock.mock.calls[0]?.[1]).not.toHaveProperty("p_review_status");
   });
 
   it("preserves high-water pressure evidence when later heartbeat metadata is calm", async () => {
@@ -471,8 +853,35 @@ describe("browserCrashSessions", () => {
         heap_used_to_total_ratio: 0.91,
         max_heap_used_to_total_ratio: 0.91,
         pressure_event_count: 2,
-        last_pressure_snapshot_at: "2026-07-05T12:02:00.000Z",
+        last_pressure_snapshot_at: expect.any(String),
       },
+    });
+  });
+
+  it("caps pressure event counts at the ingestion boundary", async () => {
+    const supabase = createSupabaseMock({
+      id: "current-row-id",
+      metadata: { pressure_event_count: 1e100 },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+
+    await recordBrowserSessionEvent({
+      req: { headers: { host: "www.shortpulse.ai" } } as never,
+      user: { id: "user-1", email: "alpha@example.com" },
+      payload: {
+        eventType: "pressure_snapshot",
+        sessionId: "current-session",
+        route: "/ai-studio",
+        occurredAt: "2026-07-05T12:02:00.000Z",
+        metadata: { pressure_event_count: 1e100 },
+      },
+    });
+
+    expect(supabase.rpcMock.mock.calls[0]?.[1]).toMatchObject({
+      p_metadata: { pressure_event_count: 1 },
+    });
+    expect(supabase.upsertMock.mock.calls[0]?.[0]).toMatchObject({
+      metadata: { pressure_event_count: 10_000 },
     });
   });
 
@@ -507,6 +916,8 @@ describe("browserCrashSessions", () => {
               shortpulse_max_input_stall_ms: "1400",
               shortpulse_heap_used_to_total_ratio: "0.91",
               shortpulse_heap_used_to_limit_ratio: "0.72",
+              shortpulse_media_grid_tracked_video_nodes: "23",
+              shortpulse_media_grid_attached_video_sources: "3",
             },
           },
         },
@@ -542,10 +953,19 @@ describe("browserCrashSessions", () => {
         max_heap_used_to_total_ratio: 0.91,
         heap_used_to_limit_ratio: 0.72,
         max_heap_used_to_limit_ratio: 0.72,
+        media_grid_tracked_video_node_count: 23,
+        media_grid_attached_video_source_count: 3,
         pressure_event_count: 2,
       },
     });
-    expect(supabase.eqMock).toHaveBeenCalledWith("id", "current-row-id");
+    expect(supabase.rpcMock).toHaveBeenCalledWith(
+      "record_browser_crash_session_event_v1",
+      expect.objectContaining({
+        p_browser_session_id: "current-session",
+        p_event_type: "crash_report",
+        p_allow_insert: false,
+      })
+    );
     expect(supabase.upsertMock).not.toHaveBeenCalled();
   });
 
@@ -641,35 +1061,18 @@ describe("browserCrashSessions", () => {
   });
 
   it("maps the needs-review list filter to confirmed and probable crash rows", async () => {
-    const inMock = vi.fn();
-    const rangeMock = vi.fn().mockResolvedValue({
-      data: [
+    const supabase = createListRpcMock({
+      sessions: [
         {
           id: "row-1",
           status: "probable_freeze_or_crash",
-          confidence: "medium",
+          effective_status: "probable_freeze_or_crash",
           last_seen_at: "2026-07-05T12:00:00.000Z",
         },
       ],
-      error: null,
-      count: 1,
+      pagination: { page: 1, perPage: 50, totalCount: 1, totalPages: 1 },
     });
-    const query = {
-      select: vi.fn(),
-      order: vi.fn(),
-      in: inMock,
-      eq: vi.fn(),
-      or: vi.fn(),
-      range: rangeMock,
-    };
-    query.select.mockReturnValue(query);
-    query.order.mockReturnValue(query);
-    query.in.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.or.mockReturnValue(query);
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn(() => query),
-    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
 
     const result = await fetchBrowserCrashSessions({
       page: 1,
@@ -679,10 +1082,13 @@ describe("browserCrashSessions", () => {
       search: "",
     });
 
-    expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
-    expect(query.or).not.toHaveBeenCalledWith(expect.stringContaining("status.eq.active"));
-    expect(query.eq).toHaveBeenCalledWith("review_status", "open");
-    expect(rangeMock).toHaveBeenCalledWith(0, 49);
+    expect(supabase.rpc).toHaveBeenCalledWith("list_browser_crash_sessions_v2", {
+      p_page: 1,
+      p_limit: 50,
+      p_status: "needs_review",
+      p_review_status: "open",
+      p_search: "",
+    });
     expect(result.pagination.totalCount).toBe(1);
     expect(result.sessions[0]).toMatchObject({
       id: "row-1",
@@ -691,35 +1097,18 @@ describe("browserCrashSessions", () => {
   });
 
   it("maps possible ungraceful exit to stored and stale-active rows", async () => {
-    const orMock = vi.fn();
-    const rangeMock = vi.fn().mockResolvedValue({
-      data: [
+    const supabase = createListRpcMock({
+      sessions: [
         {
           id: "row-1",
           status: "active",
-          confidence: "none",
+          effective_status: "possible_ungraceful_exit",
           last_seen_at: "2026-07-05T12:00:00.000Z",
         },
       ],
-      error: null,
-      count: 1,
+      pagination: { page: 1, perPage: 50, totalCount: 1, totalPages: 1 },
     });
-    const query = {
-      select: vi.fn(),
-      order: vi.fn(),
-      in: vi.fn(),
-      eq: vi.fn(),
-      or: orMock,
-      range: rangeMock,
-    };
-    query.select.mockReturnValue(query);
-    query.order.mockReturnValue(query);
-    query.in.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.or.mockReturnValue(query);
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn(() => query),
-    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
 
     await fetchBrowserCrashSessions({
       page: 1,
@@ -729,45 +1118,25 @@ describe("browserCrashSessions", () => {
       search: "",
     });
 
-    expect(orMock).toHaveBeenCalledWith(
-      expect.stringContaining("status.eq.possible_ungraceful_exit")
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "list_browser_crash_sessions_v2",
+      expect.objectContaining({ p_status: "possible_ungraceful_exit", p_review_status: "open" })
     );
-    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("status.eq.active"));
-    expect(orMock).toHaveBeenCalledWith(expect.stringContaining("last_seen_at.lt."));
-    expect(query.eq).toHaveBeenCalledWith("review_status", "open");
   });
 
   it("maps the reviewed history filter to resolved and ignored review rows", async () => {
-    const inMock = vi.fn();
-    const rangeMock = vi.fn().mockResolvedValue({
-      data: [
+    const supabase = createListRpcMock({
+      sessions: [
         {
           id: "row-1",
           status: "probable_freeze_or_crash",
-          confidence: "medium",
           review_status: "resolved",
           last_seen_at: "2026-07-05T12:00:00.000Z",
         },
       ],
-      error: null,
-      count: 1,
+      pagination: { page: 1, perPage: 50, totalCount: 1, totalPages: 1 },
     });
-    const query = {
-      select: vi.fn(),
-      order: vi.fn(),
-      in: inMock,
-      eq: vi.fn(),
-      or: vi.fn(),
-      range: rangeMock,
-    };
-    query.select.mockReturnValue(query);
-    query.order.mockReturnValue(query);
-    query.in.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.or.mockReturnValue(query);
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn(() => query),
-    });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
 
     await fetchBrowserCrashSessions({
       page: 1,
@@ -777,10 +1146,10 @@ describe("browserCrashSessions", () => {
       search: "",
     });
 
-    expect(inMock).toHaveBeenCalledWith("status", ["probable_freeze_or_crash", "confirmed_crash"]);
-    expect(inMock).toHaveBeenCalledWith("review_status", ["resolved", "ignored"]);
-    expect(query.eq).not.toHaveBeenCalledWith("review_status", "reviewed");
-    expect(rangeMock).toHaveBeenCalledWith(0, 49);
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "list_browser_crash_sessions_v2",
+      expect.objectContaining({ p_status: "needs_review", p_review_status: "reviewed" })
+    );
   });
 
   it("updates crash-session review state without changing crash evidence status", async () => {

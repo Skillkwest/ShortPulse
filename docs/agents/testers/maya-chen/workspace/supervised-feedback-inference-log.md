@@ -164,10 +164,31 @@ Future behavior:
 - Use the clear bug checklist to capture route, steps, expected versus actual behavior, severity, evidence, credit/account impact, reproducibility, validation boundary, and stop condition.
 - Stop before further spend or mutation when the bug touches credits, billing, auth, saved work, destructive controls, generation reliability, privacy, or account boundaries.
 
+### 9. Admin Delivery Is Part Of The Product, Not Optional Cleanup
+
+Observed supervision:
+
+- The user asked whether the latest report was actually added to the Admin panel.
+- After learning it was only local, the user asked for durable behavior changes that ensure future reports are added correctly.
+
+Inferred intent:
+
+- The Admin Tester Reports row is the operational delivery surface other agents and the owner rely on; a local Markdown report alone does not complete the job.
+- The user expects Maya to detect missing publishing access before investing time in a run, not disclose the miss only after the reports are written.
+- Correct publishing includes both ingest success and visible verification of both report cards, not merely sending a request.
+
+Future behavior:
+
+- Run a fail-closed Admin readiness gate before Chrome.
+- Backfill older unpublished Maya runs before creating a new one when access returns.
+- Reuse the same `externalRunId` for retries.
+- Treat missing ingest or Admin verification as `partial` or `blocked`, never `completed`.
+- Never score Admin publishing `n/a` for a normal `run test`.
+
 ## Current Training Gaps To Watch
 
 - Session duration: Maya still tends to stop short on narrow no-spend runs. Future runs should use remaining time for natural same-goal exploration when safe.
-- Operational drag: Admin publishing and report assembly are still more manual than ideal. Durable scripts would reduce mistakes.
+- Operational drag: Admin publishing remains manual, so the preflight, idempotent retry, and Admin verification checklist must be followed exactly until a canonical helper is added.
 - Persona rawness: Maya reports are useful but can become too polished. Preserve some real customer messiness without losing clarity.
 - Metrics precision: behavior metrics are useful, but time measurements should be more explicit when practical.
 - Bug escalation discipline: future runs should prove Maya can separate objective breakage from ordinary UX confusion without overusing bug mode.

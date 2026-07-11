@@ -12,7 +12,9 @@ import type {
   StudioOutput,
   ToolId,
   VideoReferenceMode,
+  WorkflowReloadConfigV1,
 } from "../types";
+import type { RerollPricingEvidence } from "../logic/rerollPricingEvidence";
 import type { ReferenceSelectionAuthorityStateSeed } from "./useAiStudioReferenceSelectionState";
 import { useAiStudioGenerationRuntimeControllers } from "./useAiStudioGenerationRuntimeControllers";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
@@ -62,6 +64,7 @@ type UseAiStudioStateRuntimeControllersParams = {
     referenceImageUrl: string | null;
     extraImageUrls: readonly (string | null)[];
   };
+  resolveRerollPricingEvidence?: (config: WorkflowReloadConfigV1) => RerollPricingEvidence | null;
   seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceAudioUrls: string[];
   seedance2ReferenceImageUrls: string[];
@@ -188,6 +191,7 @@ export const useAiStudioStateRuntimeControllers = ({
   referenceImageUrl,
   removedFromAllRefsIds,
   resolveReferenceInputsForTool,
+  resolveRerollPricingEvidence,
   seedance2InputMode,
   seedance2ReferenceAudioUrls,
   seedance2ReferenceImageUrls,
@@ -300,6 +304,7 @@ export const useAiStudioStateRuntimeControllers = ({
     workspaceRuntimeKey,
     prompt: createRuntime.prompt,
     resolveReferenceInputsForTool,
+    resolveRerollPricingEvidence,
     seedance2InputMode,
     seedance2ReferenceAudioUrls,
     seedance2ReferenceImageUrls,

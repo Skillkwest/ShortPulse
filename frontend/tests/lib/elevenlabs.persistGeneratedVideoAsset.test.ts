@@ -22,12 +22,14 @@ const aiGenerationsUpdateMock = vi.fn();
 const userPreferencesMaybeSingleMock = vi.fn();
 const uploadMock = vi.fn();
 const createSignedUrlMock = vi.fn();
+const removeStorageObjectsMock = vi.fn();
 
 const supabaseAdminMock = {
   storage: {
     from: vi.fn(() => ({
       upload: uploadMock,
       createSignedUrl: createSignedUrlMock,
+      remove: removeStorageObjectsMock,
     })),
   },
   from: vi.fn((table: string) => {
@@ -165,6 +167,7 @@ describe("persistGeneratedVideoAsset", () => {
       data: { signedUrl: "https://signed.example/video.mp4" },
       error: null,
     });
+    removeStorageObjectsMock.mockResolvedValue({ data: [], error: null });
     userPreferencesMaybeSingleMock.mockResolvedValue({
       data: { media_autosave_enabled: false },
       error: null,
@@ -192,6 +195,30 @@ describe("persistGeneratedVideoAsset", () => {
     upsertVideoPreviewVariantFromBufferMock.mockResolvedValue(null);
   });
 
+  it("removes the uploaded video when deterministic generation insertion loses a race", async () => {
+    aiGenerationsInsertMock.mockReturnValueOnce(
+      resolveInsertSingle({ error: { message: "duplicate key value violates unique constraint" } })
+    );
+
+    await expect(
+      persistGeneratedVideoAsset({
+        userId: "user-1",
+        promptText: "Voice changer retry",
+        provider: "elevenlabs",
+        modelId: "eleven_multilingual_sts_v2",
+        requestId: "voice-changer-remux:audio-1",
+        sourceMode: "voice-changer",
+        outputBuffer: Buffer.from("video"),
+        outputContentType: "video/mp4",
+      })
+    ).rejects.toThrow("duplicate key value violates unique constraint");
+
+    expect(removeStorageObjectsMock).toHaveBeenCalledWith([
+      "user-1/generations/video/generation-1/Voice_changer_retry.mp4",
+    ]);
+    expect(persistGenerationOutputRecordsMock).not.toHaveBeenCalled();
+  });
+
   it("keeps published signed-url authority when autosave is disabled", async () => {
     const result = await persistGeneratedVideoAsset({
       userId: "user-1",
@@ -207,6 +234,13 @@ describe("persistGeneratedVideoAsset", () => {
     });
 
     expect(mediaFilesInsertMock).not.toHaveBeenCalled();
+    expect(aiGenerationsInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          generation_replay: { source: "reroll-1" },
+        }),
+      })
+    );
     expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",

@@ -16,13 +16,24 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../lib/model-runtime/providerModelIds";
+import {
+  ELEVENLABS_MUSIC_MODEL_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+} from "../../lib/model-runtime/elevenLabsModels";
 import {
   ADMISSION_LIMITED_TELEMETRY_SOURCE,
   DIRECT_SUBMIT_ADMISSION_LIMITED_TELEMETRY_SOURCE,
 } from "../../lib/server/api/errorTelemetryPolicy";
 import { chargeGenerationRequest } from "../../lib/server/api/generationBilling";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
+import type {
+  ChargeOptions,
+  GenerationBillingWorkflow,
+} from "../../lib/server/api/generationBilling/types";
 
 const requireApiUserMock = vi.fn();
 const requireMediaComplianceAcceptedMock = vi.fn();
@@ -31,6 +42,42 @@ const insertCreditLedgerEntryMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const resolveRuntimeModelPricingPolicyMock = vi.fn();
 const resolveBillingConcurrencyEntitlementMock = vi.fn();
+
+const VIDEO_MODEL_IDS = new Set<string>([
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+]);
+const AUDIO_MODEL_IDS = new Set<string>([
+  ELEVENLABS_MUSIC_MODEL_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+]);
+
+const resolveTestBillingWorkflow = (
+  modelId: string,
+  payload: Record<string, unknown>
+): GenerationBillingWorkflow => {
+  if (VIDEO_MODEL_IDS.has(modelId)) return "video";
+  if (AUDIO_MODEL_IDS.has(modelId)) return "audio";
+  if (Array.isArray(payload.image_urls) || typeof payload.image_url === "string") {
+    return "image";
+  }
+  return "image";
+};
+
+const chargeTestGenerationRequest = (
+  options: Omit<ChargeOptions, "billingWorkflow"> & {
+    billingWorkflow?: GenerationBillingWorkflow;
+  }
+) =>
+  chargeGenerationRequest({
+    ...options,
+    billingWorkflow:
+      options.billingWorkflow ?? resolveTestBillingWorkflow(options.modelId, options.payload),
+  });
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -141,7 +188,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v5/lite/edit",
@@ -171,6 +218,214 @@ describe("generationBilling reservation RPC handling", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a stale displayed pricing policy before creating a reservation", async () => {
+    const policy = getDefaultModelPricingPolicyDocument();
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const payload = { prompt: "portrait", aspect_ratio: "16:9", resolution: "1K" };
+    const lookup = resolveCreateImageBilledCreditLookup({
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      params: buildPricingParams(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID, payload),
+      pricingPolicy: materializeImageBilledCreditPolicy(policy),
+    });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-stale-pricing" },
+      url: "/api/fal/kie-gpt-image-2-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "create",
+          mode: "image",
+          displayed_pricing_policy_version: 11,
+          displayed_pricing_variant_id: lookup.breakdown?.variantId,
+          displayed_billed_credits: lookup.breakdown?.credits,
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      payload,
+      reason: "Kie GPT Image 2 generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "PRICING_POLICY_STALE",
+        displayedPricingPolicyVersion: 11,
+        activePricingPolicyVersion: 12,
+      })
+    );
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("requires displayed pricing evidence from trusted image workflows even when client context omits the billing lane", async () => {
+    const policy = getDefaultModelPricingPolicyDocument();
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-missing-pricing-evidence" },
+      url: "/api/fal/kie-gpt-image-2-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "free-helper",
+          mode: "metadata-only",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      payload: { prompt: "portrait", aspect_ratio: "16:9", resolution: "1K" },
+      reason: "Kie GPT Image 2 generation",
+      billingWorkflow: "image",
+    });
+
+    expect(charge).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "PRICING_POLICY_VERSION_REQUIRED",
+        activePricingPolicyVersion: 12,
+      })
+    );
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts matching displayed policy, variant, and billed credits", async () => {
+    const policy = getDefaultModelPricingPolicyDocument();
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-current-pricing", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const payload = { prompt: "portrait", aspect_ratio: "16:9", resolution: "1K" };
+    const lookup = resolveCreateImageBilledCreditLookup({
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      params: buildPricingParams(KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID, payload),
+      pricingPolicy: materializeImageBilledCreditPolicy(policy),
+    });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-current-pricing" },
+      url: "/api/fal/kie-gpt-image-2-submit",
+      body: {
+        shortpulse_context: {
+          selected_tool: "create",
+          mode: "image",
+          displayed_pricing_policy_version: 12,
+          displayed_pricing_variant_id: lookup.breakdown?.variantId,
+          displayed_billed_credits: lookup.breakdown?.credits,
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
+      payload,
+      reason: "Kie GPT Image 2 generation",
+    });
+
+    expect(charge).not.toBeNull();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("does not require displayed-price evidence for style-preview helper billing under an active policy", async () => {
+    const policy = getDefaultModelPricingPolicyDocument();
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-style-preview", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const shortpulseContext = {
+      selected_tool: "create",
+      mode: "image",
+      source_mode: "style_preview",
+    };
+    const payload = {
+      prompt: "Style preview",
+      image_size: { width: 1024, height: 1024 },
+      num_images: 1,
+      output_format: "jpeg",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeTestGenerationRequest({
+      req: {
+        headers: { "x-shortpulse-request-id": "req-style-preview" },
+        url: "/api/ai/generate-style-preview",
+        body: { shortpulse_context: shortpulseContext },
+      } as never,
+      res: res as never,
+      modelId: "fal-ai/flux-2/klein/9b",
+      payload,
+      reason: "fal-flux-2-klein style preview generation",
+      billingWorkflow: "style_preview",
+      shortpulseContext,
+    });
+
+    expect(charge).not.toBeNull();
+    expect(res.status).not.toHaveBeenCalledWith(409);
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_source_ref: "req-style-preview",
+        p_metadata: expect.objectContaining({
+          shortpulse_context: shortpulseContext,
+          pricing_params: expect.objectContaining({
+            variantBaseId: "style_preview",
+          }),
+          pricing_breakdown: expect.objectContaining({
+            pricing_policy_version: 12,
+          }),
+        }),
+      })
+    );
+  });
+
   it("fails closed before billing or provider reservation when media consent is missing", async () => {
     requireMediaComplianceAcceptedMock.mockImplementationOnce(async ({ res }) => {
       res.status(403).json({
@@ -186,7 +441,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -218,7 +473,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -256,7 +511,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const result = await chargeGenerationRequest({
+    const result = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -300,7 +555,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const result = await chargeGenerationRequest({
+    const result = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -344,7 +599,7 @@ describe("generationBilling reservation RPC handling", () => {
       generation_count: 1,
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
@@ -375,14 +630,14 @@ describe("generationBilling reservation RPC handling", () => {
           model_id: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
           route: "/api/fal/kie-gpt-image-2-submit",
           debited_credits: expectedEstimate?.credits,
-          pricing_breakdown: {
+          pricing_breakdown: expect.objectContaining({
             usd_raw: expectedEstimate?.usdRaw,
             raw_credits: expectedEstimate?.rawCredits,
             billed_credits: expectedEstimate?.credits,
             billed_usd: expectedEstimate?.usd,
             pricing_policy_version: null,
             pricing_policy_source: "control_plane",
-          },
+          }),
         }),
       })
     );
@@ -419,7 +674,7 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -464,6 +719,14 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("fails closed when Create image canonical billed-credit rows are missing", async () => {
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy: getDefaultModelPricingPolicyDocument(),
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
     const rpcMock = vi.fn();
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
@@ -485,12 +748,13 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       payload,
       reason: "Kie GPT Image 2 missing canonical create price",
+      billingWorkflow: "create_image",
       shortpulseContext: {
         selected_tool: "create",
         mode: "image",
@@ -547,7 +811,7 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -620,7 +884,7 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -693,7 +957,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
@@ -722,14 +986,14 @@ describe("generationBilling reservation RPC handling", () => {
       "admit_and_reserve_generation_credits",
       expect.objectContaining({
         p_metadata: expect.objectContaining({
-          pricing_observability: {
+          pricing_observability: expect.objectContaining({
             displayed_billed_credits: 8,
             actual_billed_credits: expectedEstimate?.credits,
             delta_credits: Number(((expectedEstimate?.credits ?? 0) - 8).toFixed(4)),
             mismatch: (expectedEstimate?.credits ?? 0) !== 8,
             pricing_display_source: "shared_adapter",
             pricing_policy_ready: true,
-          },
+          }),
           shortpulse_context: {
             displayed_billed_credits: 8,
             pricing_display_source: "shared_adapter",
@@ -791,7 +1055,7 @@ describe("generationBilling reservation RPC handling", () => {
       updatedByEmail: "pricing@example.com",
     });
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -884,7 +1148,7 @@ describe("generationBilling reservation RPC handling", () => {
       updatedByEmail: "pricing@example.com",
     });
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_KLING_30_MODEL_ID,
@@ -956,7 +1220,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -1050,7 +1314,7 @@ describe("generationBilling reservation RPC handling", () => {
       },
     };
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "music_v1",
@@ -1116,7 +1380,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -1187,7 +1451,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -1317,7 +1581,7 @@ describe("generationBilling reservation RPC handling", () => {
       const res = createMockResponse();
 
       const callCountBefore = rpcMock.mock.calls.length;
-      const charge = await chargeGenerationRequest({
+      const charge = await chargeTestGenerationRequest({
         req: req as never,
         res: res as never,
         modelId: testCase.modelId,
@@ -1355,7 +1619,7 @@ describe("generationBilling reservation RPC handling", () => {
       expect(estimated).not.toBeNull();
 
       expect(reservePayload.p_amount_cents).toBe(estimated?.credits);
-      expect(reservePayload.p_metadata.pricing_breakdown).toEqual({
+      expect(reservePayload.p_metadata.pricing_breakdown).toMatchObject({
         usd_raw: estimated?.usdRaw,
         raw_credits: estimated?.rawCredits,
         billed_credits: estimated?.credits,
@@ -1380,7 +1644,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -1426,7 +1690,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -1464,7 +1728,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -1515,7 +1779,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "kie-ai/veo-3.1-fast-i2v",
@@ -1589,7 +1853,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
@@ -1654,7 +1918,7 @@ describe("generationBilling reservation RPC handling", () => {
     };
     const res = createMockResponse();
 
-    const charge = await chargeGenerationRequest({
+    const charge = await chargeTestGenerationRequest({
       req: req as never,
       res: res as never,
       modelId: "music_v1",

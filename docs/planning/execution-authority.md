@@ -105,6 +105,7 @@ Primary entry docs:
 
 - `docs/known-issues.md`
 - `docs/troubleshooting.md`
+- `docs/planning/ai-studio-browser-oom-and-crash-observability-buildout-plan-2026-07-10.md`
 - `docs/sops/sop_ai_studio_style_creator.md`
 - `docs/sops/sop_ai_studio_media_library_operations.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
@@ -150,6 +151,7 @@ Owns:
 
 Primary entry docs:
 
+- `docs/planning/ai-studio-voice-changer-video-recovery-and-reliability-plan-2026-07-10.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`

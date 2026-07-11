@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type DragEvent,
   type SetStateAction,
 } from "react";
 import type { AgentAssistantMessageEditRequest, AgentContext } from "../../../prefabs/agent";
@@ -23,6 +24,7 @@ import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteracti
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import type { AgentComposerDirectDropPayload } from "../logic/agentComposerDirectDropPayload";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { StandardCreatePageAgentRuntime } from "./contracts";
@@ -91,6 +93,15 @@ export const useStandardCreateAgentRuntime = ({
   const [chatModeEnabled, setChatModeEnabled] = useState<boolean>(
     STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED
   );
+  const chatModeEnabledRef = useRef(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+  const chatModeAuthorizationEpochRef = useRef(0);
+  const commitChatModeEnabled = useCallback((value: boolean) => {
+    if (chatModeEnabledRef.current !== value) {
+      chatModeAuthorizationEpochRef.current += 1;
+    }
+    chatModeEnabledRef.current = value;
+    setChatModeEnabled(value);
+  }, []);
   const preparedImageUrlCacheRef = useRef<Map<string, { safeUrl: string; expiresAtMs: number }>>(
     new Map()
   );
@@ -152,7 +163,7 @@ export const useStandardCreateAgentRuntime = ({
   const handleChatModeChange = useCallback(
     (value: boolean) => {
       const transition = resolveStandardChatModeTransition({
-        currentChatModeEnabled: chatModeEnabled,
+        currentChatModeEnabled: chatModeEnabledRef.current,
         nextChatModeEnabled: value,
         prompt,
         agentInput,
@@ -162,15 +173,16 @@ export const useStandardCreateAgentRuntime = ({
         setAgentInput(transition.nextAgentInput);
       } else {
         setStandardCreatePrompt(transition.nextPrompt);
+        resetAgentComposer({ preserveInput: true, preserveAttachments: false });
       }
-      setChatModeEnabled(value);
+      commitChatModeEnabled(value);
     },
     [
       agentInput,
-      chatModeEnabled,
+      commitChatModeEnabled,
       prompt,
+      resetAgentComposer,
       setAgentInput,
-      setChatModeEnabled,
       setStandardCreatePrompt,
     ]
   );
@@ -183,9 +195,54 @@ export const useStandardCreateAgentRuntime = ({
     [handleAgentInputChange, setPromptOrigin, setStandardCreatePrompt]
   );
   const prepareForWorkflowReload = useCallback(() => {
-    setChatModeEnabled(false);
+    resetAgentComposer({ preserveInput: true, preserveAttachments: false });
+    commitChatModeEnabled(false);
     setPromptOrigin("manual");
-  }, [setChatModeEnabled, setPromptOrigin]);
+  }, [commitChatModeEnabled, resetAgentComposer, setPromptOrigin]);
+  const handleStandardAgentAttachmentDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!chatModeEnabledRef.current) {
+        event.preventDefault();
+        return;
+      }
+      handleAgentAttachmentDragOver(event);
+    },
+    [handleAgentAttachmentDragOver]
+  );
+  const handleStandardAgentAttachmentDragEnter = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!chatModeEnabledRef.current) {
+        event.preventDefault();
+        return;
+      }
+      handleAgentAttachmentDragEnter(event);
+    },
+    [handleAgentAttachmentDragEnter]
+  );
+  const handleStandardAgentAttachmentDragLeave = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!chatModeEnabledRef.current) return;
+      handleAgentAttachmentDragLeave(event);
+    },
+    [handleAgentAttachmentDragLeave]
+  );
+  const handleStandardAgentAttachmentDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!chatModeEnabledRef.current) {
+        event.preventDefault();
+        return;
+      }
+      handleAgentAttachmentDrop(event);
+    },
+    [handleAgentAttachmentDrop]
+  );
+  const acceptStandardAgentComposerDropPayload = useCallback(
+    (payload: AgentComposerDirectDropPayload) => {
+      if (!chatModeEnabledRef.current) return;
+      acceptAgentComposerDropPayload(payload);
+    },
+    [acceptAgentComposerDropPayload]
+  );
 
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
@@ -212,8 +269,10 @@ export const useStandardCreateAgentRuntime = ({
   const isPromptRefining = false;
 
   const handleAgentSend = useCallback(
-    async (textOverride?: string, options?: { captureResult?: boolean }) =>
-      runStandardCreateAgentSend({
+    async (textOverride?: string, options?: { captureResult?: boolean }) => {
+      if (!chatModeEnabledRef.current) return undefined;
+      const authorizationEpoch = chatModeAuthorizationEpochRef.current;
+      return runStandardCreateAgentSend({
         agentIsSending,
         agentBootstrapReady,
         agentUiBusyRef,
@@ -240,7 +299,11 @@ export const useStandardCreateAgentRuntime = ({
         setAgentOnlineLookupPending,
         textOverride,
         options,
-      }),
+        isSendAuthorized: () =>
+          chatModeEnabledRef.current &&
+          chatModeAuthorizationEpochRef.current === authorizationEpoch,
+      });
+    },
     [
       agentAttachments,
       agentBootstrapReady,
@@ -340,14 +403,14 @@ export const useStandardCreateAgentRuntime = ({
       setPromptOrigin(
         restoredComposerState.promptOriginFallback ? "manual" : standardRuntime.promptOrigin
       );
-      setChatModeEnabled(standardRuntime.chatModeEnabled);
+      commitChatModeEnabled(standardRuntime.chatModeEnabled);
     },
     [
       replaceMessages,
       setAgentAttachmentError,
       setAgentAttachments,
       setAgentInput,
-      setChatModeEnabled,
+      commitChatModeEnabled,
       setLatestAgentPrompt,
       setStandardCreatePrompt,
       setPromptOrigin,
@@ -359,7 +422,7 @@ export const useStandardCreateAgentRuntime = ({
     resetAgentComposer({ preserveInput: false, preserveAttachments: false });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
-    setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+    commitChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
     setAgentAttachmentError(null);
     setAgentAttachments([]);
   }, [
@@ -367,14 +430,14 @@ export const useStandardCreateAgentRuntime = ({
     resetAgentComposer,
     setAgentAttachmentError,
     setAgentAttachments,
-    setChatModeEnabled,
+    commitChatModeEnabled,
   ]);
 
   useEffect(() => {
     queueMicrotask(() => {
-      setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+      commitChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
     });
-  }, [sessionId]);
+  }, [commitChatModeEnabled, sessionId]);
 
   useEffect(() => {
     resetAgentComposer({ preserveInput: true, preserveAttachments: false });
@@ -410,11 +473,11 @@ export const useStandardCreateAgentRuntime = ({
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
     prepareForWorkflowReload,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDrop,
-    acceptAgentComposerDropPayload,
+    handleAgentAttachmentDragOver: handleStandardAgentAttachmentDragOver,
+    handleAgentAttachmentDragEnter: handleStandardAgentAttachmentDragEnter,
+    handleAgentAttachmentDragLeave: handleStandardAgentAttachmentDragLeave,
+    handleAgentAttachmentDrop: handleStandardAgentAttachmentDrop,
+    acceptAgentComposerDropPayload: acceptStandardAgentComposerDropPayload,
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAssistantMessageEdit,

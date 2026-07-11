@@ -4,6 +4,7 @@
  * Standard and Pulse runtimes.
  */
 import type { AgentMessage } from "../../../prefabs/agent";
+import { isAgentMachineFailure } from "../../../prefabs/agent";
 import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
 import { isEphemeralLocalImageAttachment } from "../logic/ephemeralComposerImage";
 import type { AiStudioSessionAgentMessageV1 } from "../logic/sessionSnapshot";
@@ -13,6 +14,7 @@ import type { AiStudioSessionAgentMessageV1 } from "../logic/sessionSnapshot";
  */
 export const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
   message.role === "assistant" &&
+  !isAgentMachineFailure(message) &&
   message.canUseAsPrompt === true &&
   typeof message.outputPrompt === "string" &&
   message.outputPrompt.trim().length > 0;

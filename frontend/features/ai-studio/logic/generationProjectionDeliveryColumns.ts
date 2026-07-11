@@ -30,6 +30,7 @@ export type GenerationProjectionDeliveryRow = {
   workflow_reload?: unknown;
   character_context?: unknown;
   style_context?: unknown;
+  remux_recovery?: unknown;
   started_at?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
@@ -63,6 +64,7 @@ export const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST = [
   "workflow_reload",
   "character_context",
   "style_context",
+  "remux_recovery",
   "started_at",
   "created_at",
   "updated_at",
@@ -79,7 +81,11 @@ export const GENERATION_PROJECTION_LIGHTWEIGHT_DELIVERY_SELECT_COLUMN_LIST =
   GENERATION_PROJECTION_DELIVERY_SELECT_COLUMN_LIST.filter(
     (column) => !HEAVY_GENERATION_PROJECTION_CONTEXT_COLUMNS.has(column)
   );
-const OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS = ["display_title", "error_payload"] as const;
+const OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS = [
+  "display_title",
+  "error_payload",
+  "remux_recovery",
+] as const;
 type OptionalGenerationProjectionDeliveryColumn =
   (typeof OPTIONAL_GENERATION_PROJECTION_DELIVERY_COLUMNS)[number];
 const buildGenerationProjectionDeliverySelectColumns = (

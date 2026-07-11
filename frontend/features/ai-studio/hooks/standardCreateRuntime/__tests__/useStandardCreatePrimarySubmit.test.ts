@@ -94,6 +94,43 @@ describe("useStandardCreatePrimarySubmit", () => {
     expect(setVisibleCreatePrompt).not.toHaveBeenCalled();
   });
 
+  it("ignores stale composer attachment failures in chat-off generation", () => {
+    const handleGenerate = vi.fn();
+
+    const { result } = renderHook(() =>
+      useStandardCreatePrimarySubmit({
+        selectedTool: "create",
+        chatModeEnabled: false,
+        agentInput: "hidden chat draft",
+        prompt: "authored prompt",
+        createGenerateCostCredits: 3,
+        agentAttachments: [
+          {
+            id: "image-1",
+            kind: "image",
+            imageUrl: "data:image/png;base64,preview",
+            submissionImageUrl: null,
+            text: null,
+            deliveryStatus: "failed",
+            deliveryError: "Preparation failed",
+          },
+        ],
+        handleGenerate,
+        handleProviderPrimarySubmit: vi.fn(),
+        setVisibleCreatePrompt: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current();
+    });
+
+    expect(handleGenerate).toHaveBeenCalledWith(
+      "authored prompt",
+      expect.objectContaining({ modeOverride: "image", toolOverride: "create" })
+    );
+  });
+
   it("uses the visible Standard chat composer even when the page mode is image", async () => {
     const handleGenerate = vi.fn();
     const handleProviderPrimarySubmit = vi.fn();

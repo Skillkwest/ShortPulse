@@ -130,6 +130,43 @@ const deferredEventBuffer: MediaPerfEvent[] = [];
 const deferredLastLoggedAtByEvent = new Map<MediaPerfEventName, number>();
 let samplingPolicy: MediaPerfSamplingPolicy = "normal";
 let deferredFlushTimeoutId: number | null = null;
+const mediaPerfCrashEvidence: Record<string, number> = {};
+
+const CRASH_EVIDENCE_FIELDS_BY_SURFACE: Record<string, Record<string, string>> = {
+  "reference-grid": {
+    tracked_video_node_count: "media_grid_tracked_video_node_count",
+    attached_video_source_count: "media_grid_attached_video_source_count",
+    visible_video_key_count: "media_grid_visible_video_key_count",
+    autoplay_enabled_output_count: "media_grid_autoplay_enabled_output_count",
+    duplicate_video_output_count: "media_grid_duplicate_video_output_count",
+  },
+  canvas: {
+    rendered_video_count: "media_canvas_rendered_video_count",
+    attached_video_source_count: "media_canvas_attached_video_source_count",
+  },
+  "duration-probe": {
+    duration_probe_inflight_count: "media_duration_probe_inflight_count",
+    duration_probe_queued_count: "media_duration_probe_queued_count",
+    duration_probe_cache_entry_count: "media_duration_probe_cache_entry_count",
+  },
+};
+
+const updateMediaPerfCrashEvidence = (event: MediaPerfEventName, data: MediaPerfData): void => {
+  if (event !== "media.grid.memory.sample") return;
+  const surface = typeof data.surface === "string" ? data.surface : "";
+  const fields = CRASH_EVIDENCE_FIELDS_BY_SURFACE[surface];
+  if (!fields) return;
+  for (const [sourceKey, targetKey] of Object.entries(fields)) {
+    const value = data[sourceKey];
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    mediaPerfCrashEvidence[targetKey] = Math.min(10_000, Math.max(0, Math.round(value)));
+  }
+};
+
+/** Returns the latest bounded media-work counters for session/crash persistence. */
+export const readMediaPerfCrashEvidence = (): Record<string, number> => ({
+  ...mediaPerfCrashEvidence,
+});
 
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -270,6 +307,7 @@ export const logMediaPerf = (
     event,
     data: sanitized,
   };
+  updateMediaPerfCrashEvidence(event, sanitized);
 
   if (samplingPolicy === "defer_non_critical" && DEFERRED_NON_CRITICAL_EVENTS.has(event)) {
     const now = getNow();
@@ -315,6 +353,7 @@ export const clearMediaPerfEvents = (): void => {
   eventBuffer.length = 0;
   deferredEventBuffer.length = 0;
   deferredLastLoggedAtByEvent.clear();
+  Object.keys(mediaPerfCrashEvidence).forEach((key) => delete mediaPerfCrashEvidence[key]);
   if (deferredFlushTimeoutId != null) {
     if (typeof window !== "undefined") {
       window.clearTimeout(deferredFlushTimeoutId);

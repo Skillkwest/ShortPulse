@@ -40,6 +40,7 @@ type UseAiStudioReferenceExperienceRuntimeParams = {
   >["handleRegenerateWithDebit"];
   handleOpenMediaLibrary: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenMediaLibrary"];
   handleRerollOutput?: (outputId: string) => void;
+  handleRetryVoiceChangerVideo?: (output: StudioOutput) => void;
 };
 
 /**
@@ -59,6 +60,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
   handleRegenerateWithDebit,
   handleOpenMediaLibrary,
   handleRerollOutput,
+  handleRetryVoiceChangerVideo,
 }: UseAiStudioReferenceExperienceRuntimeParams): PageContentRuntimeProps => {
   const {
     activeOutput,
@@ -276,6 +278,7 @@ export const useAiStudioReferenceExperienceRuntime = ({
       ? () => notifyPlanBlockedVoid?.()
       : addLibraryPromptReference,
     handleRerollOutput: resolvedRerollOutput,
+    handleRetryVoiceChangerVideo,
     handleReloadWorkflowOutput: manualWorkflowReloadHandler,
     deleteOutput,
     clearGenerationOutput,

@@ -14,6 +14,8 @@ const createRemuxedVoiceChangerVideoMock = vi.fn();
 const listElevenLabsVoicesMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const persistGeneratedVideoAssetMock = vi.fn();
+const executeVoiceChangerRemuxMock = vi.fn();
+const patchVoiceChangerRemuxMetadataMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
 const readRemoteMediaBufferMock = vi.fn();
@@ -24,6 +26,7 @@ const transcribeAudioBufferMock = vi.fn();
 const generateAudioReferenceTitleBestEffortMock = vi.fn();
 const recordVoiceSourceLifecycleStateMock = vi.fn();
 const resolveBillingConcurrencyEntitlementMock = vi.fn();
+const detectVideoMimeTypeMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockFiles: Record<string, unknown> = {};
@@ -136,12 +139,23 @@ vi.mock("../../lib/server/elevenlabs", () => ({
   readRemoteSourceBuffer: (...args: unknown[]) => readRemoteSourceBufferMock(...args),
 }));
 
+vi.mock("../../lib/server/voiceChangerRemux", () => ({
+  buildVoiceChangerRemuxRequestId: (audioGenerationId: string) =>
+    `voice-changer-remux:${audioGenerationId}`,
+  executeVoiceChangerRemux: (...args: unknown[]) => executeVoiceChangerRemuxMock(...args),
+  patchVoiceChangerRemuxMetadata: (...args: unknown[]) =>
+    patchVoiceChangerRemuxMetadataMock(...args),
+}));
+
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
   readRemoteMediaBuffer: (...args: unknown[]) => readRemoteMediaBufferMock(...args),
   MAX_VOICE_CHANGER_SOURCE_BYTES: 40 * 1024 * 1024,
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
+}));
+vi.mock("../../lib/server/uploadSignature", () => ({
+  detectVideoMimeType: (...args: unknown[]) => detectVideoMimeTypeMock(...args),
 }));
 
 vi.mock("../../lib/server/audioCompanionArt/routePending", () => ({
@@ -177,6 +191,8 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ELEVENLABS_API_KEY = "test-key";
+    writeAppErrorLogMock.mockResolvedValue(undefined);
+    detectVideoMimeTypeMock.mockReturnValue("video/mp4");
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     resolveBillingConcurrencyEntitlementMock.mockResolvedValue({
       userId: "user-1",
@@ -230,12 +246,26 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     transcribeAudioBufferMock.mockReset();
     generateAudioReferenceTitleBestEffortMock.mockReset();
     recordVoiceSourceLifecycleStateMock.mockReset();
+    executeVoiceChangerRemuxMock.mockReset();
+    patchVoiceChangerRemuxMetadataMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
     markAudioCompanionArtPendingBestEffortMock.mockResolvedValue(undefined);
     generateAudioCompanionArtNowBestEffortMock.mockResolvedValue(null);
     transcribeAudioBufferMock.mockResolvedValue("I can hear the city waking up below us.");
     generateAudioReferenceTitleBestEffortMock.mockResolvedValue("I Can Hear The City I0OZ21");
     recordVoiceSourceLifecycleStateMock.mockResolvedValue({ recorded: true });
+    patchVoiceChangerRemuxMetadataMock.mockResolvedValue(undefined);
+    executeVoiceChangerRemuxMock.mockImplementation(async (input) => {
+      const remuxedVideo = await createRemuxedVoiceChangerVideoMock({
+        sourceVideoBuffer: input.sourceVideoBuffer,
+        sourceVideoFilename: input.sourceVideoFilename,
+        sourceVideoMimeType: input.sourceVideoMimeType,
+        convertedAudioBuffer: input.convertedAudioBuffer,
+        convertedAudioContentType: input.convertedAudioContentType,
+      });
+      const persistedVideo = await persistGeneratedVideoAssetMock(input);
+      return { remuxedVideo, persistedVideo };
+    });
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_sts_v2",
@@ -452,9 +482,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     mockFields = {
       ...mockFields,
       sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
       originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
       originalVideoName: "source.mp4",
-      originalVideoMimeType: "video/mp4",
+      originalVideoMimeType: "video/webm",
       originalVideoAspect: "9:16",
       project_id: "project-1",
     };
@@ -514,9 +545,12 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       expect.objectContaining({
         userId: "user-1",
         projectId: "project-1",
+        promptText: "source.mp4 -> Darian",
         sourceMode: "voice-changer",
         transcriptText: "I can hear the city waking up below us.",
         extraMetadata: expect.objectContaining({
+          generation_replay: { aspect: "9:16" },
+          original_video_mime_type: "video/mp4",
           shortpulse_context: {
             mode: "audio",
             selected_tool: "voice-changer",
@@ -526,21 +560,16 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         }),
       })
     );
-    expect(persistGeneratedVideoAssetMock).toHaveBeenCalledWith(
+    expect(executeVoiceChangerRemuxMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        provider: "elevenlabs",
+        audioGenerationId: "gen-audio-1",
         modelId: "eleven_multilingual_sts_v2",
         projectId: "project-1",
-        outputBuffer: Buffer.from("remuxed-video"),
-        outputContentType: "video/mp4",
-        generationReplay: {
-          aspect: "9:16",
-        },
+        aspect: "9:16",
         extraMetadata: expect.objectContaining({
           billing_source_ref: "billing-source-voice-1",
           debited_credits: 15,
-          derivative_kind: "voice_changer_remuxed_video",
           provider_request_id: "provider-voice-req-1",
           source_audio_generation_id: "gen-audio-1",
           source_duration_ms: 12000,
@@ -638,34 +667,139 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         saveState: undefined,
         saveError: undefined,
       },
-      remuxedVideo: {
-        provider: "elevenlabs",
-        mode: "video",
-        generationId: "gen-video-1",
-        mediaFileId: "media-video-1",
-        requestId: "req-video-1",
-        previewUrl: "https://signed.example/generated-video.mp4",
-        previewPosterUrl: null,
-        resultUrls: ["https://signed.example/generated-video.mp4"],
-        previewPosterStoragePath: null,
-        previewStoragePath: "user-1/generations/video/gen-video-1/source.mp4",
-        fullStoragePath: "user-1/generations/video/gen-video-1/source.mp4",
-        mimeType: "video/mp4",
-        modelId: "eleven_multilingual_sts_v2",
-        transcriptText: "I can hear the city waking up below us.",
-        saveState: undefined,
-        saveError: undefined,
+      remuxOutcome: {
+        status: "succeeded",
+        code: null,
+        stage: null,
+        retryable: false,
+        message: null,
+        audioGenerationId: "gen-audio-1",
+        remuxRequestId: "req-video-1",
+        video: {
+          provider: "elevenlabs",
+          mode: "video",
+          generationId: "gen-video-1",
+          mediaFileId: "media-video-1",
+          requestId: "req-video-1",
+          previewUrl: "https://signed.example/generated-video.mp4",
+          previewPosterUrl: null,
+          resultUrls: ["https://signed.example/generated-video.mp4"],
+          previewPosterStoragePath: null,
+          previewStoragePath: "user-1/generations/video/gen-video-1/source.mp4",
+          fullStoragePath: "user-1/generations/video/gen-video-1/source.mp4",
+          mimeType: "video/mp4",
+          modelId: "eleven_multilingual_sts_v2",
+          transcriptText: "I can hear the city waking up below us.",
+          saveState: undefined,
+          saveError: undefined,
+        },
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("requires user-scoped trusted media urls for remote source and remux video inputs", async () => {
+  it("returns durable audio and video success when the post-audio metadata patch fails", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
+      originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
+      originalVideoName: "source.mp4",
+      originalVideoMimeType: "video/mp4",
+    };
+    readStoredMediaBufferMock
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("staged-audio"),
+        contentType: "audio/wav",
+        size: 12,
+      })
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("source-video"),
+        contentType: "video/mp4",
+        size: 24,
+      });
+    patchVoiceChangerRemuxMetadataMock.mockRejectedValueOnce(new Error("projection unavailable"));
+
+    const res = createMockResponse();
+    await handler({ method: "POST" } as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({ generationId: "gen-audio-1" }),
+        remuxOutcome: expect.objectContaining({
+          status: "succeeded",
+          video: expect.objectContaining({ generationId: "gen-video-1" }),
+        }),
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 200,
+        metadata: expect.objectContaining({ remux_phase: "audio_persisted" }),
+      })
+    );
+  });
+
+  it("does not misclassify a persisted video when its terminal metadata patch fails", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
+      originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
+      originalVideoName: "source.mp4",
+      originalVideoMimeType: "video/mp4",
+    };
+    readStoredMediaBufferMock
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("staged-audio"),
+        contentType: "audio/wav",
+        size: 12,
+      })
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("source-video"),
+        contentType: "video/mp4",
+        size: 24,
+      });
+    patchVoiceChangerRemuxMetadataMock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("terminal metadata update failed"));
+
+    const res = createMockResponse();
+    await handler({ method: "POST" } as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        remuxOutcome: expect.objectContaining({
+          status: "succeeded",
+          code: null,
+          retryable: false,
+          video: expect.objectContaining({ generationId: "gen-video-1" }),
+        }),
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 200,
+        metadata: expect.objectContaining({
+          remux_phase: "video_persisted",
+          remuxed_video_generation_id: "gen-video-1",
+        }),
+      })
+    );
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ routeLabel: "elevenlabs-speech-to-speech-remux" })
+    );
+  });
+
+  it("rejects video-derived URL input without durable original-video storage authority", async () => {
     mockFields = {
       ...mockFields,
       sourceStoragePath: undefined,
       sourceUrl: "https://cdn.shortpulse.test/user-1/staged-audio/source.wav",
       sourceOrigin: "local",
+      expectsRemux: "true",
       originalVideoStoragePath: undefined,
       originalVideoSourceUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
       originalVideoName: "source.mp4",
@@ -688,24 +822,70 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         label: "Voice changer source URL",
       })
     );
-    expect(assertTrustedRemoteMediaUrlMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        rawUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
-        req,
-        userId: "user-1",
-        requireUserScope: true,
-        label: "Voice changer source video URL",
-      })
-    );
     expect(readRemoteSourceBufferMock).toHaveBeenCalledWith({
       sourceUrl: "https://cdn.shortpulse.test/user-1/staged-audio/source.wav",
     });
-    expect(readRemoteMediaBufferMock).toHaveBeenCalledWith({
-      sourceUrl: "https://cdn.shortpulse.test/user-1/source-video/source.mp4",
-      maxBytes: 40 * 1024 * 1024,
+    expect(readRemoteMediaBufferMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a user-owned video outside the canonical source-video namespace before billing", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
+      originalVideoStoragePath: "user-1/generations/video/source.mp4",
+      originalVideoName: "source.mp4",
+    };
+    readStoredMediaBufferMock.mockResolvedValueOnce({
+      buffer: Buffer.from("staged-audio"),
+      contentType: "audio/wav",
+      size: 12,
     });
-    expect(res.status).toHaveBeenCalledWith(200);
+
+    const res = createMockResponse();
+    await handler({ method: "POST" } as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "VOICE_CHANGER_ORIGINAL_VIDEO_AUTHORITY_INVALID" })
+    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unverified bytes in canonical source-video storage before billing", async () => {
+    mockFields = {
+      ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
+      originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
+      originalVideoName: "source.mp4",
+      originalVideoMimeType: "video/mp4",
+    };
+    readStoredMediaBufferMock
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("staged-audio"),
+        contentType: "audio/wav",
+        size: 12,
+      })
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("not-video"),
+        contentType: "video/mp4",
+        size: 9,
+      });
+    detectVideoMimeTypeMock.mockReturnValueOnce(null);
+
+    const res = createMockResponse();
+    await handler({ method: "POST" } as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "VOICE_CHANGER_ORIGINAL_VIDEO_INVALID" })
+    );
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
   });
 
   it("passes through provider rate-limit responses with retry guidance", async () => {
@@ -888,6 +1068,8 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
   it("returns the remux source size error as a client-visible 413", async () => {
     mockFields = {
       ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
       originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
     };
     readStoredMediaBufferMock
@@ -920,6 +1102,8 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
   it("still returns the converted audio when remuxing the sibling video fails", async () => {
     mockFields = {
       ...mockFields,
+      sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
+      expectsRemux: "true",
       originalVideoStoragePath: "user-1/voice-changer/source-video/source.mp4",
       originalVideoName: "source.mp4",
       originalVideoMimeType: "video/mp4",
@@ -936,9 +1120,15 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         contentType: "video/mp4",
         size: 24,
       });
-    createRemuxedVoiceChangerVideoMock.mockRejectedValueOnce(
-      new Error("Unable to combine the converted audio with the source video.")
+    executeVoiceChangerRemuxMock.mockRejectedValueOnce(
+      Object.assign(new Error("Unable to combine the converted audio with the source video."), {
+        code: "VOICE_CHANGER_REMUX_ASSEMBLY_FAILED",
+        stage: "assembly",
+      })
     );
+    patchVoiceChangerRemuxMetadataMock
+      .mockRejectedValueOnce(new Error("initial metadata convergence failed"))
+      .mockResolvedValueOnce(undefined);
 
     const req = { method: "POST" };
     const res = createMockResponse();
@@ -973,12 +1163,36 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         saveState: undefined,
         saveError: undefined,
       },
+      remuxOutcome: {
+        status: "failed",
+        code: "VOICE_CHANGER_REMUX_ASSEMBLY_FAILED",
+        stage: "assembly",
+        retryable: true,
+        message:
+          "The new voice is ready, but the video could not be assembled. Retry video without another charge.",
+        audioGenerationId: "gen-audio-1",
+        remuxRequestId: "voice-changer-remux:gen-audio-1",
+        video: null,
+      },
     });
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         routeLabel: "elevenlabs-speech-to-speech-remux",
         scope: "generation",
         user: expect.objectContaining({ id: "user-1" }),
+      })
+    );
+    expect(patchVoiceChangerRemuxMetadataMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        audioGenerationId: "gen-audio-1",
+        patch: expect.objectContaining({
+          generated_audio_storage_path: "user-1/generations/audio/gen-audio-1/source.mp3",
+          remux_request_id: "voice-changer-remux:gen-audio-1",
+          remux_status: "failed",
+          remux_failure_code: "VOICE_CHANGER_REMUX_ASSEMBLY_FAILED",
+          remux_failure_stage: "assembly",
+        }),
       })
     );
   });

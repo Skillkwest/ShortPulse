@@ -172,10 +172,12 @@ export function StandardCreatePanelView({
   const canAcceptCanvasTearOutPayload = React.useCallback(
     (payload: AgentComposerDirectDropPayload) => {
       if (payload.kind === "unsupported") return false;
-      if (payload.kind === "image") return Boolean(onAgentComposerDirectDrop);
+      const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
+      if (payload.kind === "image") {
+        return isChatModeEnabled && Boolean(onAgentComposerDirectDrop);
+      }
       if (payload.kind !== "text") return false;
       if (!payload.text.trim()) return false;
-      const isChatModeEnabled = promptStepProps.chatModeEnabled ?? true;
       return Boolean(
         isChatModeEnabled ? promptStepProps.onAgentInputChange : promptStepProps.onPromptChange
       );
@@ -214,7 +216,13 @@ export function StandardCreatePanelView({
   const handlePanelMediaDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
+      const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
+      if (panelDropKind === "none") return;
+      if (panelDropKind === "media" && promptStepProps.chatModeEnabled === false) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       promptStepProps.onAgentAttachmentDragEnter?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -222,7 +230,13 @@ export function StandardCreatePanelView({
   const handlePanelMediaDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
-      if (resolveAgentComposerPanelDropKind(event.dataTransfer) === "none") return;
+      const panelDropKind = resolveAgentComposerPanelDropKind(event.dataTransfer);
+      if (panelDropKind === "none") return;
+      if (panelDropKind === "media" && promptStepProps.chatModeEnabled === false) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       promptStepProps.onAgentAttachmentDragOver?.(event);
     },
     [isTargetInsideComposerInputShell, promptStepProps]
@@ -272,6 +286,12 @@ export function StandardCreatePanelView({
           nextTextarea?.focus();
           nextTextarea?.setSelectionRange(insertedPrompt.caret, insertedPrompt.caret);
         });
+        return;
+      }
+      if (promptStepProps.chatModeEnabled === false) {
+        event.preventDefault();
+        event.stopPropagation();
+        promptStepProps.onAgentAttachmentDragLeave?.(event);
         return;
       }
       promptStepProps.onAgentAttachmentDrop?.(event);

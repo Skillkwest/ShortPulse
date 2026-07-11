@@ -7,13 +7,119 @@ import {
 import {
   AI_STUDIO_PERF_AUDIT_ROOT_SELECTOR,
   createPerfAuditReferenceImageFile,
+  evaluateReferenceGridVideoChurnGates,
   getPerfAuditReferenceImageBytes,
+  measureReferenceGridDuplicateHoverOwnership,
   queryAiStudioPerfAudit,
   queryAiStudioPerfAuditAll,
+  resolveReferenceGridVideoChurnHoverTarget,
   resolveAiStudioPerfAuditRoot,
   useAiStudioPerfAuditRuntime,
 } from "../useAiStudioPerfAuditRuntime";
 import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+
+const createVideoChurnSample = (overrides: Record<string, unknown> = {}) => {
+  const base = {
+    phase: "sample",
+    heapMb: 500 as number | null,
+    mountedGridVideoCount: 3,
+    trackedGridVideoCount: 3,
+    attachedGridVideoSourceCount: 2,
+    gridVideoAttachBudget: 2,
+    quickSlotMountedVideoCount: 1,
+    duplicateHoverOwnershipMeasured: false,
+    duplicateHoverOwnershipValid: false,
+    canvasAttachedVideoSourceCount: 1,
+    canvasMeasurementAvailable: true,
+    durationProbeInflightCount: 1,
+    durationProbeQueuedCount: 0,
+  };
+  return { ...base, ...overrides } as typeof base;
+};
+
+describe("reference-grid video churn gates", () => {
+  it("fails honestly when heap or Canvas measurements are unavailable", () => {
+    const gates = evaluateReferenceGridVideoChurnGates([
+      createVideoChurnSample({ heapMb: null, canvasMeasurementAvailable: false }),
+      createVideoChurnSample({ heapMb: null, canvasMeasurementAvailable: false }),
+      createVideoChurnSample({ heapMb: null, canvasMeasurementAvailable: false }),
+    ]);
+
+    expect(gates.heapMeasured).toBe(false);
+    expect(gates.heapWithinIdleAllowance).toBe(false);
+    expect(gates.canvasMeasurementAvailable).toBe(false);
+  });
+
+  it("fails when Canvas or duration-probe work does not return after idle", () => {
+    const gates = evaluateReferenceGridVideoChurnGates([
+      createVideoChurnSample(),
+      createVideoChurnSample({ phase: "middle", heapMb: 520 }),
+      createVideoChurnSample({
+        phase: "final-idle",
+        heapMb: 510,
+        canvasAttachedVideoSourceCount: 2,
+        durationProbeQueuedCount: 2,
+      }),
+    ]);
+
+    expect(gates.canvasSourcesReturnedAfterIdle).toBe(false);
+    expect(gates.durationProbesReturnedAfterIdle).toBe(false);
+  });
+
+  it("requires every hover sample to prove one All References source owner", () => {
+    const gates = evaluateReferenceGridVideoChurnGates([
+      createVideoChurnSample({ phase: "warm-up" }),
+      createVideoChurnSample({
+        phase: "cycle-1-hover",
+        duplicateHoverOwnershipMeasured: true,
+        duplicateHoverOwnershipValid: false,
+      }),
+      createVideoChurnSample({ phase: "final-idle" }),
+    ]);
+
+    expect(gates.duplicateHoverOwnershipMeasured).toBe(true);
+    expect(gates.duplicateHoverOwnershipValid).toBe(false);
+  });
+
+  it("selects the All References duplicate even when Quick Slot renders first", () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <section data-right-rail-drop-surface="quick-slot">
+        <article class="reference-card has-video" data-testid="quick-slot-video"></article>
+      </section>
+      <section data-right-rail-drop-surface="all-refs">
+        <article class="reference-card has-video" data-testid="all-refs-video" data-output-id="video-1"></article>
+      </section>
+    `;
+
+    const hoverTarget = resolveReferenceGridVideoChurnHoverTarget(root);
+    expect(hoverTarget?.dataset.testid).toBe("all-refs-video");
+    expect(hoverTarget?.dataset.outputId).toBe("video-1");
+    expect(hoverTarget?.querySelector(".reference-card-video")).toBeNull();
+  });
+
+  it("measures duplicate card roots while requiring one attached All References video", () => {
+    const root = document.createElement("div");
+    root.innerHTML = `
+      <section data-right-rail-drop-surface="quick-slot">
+        <article class="reference-card has-video" data-output-id="video-1"></article>
+      </section>
+      <section data-right-rail-drop-surface="all-refs">
+        <article class="reference-card has-video" data-output-id="video-1">
+          <video class="reference-card-video" data-output-id="video-1" data-reference-surface="all-refs" src="https://example.com/video.mp4"></video>
+        </article>
+      </section>
+    `;
+
+    expect(
+      measureReferenceGridDuplicateHoverOwnership({
+        hoveredOutputId: "video-1",
+        cardNodes: Array.from(root.querySelectorAll<HTMLElement>(".reference-card")),
+        mountedVideoNodes: Array.from(root.querySelectorAll<HTMLVideoElement>("video")),
+      })
+    ).toEqual({ measured: true, valid: true });
+  });
+});
 
 type PerfAuditWindow = Window & {
   __shortpulseAiStudioReferenceGridAuditProgress?: {
@@ -59,6 +165,10 @@ type PerfAuditWindow = Window & {
       ok: boolean;
       scenarios: Array<{ count: number }>;
     }>;
+    runReferenceGridVideoChurnAudit: (options?: {
+      cycles?: number;
+      idleMs?: number;
+    }) => Promise<{ ok: boolean }>;
     getReferenceGridAuditProgress: () => {
       status: "idle" | "running" | "done" | "error";
       counts: number[];
@@ -118,6 +228,9 @@ describe("useAiStudioPerfAuditRuntime", () => {
 
     await waitFor(() => {
       expect(getPerfWindow().__shortpulseAiStudioPerf?.seedReferenceGrid).toEqual(
+        expect.any(Function)
+      );
+      expect(getPerfWindow().__shortpulseAiStudioPerf?.runReferenceGridVideoChurnAudit).toEqual(
         expect.any(Function)
       );
     });

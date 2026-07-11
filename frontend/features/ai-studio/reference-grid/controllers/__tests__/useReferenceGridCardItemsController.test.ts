@@ -25,6 +25,7 @@ const resolvedMedia = (
   posterPreviewUrl: null,
   companionArtUrl: null,
   playableMediaUrl: null,
+  cardPlayablePreviewUrl: null,
   fallbackUrl: "https://provider.example.com/generated-preview.png",
   authorityTier: "preview-only",
   previewQualityBand: "high",

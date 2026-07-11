@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MediaDurationBadge } from "../MediaDurationBadge";
+import { MediaDurationBadge, readMediaDurationProbeWorkload } from "../MediaDurationBadge";
 
 type FakeMediaElement = {
   preload: string;
@@ -147,6 +147,71 @@ describe("MediaDurationBadge", () => {
     );
 
     expect(createdMediaElements).toHaveLength(1);
+  });
+
+  it("keeps a shared probe until its final consumer unmounts", () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    const first = render(
+      <MediaDurationBadge mediaKind="video" mediaUrl="https://media.test/shared-ref.mp4" />
+    );
+    const second = render(
+      <MediaDurationBadge mediaKind="video" mediaUrl="https://media.test/shared-ref.mp4" />
+    );
+
+    expect(readMediaDurationProbeWorkload().inflightCount).toBe(1);
+    first.unmount();
+    expect(readMediaDurationProbeWorkload().inflightCount).toBe(1);
+    second.unmount();
+    expect(readMediaDurationProbeWorkload()).toMatchObject({ inflightCount: 0, queuedCount: 0 });
+    expect(createdMediaElements[0]?.removeAttribute).toHaveBeenCalledWith("src");
+  });
+
+  it("bounds queued probes and retires all work when cards unmount", async () => {
+    const actualCreateElement = document.createElement.bind(document);
+    const createdMediaElements: FakeMediaElement[] = [];
+
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      if (tagName === "audio" || tagName === "video") {
+        const fakeMedia = createFakeMediaElement();
+        createdMediaElements.push(fakeMedia);
+        return fakeMedia as unknown as HTMLElement;
+      }
+      return actualCreateElement(tagName);
+    });
+
+    const rendered = render(
+      <>
+        {Array.from({ length: 100 }, (_, index) => (
+          <MediaDurationBadge
+            key={index}
+            mediaKind="video"
+            mediaUrl={`https://media.test/bounded-${index}.mp4`}
+          />
+        ))}
+      </>
+    );
+
+    expect(createdMediaElements).toHaveLength(2);
+    expect(readMediaDurationProbeWorkload()).toMatchObject({
+      inflightCount: 2,
+      queuedCount: 64,
+    });
+
+    rendered.unmount();
+    await act(async () => Promise.resolve());
+    expect(readMediaDurationProbeWorkload()).toMatchObject({ inflightCount: 0, queuedCount: 0 });
+    expect(createdMediaElements).toHaveLength(2);
   });
 
   it("reuses explicit duration metadata without probing the same URL later", () => {

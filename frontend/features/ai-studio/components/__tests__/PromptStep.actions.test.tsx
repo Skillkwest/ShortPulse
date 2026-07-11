@@ -1059,6 +1059,47 @@ describe("PromptStep agent actions", () => {
     expect(onAgentInputChange).not.toHaveBeenCalled();
   });
 
+  it("blocks image drops and hides staged attachments when Standard Chat Mode is off", () => {
+    const onAgentAttachmentDrop = vi.fn();
+
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        stagedAttachments={[
+          {
+            id: "attachment-1",
+            kind: "image",
+            imageUrl: "https://example.com/reference.png",
+            deliveryStatus: "ready",
+          },
+        ]}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+    const dropEvent = new MouseEvent("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(dropEvent, "dataTransfer", {
+      value: {
+        types: ["text/reference-url", "text/plain"],
+        getData: (key: string) =>
+          key === "text/reference-url"
+            ? "https://example.com/reference.png"
+            : key === "text/plain"
+              ? "Image note"
+              : "",
+      },
+    });
+    fireEvent(inputShell as Element, dropEvent);
+
+    expect(dropEvent.defaultPrevented).toBe(true);
+    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(container.querySelector(".agent-attachment-card")).toBeNull();
+  });
+
   it("falls back to alternate attachment preview URLs when the first image fails", async () => {
     const { container, rerender } = render(
       <PromptStep

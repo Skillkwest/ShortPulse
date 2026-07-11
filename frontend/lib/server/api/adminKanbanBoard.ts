@@ -5,6 +5,7 @@
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type AdminKanbanStatus = "backlog" | "in_progress" | "review" | "complete" | "published";
+export type AdminKanbanSourceType = "manual" | "admin_error" | "planning_backlog";
 
 export type AdminKanbanItem = {
   id: string;
@@ -12,6 +13,14 @@ export type AdminKanbanItem = {
   details: string;
   status: AdminKanbanStatus;
   sortOrder: number;
+  sourceType: AdminKanbanSourceType;
+  sourceKey: string | null;
+  sourcePath: string | null;
+  sourceSection: string | null;
+  sourceLine: number | null;
+  sourceFingerprint: string | null;
+  sourceSyncedAt: string | null;
+  sourceMissingAt: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
@@ -21,7 +30,7 @@ export type AdminKanbanItem = {
 export type AdminKanbanActivity = {
   id: string;
   itemId: string;
-  action: "created" | "updated" | "moved" | "archived";
+  action: "created" | "updated" | "moved" | "archived" | "synced";
   fromStatus: AdminKanbanStatus | null;
   toStatus: AdminKanbanStatus | null;
   note: string | null;
@@ -40,6 +49,26 @@ export type AdminKanbanItemInputValidation = {
   error: string | null;
 };
 
+export type AdminKanbanPlanningBacklogSyncItem = {
+  sourceKey: string;
+  title: string;
+  details: string;
+  sourcePath: string;
+  sourceSection: string;
+  sourceLine: number;
+  sourceFingerprint: string;
+};
+
+export type AdminKanbanPlanningBacklogSyncSummary = {
+  dryRun: boolean;
+  received: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skippedArchived: number;
+  markedMissing: number;
+};
+
 type SupabaseAdminClient = ReturnType<typeof getSupabaseAdmin>;
 
 type RawAdminKanbanItem = {
@@ -48,6 +77,14 @@ type RawAdminKanbanItem = {
   details?: unknown;
   status?: unknown;
   sort_order?: unknown;
+  source_type?: unknown;
+  source_key?: unknown;
+  source_path?: unknown;
+  source_section?: unknown;
+  source_line?: unknown;
+  source_fingerprint?: unknown;
+  source_synced_at?: unknown;
+  source_missing_at?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
   created_by?: unknown;
@@ -77,7 +114,22 @@ const ADMIN_KANBAN_STATUSES: AdminKanbanStatus[] = [
   "published",
 ];
 
-const ADMIN_KANBAN_ACTIVITY_ACTIONS = ["created", "updated", "moved", "archived"] as const;
+const ADMIN_KANBAN_SOURCE_TYPES: AdminKanbanSourceType[] = [
+  "manual",
+  "admin_error",
+  "planning_backlog",
+];
+
+const ADMIN_KANBAN_ACTIVITY_ACTIONS = [
+  "created",
+  "updated",
+  "moved",
+  "archived",
+  "synced",
+] as const;
+
+const ADMIN_KANBAN_ITEM_SELECT =
+  "id, title, details, status, sort_order, source_type, source_key, source_path, source_section, source_line, source_fingerprint, source_synced_at, source_missing_at, created_at, updated_at, created_by, updated_by";
 
 const asTrimmedString = (value: unknown): string => {
   if (typeof value !== "string") return "";
@@ -86,6 +138,9 @@ const asTrimmedString = (value: unknown): string => {
 
 export const isAdminKanbanStatus = (value: unknown): value is AdminKanbanStatus =>
   typeof value === "string" && ADMIN_KANBAN_STATUSES.includes(value as AdminKanbanStatus);
+
+const isAdminKanbanSourceType = (value: unknown): value is AdminKanbanSourceType =>
+  typeof value === "string" && ADMIN_KANBAN_SOURCE_TYPES.includes(value as AdminKanbanSourceType);
 
 const toNullableString = (value: unknown): string | null =>
   typeof value === "string" && value ? value : null;
@@ -106,6 +161,14 @@ const toItem = (value: unknown): AdminKanbanItem | null => {
     details: typeof row.details === "string" ? row.details : "",
     status,
     sortOrder: typeof row.sort_order === "number" ? row.sort_order : 0,
+    sourceType: isAdminKanbanSourceType(row.source_type) ? row.source_type : "manual",
+    sourceKey: toNullableString(row.source_key),
+    sourcePath: toNullableString(row.source_path),
+    sourceSection: toNullableString(row.source_section),
+    sourceLine: typeof row.source_line === "number" ? row.source_line : null,
+    sourceFingerprint: toNullableString(row.source_fingerprint),
+    sourceSyncedAt: toNullableString(row.source_synced_at),
+    sourceMissingAt: toNullableString(row.source_missing_at),
     createdAt,
     updatedAt,
     createdBy: toNullableString(row.created_by),
@@ -192,9 +255,7 @@ export const listAdminKanbanItems = async (
 ): Promise<AdminKanbanItem[]> => {
   const { data, error } = await supabaseAdmin
     .from("admin_kanban_items")
-    .select(
-      "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
-    )
+    .select(ADMIN_KANBAN_ITEM_SELECT)
     .is("archived_at", null)
     .order("sort_order", { ascending: true })
     .order("updated_at", { ascending: false });
@@ -213,7 +274,18 @@ export const listAdminKanbanItems = async (
  */
 export const createAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
-  args: { title: string; details: string; actorUserId: string | null; actorEmail: string | null }
+  args: {
+    title: string;
+    details: string;
+    actorUserId: string | null;
+    actorEmail: string | null;
+    sourceType?: AdminKanbanSourceType;
+    sourceKey?: string | null;
+    sourcePath?: string | null;
+    sourceSection?: string | null;
+    sourceLine?: number | null;
+    sourceFingerprint?: string | null;
+  }
 ): Promise<AdminKanbanItem> => {
   const item = await callKanbanMutationRpc(
     supabaseAdmin,
@@ -223,6 +295,12 @@ export const createAdminKanbanItem = async (
       p_details: args.details,
       p_actor_user_id: args.actorUserId,
       p_actor_email: args.actorEmail,
+      p_source_type: args.sourceType ?? "manual",
+      p_source_key: args.sourceKey ?? null,
+      p_source_path: args.sourcePath ?? null,
+      p_source_section: args.sourceSection ?? null,
+      p_source_line: args.sourceLine ?? null,
+      p_source_fingerprint: args.sourceFingerprint ?? null,
     },
     "Failed to create admin kanban item."
   );
@@ -243,9 +321,7 @@ export const readAdminKanbanItem = async (
 ): Promise<AdminKanbanItem | null> => {
   let query = supabaseAdmin
     .from("admin_kanban_items")
-    .select(
-      "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
-    )
+    .select(ADMIN_KANBAN_ITEM_SELECT)
     .eq("id", itemId);
 
   if (!options.includeArchived) {
@@ -330,6 +406,45 @@ export const archiveAdminKanbanItem = async (
     "Failed to archive admin kanban item."
   );
   return Boolean(item);
+};
+
+const toSyncSummary = (value: unknown): AdminKanbanPlanningBacklogSyncSummary => {
+  const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    dryRun: row.dryRun === true,
+    received: typeof row.received === "number" ? row.received : 0,
+    created: typeof row.created === "number" ? row.created : 0,
+    updated: typeof row.updated === "number" ? row.updated : 0,
+    unchanged: typeof row.unchanged === "number" ? row.unchanged : 0,
+    skippedArchived: typeof row.skippedArchived === "number" ? row.skippedArchived : 0,
+    markedMissing: typeof row.markedMissing === "number" ? row.markedMissing : 0,
+  };
+};
+
+/**
+ * Syncs planning backlog items through the atomic service-role sync RPC.
+ */
+export const syncAdminKanbanPlanningBacklogItems = async (
+  supabaseAdmin: SupabaseAdminClient,
+  args: {
+    items: AdminKanbanPlanningBacklogSyncItem[];
+    actorUserId: string | null;
+    actorEmail: string | null;
+    dryRun?: boolean;
+  }
+): Promise<AdminKanbanPlanningBacklogSyncSummary> => {
+  const { data, error } = await supabaseAdmin.rpc("sync_admin_kanban_planning_backlog_items", {
+    p_items: args.items,
+    p_actor_user_id: args.actorUserId,
+    p_actor_email: args.actorEmail,
+    p_dry_run: args.dryRun ?? true,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to sync planning backlog items.");
+  }
+
+  return toSyncSummary(data);
 };
 
 /**

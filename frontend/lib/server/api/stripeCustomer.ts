@@ -17,6 +17,14 @@ type StripeCustomerResponse = {
 export type StripeSubscriptionResponse = {
   id: string;
   customer?: string | { id?: string | null } | null;
+  latest_invoice?: string | { id?: string | null } | null;
+  pending_update?: {
+    expires_at?: number | null;
+    subscription_items?: Array<{
+      id?: string | null;
+      price?: string | { id?: string | null } | null;
+    }> | null;
+  } | null;
   items?: {
     data?: Array<{
       id?: string | null;

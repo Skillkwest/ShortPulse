@@ -7,6 +7,7 @@ import {
   AI_SHELL_DIVIDER_TRACK_PX,
   AI_SHELL_LEFT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
   AI_SHELL_LEFT_MIN_PX,
   AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
@@ -172,6 +173,87 @@ describe("useAiStudioShellResize", () => {
       value: originalInnerWidth,
     });
   });
+
+  it.each([
+    {
+      containerWidth: 1298,
+      expectedMode: "compact-split",
+      expectedRightMinWidth: AI_SHELL_RIGHT_COMPACT_MIN_PX,
+    },
+    {
+      containerWidth: 1315,
+      expectedMode: "compact-split",
+      expectedRightMinWidth: AI_SHELL_RIGHT_COMPACT_MIN_PX,
+    },
+    {
+      containerWidth: 1316,
+      expectedMode: "split",
+      expectedRightMinWidth: AI_SHELL_RIGHT_MIN_PX,
+    },
+    {
+      containerWidth: 1320,
+      expectedMode: "split",
+      expectedRightMinWidth: AI_SHELL_RIGHT_MIN_PX,
+    },
+  ])(
+    "keeps Media Library shell sizing stable at $containerWidth px",
+    async ({ containerWidth, expectedMode, expectedRightMinWidth }) => {
+      const originalInnerWidth = window.innerWidth;
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: containerWidth + 200,
+      });
+
+      const { result } = renderHook(() =>
+        useAiStudioShellResize({
+          enabled: true,
+          minLeftWidthPx: AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX,
+          allowLeftCollapse: false,
+        })
+      );
+
+      act(() => {
+        result.current.shellRef.current = {
+          getBoundingClientRect: () => ({ width: containerWidth, left: 0 }),
+        } as HTMLElement;
+      });
+
+      await waitFor(() => {
+        expect(result.current.showDivider).toBe(true);
+      });
+
+      act(() => {
+        result.current.resetToDefaultWidth();
+      });
+
+      await waitFor(() => {
+        expect(result.current.shellLayoutMode).toBe(expectedMode);
+        expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX);
+        expect(result.current.shellStyle).toMatchObject({
+          "--ai-shell-left-width": `${AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX}px`,
+          "--ai-shell-right-min-width": `${expectedRightMinWidth}px`,
+        });
+      });
+
+      act(() => {
+        result.current.collapseToMin();
+      });
+
+      await waitFor(() => {
+        expect(result.current.shellLayoutMode).toBe(expectedMode);
+        expect(result.current.leftWidthPx).toBe(AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX);
+        expect(result.current.shellStyle).toMatchObject({
+          "--ai-shell-left-width": `${AI_SHELL_LEFT_MEDIA_LIBRARY_MIN_PX}px`,
+          "--ai-shell-right-min-width": `${expectedRightMinWidth}px`,
+        });
+      });
+
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    }
+  );
 
   it("marks default-width resets as a short layout animation", async () => {
     const originalInnerWidth = window.innerWidth;
@@ -646,7 +728,7 @@ describe("useAiStudioShellResize", () => {
 
     const visibleShellWidth = window.innerWidth - 280;
     const rightSafeLeftWidth =
-      visibleShellWidth - AI_SHELL_RIGHT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
+      visibleShellWidth - AI_SHELL_RIGHT_COMPACT_MIN_PX - AI_SHELL_DIVIDER_TRACK_PX;
 
     await waitFor(() => {
       expect(result.current.shellLayoutMode).toBe("compact-split");

@@ -83,9 +83,11 @@ export const resolveStandardCreatePrimaryActionDecision = ({
     return { kind: "noop", reason: "disabled" };
   }
 
-  const imageAttachmentBlockReason = resolveImageAttachmentBlockReason(agentAttachments);
-  if (imageAttachmentBlockReason) {
-    return { kind: "noop", reason: imageAttachmentBlockReason };
+  if (chatModeEnabled) {
+    const imageAttachmentBlockReason = resolveImageAttachmentBlockReason(agentAttachments);
+    if (imageAttachmentBlockReason) {
+      return { kind: "noop", reason: imageAttachmentBlockReason };
+    }
   }
 
   if (!isStandardCreateTextTool(selectedTool)) {

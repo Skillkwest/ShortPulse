@@ -67,6 +67,7 @@ export const createVoiceChangerSourceFromFile = (
   return {
     id: buildSourceId("voice-changer-file"),
     kind,
+    displayKind: kind,
     origin: options?.origin ?? "local",
     status: "ready",
     aspect: null,
@@ -75,6 +76,7 @@ export const createVoiceChangerSourceFromFile = (
     mimeType: file.type.trim() || null,
     file,
     previewUrl: kind === "video" ? objectUrl : null,
+    posterUrl: null,
     sourceUrl: objectUrl,
     objectUrl,
     storagePath: null,
@@ -235,6 +237,7 @@ export const createVoiceChangerSourceFromReference = ({
   mimeType,
   sourceUrl,
   previewUrl = null,
+  posterUrl = null,
   storagePath = null,
   durationMs = null,
   aspect = null,
@@ -247,6 +250,7 @@ export const createVoiceChangerSourceFromReference = ({
   mimeType?: string | null;
   sourceUrl?: string | null;
   previewUrl?: string | null;
+  posterUrl?: string | null;
   storagePath?: string | null;
   durationMs?: number | null;
   aspect?: string | null;
@@ -281,6 +285,7 @@ export const createVoiceChangerSourceFromReference = ({
   return {
     id: buildSourceId("voice-changer-reference"),
     kind,
+    displayKind: kind,
     origin,
     status: "ready",
     aspect,
@@ -291,6 +296,7 @@ export const createVoiceChangerSourceFromReference = ({
       (normalizedUrl ? inferVoiceChangerSourceMimeTypeFromUrl(normalizedUrl) : null),
     file: null,
     previewUrl: normalizedPreviewUrl,
+    posterUrl: kind === "video" ? posterUrl : null,
     sourceUrl: normalizedUrl,
     objectUrl: null,
     storagePath: normalizedStoragePath,

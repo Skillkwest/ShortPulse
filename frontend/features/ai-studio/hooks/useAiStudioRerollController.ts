@@ -12,6 +12,7 @@ import {
   registerWorkflowRerollInternalMediaRefs,
   resolveWorkflowRerollConfigForOutput,
 } from "../logic/workflowReroll";
+import type { RerollPricingEvidence } from "../logic/rerollPricingEvidence";
 import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
 import type { StudioOutput, WorkflowReloadConfigV1, WorkflowReloadVideoMediaSlot } from "../types";
 
@@ -23,6 +24,7 @@ type SubmitTask = (
 
 type UseAiStudioRerollControllerParams = {
   findOutputById: (id: string) => StudioOutput | null;
+  resolvePricingEvidence?: (config: WorkflowReloadConfigV1) => RerollPricingEvidence | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   submitTask: SubmitTask;
 };
@@ -126,6 +128,7 @@ const buildVideoRerollOptions = (config: WorkflowReloadConfigV1): AiStudioTaskSu
  */
 export const useAiStudioRerollController = ({
   findOutputById,
+  resolvePricingEvidence,
   setUiNotice,
   submitTask,
 }: UseAiStudioRerollControllerParams) => {
@@ -210,13 +213,14 @@ export const useAiStudioRerollController = ({
         payload.kind === "image"
           ? buildImageRerollOptions(config)
           : buildVideoRerollOptions(config);
+      const pricingEvidence = resolvePricingEvidence?.(config) ?? null;
       void submitTask(
         config.prompt.submission ?? config.prompt.display,
         payload.referenceInputs,
-        options
+        pricingEvidence ? { ...options, ...pricingEvidence } : options
       );
     },
-    [setUiNotice, submitTask]
+    [resolvePricingEvidence, setUiNotice, submitTask]
   );
 
   const rerollOutputFromReplay = useCallback(

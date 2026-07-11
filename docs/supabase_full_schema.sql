@@ -2304,6 +2304,139 @@ create policy delete_projects_isolation
   for delete
   using (auth.uid() = user_id);
 
+-- Canonical generated-output read projection. Durable media/storage authority remains in
+-- ai_generations, ai_generation_outputs, generation_publications, and media_files.
+create table if not exists public.generation_projection (
+    generation_id uuid primary key references public.ai_generations(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    project_id uuid references public.projects(id) on delete set null,
+    workspace_runtime_key text,
+    source_ref text,
+    request_id text,
+    provider text,
+    provider_request_id text,
+    latest_attempt_id uuid references public.generation_attempts(id) on delete set null,
+    status text,
+    task_state text,
+    queue_state text,
+    display_prompt text,
+    display_title text,
+    transcript_text text,
+    model_id text,
+    preview_url text,
+    preview_storage_path text,
+    full_storage_path text,
+    companion_art_status text,
+    companion_art_storage_path text,
+    companion_art_attempt_count integer not null default 0,
+    error_message text,
+    error_message_short text,
+    error_detail text,
+    error_payload jsonb,
+    save_state text,
+    save_error text,
+    hidden_in_reference_grid boolean not null default false,
+    reference_grid_visible boolean not null default true,
+    publication_state text,
+    result_urls jsonb not null default '[]'::jsonb,
+    saved_media_ids jsonb not null default '[]'::jsonb,
+    generation_replay jsonb not null default '{}'::jsonb,
+    workflow_reload jsonb not null default '{}'::jsonb,
+    character_context jsonb not null default '{}'::jsonb,
+    style_context jsonb not null default '{}'::jsonb,
+    remux_recovery jsonb,
+    started_at timestamptz,
+    completed_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    admin_stats_style_applied boolean generated always as (
+      case
+        when jsonb_typeof(style_context->'applied') = 'boolean'
+          then (style_context->>'applied')::boolean
+        when lower(coalesce(style_context->>'applied', '')) in ('true', 't', '1', 'yes')
+          then true
+        else false
+      end
+    ) stored,
+    admin_stats_character_mode_applied boolean generated always as (
+      case
+        when jsonb_typeof(character_context->'applied') = 'boolean'
+          then (character_context->>'applied')::boolean
+        when lower(coalesce(character_context->>'applied', '')) in ('true', 't', '1', 'yes')
+          then true
+        else false
+      end
+    ) stored,
+    admin_stats_has_reference_inputs boolean generated always as (
+      case
+        when jsonb_typeof(generation_replay->'referenceInputs') = 'array'
+          then jsonb_array_length(generation_replay->'referenceInputs') > 0
+        else false
+      end
+    ) stored,
+    constraint generation_projection_result_urls_array_check
+      check (jsonb_typeof(result_urls) = 'array'),
+    constraint generation_projection_saved_media_ids_array_check
+      check (jsonb_typeof(saved_media_ids) = 'array'),
+    constraint generation_projection_generation_replay_object_check
+      check (jsonb_typeof(generation_replay) = 'object'),
+    constraint generation_projection_workflow_reload_object_check
+      check (jsonb_typeof(workflow_reload) = 'object'),
+    constraint generation_projection_character_context_object_check
+      check (jsonb_typeof(character_context) = 'object'),
+    constraint generation_projection_style_context_object_check
+      check (jsonb_typeof(style_context) = 'object'),
+    constraint generation_projection_remux_recovery_object_check
+      check (remux_recovery is null or jsonb_typeof(remux_recovery) = 'object'),
+    constraint generation_projection_companion_art_status_check
+      check (
+        companion_art_status is null
+        or companion_art_status in ('pending', 'processing', 'ready', 'failed')
+      ),
+    constraint generation_projection_companion_art_attempt_count_check
+      check (companion_art_attempt_count >= 0),
+    constraint generation_projection_workspace_runtime_key_check
+      check (
+        workspace_runtime_key is null
+        or (
+          btrim(workspace_runtime_key) = workspace_runtime_key
+          and char_length(workspace_runtime_key) between 1 and 160
+        )
+      ),
+    constraint generation_projection_display_title_length_check
+      check (display_title is null or char_length(display_title) <= 40)
+);
+
+create index if not exists ix_generation_projection_user_updated
+  on public.generation_projection (user_id, updated_at desc);
+create index if not exists ix_generation_projection_request_id
+  on public.generation_projection (user_id, request_id)
+  where request_id is not null;
+create index if not exists ix_generation_projection_user_source_ref
+  on public.generation_projection (user_id, source_ref)
+  where source_ref is not null;
+create index if not exists ix_generation_projection_user_project_updated
+  on public.generation_projection (user_id, project_id, updated_at desc)
+  where project_id is not null;
+create index if not exists ix_generation_projection_user_workspace_runtime_updated
+  on public.generation_projection (user_id, workspace_runtime_key, updated_at desc)
+  where workspace_runtime_key is not null;
+create index if not exists ix_generation_projection_companion_art_pending
+  on public.generation_projection (updated_at asc)
+  where companion_art_status = 'pending';
+
+alter table public.generation_projection enable row level security;
+drop policy if exists select_generation_projection_isolation on public.generation_projection;
+create policy select_generation_projection_isolation
+  on public.generation_projection for select using (user_id = auth.uid());
+drop policy if exists modify_generation_projection_isolation on public.generation_projection;
+create policy modify_generation_projection_isolation
+  on public.generation_projection for all
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+comment on column public.generation_projection.remux_recovery is
+  'Read projection of ai_generations.metadata Voice Changer remux retry state; not storage or billing authority.';
+
 create table if not exists public.project_workspace_states (
     project_id uuid primary key references public.projects(id) on delete cascade,
     user_id uuid not null references auth.users(id) on delete cascade,
@@ -3042,6 +3175,13 @@ create table if not exists public.browser_crash_sessions (
     reviewed_by uuid references auth.users(id) on delete set null,
     reviewed_by_email text,
     review_note text,
+    max_used_js_heap_size bigint not null default 0,
+    max_heap_used_to_limit_ratio double precision,
+    high_memory_sample_count integer not null default 0,
+    high_memory_first_at timestamptz,
+    high_memory_last_at timestamptz,
+    visible_severe_stall_at timestamptz,
+    peer_abandoned_at timestamptz,
     started_at timestamptz not null default now(),
     last_seen_at timestamptz not null default now(),
     ended_at timestamptz,
@@ -3062,6 +3202,9 @@ create table if not exists public.browser_crash_sessions (
     ),
     constraint browser_crash_sessions_review_status_check check (
         review_status in ('open', 'resolved', 'ignored')
+    ),
+    constraint browser_crash_sessions_high_memory_sample_count_check check (
+        high_memory_sample_count >= 0
     ),
     constraint browser_crash_sessions_session_id_check check (
         length(trim(browser_session_id)) > 0
@@ -3097,12 +3240,484 @@ grant select, insert, update, delete on table public.browser_crash_sessions to s
 comment on table public.browser_crash_sessions is
     'Service-role-only browser session health rows used to investigate authenticated user freezes, crashes, tab discards, and ungraceful exits.';
 
+drop trigger if exists browser_crash_session_transition_guard_trigger
+    on public.browser_crash_sessions;
+drop function if exists public.browser_crash_session_transition_guard();
+
+create or replace function public.record_browser_crash_session_event_v1(
+    p_browser_session_id text,
+    p_user_id uuid,
+    p_user_email text,
+    p_event_type text,
+    p_route text,
+    p_build_id text,
+    p_client_release text,
+    p_client_environment text,
+    p_user_agent text,
+    p_host text,
+    p_vercel_id text,
+    p_metadata jsonb,
+    p_occurred_at timestamptz,
+    p_allow_insert boolean
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    existing public.browser_crash_sessions%rowtype;
+    receipt_at timestamptz;
+    event_at timestamptz;
+    incoming_metadata jsonb := case
+        when jsonb_typeof(coalesce(p_metadata, '{}'::jsonb)) = 'object'
+            then coalesce(p_metadata, '{}'::jsonb)
+        else '{}'::jsonb
+    end;
+    merged_metadata jsonb;
+    allow_insert boolean := coalesce(p_allow_insert, false);
+    critical_metadata_keys constant text[] := array[
+        'build_id', 'client_release', 'client_environment', 'visibility_state',
+        'document_hidden', 'document_was_discarded', 'used_js_heap_size',
+        'total_js_heap_size', 'js_heap_size_limit', 'heap_used_to_total_ratio',
+        'heap_used_to_limit_ratio', 'max_heap_used_to_total_ratio',
+        'max_heap_used_to_limit_ratio', 'pressure_level', 'max_pressure_level',
+        'pressure_reason', 'pressure_transition', 'previous_pressure_level',
+        'pressure_event_count', 'last_pressure_snapshot_at', 'stall_duration_ms',
+        'max_input_stall_ms', 'long_task_p95_ms',
+        'media_canvas_attached_video_source_count', 'media_canvas_rendered_video_count',
+        'media_duration_probe_cache_entry_count', 'media_duration_probe_inflight_count',
+        'media_duration_probe_queued_count', 'media_grid_attached_video_source_count',
+        'media_grid_autoplay_enabled_output_count', 'media_grid_duplicate_video_output_count',
+        'media_grid_tracked_video_node_count', 'media_grid_visible_video_key_count',
+        'last_heartbeat_age_ms', 'previous_last_seen_at', 'previous_visibility_state',
+        'abandonment_detection_source', 'status_reason', 'crash_report_source',
+        'crash_report_type', 'crash_report_reason', 'crash_report_age_ms',
+        'crash_report_url_path'
+    ];
+    incoming_used bigint := 0;
+    incoming_limit bigint := 0;
+    incoming_limit_ratio double precision;
+    incoming_stall_ms double precision := 0;
+    incoming_is_high boolean := false;
+    next_status text;
+    next_confidence text;
+    next_rank integer := 0;
+    old_rank integer := 0;
+    next_high_count integer := 0;
+    next_high_first timestamptz;
+    next_high_last timestamptz;
+    next_stall_at timestamptz;
+    next_abandoned_at timestamptz;
+    next_suspected_at timestamptz;
+    next_ended_at timestamptz;
+    next_review_status text;
+    next_reviewed_at timestamptz;
+    next_reviewed_by uuid;
+    next_reviewed_by_email text;
+    previous_pressure_count integer := 0;
+    previous_max_pressure double precision := 0;
+    incoming_pressure double precision;
+    previous_max_total_ratio double precision := 0;
+    incoming_total_ratio double precision;
+    result_id uuid;
+begin
+    if auth.role() is distinct from 'service_role' then
+        raise exception 'browser crash session ingestion requires service_role';
+    end if;
+    if nullif(trim(p_browser_session_id), '') is null then
+        raise exception 'browser session id is required';
+    end if;
+    if p_event_type not in (
+        'session_start', 'heartbeat', 'visibility_hidden', 'visibility_visible',
+        'pagehide', 'pageshow', 'freeze', 'resume', 'clean_close',
+        'main_thread_stall', 'pressure_snapshot', 'previous_session_abandoned',
+        'crash_report'
+    ) then
+        raise exception 'unsupported browser session event';
+    end if;
+    if allow_insert and (p_user_id is null or p_event_type in ('previous_session_abandoned', 'crash_report')) then
+        raise exception 'only authenticated session events may insert';
+    end if;
+
+    perform pg_advisory_xact_lock(hashtextextended(p_browser_session_id, 0));
+    receipt_at := clock_timestamp();
+    event_at := greatest(
+        receipt_at - interval '24 hours',
+        least(receipt_at, coalesce(p_occurred_at, receipt_at))
+    );
+
+    select coalesce(jsonb_object_agg(entry.key, entry.value), '{}'::jsonb)
+    into incoming_metadata
+    from (
+        select item.key, item.value
+        from jsonb_each(jsonb_strip_nulls(incoming_metadata)) item
+        order by case when item.key = any(critical_metadata_keys) then 0 else 1 end, item.key
+        limit 48
+    ) entry;
+
+    if p_user_id is null then
+        select * into existing
+        from public.browser_crash_sessions
+        where browser_session_id = p_browser_session_id
+        order by last_seen_at desc, id desc
+        limit 1
+        for update;
+    else
+        select * into existing
+        from public.browser_crash_sessions
+        where browser_session_id = p_browser_session_id
+          and user_id = p_user_id
+        order by last_seen_at desc, id desc
+        limit 1
+        for update;
+    end if;
+
+    incoming_used := case
+        when jsonb_typeof(incoming_metadata -> 'used_js_heap_size') = 'number'
+            then least(9223372036854775807::numeric, greatest(0::numeric, (incoming_metadata ->> 'used_js_heap_size')::numeric))::bigint
+        else 0
+    end;
+    incoming_limit := case
+        when jsonb_typeof(incoming_metadata -> 'js_heap_size_limit') = 'number'
+            then least(9223372036854775807::numeric, greatest(0::numeric, (incoming_metadata ->> 'js_heap_size_limit')::numeric))::bigint
+        else 0
+    end;
+    incoming_limit_ratio := case
+        when jsonb_typeof(incoming_metadata -> 'heap_used_to_limit_ratio') = 'number'
+            then least(1::numeric, greatest(0::numeric, (incoming_metadata ->> 'heap_used_to_limit_ratio')::numeric))::double precision
+        when incoming_limit > 0 then incoming_used::double precision / incoming_limit::double precision
+        else null
+    end;
+    incoming_stall_ms := case
+        when jsonb_typeof(incoming_metadata -> 'stall_duration_ms') = 'number'
+            then least(86400000::numeric, greatest(0::numeric, (incoming_metadata ->> 'stall_duration_ms')::numeric))::double precision
+        else 0
+    end;
+    incoming_is_high := incoming_used >= 402653184 and coalesce(incoming_limit_ratio, 0) >= 0.08;
+
+    if existing.id is null then
+        if not allow_insert then return null; end if;
+        next_status := case when p_event_type = 'clean_close' then 'clean_closed' else 'active' end;
+        next_confidence := 'none';
+        next_high_count := case
+            when incoming_is_high
+             and p_event_type in ('session_start', 'heartbeat', 'pressure_snapshot')
+             and incoming_metadata -> 'document_hidden' is distinct from 'true'::jsonb
+             and coalesce(incoming_metadata ->> 'visibility_state', 'visible') <> 'hidden'
+            then 1 else 0 end;
+        next_high_first := case when next_high_count = 1 then receipt_at else null end;
+        next_high_last := next_high_first;
+        next_stall_at := case
+            when p_event_type = 'main_thread_stall'
+             and incoming_metadata -> 'document_hidden' is distinct from 'true'::jsonb
+             and coalesce(incoming_metadata ->> 'visibility_state', 'visible') <> 'hidden'
+             and incoming_stall_ms >= 2000
+            then receipt_at else null end;
+        insert into public.browser_crash_sessions (
+            browser_session_id, user_id, user_email, status, confidence, last_event,
+            route, build_id, client_release, client_environment, user_agent, host,
+            vercel_id, metadata, started_at, last_seen_at, ended_at, suspected_at,
+            updated_at, max_used_js_heap_size, max_heap_used_to_limit_ratio,
+            high_memory_sample_count, high_memory_first_at, high_memory_last_at,
+            visible_severe_stall_at, peer_abandoned_at
+        ) values (
+            p_browser_session_id, p_user_id, p_user_email, next_status, next_confidence,
+            p_event_type, p_route, p_build_id, p_client_release, p_client_environment,
+            p_user_agent, p_host, p_vercel_id, incoming_metadata,
+            case when p_event_type = 'session_start' then event_at else receipt_at end,
+            receipt_at, case when p_event_type = 'clean_close' then event_at else null end,
+            null,
+            receipt_at, incoming_used, incoming_limit_ratio, next_high_count,
+            next_high_first, next_high_last, next_stall_at, null
+        ) returning id into result_id;
+        return result_id;
+    end if;
+
+    if existing.status = 'confirmed_crash' and p_event_type <> 'crash_report' then return existing.id; end if;
+    if existing.status = 'clean_closed' and p_event_type <> 'crash_report' then return existing.id; end if;
+
+    merged_metadata := case when jsonb_typeof(existing.metadata) = 'object'
+        then existing.metadata else '{}'::jsonb end || incoming_metadata;
+    previous_pressure_count := case
+        when jsonb_typeof(existing.metadata -> 'pressure_event_count') = 'number'
+            then least(10000::numeric, greatest(0::numeric, trunc((existing.metadata ->> 'pressure_event_count')::numeric)))::integer
+        else 0 end;
+    if p_event_type = 'pressure_snapshot' then
+        merged_metadata := jsonb_set(merged_metadata, '{pressure_event_count}', to_jsonb(least(10000, previous_pressure_count + 1)), true);
+        merged_metadata := jsonb_set(merged_metadata, '{last_pressure_snapshot_at}', to_jsonb(receipt_at), true);
+    end if;
+    previous_max_pressure := case
+        when jsonb_typeof(existing.metadata -> 'max_pressure_level') = 'number'
+            then (existing.metadata ->> 'max_pressure_level')::double precision
+        when jsonb_typeof(existing.metadata -> 'pressure_level') = 'number'
+            then (existing.metadata ->> 'pressure_level')::double precision
+        else 0 end;
+    incoming_pressure := case when jsonb_typeof(incoming_metadata -> 'pressure_level') = 'number'
+        then (incoming_metadata ->> 'pressure_level')::double precision else null end;
+    if incoming_pressure is not null or previous_max_pressure > 0 then
+        merged_metadata := jsonb_set(merged_metadata, '{max_pressure_level}', to_jsonb(greatest(previous_max_pressure, coalesce(incoming_pressure, 0))), true);
+    end if;
+    previous_max_total_ratio := case
+        when jsonb_typeof(existing.metadata -> 'max_heap_used_to_total_ratio') = 'number'
+            then (existing.metadata ->> 'max_heap_used_to_total_ratio')::double precision
+        when jsonb_typeof(existing.metadata -> 'heap_used_to_total_ratio') = 'number'
+            then (existing.metadata ->> 'heap_used_to_total_ratio')::double precision
+        else 0 end;
+    incoming_total_ratio := case when jsonb_typeof(incoming_metadata -> 'heap_used_to_total_ratio') = 'number'
+        then (incoming_metadata ->> 'heap_used_to_total_ratio')::double precision else null end;
+    if incoming_total_ratio is not null or previous_max_total_ratio > 0 then
+        merged_metadata := jsonb_set(merged_metadata, '{max_heap_used_to_total_ratio}', to_jsonb(greatest(previous_max_total_ratio, coalesce(incoming_total_ratio, 0))), true);
+    end if;
+    select coalesce(jsonb_object_agg(entry.key, entry.value), '{}'::jsonb)
+    into merged_metadata
+    from (
+        select item.key, item.value
+        from jsonb_each(merged_metadata) item
+        order by case when item.key = any(critical_metadata_keys) then 0 else 1 end, item.key
+        limit 48
+    ) entry;
+
+    next_status := case
+        when p_event_type = 'crash_report' then 'confirmed_crash'
+        when p_event_type = 'clean_close' then 'clean_closed'
+        when p_event_type = 'previous_session_abandoned' then 'possible_ungraceful_exit'
+        else 'active' end;
+    next_confidence := case
+        when p_event_type = 'crash_report' then 'high'
+        when p_event_type = 'previous_session_abandoned' then 'low'
+        else 'none' end;
+    next_high_count := existing.high_memory_sample_count;
+    next_high_first := existing.high_memory_first_at;
+    next_high_last := existing.high_memory_last_at;
+    next_stall_at := existing.visible_severe_stall_at;
+    next_abandoned_at := existing.peer_abandoned_at;
+    if incoming_is_high
+       and p_event_type in ('session_start', 'heartbeat', 'pressure_snapshot')
+       and incoming_metadata -> 'document_hidden' is distinct from 'true'::jsonb
+       and coalesce(incoming_metadata ->> 'visibility_state', 'visible') <> 'hidden' then
+        if next_high_last is null then
+            next_high_count := 1; next_high_first := receipt_at; next_high_last := receipt_at;
+        elsif receipt_at >= next_high_last + interval '30 seconds' then
+            next_high_count := next_high_count + 1; next_high_last := receipt_at;
+        end if;
+    end if;
+    if p_event_type = 'main_thread_stall'
+       and incoming_metadata -> 'document_hidden' is distinct from 'true'::jsonb
+       and coalesce(incoming_metadata ->> 'visibility_state', 'visible') <> 'hidden'
+       and incoming_stall_ms >= 2000 then
+        next_stall_at := receipt_at;
+    end if;
+    if p_event_type = 'previous_session_abandoned' then
+        next_abandoned_at := receipt_at;
+        if (greatest(existing.max_used_js_heap_size, incoming_used) >= 536870912
+            and greatest(coalesce(existing.max_heap_used_to_limit_ratio, 0), coalesce(incoming_limit_ratio, 0)) >= 0.10
+            and next_high_last is not null)
+           or next_high_count >= 2 then
+            next_status := 'probable_freeze_or_crash'; next_confidence := 'high';
+        end if;
+    end if;
+    if existing.status = 'probable_freeze_or_crash'
+       and next_status not in ('confirmed_crash', 'clean_closed') then
+        next_status := existing.status; next_confidence := existing.confidence;
+    end if;
+
+    old_rank := case existing.status when 'confirmed_crash' then 3 when 'probable_freeze_or_crash' then 2 when 'possible_ungraceful_exit' then 1 else 0 end;
+    next_rank := case next_status when 'confirmed_crash' then 3 when 'probable_freeze_or_crash' then 2 when 'possible_ungraceful_exit' then 1 else 0 end;
+    next_review_status := existing.review_status;
+    next_reviewed_at := existing.reviewed_at;
+    next_reviewed_by := existing.reviewed_by;
+    next_reviewed_by_email := existing.reviewed_by_email;
+    if next_rank > old_rank and next_rank >= 2 then
+        next_review_status := 'open'; next_reviewed_at := null; next_reviewed_by := null; next_reviewed_by_email := null;
+    end if;
+    next_suspected_at := case
+        when next_status = 'confirmed_crash' and existing.status = 'confirmed_crash'
+            then existing.suspected_at
+        when next_status = 'confirmed_crash' then event_at
+        when p_event_type = 'previous_session_abandoned' then receipt_at
+        else existing.suspected_at end;
+    next_ended_at := case
+        when next_status = 'confirmed_crash' and existing.status = 'confirmed_crash'
+            then existing.ended_at
+        when next_status in ('clean_closed', 'confirmed_crash') then event_at
+        when next_status = 'active' then null
+        else existing.ended_at end;
+
+    update public.browser_crash_sessions set
+        user_email = coalesce(p_user_email, existing.user_email),
+        status = next_status, confidence = next_confidence, last_event = p_event_type,
+        route = coalesce(p_route, existing.route), build_id = coalesce(p_build_id, existing.build_id),
+        client_release = coalesce(p_client_release, existing.client_release),
+        client_environment = coalesce(p_client_environment, existing.client_environment),
+        user_agent = coalesce(p_user_agent, existing.user_agent), host = coalesce(p_host, existing.host),
+        vercel_id = coalesce(p_vercel_id, existing.vercel_id), metadata = merged_metadata,
+        started_at = least(existing.started_at, case when p_event_type = 'session_start' then event_at else existing.started_at end),
+        last_seen_at = receipt_at, ended_at = next_ended_at, suspected_at = next_suspected_at,
+        updated_at = receipt_at, max_used_js_heap_size = greatest(existing.max_used_js_heap_size, incoming_used),
+        max_heap_used_to_limit_ratio = case when incoming_limit_ratio is null then existing.max_heap_used_to_limit_ratio else greatest(coalesce(existing.max_heap_used_to_limit_ratio, 0), incoming_limit_ratio) end,
+        high_memory_sample_count = next_high_count, high_memory_first_at = next_high_first,
+        high_memory_last_at = next_high_last, visible_severe_stall_at = next_stall_at,
+        peer_abandoned_at = next_abandoned_at, review_status = next_review_status,
+        reviewed_at = next_reviewed_at, reviewed_by = next_reviewed_by,
+        reviewed_by_email = next_reviewed_by_email
+    where id = existing.id
+    returning id into result_id;
+    return result_id;
+end;
+$$;
+
+revoke all on function public.record_browser_crash_session_event_v1(text, uuid, text, text, text, text, text, text, text, text, text, jsonb, timestamptz, boolean) from public;
+revoke all on function public.record_browser_crash_session_event_v1(text, uuid, text, text, text, text, text, text, text, text, text, jsonb, timestamptz, boolean) from anon;
+revoke all on function public.record_browser_crash_session_event_v1(text, uuid, text, text, text, text, text, text, text, text, text, jsonb, timestamptz, boolean) from authenticated;
+grant execute on function public.record_browser_crash_session_event_v1(text, uuid, text, text, text, text, text, text, text, text, text, jsonb, timestamptz, boolean) to service_role;
+
+create or replace function public.list_browser_crash_sessions_v2(
+    p_page integer default 1,
+    p_limit integer default 50,
+    p_status text default 'needs_review',
+    p_review_status text default 'open',
+    p_search text default '',
+    p_now timestamptz default now()
+)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+with normalized as (
+    select greatest(1, coalesce(p_page, 1)) as page,
+           least(100, greatest(1, coalesce(p_limit, 50))) as page_size,
+           coalesce(nullif(trim(p_status), ''), 'needs_review') as status_filter,
+           coalesce(nullif(trim(p_review_status), ''), 'open') as review_filter,
+           trim(coalesce(p_search, '')) as search_filter
+), classified as (
+    select s.*,
+           case
+               when s.status = 'active'
+                    and s.last_seen_at < p_now - interval '65 seconds'
+                    and s.metadata -> 'document_hidden' is distinct from 'true'::jsonb
+                    and coalesce(s.metadata ->> 'visibility_state', 'visible') <> 'hidden'
+                    and (
+                        (s.max_used_js_heap_size >= 536870912 and coalesce(s.max_heap_used_to_limit_ratio, 0) >= 0.10 and s.high_memory_last_at is not null)
+                        or s.high_memory_sample_count >= 2
+                    ) then 'probable_freeze_or_crash'
+               when s.status = 'active' and s.last_seen_at < p_now - interval '10 minutes'
+                    then 'possible_ungraceful_exit'
+               else s.status
+           end as effective_status,
+           case
+               when s.status = 'active'
+                    and s.last_seen_at < p_now - interval '65 seconds'
+                    and s.metadata -> 'document_hidden' is distinct from 'true'::jsonb
+                    and coalesce(s.metadata ->> 'visibility_state', 'visible') <> 'hidden'
+                    and (
+                        (s.max_used_js_heap_size >= 536870912 and coalesce(s.max_heap_used_to_limit_ratio, 0) >= 0.10 and s.high_memory_last_at is not null)
+                        or s.high_memory_sample_count >= 2
+                    ) then 'high'
+               when s.status = 'active' and s.last_seen_at < p_now - interval '10 minutes' then 'low'
+               else s.confidence
+           end as effective_confidence,
+           case
+               when s.status = 'confirmed_crash' then 'browser_native_crash_report'
+               when s.status = 'probable_freeze_or_crash' then 'persisted_probable_crash_evidence'
+               when s.status = 'active' and s.last_seen_at < p_now - interval '65 seconds'
+                    and s.metadata -> 'document_hidden' is distinct from 'true'::jsonb
+                    and coalesce(s.metadata ->> 'visibility_state', 'visible') <> 'hidden'
+                    and s.max_used_js_heap_size >= 536870912
+                    and coalesce(s.max_heap_used_to_limit_ratio, 0) >= 0.10
+                    and s.high_memory_last_at is not null then 'stale_after_extreme_absolute_heap'
+               when s.status = 'active' and s.last_seen_at < p_now - interval '65 seconds'
+                    and s.metadata -> 'document_hidden' is distinct from 'true'::jsonb
+                    and coalesce(s.metadata ->> 'visibility_state', 'visible') <> 'hidden'
+                    and s.high_memory_sample_count >= 2 then 'stale_after_sustained_absolute_heap'
+               when s.status = 'active' and s.last_seen_at < p_now - interval '10 minutes' then 'stale_heartbeat_only'
+               else null
+           end as effective_reason,
+           (s.status = 'active' and s.last_seen_at < p_now - interval '65 seconds') as is_stale
+    from public.browser_crash_sessions s
+), derived as (
+    select c.*,
+           case
+               when c.status = 'active'
+                    and c.effective_status = 'probable_freeze_or_crash'
+                    and (
+                        c.reviewed_at is null
+                        or c.reviewed_at < c.last_seen_at + interval '65 seconds'
+                    ) then 'open'
+               else c.review_status
+           end as effective_review_status
+    from classified c
+), filtered as (
+    select d.*
+    from derived d, normalized n
+    where (
+        n.status_filter = 'all'
+        or (n.status_filter = 'needs_review' and d.effective_status in ('probable_freeze_or_crash', 'confirmed_crash'))
+        or d.effective_status = n.status_filter
+    )
+    and (
+        n.review_filter = 'all'
+        or (n.review_filter = 'reviewed' and d.effective_review_status in ('resolved', 'ignored'))
+        or d.effective_review_status = n.review_filter
+    )
+    and (
+        n.search_filter = ''
+        or d.id::text = n.search_filter
+        or coalesce(d.browser_session_id, '') ilike '%' || n.search_filter || '%'
+        or coalesce(d.user_email, '') ilike '%' || n.search_filter || '%'
+        or coalesce(d.route, '') ilike '%' || n.search_filter || '%'
+        or coalesce(d.user_agent, '') ilike '%' || n.search_filter || '%'
+    )
+), counted as (
+    select count(*)::integer as total_count from filtered
+), paged as (
+    select f.*
+    from filtered f
+    order by f.last_seen_at desc
+    offset (select (page - 1) * page_size from normalized)
+    limit (select page_size from normalized)
+)
+select jsonb_build_object(
+    'sessions', coalesce((
+        select jsonb_agg(
+            (to_jsonb(paged) - 'effective_review_status')
+            || jsonb_build_object('review_status', paged.effective_review_status)
+        )
+        from paged
+    ), '[]'::jsonb),
+    'pagination', jsonb_build_object(
+        'page', (select page from normalized),
+        'perPage', (select page_size from normalized),
+        'totalCount', (select total_count from counted),
+        'totalPages', greatest(1, ceil((select total_count from counted)::numeric / (select page_size from normalized))::integer)
+    )
+);
+$$;
+
+revoke all on function public.list_browser_crash_sessions_v2(integer, integer, text, text, text, timestamptz) from public;
+revoke all on function public.list_browser_crash_sessions_v2(integer, integer, text, text, text, timestamptz) from anon;
+revoke all on function public.list_browser_crash_sessions_v2(integer, integer, text, text, text, timestamptz) from authenticated;
+grant execute on function public.list_browser_crash_sessions_v2(integer, integer, text, text, text, timestamptz) to service_role;
+
+comment on function public.list_browser_crash_sessions_v2(integer, integer, text, text, text, timestamptz) is
+    'Canonical service-role-only crash-session list and effective classification authority.';
+
 create table if not exists public.admin_kanban_items (
     id uuid primary key default gen_random_uuid(),
     title text not null,
     details text not null default '',
     status text not null default 'backlog',
     sort_order integer not null default 0,
+    source_type text not null default 'manual',
+    source_key text,
+    source_path text,
+    source_section text,
+    source_line integer,
+    source_fingerprint text,
+    source_synced_at timestamptz,
+    source_missing_at timestamptz,
     created_by uuid references auth.users(id) on delete set null,
     updated_by uuid references auth.users(id) on delete set null,
     archived_by uuid references auth.users(id) on delete set null,
@@ -3120,7 +3735,24 @@ create table if not exists public.admin_kanban_items (
     constraint admin_kanban_items_status_check check (
         status in ('backlog', 'in_progress', 'review', 'complete', 'published')
     ),
-    constraint admin_kanban_items_sort_order_check check (sort_order >= 0)
+    constraint admin_kanban_items_sort_order_check check (sort_order >= 0),
+    constraint admin_kanban_items_source_type_check check (
+        source_type in ('manual', 'admin_error', 'planning_backlog')
+    ),
+    constraint admin_kanban_items_source_key_format_check check (
+        source_key is null
+        or (
+            source_key = btrim(source_key)
+            and char_length(source_key) between 1 and 120
+        )
+    ),
+    constraint admin_kanban_items_source_metadata_check check (
+        (source_path is null or char_length(source_path) <= 240)
+        and (source_section is null or char_length(source_section) <= 160)
+        and (source_line is null or source_line > 0)
+        and (source_fingerprint is null or char_length(source_fingerprint) = 64)
+        and (source_type <> 'planning_backlog' or source_key is not null)
+    )
 );
 
 create index if not exists ix_admin_kanban_items_active_status_sort
@@ -3130,6 +3762,14 @@ create index if not exists ix_admin_kanban_items_active_status_sort
 create index if not exists ix_admin_kanban_items_archived_at
     on public.admin_kanban_items (archived_at desc)
     where archived_at is not null;
+
+create unique index if not exists ux_admin_kanban_items_source_identity
+    on public.admin_kanban_items (source_type, source_key)
+    where source_key is not null;
+
+create index if not exists ix_admin_kanban_items_active_source_status_sort
+    on public.admin_kanban_items (source_type, status, sort_order, updated_at desc)
+    where archived_at is null;
 
 create table if not exists public.admin_kanban_activity (
     id uuid primary key default gen_random_uuid(),
@@ -3142,7 +3782,7 @@ create table if not exists public.admin_kanban_activity (
     actor_email text,
     created_at timestamptz not null default timezone('utc', now()),
     constraint admin_kanban_activity_action_check check (
-        action in ('created', 'updated', 'moved', 'archived')
+        action in ('created', 'updated', 'moved', 'archived', 'synced')
     ),
     constraint admin_kanban_activity_from_status_check check (
         from_status is null
@@ -3184,7 +3824,13 @@ create or replace function public.create_admin_kanban_item(
     p_title text,
     p_details text default '',
     p_actor_user_id uuid default null,
-    p_actor_email text default null
+    p_actor_email text default null,
+    p_source_type text default 'manual',
+    p_source_key text default null,
+    p_source_path text default null,
+    p_source_section text default null,
+    p_source_line integer default null,
+    p_source_fingerprint text default null
 )
 returns public.admin_kanban_items
 language plpgsql
@@ -3195,6 +3841,11 @@ as $$
 declare
     v_title text := btrim(coalesce(p_title, ''));
     v_details text := btrim(coalesce(p_details, ''));
+    v_source_type text := lower(btrim(coalesce(p_source_type, 'manual')));
+    v_source_key text := nullif(lower(btrim(coalesce(p_source_key, ''))), '');
+    v_source_path text := nullif(btrim(coalesce(p_source_path, '')), '');
+    v_source_section text := nullif(btrim(coalesce(p_source_section, '')), '');
+    v_source_fingerprint text := nullif(lower(btrim(coalesce(p_source_fingerprint, ''))), '');
     v_sort_order integer;
     v_item public.admin_kanban_items%rowtype;
 begin
@@ -3210,6 +3861,14 @@ begin
         raise exception 'Task notes must be 1000 characters or fewer.' using errcode = '22023';
     end if;
 
+    if v_source_type not in ('manual', 'admin_error', 'planning_backlog') then
+        raise exception 'source_type must be one of manual, admin_error, planning_backlog.' using errcode = '22023';
+    end if;
+
+    if v_source_type = 'planning_backlog' and v_source_key is null then
+        raise exception 'source_key is required for planning backlog items.' using errcode = '22023';
+    end if;
+
     select coalesce(max(sort_order), 0) + 1
     into v_sort_order
     from public.admin_kanban_items
@@ -3221,7 +3880,14 @@ begin
         status,
         sort_order,
         created_by,
-        updated_by
+        updated_by,
+        source_type,
+        source_key,
+        source_path,
+        source_section,
+        source_line,
+        source_fingerprint,
+        source_synced_at
     )
     values (
         v_title,
@@ -3229,7 +3895,14 @@ begin
         'backlog',
         v_sort_order,
         p_actor_user_id,
-        p_actor_user_id
+        p_actor_user_id,
+        v_source_type,
+        v_source_key,
+        v_source_path,
+        v_source_section,
+        p_source_line,
+        v_source_fingerprint,
+        case when v_source_type = 'planning_backlog' then timezone('utc', now()) else null end
     )
     returning * into v_item;
 
@@ -3251,6 +3924,236 @@ begin
     );
 
     return v_item;
+end;
+$$;
+
+create or replace function public.sync_admin_kanban_planning_backlog_items(
+    p_items jsonb,
+    p_actor_user_id uuid default null,
+    p_actor_email text default null,
+    p_dry_run boolean default true
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+#variable_conflict use_column
+declare
+    v_now timestamptz := timezone('utc', now());
+    v_payload jsonb;
+    v_source_key text;
+    v_title text;
+    v_details text;
+    v_source_path text;
+    v_source_section text;
+    v_source_line integer;
+    v_source_fingerprint text;
+    v_sort_order integer;
+    v_existing public.admin_kanban_items%rowtype;
+    v_missing public.admin_kanban_items%rowtype;
+    v_source_keys text[] := array[]::text[];
+    v_created integer := 0;
+    v_updated integer := 0;
+    v_unchanged integer := 0;
+    v_skipped_archived integer := 0;
+    v_marked_missing integer := 0;
+begin
+    if auth.role() <> 'service_role' then
+        raise exception 'Caller is not authorized' using errcode = '42501';
+    end if;
+
+    if p_items is null or jsonb_typeof(p_items) <> 'array' then
+        raise exception 'p_items must be a JSON array.' using errcode = '22023';
+    end if;
+
+    for v_payload in select value from jsonb_array_elements(p_items)
+    loop
+        v_source_key := lower(btrim(coalesce(v_payload->>'sourceKey', '')));
+        v_title := btrim(coalesce(v_payload->>'title', ''));
+        v_details := btrim(coalesce(v_payload->>'details', ''));
+        v_source_path := nullif(btrim(coalesce(v_payload->>'sourcePath', '')), '');
+        v_source_section := nullif(btrim(coalesce(v_payload->>'sourceSection', '')), '');
+        v_source_fingerprint := lower(btrim(coalesce(v_payload->>'sourceFingerprint', '')));
+        v_source_line := nullif(v_payload->>'sourceLine', '')::integer;
+
+        if v_source_key !~ '^spb-p[0-5]-[0-9]{3}$' then
+            raise exception 'Invalid planning backlog source key: %', v_source_key using errcode = '22023';
+        end if;
+        if v_source_key = any(v_source_keys) then
+            raise exception 'Duplicate planning backlog source key: %', v_source_key using errcode = '22023';
+        end if;
+        if char_length(v_title) < 1 or char_length(v_title) > 140 then
+            raise exception 'Task title must be between 1 and 140 characters.' using errcode = '22023';
+        end if;
+        if char_length(v_details) > 1000 then
+            raise exception 'Task notes must be 1000 characters or fewer.' using errcode = '22023';
+        end if;
+        if v_source_path is null or v_source_section is null or v_source_line is null or v_source_line < 1 then
+            raise exception 'Planning backlog source metadata is incomplete for %.', v_source_key using errcode = '22023';
+        end if;
+        if v_source_fingerprint !~ '^[0-9a-f]{64}$' then
+            raise exception 'Invalid planning backlog fingerprint for %.', v_source_key using errcode = '22023';
+        end if;
+
+        v_source_keys := array_append(v_source_keys, v_source_key);
+
+        select *
+        into v_existing
+        from public.admin_kanban_items
+        where source_type = 'planning_backlog'
+          and source_key = v_source_key
+        for update;
+
+        if v_existing.id is null then
+            v_created := v_created + 1;
+            if not p_dry_run then
+                select coalesce(max(sort_order), 0) + 1
+                into v_sort_order
+                from public.admin_kanban_items
+                where archived_at is null;
+
+                insert into public.admin_kanban_items (
+                    title,
+                    details,
+                    status,
+                    sort_order,
+                    created_by,
+                    updated_by,
+                    source_type,
+                    source_key,
+                    source_path,
+                    source_section,
+                    source_line,
+                    source_fingerprint,
+                    source_synced_at
+                )
+                values (
+                    v_title,
+                    v_details,
+                    'backlog',
+                    v_sort_order,
+                    p_actor_user_id,
+                    p_actor_user_id,
+                    'planning_backlog',
+                    v_source_key,
+                    v_source_path,
+                    v_source_section,
+                    v_source_line,
+                    v_source_fingerprint,
+                    v_now
+                )
+                returning * into v_existing;
+
+                insert into public.admin_kanban_activity (
+                    item_id,
+                    action,
+                    to_status,
+                    note,
+                    actor_user_id,
+                    actor_email
+                )
+                values (
+                    v_existing.id,
+                    'created',
+                    v_existing.status,
+                    'Backlog document sync created card',
+                    p_actor_user_id,
+                    p_actor_email
+                );
+            end if;
+        elsif v_existing.archived_at is not null then
+            v_skipped_archived := v_skipped_archived + 1;
+        elsif v_existing.title is distinct from v_title
+            or v_existing.details is distinct from v_details
+            or v_existing.source_path is distinct from v_source_path
+            or v_existing.source_section is distinct from v_source_section
+            or v_existing.source_line is distinct from v_source_line
+            or v_existing.source_fingerprint is distinct from v_source_fingerprint
+            or v_existing.source_missing_at is not null then
+            v_updated := v_updated + 1;
+            if not p_dry_run then
+                update public.admin_kanban_items
+                set
+                    title = v_title,
+                    details = v_details,
+                    updated_by = p_actor_user_id,
+                    source_path = v_source_path,
+                    source_section = v_source_section,
+                    source_line = v_source_line,
+                    source_fingerprint = v_source_fingerprint,
+                    source_synced_at = v_now,
+                    source_missing_at = null
+                where id = v_existing.id
+                returning * into v_existing;
+
+                insert into public.admin_kanban_activity (
+                    item_id,
+                    action,
+                    to_status,
+                    note,
+                    actor_user_id,
+                    actor_email
+                )
+                values (
+                    v_existing.id,
+                    'synced',
+                    v_existing.status,
+                    'Backlog document sync updated source card',
+                    p_actor_user_id,
+                    p_actor_email
+                );
+            end if;
+        else
+            v_unchanged := v_unchanged + 1;
+        end if;
+    end loop;
+
+    for v_missing in
+        select *
+        from public.admin_kanban_items
+        where source_type = 'planning_backlog'
+          and archived_at is null
+          and (source_key is null or not (source_key = any(v_source_keys)))
+        for update
+    loop
+        v_marked_missing := v_marked_missing + 1;
+        if not p_dry_run and v_missing.source_missing_at is null then
+            update public.admin_kanban_items
+            set
+                source_missing_at = v_now,
+                updated_by = p_actor_user_id
+            where id = v_missing.id
+            returning * into v_missing;
+
+            insert into public.admin_kanban_activity (
+                item_id,
+                action,
+                to_status,
+                note,
+                actor_user_id,
+                actor_email
+            )
+            values (
+                v_missing.id,
+                'synced',
+                v_missing.status,
+                'Backlog document source missing; card retained for review',
+                p_actor_user_id,
+                p_actor_email
+            );
+        end if;
+    end loop;
+
+    return jsonb_build_object(
+        'dryRun', p_dry_run,
+        'received', jsonb_array_length(p_items),
+        'created', v_created,
+        'updated', v_updated,
+        'unchanged', v_unchanged,
+        'skippedArchived', v_skipped_archived,
+        'markedMissing', v_marked_missing
+    );
 end;
 $$;
 
@@ -3470,10 +4373,30 @@ revoke all on table public.admin_kanban_activity from anon;
 revoke all on table public.admin_kanban_activity from authenticated;
 grant all on table public.admin_kanban_activity to service_role;
 
-revoke all on function public.create_admin_kanban_item(text, text, uuid, text) from public;
-revoke all on function public.create_admin_kanban_item(text, text, uuid, text) from anon;
-revoke all on function public.create_admin_kanban_item(text, text, uuid, text) from authenticated;
-grant execute on function public.create_admin_kanban_item(text, text, uuid, text) to service_role;
+revoke all on function public.create_admin_kanban_item(
+    text, text, uuid, text, text, text, text, text, integer, text
+) from public;
+revoke all on function public.create_admin_kanban_item(
+    text, text, uuid, text, text, text, text, text, integer, text
+) from anon;
+revoke all on function public.create_admin_kanban_item(
+    text, text, uuid, text, text, text, text, text, integer, text
+) from authenticated;
+grant execute on function public.create_admin_kanban_item(
+    text, text, uuid, text, text, text, text, text, integer, text
+) to service_role;
+
+revoke all on function public.sync_admin_kanban_planning_backlog_items(jsonb, uuid, text, boolean) from public;
+revoke all on function public.sync_admin_kanban_planning_backlog_items(jsonb, uuid, text, boolean) from anon;
+revoke all on function public.sync_admin_kanban_planning_backlog_items(jsonb, uuid, text, boolean) from authenticated;
+grant execute on function public.sync_admin_kanban_planning_backlog_items(jsonb, uuid, text, boolean) to service_role;
+
+comment on column public.admin_kanban_items.source_type is
+    'Board card source class: manual, admin_error, or planning_backlog.';
+comment on column public.admin_kanban_items.source_key is
+    'Stable source-local identity for mirrored board cards, such as docs/planning/backlog.md kanban ids.';
+comment on function public.sync_admin_kanban_planning_backlog_items(jsonb, uuid, text, boolean) is
+    'Service-role-only sync for mirroring docs/planning/backlog.md into admin Kanban planning_backlog cards.';
 
 revoke all on function public.update_admin_kanban_item(uuid, text, text, uuid, text) from public;
 revoke all on function public.update_admin_kanban_item(uuid, text, text, uuid, text) from anon;

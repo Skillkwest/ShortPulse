@@ -5,12 +5,15 @@
 import React from "react";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
 import { releaseVoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
+import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
+import type { VoiceChangerSourceMetadataPatch } from "../logic/voiceChangerSourceTypes";
 import {
   extractVoiceChangerVideoSource,
   resolveVoiceChangerMediaDurationMs,
   resolveVoiceChangerSourceStoragePath,
   resolveVoiceChangerVideoAspect,
   signVoiceChangerStoragePath,
+  stageVoiceChangerVideoReferenceSource,
   uploadVoiceChangerSourceFile,
 } from "../utils/voiceChangerSourceAsset";
 
@@ -49,6 +52,16 @@ export const useVoiceChangerSourceController = () => {
   const previousVoiceChangerSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const voiceChangerSourceRequestIdRef = React.useRef(0);
 
+  const handleVoiceChangerSourceMetadataChange = React.useCallback(
+    (sourceId: string, patch: VoiceChangerSourceMetadataPatch) => {
+      setVoiceChangerSource((current) => {
+        if (!current || current.id !== sourceId) return current;
+        return { ...current, ...patch };
+      });
+    },
+    []
+  );
+
   const handleVoiceChangerSourceChange = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
       const requestId = voiceChangerSourceRequestIdRef.current + 1;
@@ -60,7 +73,7 @@ export const useVoiceChangerSourceController = () => {
       }
 
       const initialStatus =
-        nextSource.kind === "video"
+        nextSource.displayKind === "video"
           ? nextSource.file
             ? "uploading"
             : "extracting"
@@ -69,12 +82,13 @@ export const useVoiceChangerSourceController = () => {
             : "ready";
       const initialSource: VoiceChangerSource = {
         ...nextSource,
+        displayKind: nextSource.displayKind ?? nextSource.kind,
         status: initialStatus,
         storagePath:
           nextSource.storagePath ?? resolveVoiceChangerSourceStoragePath(nextSource.sourceUrl),
         durationMs: nextSource.durationMs,
         errorMessage: null,
-        extractedFrom: null,
+        extractedFrom: nextSource.extractedFrom,
       };
 
       setVoiceChangerSource(initialSource);
@@ -86,6 +100,26 @@ export const useVoiceChangerSourceController = () => {
         let stagedName = initialSource.name;
         const stagedAspect = initialSource.aspect;
         let stagedDurationMs = initialSource.durationMs;
+        let stagedExtractedFrom = initialSource.extractedFrom;
+        const videoPreviewMetadataPromise =
+          initialSource.displayKind === "video" && initialSource.previewUrl
+            ? loadVideoPreviewMetadata(initialSource.previewUrl).catch(() => ({
+                durationMs: null,
+                posterUrl: null,
+              }))
+            : Promise.resolve({ durationMs: null, posterUrl: initialSource.posterUrl });
+
+        void videoPreviewMetadataPromise.then((metadata) => {
+          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+          setVoiceChangerSource((current) => {
+            if (!current || current.id !== initialSource.id) return current;
+            return {
+              ...current,
+              durationMs: current.durationMs ?? metadata.durationMs,
+              posterUrl: current.posterUrl ?? metadata.posterUrl,
+            };
+          });
+        });
 
         try {
           if (initialSource.file) {
@@ -103,6 +137,48 @@ export const useVoiceChangerSourceController = () => {
 
           if (voiceChangerSourceRequestIdRef.current !== requestId) return;
 
+          if (initialSource.displayKind === "video" && !initialSource.file) {
+            const videoAuthority =
+              initialSource.kind === "video"
+                ? {
+                    kind: "video" as const,
+                    name: stagedName,
+                    mimeType: stagedMimeType,
+                    previewUrl: initialSource.previewUrl,
+                    sourceUrl: stagedSourceUrl,
+                    storagePath: stagedStoragePath,
+                    aspect: stagedAspect,
+                    referenceOutputId: initialSource.referenceOutputId,
+                    referenceMediaId: initialSource.referenceMediaId,
+                  }
+                : stagedExtractedFrom;
+            if (!videoAuthority) {
+              throw new Error("The original video authority is missing.");
+            }
+            const canonicalVideo = await stageVoiceChangerVideoReferenceSource({
+              sourceName: videoAuthority.name,
+              sourceMimeType: videoAuthority.mimeType,
+              sourceStoragePath: videoAuthority.storagePath,
+              sourceUrl: videoAuthority.sourceUrl ?? videoAuthority.previewUrl,
+            });
+            if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+            if (initialSource.kind === "video") {
+              stagedStoragePath = canonicalVideo.storagePath;
+              stagedSourceUrl = canonicalVideo.signedUrl;
+              stagedMimeType = canonicalVideo.mimeType;
+              stagedName = canonicalVideo.name;
+            } else {
+              stagedExtractedFrom = {
+                ...videoAuthority,
+                name: canonicalVideo.name,
+                mimeType: canonicalVideo.mimeType,
+                previewUrl: videoAuthority.previewUrl ?? canonicalVideo.signedUrl,
+                sourceUrl: canonicalVideo.signedUrl,
+                storagePath: canonicalVideo.storagePath,
+              };
+            }
+          }
+
           const stagedKind = resolveVoiceChangerStagedKind({
             fallbackKind: initialSource.kind,
             mimeType: stagedMimeType,
@@ -119,22 +195,27 @@ export const useVoiceChangerSourceController = () => {
               (await resolveVoiceChangerMediaDurationMs(stagedSourceUrl, "audio").catch(
                 () => null
               ));
+            if (voiceChangerSourceRequestIdRef.current !== requestId) return;
 
-            setVoiceChangerSource({
-              ...initialSource,
-              kind: stagedKind,
-              status: "ready",
-              aspect: null,
-              durationMs: stagedDurationMs,
-              name: stagedName,
-              mimeType: stagedMimeType,
-              file: null,
-              previewUrl: null,
-              sourceUrl: stagedSourceUrl,
-              objectUrl: initialSource.objectUrl,
-              storagePath: stagedStoragePath,
-              errorMessage: null,
-              extractedFrom: null,
+            setVoiceChangerSource((current) => {
+              if (!current || current.id !== initialSource.id) return current;
+              return {
+                ...initialSource,
+                kind: stagedKind,
+                displayKind: stagedExtractedFrom ? "video" : stagedKind,
+                status: "ready",
+                aspect: null,
+                durationMs: stagedDurationMs,
+                name: stagedName,
+                mimeType: stagedMimeType,
+                file: null,
+                previewUrl: null,
+                sourceUrl: stagedSourceUrl,
+                objectUrl: initialSource.objectUrl,
+                storagePath: stagedStoragePath,
+                errorMessage: null,
+                extractedFrom: stagedExtractedFrom,
+              };
             });
             return;
           }
@@ -173,32 +254,51 @@ export const useVoiceChangerSourceController = () => {
           });
 
           if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+          const resolvedDurationMs = await durationResolutionPromise;
+          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
 
-          setVoiceChangerSource({
-            ...initialSource,
-            kind: "audio",
-            status: "ready",
-            aspect: null,
-            durationMs: await durationResolutionPromise,
-            name: extracted.name,
-            mimeType: extracted.mimeType,
-            file: null,
-            previewUrl: null,
-            sourceUrl: extracted.signedUrl,
-            objectUrl: null,
-            storagePath: extracted.storagePath,
-            errorMessage: null,
-            extractedFrom: {
-              kind: "video",
-              name: stagedName,
-              mimeType: stagedMimeType,
-              previewUrl: initialSource.previewUrl ?? stagedSourceUrl,
-              sourceUrl: stagedSourceUrl,
-              storagePath: stagedStoragePath,
-              aspect: stagedAspect,
-              referenceOutputId: initialSource.referenceOutputId,
-              referenceMediaId: initialSource.referenceMediaId,
-            },
+          setVoiceChangerSource((current) => {
+            if (!current || current.id !== initialSource.id) return current;
+            return {
+              ...initialSource,
+              kind: "audio",
+              displayKind: "video",
+              status: "ready",
+              aspect: null,
+              durationMs: resolvedDurationMs,
+              name: extracted.name,
+              mimeType: extracted.mimeType,
+              file: null,
+              previewUrl: null,
+              posterUrl: initialSource.posterUrl,
+              sourceUrl: extracted.signedUrl,
+              objectUrl: initialSource.objectUrl,
+              storagePath: extracted.storagePath,
+              errorMessage: null,
+              extractedFrom: {
+                kind: "video",
+                name: stagedName,
+                mimeType: stagedMimeType,
+                previewUrl: initialSource.previewUrl ?? stagedSourceUrl,
+                sourceUrl: stagedSourceUrl,
+                storagePath: stagedStoragePath,
+                aspect: stagedAspect,
+                referenceOutputId: initialSource.referenceOutputId,
+                referenceMediaId: initialSource.referenceMediaId,
+              },
+            };
+          });
+
+          void videoPreviewMetadataPromise.then((metadata) => {
+            if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+            setVoiceChangerSource((current) => {
+              if (!current || current.id !== initialSource.id) return current;
+              return {
+                ...current,
+                durationMs: current.durationMs ?? metadata.durationMs,
+                posterUrl: current.posterUrl ?? metadata.posterUrl,
+              };
+            });
           });
 
           void aspectResolutionPromise.then((resolvedAspect) => {
@@ -264,5 +364,6 @@ export const useVoiceChangerSourceController = () => {
   return {
     voiceChangerSource,
     handleVoiceChangerSourceChange,
+    handleVoiceChangerSourceMetadataChange,
   };
 };

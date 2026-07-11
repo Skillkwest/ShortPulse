@@ -2,8 +2,9 @@
  * Option contracts for the AI Studio state facade.
  */
 import type { Dispatch, SetStateAction } from "react";
-import type { StudioOutput } from "../types";
+import type { StudioOutput, WorkflowReloadConfigV1 } from "../types";
 import type { VoiceChangerSource } from "../components/VoiceChangerSourceDropzone";
+import type { RerollPricingEvidence } from "../logic/rerollPricingEvidence";
 
 export type AiStudioStateOptions = {
   projectId?: string | null;
@@ -24,4 +25,5 @@ export type AiStudioStateOptions = {
   ) => void;
   prepareImageStyleWorkflowReload?: (styleContext: StudioOutput["styleContext"] | null) => void;
   prepareStandardCreateWorkflowReload?: (prompt: string) => void;
+  resolveRerollPricingEvidence?: (config: WorkflowReloadConfigV1) => RerollPricingEvidence | null;
 };

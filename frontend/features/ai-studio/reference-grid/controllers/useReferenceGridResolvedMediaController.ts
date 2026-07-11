@@ -25,6 +25,7 @@ import {
   resolveFirstRenderableUrl,
   resolveOptimizerSourceUrl,
 } from "../logic/referenceGridMediaHelpers";
+import { firstPlayableCandidate } from "../../logic/referenceGridMediaCandidates";
 
 export type ReferenceGridResolvedCardMedia = {
   previewUrl: string | null;
@@ -32,6 +33,7 @@ export type ReferenceGridResolvedCardMedia = {
   posterPreviewUrl: string | null;
   companionArtUrl: string | null;
   playableMediaUrl: string | null;
+  cardPlayablePreviewUrl: string | null;
   fallbackUrl: string | null;
   authorityTier: ReferenceGridMediaAuthorityTier;
   previewQualityBand: ReferenceGridPreviewQualityBand;
@@ -210,6 +212,16 @@ export const useReferenceGridResolvedMediaController = ({
       const posterPreviewUrl = displayAuthority.posterPreviewUrl;
       const companionArtUrl = mediaItem.companionArtUrl?.trim() || null;
       const playableMediaUrl = displayAuthority.playableMediaUrl;
+      const cardPlayablePreviewCandidate =
+        mediaItem.mode === "video"
+          ? firstPlayableCandidate("video", mediaItem.previewUrl, resolvedCardUrls.previewUrl)
+          : null;
+      const cardPlayablePreviewUrl =
+        cardPlayablePreviewCandidate &&
+        normalizeComparableUrl(cardPlayablePreviewCandidate) !==
+          normalizeComparableUrl(playableMediaUrl)
+          ? cardPlayablePreviewCandidate
+          : null;
       const fallbackUrl =
         resolvedCardUrls.authorityTier === "preview-only" && isGeneratedOutput(item)
           ? (resolveFirstRenderableUrl(
@@ -230,6 +242,7 @@ export const useReferenceGridResolvedMediaController = ({
         posterPreviewUrl,
         companionArtUrl,
         playableMediaUrl,
+        cardPlayablePreviewUrl,
         fallbackUrl,
         authorityTier: resolvedCardUrls.authorityTier,
         previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",

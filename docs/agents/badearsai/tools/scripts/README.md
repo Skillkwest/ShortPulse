@@ -6,6 +6,7 @@ Scripts added here should be small, read-only by default, and focused on parsing
 
 ## Scripts
 
+- `admin-errors-intake.mjs`: reads the production Admin Errors queue with the same default non-actionable filters as `/api/admin/errors`, reads exact incident statuses, and can update one reviewed incident through the canonical `admin_update_app_error_status` RPC with a required note.
 - `crash-log-intake.mjs`: lists production `browser_crash_sessions` rows for the Crash Log SOP and can update one reviewed row's `review_status` with a required note.
 
 Rules:

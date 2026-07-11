@@ -159,7 +159,7 @@
 
 .columns {
   display: grid;
-  grid-template-columns: repeat(5, minmax(190px, 1fr));
+  grid-template-columns: repeat(6, minmax(190px, 1fr));
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 4px;
@@ -308,14 +308,23 @@
   overflow-wrap: anywhere;
 }
 
+.sourceBadge,
 .humanReviewBadge {
   display: inline-flex;
   width: fit-content;
-  color: var(--admin-accent-text);
   font-size: 12px;
   font-weight: 800;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.sourceBadge {
+  margin-top: 5px;
+  color: var(--admin-text-muted);
+}
+
+.humanReviewBadge {
+  color: var(--admin-accent-text);
 }
 
 .itemMeta {

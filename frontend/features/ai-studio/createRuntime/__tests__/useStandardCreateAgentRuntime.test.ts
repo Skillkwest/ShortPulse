@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useStandardCreateAgentRuntime } from "../useStandardCreateAgentRuntime";
 import type { AgentAttachment, AgentContext } from "../../../../prefabs/agent";
+import { runStandardCreateAgentSend } from "../../hooks/agentOrchestration/runStandardCreateAgentSend";
 
 const mockSend = vi.fn();
 const mockAppendUserMessage = vi.fn();
@@ -13,6 +14,9 @@ const mockSetAgentInput = vi.fn();
 const mockSetAgentAttachments = vi.fn();
 const mockSetAgentAttachmentError = vi.fn();
 const mockResetAgentComposer = vi.fn();
+const mockHandleClearAgentAttachments = vi.fn();
+const mockHandleAgentAttachmentDrop = vi.fn();
+const mockAcceptAgentComposerDropPayload = vi.fn();
 const mockHandleClearAgentChat = vi.fn();
 const mockResetProjectAgentConversation = vi.fn();
 let mockAgentAttachments: AgentAttachment[] = [];
@@ -43,9 +47,10 @@ vi.mock("../../hooks/useAiStudioAgentComposer", () => ({
     handleAgentAttachmentDragOver: vi.fn(),
     handleAgentAttachmentDragEnter: vi.fn(),
     handleAgentAttachmentDragLeave: vi.fn(),
-    handleAgentAttachmentDrop: vi.fn(),
+    handleAgentAttachmentDrop: mockHandleAgentAttachmentDrop,
+    acceptAgentComposerDropPayload: mockAcceptAgentComposerDropPayload,
     handleRemoveAgentAttachment: vi.fn(),
-    handleClearAgentAttachments: vi.fn(),
+    handleClearAgentAttachments: mockHandleClearAgentAttachments,
     resetAgentComposer: mockResetAgentComposer,
   }),
 }));
@@ -110,9 +115,141 @@ describe("useStandardCreateAgentRuntime", () => {
     mockSetAgentAttachments.mockReset();
     mockSetAgentAttachmentError.mockReset();
     mockResetAgentComposer.mockReset();
+    mockHandleClearAgentAttachments.mockReset();
+    mockHandleAgentAttachmentDrop.mockReset();
+    mockAcceptAgentComposerDropPayload.mockReset();
     mockHandleClearAgentChat.mockReset();
     mockResetProjectAgentConversation.mockReset();
+    vi.mocked(runStandardCreateAgentSend).mockReset();
     mockAgentAttachments = [];
+  });
+
+  it("clears staged chat attachments when Standard Chat Mode turns off", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.setChatModeEnabled(true);
+    });
+    act(() => {
+      result.current.setChatModeEnabled(false);
+    });
+
+    expect(mockResetAgentComposer).toHaveBeenCalledWith({
+      preserveInput: true,
+      preserveAttachments: false,
+    });
+    expect(result.current.chatModeEnabled).toBe(false);
+  });
+
+  it("does not dispatch the Standard agent while Chat Mode is off", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+
+    await act(async () => {
+      await Promise.resolve();
+      await result.current.handleAgentSend();
+    });
+
+    expect(runStandardCreateAgentSend).not.toHaveBeenCalled();
+  });
+
+  it("blocks direct and event-based attachment intake while Chat Mode is off", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+    const preventDefault = vi.fn();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.handleAgentAttachmentDrop({ preventDefault } as never);
+      result.current.acceptAgentComposerDropPayload({
+        kind: "image",
+        internalPayload: null,
+        composerImagePayload: null,
+      });
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(mockHandleAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(mockAcceptAgentComposerDropPayload).not.toHaveBeenCalled();
+  });
+
+  it("preserves attachment intake and agent dispatch while Chat Mode is on", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+    const payload = {
+      kind: "image" as const,
+      internalPayload: null,
+      composerImagePayload: null,
+    };
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.setChatModeEnabled(true);
+    });
+    await act(async () => {
+      result.current.acceptAgentComposerDropPayload(payload);
+      await result.current.handleAgentSend();
+    });
+
+    expect(mockAcceptAgentComposerDropPayload).toHaveBeenCalledWith(payload);
+    expect(runStandardCreateAgentSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("revokes callbacks retained from the chat-on render as soon as Chat Mode turns off", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.setChatModeEnabled(true);
+    });
+    const retainedSend = result.current.handleAgentSend;
+    const retainedDirectDrop = result.current.acceptAgentComposerDropPayload;
+
+    await act(async () => {
+      result.current.setChatModeEnabled(false);
+      retainedDirectDrop({
+        kind: "image",
+        internalPayload: null,
+        composerImagePayload: null,
+      });
+      await retainedSend();
+    });
+
+    expect(mockAcceptAgentComposerDropPayload).not.toHaveBeenCalled();
+    expect(runStandardCreateAgentSend).not.toHaveBeenCalled();
+  });
+
+  it("keeps an originating send revoked after Chat Mode is turned back on", async () => {
+    const { result } = renderHook(() => useStandardCreateAgentRuntime(baseParams));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.setChatModeEnabled(true);
+    });
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+    const originalAuthorization = vi.mocked(runStandardCreateAgentSend).mock.calls[0]?.[0]
+      .isSendAuthorized;
+    expect(originalAuthorization?.()).toBe(true);
+
+    act(() => {
+      result.current.setChatModeEnabled(false);
+    });
+    act(() => {
+      result.current.setChatModeEnabled(true);
+    });
+
+    expect(originalAuthorization?.()).toBe(false);
   });
 
   it("mirrors Standard chat composer edits into shared prompt state", async () => {

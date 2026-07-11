@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   applyStudioAgentVisionSummariesToContext,
   buildStudioAgentImageSummaryMap,
+  isStudioAgentVisionSummaryAbortError,
 } from "../studioAgentVisionSummaries";
 
 const fetchStudioAgentChatCompletionMock = vi.fn();
@@ -113,5 +114,17 @@ describe("studioAgentVisionSummaries", () => {
         kind: "prompt",
       })
     );
+  });
+
+  it("classifies optional vision summary aborts", () => {
+    expect(isStudioAgentVisionSummaryAbortError(new DOMException("aborted", "AbortError"))).toBe(
+      true
+    );
+    expect(
+      isStudioAgentVisionSummaryAbortError(
+        Object.assign(new Error("This operation was aborted"), { name: "AbortError" })
+      )
+    ).toBe(true);
+    expect(isStudioAgentVisionSummaryAbortError(new Error("Vision summary failed"))).toBe(false);
   });
 });

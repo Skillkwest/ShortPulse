@@ -59,7 +59,10 @@ vi.mock("../voiceChangerSourceVideoNormalization", () => ({
     normalizeVoiceChangerSourceVideoForProcessingMock(...args),
 }));
 
-import { finalizeVoiceChangerSourceUploadForUser } from "../mediaUploadService";
+import {
+  finalizeVoiceChangerSourceUploadForUser,
+  stageVoiceChangerSourceBufferForUser,
+} from "../mediaUploadService";
 
 const buildMp4Signature = (): Buffer =>
   Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), Buffer.from("ftypmp42", "ascii")]);
@@ -174,6 +177,31 @@ describe("finalizeVoiceChangerSourceUploadForUser", () => {
       size: sourceBuffer.length,
       mimeType: "video/mp4",
       name: "clip.mp4",
+    });
+  });
+
+  it("copies verified video bytes into canonical source-video storage without deleting the origin", async () => {
+    const sourceBuffer = buildMp4Signature();
+
+    const staged = await stageVoiceChangerSourceBufferForUser({
+      userId: "user-1",
+      kind: "video",
+      buffer: sourceBuffer,
+      filename: "reference.mp4",
+      declaredMimeType: "video/mp4",
+    });
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/voice-changer\/source-video\/.*reference\.mp4$/),
+      sourceBuffer,
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
+    );
+    expect(removeMock).not.toHaveBeenCalled();
+    expect(staged).toMatchObject({
+      path: expect.stringMatching(/^user-1\/voice-changer\/source-video\//),
+      mimeType: "video/mp4",
+      name: "reference.mp4",
+      size: sourceBuffer.length,
     });
   });
 

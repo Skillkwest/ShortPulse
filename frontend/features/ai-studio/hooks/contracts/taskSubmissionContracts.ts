@@ -16,6 +16,8 @@ export type AiStudioTaskSubmitOptions = {
   selectedToolOverride?: ToolId | null;
   displayPromptOverride?: string | null;
   displayedBilledCredits?: number | null;
+  displayedPricingPolicyVersion?: number | null;
+  displayedPricingVariantId?: string | null;
   internalMediaRefsOverride?: Array<InternalMediaRef | null>;
   characterContextOverride?: StudioOutput["characterContext"];
   styleContextOverride?: StudioOutput["styleContext"];

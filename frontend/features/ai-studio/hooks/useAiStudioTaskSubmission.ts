@@ -92,6 +92,12 @@ import type {
   AiStudioTaskSubmissionOptions,
   UseAiStudioTaskSubmissionParams,
 } from "./contracts/taskSubmissionHookContracts";
+import {
+  isPricingPolicyConflictCode,
+  PRICING_POLICY_CONFLICT_EVENT,
+  PRICING_POLICY_REFRESH_REQUESTED_EVENT,
+  type PricingPolicyConflictPayload,
+} from "../../../lib/model-runtime/pricingPolicyFreshness";
 
 const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
@@ -587,6 +593,8 @@ export const useAiStudioTaskSubmission = ({
           ),
           pricing_display_source: usesPricingGridDisplay ? "pricing_grid" : "shared_adapter",
           pricing_policy_ready: true,
+          displayed_pricing_policy_version: options?.displayedPricingPolicyVersion ?? null,
+          displayed_pricing_variant_id: options?.displayedPricingVariantId ?? null,
           displayed_billed_credits: displayedBilledCredits,
           ...(isLipSyncSubmission
             ? {
@@ -779,6 +787,33 @@ export const useAiStudioTaskSubmission = ({
           }
         } catch (error) {
           const submissionError = error as SubmissionInvariantError;
+          const pricingError = error as Error & {
+            code?: string;
+            pricingConflict?: Partial<PricingPolicyConflictPayload>;
+          };
+          if (isPricingPolicyConflictCode(pricingError.code)) {
+            removeOptimisticPlaceholder();
+            const conflict = pricingError.pricingConflict;
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event(PRICING_POLICY_REFRESH_REQUESTED_EVENT));
+              window.dispatchEvent(
+                new CustomEvent(PRICING_POLICY_CONFLICT_EVENT, {
+                  detail: { outputId: optimisticOutputId ?? null },
+                })
+              );
+            }
+            const previousCredits = conflict?.displayedBilledCredits;
+            const activeCredits = conflict?.activeBilledCredits;
+            const creditChange =
+              typeof previousCredits === "number" && typeof activeCredits === "number"
+                ? ` from ${previousCredits} to ${activeCredits} credits`
+                : "";
+            const refreshedVersion = conflict?.activePricingPolicyVersion;
+            setUiNotice(
+              `Pricing updated${creditChange}${typeof refreshedVersion === "number" ? ` (policy ${refreshedVersion})` : ""}. Review the new price, then click Generate again.`
+            );
+            return;
+          }
           if (isAuthSessionTimeoutError(error)) {
             notifyGenerationFailure(
               id,

@@ -177,7 +177,7 @@ describe("ErrorIncidentsPanel handoff queue", () => {
     expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByText("New")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy all new" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy all" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy triage" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument();
     expect(screen.queryByText("Event Stream")).not.toBeInTheDocument();
@@ -199,8 +199,12 @@ describe("ErrorIncidentsPanel handoff queue", () => {
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1);
   });
 
-  it("copies all visible new incident rows and marks them in progress locally", async () => {
+  it("copies all visible incident rows, including rows already in progress", async () => {
     copyToClipboardMock.mockResolvedValue(true);
+    window.localStorage.setItem(
+      "shortpulse.admin.errors.in_progress_incidents",
+      JSON.stringify(["incident-new-1"])
+    );
     const props = buildBaseProps();
     props.errors = [
       buildIncident({ id: "incident-new-1", message: "First visible issue" }),
@@ -214,21 +218,22 @@ describe("ErrorIncidentsPanel handoff queue", () => {
 
     render(<ErrorIncidentsPanel {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy all new" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy all" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Copied 2" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copied 3" })).toBeInTheDocument();
     });
 
     const copiedText = String(copyToClipboardMock.mock.calls[0]?.[0] ?? "");
     expect(copiedText).toContain("First visible issue");
     expect(copiedText).toContain("Second visible issue");
-    expect(copiedText).not.toContain("Resolved issue");
-    expect(copiedText.match(/shortpulseIncidentVersion/g)).toHaveLength(2);
+    expect(copiedText).toContain("Resolved issue");
+    expect(copiedText.match(/shortpulseIncidentVersion/g)).toHaveLength(3);
     expect(screen.getAllByText("In progress")).toHaveLength(2);
+    expect(screen.getAllByText("Resolved")).toHaveLength(2);
   });
 
-  it("disables copy all new when no visible rows are new", async () => {
+  it("keeps copy all enabled when every visible queue row is already in progress", async () => {
     copyToClipboardMock.mockResolvedValue(true);
     window.localStorage.setItem(
       "shortpulse.admin.errors.in_progress_incidents",
@@ -240,7 +245,7 @@ describe("ErrorIncidentsPanel handoff queue", () => {
     render(<ErrorIncidentsPanel {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Copy all new" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Copy all" })).toBeEnabled();
     });
   });
 

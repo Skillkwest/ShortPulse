@@ -51,6 +51,9 @@ describe("adminCrashSessionsApi", () => {
           confidence: "none",
           effective_status: "possible_ungraceful_exit",
           effective_confidence: "low",
+          effective_reason: "stale_heartbeat",
+          max_used_js_heap_size: 677_380_096,
+          max_heap_used_to_limit_ratio: 0.154,
           is_stale: true,
           last_event: "heartbeat",
           route: "/ai-studio?tab=secret",
@@ -84,6 +87,9 @@ describe("adminCrashSessionsApi", () => {
       confidence: "none",
       effectiveStatus: "possible_ungraceful_exit",
       effectiveConfidence: "low",
+      effectiveReason: "stale_heartbeat",
+      maxUsedJsHeapSize: 677_380_096,
+      maxHeapUsedToLimitRatio: 0.154,
       isStale: true,
       metadata: { pressure_level: 4 },
       reviewStatus: "resolved",
@@ -94,5 +100,16 @@ describe("adminCrashSessionsApi", () => {
     });
     expect(result.pagination.hasNextPage).toBe(false);
     expect(result.pagination.hasPrevPage).toBe(false);
+  });
+
+  it("keeps absent typed heap evidence null instead of presenting a zero reading", () => {
+    const result = normalizeAdminCrashSessionsResponse({
+      sessions: [{ id: "row-2", max_used_js_heap_size: null, max_heap_used_to_limit_ratio: null }],
+    });
+
+    expect(result.rows[0]).toMatchObject({
+      maxUsedJsHeapSize: null,
+      maxHeapUsedToLimitRatio: null,
+    });
   });
 });

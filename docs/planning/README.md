@@ -43,6 +43,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 2: Media And Reference Integrity
 
 - `docs/known-issues.md`
+- `docs/planning/ai-studio-browser-oom-and-crash-observability-buildout-plan-2026-07-10.md`
 - `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
@@ -65,7 +66,9 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ### Program 4: Workflows And Product Surfaces
 
 - `docs/planning/ai-studio-create-agent-ten-image-attachments-buildout-plan-2026-07-10.md`
+- `docs/planning/ai-studio-standard-chat-mode-image-attachment-boundary-plan-2026-07-10.md`
 - `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
+- `docs/planning/ai-studio-voice-changer-video-recovery-and-reliability-plan-2026-07-10.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-implementation-plan-2026-06-08.md`
 - `docs/planning/ai-studio-video-lip-sync-completion-plan-2026-06-10.md`

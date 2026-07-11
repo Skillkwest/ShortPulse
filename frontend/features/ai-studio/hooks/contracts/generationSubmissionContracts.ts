@@ -8,6 +8,8 @@ type AiStudioForwardedGenerateSubmitOptions = Pick<
   | "selectedToolOverride"
   | "displayPromptOverride"
   | "displayedBilledCredits"
+  | "displayedPricingPolicyVersion"
+  | "displayedPricingVariantId"
   | "internalMediaRefsOverride"
   | "characterContextOverride"
   | "styleContextOverride"

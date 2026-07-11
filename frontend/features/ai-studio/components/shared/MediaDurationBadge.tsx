@@ -1,6 +1,7 @@
 import React from "react";
 import { MusicNotes, SpeakerHigh, VideoCamera, WaveSine } from "phosphor-react";
 import type { StudioAudioSourceMode } from "../../types";
+import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
 
 type MediaDurationBadgeProps = {
   durationMs?: number | null;
@@ -14,12 +15,46 @@ type MediaDurationBadgeProps = {
 export type MediaDurationBadgeKind = "audio" | "music" | "sound-effects" | "video";
 
 const MEDIA_DURATION_PROBE_MAX_INFLIGHT = 2;
+const MEDIA_DURATION_PROBE_MAX_QUEUED = 64;
 const MEDIA_DURATION_PROBE_MAX_CACHE_ENTRIES = 300;
 const MEDIA_DURATION_PROBE_TIMEOUT_MS = 8_000;
 const mediaDurationProbeCache = new Map<string, number | null>();
-const mediaDurationProbeInFlightByKey = new Map<string, Promise<number | null>>();
+type MediaDurationProbeEntry = {
+  cacheKey: string;
+  mediaKind: "audio" | "video";
+  mediaUrl: string;
+  promise: Promise<number | null>;
+  resolve: (durationMs: number | null) => void;
+  consumerCount: number;
+  status: "queued" | "running" | "settled";
+  cancelActive: (() => void) | null;
+};
+const mediaDurationProbeByKey = new Map<string, MediaDurationProbeEntry>();
 let mediaDurationProbeInflightCount = 0;
-const mediaDurationProbeQueue: Array<() => void> = [];
+const mediaDurationProbeQueue: MediaDurationProbeEntry[] = [];
+let mediaDurationProbeDrainScheduled = false;
+
+export type MediaDurationProbeWorkload = {
+  inflightCount: number;
+  queuedCount: number;
+  cacheEntryCount: number;
+};
+
+export const readMediaDurationProbeWorkload = (): MediaDurationProbeWorkload => ({
+  inflightCount: mediaDurationProbeInflightCount,
+  queuedCount: mediaDurationProbeQueue.length,
+  cacheEntryCount: mediaDurationProbeCache.size,
+});
+
+const logMediaDurationProbeWorkload = () => {
+  const workload = readMediaDurationProbeWorkload();
+  logMediaPerf("media.grid.memory.sample", {
+    surface: "duration-probe",
+    duration_probe_inflight_count: workload.inflightCount,
+    duration_probe_queued_count: workload.queuedCount,
+    duration_probe_cache_entry_count: workload.cacheEntryCount,
+  });
+};
 
 type ResolvedMediaDurationState = {
   cacheKey: string | null;
@@ -89,17 +124,93 @@ const rememberMediaDurationProbeResult = (cacheKey: string, durationMs: number |
   mediaDurationProbeCache.set(cacheKey, durationMs);
 };
 
-const runNextDurationProbe = () => {
-  if (mediaDurationProbeInflightCount >= MEDIA_DURATION_PROBE_MAX_INFLIGHT) return;
-  const nextProbe = mediaDurationProbeQueue.shift();
-  if (!nextProbe) return;
-  mediaDurationProbeInflightCount += 1;
-  nextProbe();
+const scheduleDurationProbeDrain = () => {
+  if (mediaDurationProbeDrainScheduled) return;
+  mediaDurationProbeDrainScheduled = true;
+  queueMicrotask(() => {
+    mediaDurationProbeDrainScheduled = false;
+    runNextDurationProbe();
+  });
 };
 
-const completeDurationProbe = () => {
-  mediaDurationProbeInflightCount = Math.max(0, mediaDurationProbeInflightCount - 1);
-  runNextDurationProbe();
+const runNextDurationProbe = () => {
+  while (
+    mediaDurationProbeInflightCount < MEDIA_DURATION_PROBE_MAX_INFLIGHT &&
+    mediaDurationProbeQueue.length
+  ) {
+    const entry = mediaDurationProbeQueue.shift();
+    if (!entry || entry.status !== "queued" || entry.consumerCount <= 0) continue;
+    const activeEntry = entry;
+    activeEntry.status = "running";
+    mediaDurationProbeInflightCount += 1;
+    logMediaDurationProbeWorkload();
+
+    let settled = false;
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+    const media =
+      typeof document === "undefined"
+        ? null
+        : activeEntry.mediaKind === "audio"
+          ? document.createElement("audio")
+          : document.createElement("video");
+
+    function handleLoadedMetadata() {
+      const nextDurationSeconds = media?.duration;
+      if (!Number.isFinite(nextDurationSeconds) || (nextDurationSeconds ?? -1) < 0) {
+        settle(null);
+        return;
+      }
+      settle(Math.max(0, Math.round((nextDurationSeconds ?? 0) * 1000)));
+    }
+
+    function handleError() {
+      settle(null);
+    }
+
+    function settle(nextDurationMs: number | null, rememberResult = true, drainImmediately = true) {
+      if (settled) return;
+      settled = true;
+      activeEntry.status = "settled";
+      activeEntry.cancelActive = null;
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (rememberResult) rememberMediaDurationProbeResult(activeEntry.cacheKey, nextDurationMs);
+      if (mediaDurationProbeByKey.get(activeEntry.cacheKey) === activeEntry) {
+        mediaDurationProbeByKey.delete(activeEntry.cacheKey);
+      }
+      media?.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      media?.removeEventListener("error", handleError);
+      media?.removeAttribute("src");
+      try {
+        media?.load();
+      } catch {
+        // Some browser/test environments throw when resetting detached media.
+      }
+      mediaDurationProbeInflightCount = Math.max(0, mediaDurationProbeInflightCount - 1);
+      activeEntry.resolve(nextDurationMs);
+      logMediaDurationProbeWorkload();
+      if (drainImmediately) runNextDurationProbe();
+      else scheduleDurationProbeDrain();
+    }
+
+    activeEntry.cancelActive = () => settle(null, false, false);
+    if (!media) {
+      settle(null, false);
+      continue;
+    }
+    media.preload = "metadata";
+    media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+    media.addEventListener("error", handleError, { once: true });
+    timeoutId = globalThis.setTimeout(() => settle(null), MEDIA_DURATION_PROBE_TIMEOUT_MS);
+    media.src = activeEntry.mediaUrl;
+    try {
+      media.load();
+    } catch {
+      settle(null);
+    }
+  }
 };
 
 const requestQueuedMediaDurationProbe = ({
@@ -108,81 +219,63 @@ const requestQueuedMediaDurationProbe = ({
 }: {
   mediaKind: "audio" | "video";
   mediaUrl: string;
-}): Promise<number | null> => {
+}): { promise: Promise<number | null>; release: () => void } => {
   const cacheKey = resolveDurationProbeCacheKey({ mediaKind, mediaUrl });
   if (mediaDurationProbeCache.has(cacheKey)) {
-    return Promise.resolve(mediaDurationProbeCache.get(cacheKey) ?? null);
+    return {
+      promise: Promise.resolve(mediaDurationProbeCache.get(cacheKey) ?? null),
+      release: () => undefined,
+    };
   }
-  const pendingProbe = mediaDurationProbeInFlightByKey.get(cacheKey);
-  if (pendingProbe) return pendingProbe;
+  let entry = mediaDurationProbeByKey.get(cacheKey);
+  if (entry) {
+    entry.consumerCount += 1;
+  } else if (mediaDurationProbeQueue.length >= MEDIA_DURATION_PROBE_MAX_QUEUED) {
+    return { promise: Promise.resolve(null), release: () => undefined };
+  } else {
+    let resolveProbe: (durationMs: number | null) => void = () => undefined;
+    const promise = new Promise<number | null>((resolve) => {
+      resolveProbe = resolve;
+    });
+    entry = {
+      cacheKey,
+      mediaKind,
+      mediaUrl,
+      promise,
+      resolve: resolveProbe,
+      consumerCount: 1,
+      status: "queued",
+      cancelActive: null,
+    };
+    mediaDurationProbeByKey.set(cacheKey, entry);
+    mediaDurationProbeQueue.push(entry);
+    logMediaDurationProbeWorkload();
+    runNextDurationProbe();
+  }
 
-  const durationProbePromise = new Promise<number | null>((resolve) => {
-    const runProbe = () => {
-      if (typeof document === "undefined") {
-        mediaDurationProbeInFlightByKey.delete(cacheKey);
-        completeDurationProbe();
-        resolve(null);
+  let released = false;
+  return {
+    promise: entry.promise,
+    release: () => {
+      if (released || !entry || entry.status === "settled") return;
+      released = true;
+      entry.consumerCount = Math.max(0, entry.consumerCount - 1);
+      if (entry.consumerCount > 0) return;
+      if (entry.status === "running") {
+        entry.cancelActive?.();
         return;
       }
-
-      let settled = false;
-      let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
-      const media =
-        mediaKind === "audio" ? document.createElement("audio") : document.createElement("video");
-      media.preload = "metadata";
-
-      function handleLoadedMetadata() {
-        const nextDurationSeconds = media.duration;
-        if (!Number.isFinite(nextDurationSeconds) || nextDurationSeconds < 0) {
-          settle(null);
-          return;
-        }
-        settle(Math.max(0, Math.round(nextDurationSeconds * 1000)));
+      const queueIndex = mediaDurationProbeQueue.indexOf(entry);
+      if (queueIndex >= 0) mediaDurationProbeQueue.splice(queueIndex, 1);
+      entry.status = "settled";
+      if (mediaDurationProbeByKey.get(entry.cacheKey) === entry) {
+        mediaDurationProbeByKey.delete(entry.cacheKey);
       }
-
-      function handleError() {
-        settle(null);
-      }
-
-      function settle(nextDurationMs: number | null) {
-        if (settled) return;
-        settled = true;
-        if (timeoutId != null) {
-          globalThis.clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        rememberMediaDurationProbeResult(cacheKey, nextDurationMs);
-        mediaDurationProbeInFlightByKey.delete(cacheKey);
-        media.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        media.removeEventListener("error", handleError);
-        media.removeAttribute("src");
-        try {
-          media.load();
-        } catch {
-          // Some browser/test environments throw when resetting detached media.
-        }
-        completeDurationProbe();
-        resolve(nextDurationMs);
-      }
-
-      media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
-      media.addEventListener("error", handleError, { once: true });
-      timeoutId = globalThis.setTimeout(() => {
-        settle(null);
-      }, MEDIA_DURATION_PROBE_TIMEOUT_MS);
-      media.src = mediaUrl;
-      try {
-        media.load();
-      } catch {
-        settle(null);
-      }
-    };
-
-    mediaDurationProbeQueue.push(runProbe);
-    runNextDurationProbe();
-  });
-  mediaDurationProbeInFlightByKey.set(cacheKey, durationProbePromise);
-  return durationProbePromise;
+      entry.resolve(null);
+      logMediaDurationProbeWorkload();
+      scheduleDurationProbeDrain();
+    },
+  };
 };
 
 export function MediaDurationBadge({
@@ -253,16 +346,19 @@ export function MediaDurationBadge({
     }
 
     let cancelled = false;
-    void requestQueuedMediaDurationProbe({ mediaKind, mediaUrl: normalizedMediaUrl }).then(
-      (nextDurationMs) => {
-        if (!cancelled) {
-          updateResolvedDuration({ cacheKey, durationMs: nextDurationMs });
-        }
+    const probeRequest = requestQueuedMediaDurationProbe({
+      mediaKind,
+      mediaUrl: normalizedMediaUrl,
+    });
+    void probeRequest.promise.then((nextDurationMs) => {
+      if (!cancelled) {
+        updateResolvedDuration({ cacheKey, durationMs: nextDurationMs });
       }
-    );
+    });
 
     return () => {
       cancelled = true;
+      probeRequest.release();
     };
   }, [allowProbe, durationMs, mediaKind, mediaUrl, updateResolvedDuration]);
 

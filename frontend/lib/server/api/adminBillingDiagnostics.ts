@@ -23,6 +23,7 @@ import {
   BillingProfileRow,
   BillingStorageAddonRow,
   buildPricingObservabilityEvent,
+  dedupePricingObservabilityEventsByRun,
   HistoricalBillingStorageAddonRow,
   isSchemaCompatibilityError,
   isStripeModeMismatchError,
@@ -527,7 +528,10 @@ export const resolveAdminBillingDiagnostics = async ({
     ...reservationObservabilityRows,
     ...ledgerObservabilityRows,
   ].sort((a, b) => (b.observedAt ?? "").localeCompare(a.observedAt ?? ""));
-  const pricingObservabilityMismatchCount = pricingObservabilityEvents.filter(
+  const distinctPricingObservabilityEvents = dedupePricingObservabilityEventsByRun(
+    pricingObservabilityEvents
+  );
+  const pricingObservabilityMismatchCount = distinctPricingObservabilityEvents.filter(
     (row) => row.mismatch === true
   ).length;
   const pricingObservability = {
@@ -540,8 +544,8 @@ export const resolveAdminBillingDiagnostics = async ({
       ledgerEntries: ledgerObservabilityRows.length,
     },
     mismatchCount: pricingObservabilityMismatchCount,
-    lastObservedAt: pricingObservabilityEvents[0]?.observedAt ?? null,
-    latestEvents: pricingObservabilityEvents.slice(0, 5),
+    lastObservedAt: distinctPricingObservabilityEvents[0]?.observedAt ?? null,
+    latestEvents: distinctPricingObservabilityEvents.slice(0, 5),
   };
   const latestSubscriptionGrantAt =
     recurringGrantRows.find((row) => row.source === "subscription_renewal")?.created_at ?? null;

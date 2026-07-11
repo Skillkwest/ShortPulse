@@ -87,28 +87,88 @@ const reviewStatusLabel = (status: AdminCrashSessionReviewStatus): string => {
   return "Open review";
 };
 
+const metadataNumber = (metadata: Record<string, unknown>, key: string): number | null => {
+  const value = metadata[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
+const metadataText = (metadata: Record<string, unknown>, key: string): string | null => {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+};
+
+const formatHeapEvidence = (row: AdminCrashSessionRow): string | null => {
+  const metadataUsedBytes = metadataNumber(row.metadata, "used_js_heap_size");
+  const usedBytes =
+    row.maxUsedJsHeapSize !== null && row.maxUsedJsHeapSize > 0
+      ? row.maxUsedJsHeapSize
+      : metadataUsedBytes;
+  const limitBytes = metadataNumber(row.metadata, "js_heap_size_limit");
+  const usedToLimitRatio =
+    row.maxHeapUsedToLimitRatio ??
+    metadataNumber(row.metadata, "heap_used_to_limit_ratio") ??
+    metadataNumber(row.metadata, "max_heap_used_to_limit_ratio") ??
+    (usedBytes !== null && limitBytes !== null && limitBytes > 0 ? usedBytes / limitBytes : null);
+
+  if (usedBytes !== null) {
+    const usedMb = Math.round(usedBytes / (1024 * 1024));
+    return usedToLimitRatio !== null
+      ? `JS heap ${usedMb} MB · ${Math.round(usedToLimitRatio * 100)}% of limit`
+      : `JS heap ${usedMb} MB`;
+  }
+  if (usedToLimitRatio !== null) {
+    return `JS heap ${Math.round(usedToLimitRatio * 100)}% of limit`;
+  }
+  return null;
+};
+
 const evidenceText = (row: AdminCrashSessionRow): string => {
-  const pressure = row.metadata.max_pressure_level ?? row.metadata.pressure_level;
-  const stall = row.metadata.stall_duration_ms ?? row.metadata.max_input_stall_ms;
-  const heap =
-    row.metadata.max_heap_used_to_total_ratio ??
-    row.metadata.heap_used_to_total_ratio ??
-    row.metadata.heap_usage_ratio;
+  const heapEvidence = formatHeapEvidence(row);
+  const pressure =
+    metadataNumber(row.metadata, "max_pressure_level") ??
+    metadataNumber(row.metadata, "pressure_level");
+  const stall =
+    metadataNumber(row.metadata, "stall_duration_ms") ??
+    metadataNumber(row.metadata, "max_input_stall_ms");
+  const usedToTotalRatio =
+    metadataNumber(row.metadata, "max_heap_used_to_total_ratio") ??
+    metadataNumber(row.metadata, "heap_used_to_total_ratio");
+  const legacyHeapRatio = metadataNumber(row.metadata, "heap_usage_ratio");
   const parts = [
-    typeof pressure === "number" ? `pressure ${pressure}` : null,
-    typeof stall === "number" ? `stall ${Math.round(stall)}ms` : null,
-    typeof heap === "number" ? `heap ${Math.round(heap * 100)}%` : null,
+    heapEvidence,
+    pressure !== null ? `pressure ${pressure}` : null,
+    stall !== null ? `stall ${Math.round(stall)}ms` : null,
+    usedToTotalRatio !== null
+      ? `allocation pool ${Math.round(usedToTotalRatio * 100)}% used`
+      : heapEvidence === null && legacyHeapRatio !== null
+        ? `legacy heap ratio ${Math.round(legacyHeapRatio * 100)}%`
+        : null,
   ].filter(Boolean);
   if (row.isStale) parts.unshift("heartbeat stale");
   return parts.length ? parts.join(" · ") : row.lastEvent.replaceAll("_", " ");
 };
 
 const signalText = (row: AdminCrashSessionRow): string => {
+  const recordedReason =
+    row.effectiveReason ??
+    metadataText(row.metadata, "status_reason") ??
+    metadataText(row.metadata, "crash_report_reason");
+  if (recordedReason) return recordedReason.replaceAll("_", " ");
   if (row.isStale) return "Heartbeat went stale";
   if (row.lastEvent === "crash_report") return "Browser reported a crash";
   if (row.lastEvent === "previous_session_abandoned")
     return "Previous session ended without clean close";
   return evidenceText(row);
+};
+
+const emptyStateText = (viewMode: AdminCrashSessionsViewMode): string => {
+  if (viewMode === "needs_review") {
+    return "No open probable or confirmed crash sessions matched Needs Review.";
+  }
+  if (viewMode === "history") {
+    return "No reviewed probable or confirmed crash sessions matched History.";
+  }
+  return "No crash-session evidence matched the current filters.";
 };
 
 const browserLabel = (userAgent: string | null): string => {
@@ -130,6 +190,9 @@ const buildCrashPacket = (row: AdminCrashSessionRow): string =>
         browserSessionId: row.browserSessionId,
         status: row.effectiveStatus,
         confidence: row.effectiveConfidence,
+        reason: row.effectiveReason,
+        maxUsedJsHeapSize: row.maxUsedJsHeapSize,
+        maxHeapUsedToLimitRatio: row.maxHeapUsedToLimitRatio,
         lastEvent: row.lastEvent,
         userId: row.userId,
         userEmail: row.userEmail,
@@ -313,9 +376,9 @@ export function AdminCrashLogsPanel({
           </div>
         ) : sessions.length === 0 ? (
           <div className={`${styles.adminErrorsRow} ${styles.severityLow}`}>
-            <span className="subdued">Clear</span>
+            <span className="subdued">No matches</span>
             <span className="subdued">-</span>
-            <span className="subdued">No crash sessions matched the current filters.</span>
+            <span className="subdued">{emptyStateText(viewMode)}</span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>
             <span className="subdued">-</span>

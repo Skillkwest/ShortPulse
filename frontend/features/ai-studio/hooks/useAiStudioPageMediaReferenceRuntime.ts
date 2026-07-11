@@ -651,6 +651,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
             mimeType: output.mimeType ?? null,
             sourceUrl: remoteUrl,
             previewUrl: kind === "video" ? remoteUrl : null,
+            posterUrl: kind === "video" ? (output.previewPosterUrl ?? null) : null,
             storagePath,
             durationMs: output.durationMs ?? null,
             referenceOutputId: outputId || null,

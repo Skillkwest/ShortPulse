@@ -60,6 +60,7 @@ export type ReferenceGridProps = {
   onDownload?: (output: StudioOutput) => void;
   onPinPromptReference?: (text: string) => void;
   onRerollOutput?: (output: StudioOutput) => void;
+  onRetryVoiceChangerVideo?: (output: StudioOutput) => void;
   onReloadWorkflowOutput?: (
     output: StudioOutput,
     options?: { mediaKindHint?: WorkflowReloadMediaKindHint | null }

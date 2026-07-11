@@ -114,11 +114,42 @@ const fileChecks = [
     file: "frontend/lib/server/api/generationBilling.ts",
     label: "generation billing canonical pricing path",
     requireIncludes: [
+      "billingWorkflow,",
+      "isImageBillingWorkflow",
+      "shouldResolveCreateImagePricing",
+      "selectCanonicalPricingCandidate",
       "resolveVideoBilledCreditLookup",
       "api.generation_billing_missing_canonical_video_price",
-      "const isAudioBillingPath = ({",
       "api.generation_billing_missing_canonical_audio_price",
+      "requiresDisplayedPricingEvidence",
     ],
+    forbidIncludes: [
+      "shortpulseContext.selected_tool",
+      "shortpulseContext.mode",
+    ],
+  },
+  {
+    file: "frontend/pages/api/ai/generate-style-preview.ts",
+    label: "style preview billed helper path",
+    requireIncludes: [
+      'billingWorkflow: "style_preview"',
+      'source_mode: "style_preview"',
+    ],
+  },
+  {
+    file: "frontend/features/ai-studio/logic/rerollPricingEvidence.ts",
+    label: "AI Studio reroll pricing evidence resolver",
+    requireIncludes: [
+      "resolveRerollPricingEvidence",
+      "resolveCreateImageBilledCreditLookup",
+      "resolveEditImageBilledCreditLookup",
+      "resolveVideoBilledCreditLookup",
+    ],
+  },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioRerollController.ts",
+    label: "AI Studio reroll pricing evidence forwarding",
+    requireIncludes: ["resolvePricingEvidence", "...pricingEvidence"],
   },
   {
     file: "frontend/features/ai-studio/routes/AiStudioRouteApp.tsx",

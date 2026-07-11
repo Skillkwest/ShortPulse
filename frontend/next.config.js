@@ -138,7 +138,7 @@ const nextConfig = {
           ...securityHeaders,
           {
             key: "Reporting-Endpoints",
-            value: `crash-reporting="${resolveCrashReportEndpoint()}"`,
+            value: `default="${resolveCrashReportEndpoint()}"`,
           },
         ],
       },

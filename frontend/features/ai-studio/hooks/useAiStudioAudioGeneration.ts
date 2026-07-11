@@ -27,6 +27,8 @@ import { sanitizeCustomerFacingProviderText } from "../../../lib/customerFacingP
 import { readGenerationAdmissionErrorMessage } from "../../../lib/generationAdmissionErrors";
 import { INSUFFICIENT_CREDITS_TITLE } from "../logic/insufficientCredits";
 import type { NotifyGenerationFailure } from "./generationFailureReporting";
+import type { ModelPricingPolicySnapshot } from "../../../lib/model-runtime/pricingPolicy";
+import { isPricingPolicyConflictCode } from "../../../lib/model-runtime/pricingPolicyFreshness";
 
 type VoicesGenerateSuccessResponse = {
   output: {
@@ -53,23 +55,32 @@ type VoicesGenerateSuccessResponse = {
     saveState?: StudioOutputSaveState;
     saveError?: string | null;
   };
-  remuxedVideo?: {
-    provider: "elevenlabs";
-    mode: "video";
-    generationId: string;
-    mediaFileId: string | null;
-    requestId: string;
-    previewUrl: string;
-    previewPosterUrl: string | null;
-    resultUrls: string[];
-    previewPosterStoragePath: string | null;
-    previewStoragePath: string;
-    fullStoragePath: string;
-    mimeType: "video/mp4" | "video/webm";
-    modelId: string;
-    transcriptText?: string | null;
-    saveState?: StudioOutputSaveState;
-    saveError?: string | null;
+  remuxOutcome: {
+    status: "not_requested" | "succeeded" | "failed";
+    code: string | null;
+    stage: "assembly" | "persistence" | null;
+    retryable: boolean;
+    message: string | null;
+    audioGenerationId: string;
+    remuxRequestId: string | null;
+    video: {
+      provider: "elevenlabs";
+      mode: "video";
+      generationId: string;
+      mediaFileId: string | null;
+      requestId: string;
+      previewUrl: string;
+      previewPosterUrl: string | null;
+      resultUrls: string[];
+      previewPosterStoragePath: string | null;
+      previewStoragePath: string;
+      fullStoragePath: string;
+      mimeType: "video/mp4" | "video/webm";
+      modelId: string;
+      transcriptText?: string | null;
+      saveState?: StudioOutputSaveState;
+      saveError?: string | null;
+    } | null;
   };
 };
 
@@ -130,6 +141,9 @@ type AudioGenerateErrorResponse = {
   code?: string;
   retryAfterSeconds?: number | string;
   admissionScope?: "shared_provider" | "per_user";
+  displayedBilledCredits?: number | null;
+  activeBilledCredits?: number;
+  activePricingPolicyVersion?: number | null;
 };
 
 type UseAiStudioAudioGenerationParams = {
@@ -138,6 +152,9 @@ type UseAiStudioAudioGenerationParams = {
   balanceCredits?: number | null;
   outputs?: StudioOutput[];
   setUiError: Dispatch<SetStateAction<string | null>>;
+  setUiNotice?: Dispatch<SetStateAction<string | null>>;
+  activePricingPolicyVersion?: number | null;
+  refreshModelPricingPolicy?: () => Promise<ModelPricingPolicySnapshot | null>;
   insertOptimisticGenerationPlaceholder: (args: {
     prompt: string;
     modeOverride?: StudioMode;
@@ -204,11 +221,13 @@ const buildAudioShortpulseContext = ({
   selectedTool,
   displayedBilledCredits,
   pricingPolicyReady = true,
+  activePricingPolicyVersion = null,
   workspaceRuntimeKey = null,
 }: {
   selectedTool: "music" | "sound-effects" | "voiceover" | "voice-changer";
   displayedBilledCredits: number | null | undefined;
   pricingPolicyReady?: boolean;
+  activePricingPolicyVersion?: number | null;
   workspaceRuntimeKey?: string | null;
 }) => ({
   mode: "audio",
@@ -217,6 +236,7 @@ const buildAudioShortpulseContext = ({
   workspace_runtime_key_present: Boolean(workspaceRuntimeKey),
   pricing_display_source: "pricing_grid",
   pricing_policy_ready: pricingPolicyReady,
+  displayed_pricing_policy_version: activePricingPolicyVersion,
   displayed_billed_credits:
     typeof displayedBilledCredits === "number" ? displayedBilledCredits : null,
 });
@@ -399,18 +419,25 @@ const resolveGeneratedOutputSaveState = ({
 const buildVoiceChangerRemuxedVideoOutput = ({
   request,
   payload,
+  identity,
 }: {
   request: Extract<VoicesGenerateRequest, { mode: "voice-changer" }>;
-  payload: NonNullable<VoicesGenerateSuccessResponse["remuxedVideo"]>;
+  payload: NonNullable<VoicesGenerateSuccessResponse["remuxOutcome"]["video"]>;
+  identity?: {
+    prompt: string;
+    title: string | null;
+    aspect: string;
+  };
 }): StudioOutput => {
   const savedMediaIds = toSavedMediaIds(payload.mediaFileId);
   const sourceLabel = request.source.extractedFrom?.name ?? request.source.name;
   return {
     id: `generated:${payload.generationId}`,
-    prompt: `${sourceLabel} -> ${request.voice.name} video`,
+    prompt: identity?.prompt ?? `${sourceLabel} -> ${request.voice.name} video`,
+    title: identity?.title ?? null,
     transcriptText: payload.transcriptText ?? null,
     mode: "video",
-    aspect: request.source.extractedFrom?.aspect ?? "1:1",
+    aspect: identity?.aspect ?? request.source.extractedFrom?.aspect ?? "1:1",
     model: buildVoicesOutputModelLabel(request),
     createdAt: new Date().toISOString(),
     modelId: payload.modelId,
@@ -439,6 +466,39 @@ const buildVoiceChangerRemuxedVideoOutput = ({
     errorDetail: null,
   };
 };
+
+const buildVoiceChangerFailedVideoOutput = ({
+  request,
+  outcome,
+}: {
+  request: Extract<VoicesGenerateRequest, { mode: "voice-changer" }>;
+  outcome: VoicesGenerateSuccessResponse["remuxOutcome"];
+}): StudioOutput => ({
+  id: `voice-changer-remux:${outcome.audioGenerationId}`,
+  prompt: `${request.source.extractedFrom?.name ?? request.source.name} -> ${request.voice.name} video`,
+  mode: "video",
+  aspect: request.source.extractedFrom?.aspect ?? "1:1",
+  model: buildVoicesOutputModelLabel(request),
+  modelId: request.modelId,
+  provider: "elevenlabs",
+  sourceRef: outcome.remuxRequestId ?? undefined,
+  status: "ready",
+  timestamp: "Just now",
+  taskState: "fail",
+  errorMessage: outcome.message ?? "The voice is ready, but the video could not be assembled.",
+  errorMessageShort: "Video assembly failed",
+  errorDetail: outcome.message,
+  mediaSource: "generated",
+  localObjectUrl: null,
+  remuxRecovery: {
+    sourceAudioGenerationId: outcome.audioGenerationId,
+    remuxRequestId: outcome.remuxRequestId ?? `voice-changer-remux:${outcome.audioGenerationId}`,
+    status: "failed",
+    code: outcome.code,
+    stage: outcome.stage,
+    retryable: outcome.retryable,
+  },
+});
 
 const applyAudioOutputToPlaceholder = ({
   updateOutputById,
@@ -510,6 +570,9 @@ export const useAiStudioAudioGeneration = ({
   workspaceRuntimeKey = null,
   balanceCredits = null,
   setUiError,
+  setUiNotice = () => undefined,
+  activePricingPolicyVersion = null,
+  refreshModelPricingPolicy,
   insertOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
   updateOutputById,
@@ -534,6 +597,29 @@ export const useAiStudioAudioGeneration = ({
       return false;
     },
     [balanceCredits, setUiError]
+  );
+  const handlePricingConflict = useCallback(
+    async (
+      payload: AudioGenerateErrorResponse | null,
+      optimisticOutputId: string
+    ): Promise<boolean> => {
+      if (!isPricingPolicyConflictCode(payload?.code)) return false;
+      setOutputs((prev) => prev.filter((item) => item.id !== optimisticOutputId));
+      const refreshedSnapshot = await refreshModelPricingPolicy?.();
+      const creditChange =
+        typeof payload.displayedBilledCredits === "number" &&
+        typeof payload.activeBilledCredits === "number"
+          ? ` from ${payload.displayedBilledCredits} to ${payload.activeBilledCredits} credits`
+          : "";
+      const refreshedVersion =
+        refreshedSnapshot?.activePolicyVersion ?? payload.activePricingPolicyVersion;
+      setUiError(null);
+      setUiNotice(
+        `Pricing updated${creditChange}${typeof refreshedVersion === "number" ? ` (policy ${refreshedVersion})` : ""}. Review the new price, then click Generate again.`
+      );
+      return true;
+    },
+    [refreshModelPricingPolicy, setOutputs, setUiError, setUiNotice]
   );
 
   const handleVoicesGenerate = useCallback(
@@ -588,6 +674,7 @@ export const useAiStudioAudioGeneration = ({
                     selectedTool: "voiceover",
                     displayedBilledCredits: request.displayedBilledCredits,
                     pricingPolicyReady: request.pricingPolicyReady,
+                    activePricingPolicyVersion,
                     workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
                   }),
                   ...(workflowReload ? { workflow_reload: workflowReload } : {}),
@@ -618,6 +705,7 @@ export const useAiStudioAudioGeneration = ({
                       selectedTool: "voice-changer",
                       displayedBilledCredits: request.displayedBilledCredits,
                       pricingPolicyReady: request.pricingPolicyReady,
+                      activePricingPolicyVersion,
                       workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
                     })
                   )
@@ -630,6 +718,10 @@ export const useAiStudioAudioGeneration = ({
                   request.source.extractedFrom?.name ?? request.source.name
                 );
                 formData.append("sourceOrigin", request.source.origin);
+                formData.append(
+                  "expectsRemux",
+                  request.source.displayKind === "video" ? "true" : "false"
+                );
                 if (request.source.storagePath) {
                   formData.append("sourceStoragePath", request.source.storagePath);
                 } else if (request.source.sourceUrl) {
@@ -640,8 +732,6 @@ export const useAiStudioAudioGeneration = ({
                     "originalVideoStoragePath",
                     request.source.extractedFrom.storagePath
                   );
-                } else if (request.source.extractedFrom?.sourceUrl) {
-                  formData.append("originalVideoSourceUrl", request.source.extractedFrom.sourceUrl);
                 }
                 if (request.source.extractedFrom?.name) {
                   formData.append("originalVideoName", request.source.extractedFrom.name);
@@ -667,6 +757,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
+          if (await handlePricingConflict(errorPayload, optimisticOutputId)) return;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(
             optimisticOutputId,
@@ -687,14 +778,27 @@ export const useAiStudioAudioGeneration = ({
           audioSourceMode: request.mode,
         });
 
-        if (request.mode === "voice-changer" && payload.remuxedVideo) {
+        if (
+          request.mode === "voice-changer" &&
+          payload.remuxOutcome.status === "succeeded" &&
+          payload.remuxOutcome.video
+        ) {
           const remuxedVideoOutput = buildVoiceChangerRemuxedVideoOutput({
             request,
-            payload: payload.remuxedVideo,
+            payload: payload.remuxOutcome.video,
           });
           setOutputs((prev) => [
             remuxedVideoOutput,
             ...prev.filter((item) => item.id !== remuxedVideoOutput.id),
+          ]);
+        } else if (request.mode === "voice-changer" && payload.remuxOutcome.status === "failed") {
+          const failedVideoOutput = buildVoiceChangerFailedVideoOutput({
+            request,
+            outcome: payload.remuxOutcome,
+          });
+          setOutputs((prev) => [
+            failedVideoOutput,
+            ...prev.filter((item) => item.id !== failedVideoOutput.id),
           ]);
         }
       } catch (error) {
@@ -717,7 +821,96 @@ export const useAiStudioAudioGeneration = ({
       setUiError,
       updateOutputById,
       workspaceRuntimeKey,
+      activePricingPolicyVersion,
+      handlePricingConflict,
     ]
+  );
+
+  const handleRetryVoiceChangerVideo = useCallback(
+    async (output: StudioOutput) => {
+      const recovery = output.remuxRecovery;
+      if (!recovery?.retryable) return;
+      updateOutputById(output.id, (current) => ({
+        ...current,
+        taskState: "running",
+        errorMessage: null,
+        remuxRecovery: { ...recovery, status: "pending" },
+      }));
+      try {
+        const response = await fetchWithAuth("/api/media/voice-changer-remux", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceAudioGenerationId: recovery.sourceAudioGenerationId }),
+          shortpulseLogScope: "generation",
+          shortpulseSkipErrorLogging: true,
+        });
+        const payload = (await response.json().catch(() => null)) as {
+          status?: string;
+          video?: VoicesGenerateSuccessResponse["remuxOutcome"]["video"];
+        } | null;
+        if (!response.ok || payload?.status !== "succeeded" || !payload.video) {
+          throw new Error("Unable to retry video assembly.");
+        }
+        const videoOutput = buildVoiceChangerRemuxedVideoOutput({
+          request: {
+            mode: "voice-changer",
+            voice: {
+              id: "retry",
+              name: "Converted voice",
+              provider: "elevenlabs",
+              librarySection: "my",
+            },
+            source: {
+              id: output.id,
+              kind: "audio",
+              displayKind: "video",
+              origin: "local",
+              status: "ready",
+              aspect: output.aspect,
+              durationMs: null,
+              name: output.prompt,
+              mimeType: null,
+              file: null,
+              previewUrl: null,
+              posterUrl: null,
+              sourceUrl: null,
+              objectUrl: null,
+              storagePath: null,
+              referenceOutputId: null,
+              referenceMediaId: null,
+              errorMessage: null,
+              extractedFrom: null,
+            },
+            outputFormat: "mp3_44100_128",
+            removeBackgroundNoise: false,
+            modelId: output.modelId ?? "eleven_multilingual_sts_v2",
+            voiceSettings: {
+              stability: 0,
+              similarity_boost: 0,
+              speed: 1,
+              use_speaker_boost: false,
+            },
+            inputFormat: "other",
+          },
+          payload: payload.video,
+          identity: {
+            prompt: output.prompt,
+            title: output.title ?? null,
+            aspect: output.aspect,
+          },
+        });
+        setOutputs((prev) => [videoOutput, ...prev.filter((item) => item.id !== output.id)]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to retry video assembly.";
+        updateOutputById(output.id, (current) => ({
+          ...current,
+          taskState: "fail",
+          errorMessage: message,
+          remuxRecovery: { ...recovery, status: "failed" },
+        }));
+      }
+    },
+    [setOutputs, updateOutputById]
   );
 
   const handleMusicGenerate = useCallback(
@@ -781,6 +974,7 @@ export const useAiStudioAudioGeneration = ({
               selectedTool: "music",
               displayedBilledCredits,
               pricingPolicyReady,
+              activePricingPolicyVersion,
               workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
             }),
             ...(workflowReload ? { workflow_reload: workflowReload } : {}),
@@ -797,6 +991,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
+          if (await handlePricingConflict(errorPayload, optimisticOutputId)) return false;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(
             optimisticOutputId,
@@ -837,6 +1032,8 @@ export const useAiStudioAudioGeneration = ({
       setUiError,
       updateOutputById,
       workspaceRuntimeKey,
+      activePricingPolicyVersion,
+      handlePricingConflict,
     ]
   );
 
@@ -885,6 +1082,7 @@ export const useAiStudioAudioGeneration = ({
               selectedTool: "sound-effects",
               displayedBilledCredits,
               pricingPolicyReady,
+              activePricingPolicyVersion,
               workspaceRuntimeKey: projectId ? null : workspaceRuntimeKey,
             }),
             ...(workflowReload ? { workflow_reload: workflowReload } : {}),
@@ -901,6 +1099,7 @@ export const useAiStudioAudioGeneration = ({
 
         if (!response.ok || !payload || !("output" in payload)) {
           const errorPayload = payload as AudioGenerateErrorResponse | null;
+          if (await handlePricingConflict(errorPayload, optimisticOutputId)) return;
           const message = resolveAudioGenerateErrorMessage({ response, payload: errorPayload });
           notifyGenerationFailure(
             optimisticOutputId,
@@ -939,6 +1138,8 @@ export const useAiStudioAudioGeneration = ({
       setUiError,
       updateOutputById,
       workspaceRuntimeKey,
+      activePricingPolicyVersion,
+      handlePricingConflict,
     ]
   );
 
@@ -947,6 +1148,7 @@ export const useAiStudioAudioGeneration = ({
     voicesIsGenerating,
     soundEffectsIsGenerating,
     handleVoicesGenerate,
+    handleRetryVoiceChangerVideo,
     handleMusicGenerate,
     handleSoundEffectsGenerate,
   };

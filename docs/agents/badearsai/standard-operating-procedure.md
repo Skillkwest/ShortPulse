@@ -40,6 +40,7 @@ It does not cover production mutation outside reviewed Admin Errors status treat
 - Preserve incident/event IDs, fingerprints, source, scope, severity, status, route, endpoint, request id, status code, user boundary, first/last seen, occurrence count, release/build, model/task/output/generation identifiers, and metadata keys.
 - Group likely causal chains, but never drop individual IDs.
 - When packet output is too large, use structured parsing rather than reading the packet as raw prose.
+- Use `node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs status --incident <id>` for exact live status/readback when pasted packet state may be stale.
 
 ### Step 3. Check Watch Context
 
@@ -131,6 +132,8 @@ After classification, remove reviewed items from the default Admin Errors panel 
 
 Use `frontend/pages/api/admin/errors-status.ts` or `frontend/pages/api/admin/errors-status-bulk.ts` as the canonical status semantics. Existing Ophestivus tools may be used only when their workflow is the correct fit for the current cleanup path; do not create duplicate status authorities.
 
+Badearsai's repo-local helper `docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs` may be used to call the canonical status RPC for one reviewed incident at a time. It is a convenience wrapper, not a separate authority.
+
 Run a dry-run or read-only status check first when the tool supports it or when same-fingerprint scope is unclear. After mutation, verify the row or same-fingerprint family is no longer `open` in the default queue, and record failures separately instead of silently dropping them.
 
 If the user points at the visible Admin Errors panel, asks why rows are still showing, asks Badearsai to handle the queue, or supplies a pasted batch from the current queue, the cleanup scope includes:
@@ -180,6 +183,12 @@ Before closing any Admin Errors cleanup run, perform a production readback that 
 - then repeat the readback until the visible queue is clean or only intentionally open rows remain.
 
 The run is not complete if Badearsai has only handled pasted packets but has not checked whether the default panel still shows actionable reviewed/watch rows. Packet-level cleanup and panel-level cleanup are separate proof steps.
+
+Preferred command for this readback:
+
+```bash
+node docs/agents/badearsai/tools/scripts/admin-errors-intake.mjs queue --limit 20
+```
 
 ### Step 10. Report
 

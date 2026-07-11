@@ -3,12 +3,22 @@ import type { BillingConcurrencyEntitlement } from "../billingConcurrencyEntitle
 
 export type JsonObject = Record<string, unknown>;
 
+export type GenerationBillingWorkflow =
+  | "image"
+  | "create_image"
+  | "edit_image"
+  | "video"
+  | "audio"
+  | "style_preview"
+  | "helper";
+
 export type ChargeOptions = {
   req: NextApiRequest;
   res: NextApiResponse;
   modelId: string;
   payload: JsonObject;
   reason: string;
+  billingWorkflow: GenerationBillingWorkflow;
   skipBilling?: boolean;
   shortpulseContext?: JsonObject | null;
 };

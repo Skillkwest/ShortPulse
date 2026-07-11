@@ -65,6 +65,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/solo-owner-launch-trust-standard.md`
 - `docs/planning/ai-studio-right-rail-drag-drop-buildout-plan-2026-06-08.md`
 - `docs/planning/ai-studio-reference-grid-media-reliability-buildout-plan-2026-06-08.md`
+- `docs/planning/ai-studio-browser-oom-and-crash-observability-buildout-plan-2026-07-10.md`
 - `docs/planning/ai-studio-detail-modal-reference-audit-system-2026-06-20.md`
 - `docs/planning/ai-studio-generation-persistence-architecture-plan-2026-06-10.md`
 - `docs/records/artifacts/agent/badearsai/reports/2026-07-08-incident-audit-follow-up-buildout-plan.md`
@@ -251,6 +252,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0086-motion-reference-video-lease-cleanup.md`
 - `docs/adr/0087-supabase-image-transformation-prohibition.md`
 - `docs/adr/0088-admin-priced-billed-credit-authority.md`
+- `docs/adr/0100-pricing-policy-submit-handshake.md`
 - `docs/adr/0091-generation-provider-lifecycle-vs-reference-visibility.md`
 - `docs/adr/0093-legal-policy-control-plane.md`
 - `docs/prefabs.md`
@@ -386,7 +388,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
 - `docs/planning/ai-studio-create-agent-ten-image-attachments-buildout-plan-2026-07-10.md`
+- `docs/planning/ai-studio-standard-chat-mode-image-attachment-boundary-plan-2026-07-10.md`
 - `docs/planning/ai-studio-safe-completion-implementation-plan-2026-07-10.md`
+- `docs/planning/ai-studio-voice-changer-video-recovery-and-reliability-plan-2026-07-10.md`
 - `docs/planning/account-workspace-redesign-build-plan-2026-06-08.md`
 - `docs/planning/edit-panel-canvas-tear-out-buildout-plan-2026-06-08.md`
 - `docs/planning/expert-edit-stage-transform-chrome-rebuild-plan-2026-06-08.md`

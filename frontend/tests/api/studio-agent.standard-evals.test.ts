@@ -134,6 +134,26 @@ describe("Standard route eval cases", () => {
     ).toBe(true);
   });
 
+  it("emits the shared no-refusal recovery disposition for a successful Standard turn", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const req = { method: "POST", body: createBaseRequestBody() };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const turnCall = infoSpy.mock.calls.find(([label]) => label === "[studio-agent][telemetry]");
+    expect(JSON.parse(String(turnCall?.[1] ?? "{}"))).toEqual(
+      expect.objectContaining({
+        outcome_class: "success_message",
+        recovery_attempted: false,
+        recovery_outcome: "not_attempted",
+        recovery_skip_reason: "not_model_refusal",
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
   it("places exactly one code-owned contract after editable Standard instructions", async () => {
     resolveRequiredRuntimeAgentPromptMock.mockResolvedValue({
       promptId: "STUDIO_AGENT_SYSTEM",

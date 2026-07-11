@@ -84,6 +84,8 @@ const createSupabaseAdminForWebhook = (params?: {
   onStorageAddonInsert?: (payload: unknown) => void;
   onStorageAddonUpdate?: (payload: unknown) => void;
   onSubscriptionChangeIntentUpdate?: (payload: unknown) => void;
+  onSubscriptionChangeIntentLt?: (column: string, value: unknown) => void;
+  onSubscriptionChangeIntentGt?: (column: string, value: unknown) => void;
   onScheduledChangeUpsert?: (payload: unknown) => void;
   onScheduledChangeUpdate?: (payload: unknown) => void;
 }) => ({
@@ -260,6 +262,7 @@ const createSupabaseAdminForWebhook = (params?: {
       const selectChain = {} as {
         eq: ReturnType<typeof vi.fn>;
         in: ReturnType<typeof vi.fn>;
+        lt: ReturnType<typeof vi.fn>;
         gt: ReturnType<typeof vi.fn>;
         order: ReturnType<typeof vi.fn>;
         limit: ReturnType<typeof vi.fn>;
@@ -267,13 +270,43 @@ const createSupabaseAdminForWebhook = (params?: {
       };
       selectChain.eq = vi.fn(() => selectChain);
       selectChain.in = vi.fn(() => selectChain);
-      selectChain.gt = vi.fn(() => selectChain);
+      let createdAtUpperBound: string | null = null;
+      let expiresAtLowerBound: string | null = null;
+      selectChain.lt = vi.fn((column: string, value: unknown) => {
+        if (column === "created_at" && typeof value === "string") {
+          createdAtUpperBound = value;
+        }
+        params?.onSubscriptionChangeIntentLt?.(column, value);
+        return selectChain;
+      });
+      selectChain.gt = vi.fn((column: string, value: unknown) => {
+        if (column === "expires_at" && typeof value === "string") {
+          expiresAtLowerBound = value;
+        }
+        params?.onSubscriptionChangeIntentGt?.(column, value);
+        return selectChain;
+      });
       selectChain.order = vi.fn(() => selectChain);
       selectChain.limit = vi.fn(() => selectChain);
-      selectChain.maybeSingle = vi.fn(async () => ({
-        data: params?.billingSubscriptionChangeIntent ?? null,
-        error: null,
-      }));
+      selectChain.maybeSingle = vi.fn(async () => {
+        const intent = params?.billingSubscriptionChangeIntent ?? null;
+        const createdAt =
+          typeof intent?.created_at === "string" ? new Date(intent.created_at).getTime() : null;
+        const expiresAt =
+          typeof intent?.expires_at === "string" ? new Date(intent.expires_at).getTime() : null;
+        const createdUpper = createdAtUpperBound ? new Date(createdAtUpperBound).getTime() : null;
+        const expiresLower = expiresAtLowerBound ? new Date(expiresAtLowerBound).getTime() : null;
+        const matchesCreatedAt =
+          createdUpper === null ||
+          (createdAt !== null && Number.isFinite(createdAt) && createdAt < createdUpper);
+        const matchesExpiresAt =
+          expiresLower === null ||
+          (expiresAt !== null && Number.isFinite(expiresAt) && expiresAt > expiresLower);
+        return {
+          data: matchesCreatedAt && matchesExpiresAt ? intent : null,
+          error: null,
+        };
+      });
       return {
         select: () => selectChain,
         update: (payload: unknown) => ({
@@ -1176,9 +1209,11 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
   });
 
-  it("grants target plan credits for full-price no-proration upgrade invoices with a matching intent", async () => {
+  it("binds a delayed paid full-price upgrade invoice to the intent valid when Stripe created it", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     const intentUpdateSpy = vi.fn();
+    const intentLtSpy = vi.fn();
+    const intentGtSpy = vi.fn();
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminForWebhook({
         billingProfile: {
@@ -1217,9 +1252,12 @@ describe("POST /api/billing/stripe/webhook", () => {
           target_stripe_price_id: "price_business",
           target_billing_interval: "month",
           status: "portal_created",
-          expires_at: "2030-01-01T00:00:00.000Z",
+          created_at: "2026-07-07T23:00:00.000Z",
+          expires_at: "2026-07-08T02:00:00.000Z",
         },
         onSubscriptionChangeIntentUpdate: intentUpdateSpy,
+        onSubscriptionChangeIntentLt: intentLtSpy,
+        onSubscriptionChangeIntentGt: intentGtSpy,
       })
     );
 
@@ -1230,6 +1268,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         data: {
           object: {
             id: "in_update_full_price_upgrade_paid",
+            created: 1783470000,
             customer: "cus_123",
             subscription: "sub_123",
             billing_reason: "subscription_update",
@@ -1257,6 +1296,8 @@ describe("POST /api/billing/stripe/webhook", () => {
     await promise;
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(intentLtSpy).toHaveBeenCalledWith("created_at", "2026-07-08T00:20:01.000Z");
+    expect(intentGtSpy).toHaveBeenCalledWith("expires_at", "2026-07-08T00:20:00.000Z");
     expect(grantAccountCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_123",
@@ -1283,6 +1324,102 @@ describe("POST /api/billing/stripe/webhook", () => {
       })
     );
   });
+
+  it.each([
+    {
+      caseId: "missing_created",
+      invoiceCreated: undefined,
+      intentCreatedAt: "2026-07-07T23:00:00.000Z",
+      intentExpiresAt: "2026-07-08T02:00:00.000Z",
+    },
+    {
+      caseId: "intent_created_after_invoice",
+      invoiceCreated: 1783470000,
+      intentCreatedAt: "2026-07-08T00:20:01.500Z",
+      intentExpiresAt: "2026-07-08T02:00:00.000Z",
+    },
+    {
+      caseId: "invoice_created_at_intent_expiry",
+      invoiceCreated: 1783470000,
+      intentCreatedAt: "2026-07-07T23:00:00.000Z",
+      intentExpiresAt: "2026-07-08T00:20:00.000Z",
+    },
+  ])(
+    "fails closed for full-price upgrade intent timing: $caseId",
+    async ({ caseId, invoiceCreated, intentCreatedAt, intentExpiresAt }) => {
+      verifyStripeWebhookSignatureMock.mockReturnValue(true);
+      getSupabaseAdminMock.mockReturnValue(
+        createSupabaseAdminForWebhook({
+          billingProfile: {
+            user_id: "user_123",
+            plan_id: "media",
+          },
+          billingPlans: [
+            { id: "media", sort_order: 20 },
+            { id: "business", sort_order: 40 },
+          ],
+          billingOffers: [
+            {
+              id: "business__current",
+              plan_id: "business",
+              billing_interval: "month",
+              stripe_price_id: "price_business",
+              recurring_price_cents: 29900,
+              monthly_credits_cents: 8000,
+              storage_limit_bytes: 536870912000,
+              max_concurrent_generations: 8,
+            },
+          ],
+          billingSubscriptionChangeIntent: {
+            id: `intent_${caseId}`,
+            user_id: "user_123",
+            active_plan_id: "media",
+            active_offer_id: "media__current",
+            target_plan_id: "business",
+            target_offer_id: "business__current",
+            target_stripe_price_id: "price_business",
+            target_billing_interval: "month",
+            status: "portal_created",
+            created_at: intentCreatedAt,
+            expires_at: intentExpiresAt,
+          },
+        })
+      );
+
+      const { res, promise } = createWebhookRequest(
+        JSON.stringify({
+          id: `evt_${caseId}`,
+          type: "invoice.payment_succeeded",
+          data: {
+            object: {
+              id: `in_${caseId}`,
+              ...(typeof invoiceCreated === "number" ? { created: invoiceCreated } : {}),
+              customer: "cus_123",
+              subscription: "sub_123",
+              billing_reason: "subscription_update",
+              status: "paid",
+              lines: {
+                data: [
+                  {
+                    amount: 29900,
+                    price: {
+                      id: "price_business",
+                      unit_amount: 29900,
+                      metadata: {},
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        })
+      );
+      await promise;
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(grantAccountCreditsMock).not.toHaveBeenCalled();
+    }
+  );
 
   it("does not grant credits for full-price subscription-update invoices without a matching intent", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
@@ -1325,6 +1462,7 @@ describe("POST /api/billing/stripe/webhook", () => {
         data: {
           object: {
             id: "in_update_full_price_upgrade_no_intent",
+            created: 1783470000,
             customer: "cus_123",
             subscription: "sub_123",
             billing_reason: "subscription_update",

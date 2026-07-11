@@ -53,6 +53,7 @@ export type UpsertGenerationProjectionInput = {
   workflowReload?: JsonObject;
   characterContext?: JsonObject;
   styleContext?: JsonObject;
+  remuxRecovery?: JsonObject | null;
   startedAt?: string | null;
   completedAt?: string | null;
 };
@@ -179,6 +180,7 @@ const OPTIONAL_GENERATION_PROJECTION_COLUMNS = [
   "save_error",
   "display_title",
   "error_payload",
+  "remux_recovery",
 ] as const;
 
 type OptionalGenerationProjectionColumn = (typeof OPTIONAL_GENERATION_PROJECTION_COLUMNS)[number];
@@ -605,6 +607,7 @@ export const upsertGenerationProjection = async ({
   workflowReload,
   characterContext,
   styleContext,
+  remuxRecovery,
   startedAt,
   completedAt,
 }: UpsertGenerationProjectionInput): Promise<void> => {
@@ -619,6 +622,7 @@ export const upsertGenerationProjection = async ({
   if (workflowReload !== undefined) payload.workflow_reload = workflowReload;
   if (characterContext !== undefined) payload.character_context = characterContext;
   if (styleContext !== undefined) payload.style_context = styleContext;
+  if (remuxRecovery !== undefined) payload.remux_recovery = remuxRecovery;
 
   const stringFields: Record<string, string | null | undefined> = {
     project_id: projectId,

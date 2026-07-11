@@ -20,6 +20,7 @@ import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
 import { useVoiceChangerSourceController } from "./useVoiceChangerSourceController";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
+import { resolveRerollPricingEvidence as resolveWorkflowRerollPricingEvidence } from "../logic/rerollPricingEvidence";
 import { useAiStudioCharacterPanelUploadBridge } from "./useAiStudioCharacterPanelUploadBridge";
 import { shouldActivateExpertEditPresetRuntime } from "../logic/expertEditPresetRuntimeActivation";
 import { isEditWorkflow } from "../logic/workflowIdentity";
@@ -31,7 +32,7 @@ import {
   PERF_FLAG_SELECTOR_CALLBACKS,
   resolvePerfAuditRuntimeRouteFlag,
 } from "../logic/perfProfileFlags";
-import type { StudioOutput, ToolId } from "../types";
+import type { StudioOutput, ToolId, WorkflowReloadConfigV1 } from "../types";
 
 const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
@@ -168,12 +169,23 @@ export const useAiStudioPageBaseRuntime = () => {
     useCredits();
   const {
     modelPricingPolicy,
+    modelPricingPolicySnapshot,
     modelPricingPolicyReady,
     modelPricingPolicyLoading,
     modelPricingPolicyError,
+    refreshModelPricingPolicy,
   } = useActiveModelPricingPolicy({
     enabled: shouldLoadModelPricingPolicy,
   });
+  const resolveRerollPricingEvidence = useCallback(
+    (config: WorkflowReloadConfigV1) =>
+      resolveWorkflowRerollPricingEvidence({
+        config,
+        pricingPolicy: modelPricingPolicy,
+        activePricingPolicyVersion: modelPricingPolicySnapshot?.activePolicyVersion ?? null,
+      }),
+    [modelPricingPolicy, modelPricingPolicySnapshot?.activePolicyVersion]
+  );
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents));
@@ -258,7 +270,11 @@ export const useAiStudioPageBaseRuntime = () => {
     pendingCharacterUploadRequest,
     clearPendingCharacterUploadRequest,
   } = useAiStudioCharacterPanelUploadBridge();
-  const { voiceChangerSource, handleVoiceChangerSourceChange } = useVoiceChangerSourceController();
+  const {
+    voiceChangerSource,
+    handleVoiceChangerSourceChange,
+    handleVoiceChangerSourceMetadataChange,
+  } = useVoiceChangerSourceController();
   const {
     mode,
     setMode,
@@ -461,6 +477,7 @@ export const useAiStudioPageBaseRuntime = () => {
     prepareCreateCharacterWorkflowReload,
     prepareImageStyleWorkflowReload,
     prepareStandardCreateWorkflowReload,
+    resolveRerollPricingEvidence,
   });
   const {
     mediaAutosaveEnabled,
@@ -773,9 +790,11 @@ export const useAiStudioPageBaseRuntime = () => {
     modelModalAnchor,
     modelModalContext,
     modelPricingPolicy,
+    modelPricingPolicySnapshot,
     modelPricingPolicyError,
     modelPricingPolicyLoading,
     modelPricingPolicyReady,
+    refreshModelPricingPolicy,
     motionReferenceVideoPending,
     motionReferenceVideoError,
     motionReferenceVideoUrl,
@@ -937,6 +956,7 @@ export const useAiStudioPageBaseRuntime = () => {
     voiceSelectedVoiceId,
     voiceChangerSource,
     handleVoiceChangerSourceChange,
+    handleVoiceChangerSourceMetadataChange,
     videoAutoFix,
     videoCameraFixed,
     videoDurationSeconds,

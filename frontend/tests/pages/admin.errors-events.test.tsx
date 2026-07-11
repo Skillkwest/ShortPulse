@@ -196,14 +196,14 @@ describe("Admin errors handoff queue", () => {
     expect(calls.some((value) => value.startsWith("/api/admin/error-events?"))).toBe(false);
   });
 
-  it("copies all visible new incident packets without mutating incident status", async () => {
+  it("copies all visible incident packets without mutating incident status", async () => {
     render(<AdminErrorsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Generation timeout")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy all new" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy all" }));
 
     await waitFor(() => {
       expect(copyToClipboardMock).toHaveBeenCalledTimes(1);

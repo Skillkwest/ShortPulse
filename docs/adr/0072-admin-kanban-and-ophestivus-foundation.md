@@ -8,6 +8,8 @@ Accepted
 
 ShortPulse needs a dedicated admin task board for operational work tracking across `Backlog`, `In progress`, `Review`, `Complete`, and `Published`. The board is also the planned durable coordination surface for a future admin identity agent named Ophestivus.
 
+The product backlog already has a canonical document authority at `docs/planning/backlog.md`. The board should make those items workable from the admin UI without turning the board into a second backlog source of truth.
+
 The first implementation must support shared admin visibility without granting the browser direct access to control-plane tables or implying autonomous code execution before the safety contract exists.
 
 ## Decision
@@ -16,6 +18,8 @@ The first implementation must support shared admin visibility without granting t
 - Keep RLS enabled and expose no direct browser table policies.
 - Route all board reads/writes through `/api/admin/kanban/*` handlers that call `requireAdminUser` and use `getSupabaseAdmin`.
 - Execute task mutations through service-role-only admin kanban RPCs so item changes and activity rows commit atomically.
+- Track card source metadata on `admin_kanban_items` with `manual`, `admin_error`, and `planning_backlog` source types. Planning backlog cards use hidden source ids from `docs/planning/backlog.md` and are synced by a service-role-only RPC.
+- Split the visual backlog lane into `Backlog Document` and `Board Backlog` in the admin UI while preserving the canonical workflow status value `backlog`.
 - Use soft archive semantics for normal task removal so the board retains audit history.
 - Treat Ophestivus as a future steward/orchestrator layered on this board, not as an autonomous repo-editing runtime in this phase.
 
@@ -23,6 +27,7 @@ The first implementation must support shared admin visibility without granting t
 
 - Admins get a shared board instead of browser-local task state.
 - Future Ophestivus work can build on durable task ids, statuses, and activity history.
+- Backlog-document cards become a mirror of `docs/planning/backlog.md`; source edits must be made in the document and synced back to the board.
 - Autonomous scheduling, memory, claims, locks, repo handoff packets, and implementation execution remain explicit later phases.
 - The board cannot be used as an authorization source or hidden memory authority.
 
@@ -30,6 +35,7 @@ The first implementation must support shared admin visibility without granting t
 
 - `Published` remains human-controlled by default.
 - Task content must not include secrets or private customer data.
+- Do not use mirrored `planning_backlog` cards as a duplicate backlog authority; update `docs/planning/backlog.md` first and rerun the sync.
 - Activity rows must not cascade-delete with task rows.
 - Ophestivus memory, claims, scheduling, and execution tables require separate migrations and docs before activation.
 - Any future internal scheduler must follow the existing Supabase Cron + Vault pattern, not browser-local automation.

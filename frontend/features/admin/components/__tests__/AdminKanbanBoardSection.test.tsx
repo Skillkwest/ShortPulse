@@ -19,6 +19,14 @@ const makeItem = (overrides: Partial<AdminKanbanItem> = {}): AdminKanbanItem => 
   details: "Release note",
   status: "backlog",
   sortOrder: 1,
+  sourceType: "manual",
+  sourceKey: null,
+  sourcePath: null,
+  sourceSection: null,
+  sourceLine: null,
+  sourceFingerprint: null,
+  sourceSyncedAt: null,
+  sourceMissingAt: null,
   createdAt: "2026-04-30T00:00:00.000Z",
   updatedAt: "2026-04-30T00:00:00.000Z",
   createdBy: "admin-user-1",
@@ -59,7 +67,7 @@ describe("AdminKanbanBoardSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add item" }));
 
     await waitFor(() => {
-      const backlogColumn = screen.getByLabelText("Backlog tasks");
+      const backlogColumn = screen.getByLabelText("Board Backlog tasks");
       expect(within(backlogColumn).getByText("Draft launch checklist")).toBeInTheDocument();
       expect(within(backlogColumn).getByText("Owner: ops")).toBeInTheDocument();
     });
@@ -88,7 +96,7 @@ describe("AdminKanbanBoardSection", () => {
 
     await waitFor(() =>
       expect(
-        within(screen.getByLabelText("Backlog tasks")).getByText("Publish billing update")
+        within(screen.getByLabelText("Board Backlog tasks")).getByText("Publish billing update")
       ).toBeInTheDocument()
     );
 
@@ -167,7 +175,7 @@ describe("AdminKanbanBoardSection", () => {
 
     render(<AdminKanbanBoardSection />);
 
-    const backlogColumn = await screen.findByLabelText("Backlog tasks");
+    const backlogColumn = await screen.findByLabelText("Board Backlog tasks");
     expect(within(backlogColumn).getByText("Human review required")).toBeInTheDocument();
     expect(
       within(backlogColumn).getByText(/Blocked by: Vendor\/provider access/)
@@ -212,5 +220,43 @@ describe("AdminKanbanBoardSection", () => {
       "/api/admin/kanban/activity",
       expect.objectContaining({ method: "GET", shortpulseSkipErrorLogging: true })
     );
+  });
+
+  it("renders planning backlog document cards in their own source column", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          makeItem({
+            id: "planning-task",
+            title: "Make paid generation cost obvious",
+            details: "Program: Program 1: Runtime And Money",
+            sourceType: "planning_backlog",
+            sourceKey: "spb-p1-001",
+            sourcePath: "docs/planning/backlog.md",
+            sourceSection: "Program 1: Runtime And Money",
+            sourceLine: 30,
+            sourceFingerprint: "a".repeat(64),
+            sourceSyncedAt: "2026-07-10T00:00:00.000Z",
+          }),
+          makeItem({
+            id: "manual-task",
+            title: "Manual backlog task",
+          }),
+        ],
+      })
+    );
+
+    render(<AdminKanbanBoardSection />);
+
+    const planningColumn = await screen.findByLabelText("Backlog Document tasks");
+    const boardBacklogColumn = screen.getByLabelText("Board Backlog tasks");
+    expect(
+      within(planningColumn).getByText("Make paid generation cost obvious")
+    ).toBeInTheDocument();
+    expect(within(planningColumn).getByText("Backlog doc")).toBeInTheDocument();
+    expect(within(boardBacklogColumn).getByText("Manual backlog task")).toBeInTheDocument();
+    expect(
+      within(boardBacklogColumn).queryByText("Make paid generation cost obvious")
+    ).not.toBeInTheDocument();
   });
 });

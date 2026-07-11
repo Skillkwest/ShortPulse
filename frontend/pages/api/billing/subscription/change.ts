@@ -13,7 +13,11 @@ import {
 } from "../../../../lib/server/api/billingContracts";
 import { enforceApiRateLimit } from "../../../../lib/server/api/rateLimit";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
-import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
+import {
+  getCanonicalAppBaseUrl,
+  stripeGet,
+  stripePostForm,
+} from "../../../../lib/server/api/stripe";
 import {
   ensureStripeCustomerForUser,
   readVerifiedStripeSubscriptionForUser,
@@ -84,6 +88,23 @@ type StripePortalSession = {
 type StripeCheckoutSession = {
   id: string;
   url?: string | null;
+};
+
+type StripeInvoiceRecoveryResponse = {
+  id: string;
+  customer?: string | { id?: string | null } | null;
+  subscription?: string | { id?: string | null } | null;
+  subscription_details?: {
+    subscription?: string | { id?: string | null } | null;
+  } | null;
+  parent?: {
+    subscription_details?: {
+      subscription?: string | { id?: string | null } | null;
+    } | null;
+  } | null;
+  status?: string | null;
+  amount_remaining?: number | null;
+  hosted_invoice_url?: string | null;
 };
 
 type BillingSubscriptionStorageAddonRow = {
@@ -222,6 +243,86 @@ const resolveStripeSubscriptionCustomerId = (
     return normalized.length > 0 ? normalized : null;
   }
   return null;
+};
+
+const resolveStripeObjectId = (
+  value: string | { id?: string | null } | null | undefined
+): string | null => {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+  if (value && typeof value === "object") {
+    const normalized = typeof value.id === "string" ? value.id.trim() : "";
+    return normalized.length > 0 ? normalized : null;
+  }
+  return null;
+};
+
+const resolveStripeInvoiceSubscriptionId = (
+  invoice: StripeInvoiceRecoveryResponse
+): string | null =>
+  resolveStripeObjectId(invoice.subscription) ??
+  resolveStripeObjectId(invoice.subscription_details?.subscription) ??
+  resolveStripeObjectId(invoice.parent?.subscription_details?.subscription);
+
+const resolveStripeHostedInvoiceUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "invoice.stripe.com"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const resolvePendingUpgradeInvoiceRecoveryUrl = async (params: {
+  subscription: StripeSubscriptionResponse;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  baseSubscriptionItemId: string;
+  targetStripePriceId: string;
+}): Promise<string | null> => {
+  const pendingUpdate = params.subscription.pending_update;
+  if (!pendingUpdate) return null;
+
+  const expiresAt = Number(pendingUpdate.expires_at);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+
+  const pendingItems = Array.isArray(pendingUpdate.subscription_items)
+    ? pendingUpdate.subscription_items
+    : [];
+  const matchesRequestedTarget = pendingItems.some(
+    (item) =>
+      item.id === params.baseSubscriptionItemId &&
+      resolveStripeObjectId(item.price) === params.targetStripePriceId
+  );
+  if (!matchesRequestedTarget) return null;
+
+  const latestInvoiceId = resolveStripeObjectId(params.subscription.latest_invoice);
+  if (!latestInvoiceId) {
+    throw new Error("Matching Stripe pending update did not include a latest invoice.");
+  }
+
+  const invoice = await stripeGet<StripeInvoiceRecoveryResponse>(`/invoices/${latestInvoiceId}`);
+  const hostedInvoiceUrl = resolveStripeHostedInvoiceUrl(invoice.hosted_invoice_url);
+  if (
+    invoice.id !== latestInvoiceId ||
+    resolveStripeObjectId(invoice.customer) !== params.stripeCustomerId ||
+    resolveStripeInvoiceSubscriptionId(invoice) !== params.stripeSubscriptionId ||
+    invoice.status !== "open" ||
+    !Number.isFinite(Number(invoice.amount_remaining)) ||
+    Number(invoice.amount_remaining) <= 0 ||
+    !hostedInvoiceUrl
+  ) {
+    throw new Error("Matching Stripe pending update invoice could not be safely recovered.");
+  }
+
+  return hostedInvoiceUrl;
 };
 
 const isStripeManagedSubscription = ({
@@ -784,6 +885,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const fullPriceUpgradePortalConfigurationId = isHigherPlanUpgrade
           ? resolveRequiredFullPriceUpgradePortalConfigurationId()
           : null;
+        const pendingUpgradeInvoiceRecoveryUrl = isHigherPlanUpgrade
+          ? await resolvePendingUpgradeInvoiceRecoveryUrl({
+              subscription: verifiedSubscription,
+              stripeCustomerId,
+              stripeSubscriptionId,
+              baseSubscriptionItemId: baseItem.itemId,
+              targetStripePriceId: targetOfferWithStripePrice.stripe_price_id,
+            })
+          : null;
+        if (pendingUpgradeInvoiceRecoveryUrl) {
+          return res.status(200).json({
+            redirectUrl: pendingUpgradeInvoiceRecoveryUrl,
+            mode: "invoice_recovery",
+          });
+        }
         if (isHigherPlanUpgrade && !fullPriceUpgradePortalConfigurationId) {
           return res.status(501).json({ error: PLAN_CHANGE_UNAVAILABLE_MESSAGE });
         }

@@ -487,6 +487,39 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.isVideoPreview).toBe(true);
   });
 
+  it("keeps a distinct compact video preview separate from full playback authority", () => {
+    const output = {
+      id: "out-video-preview-loop",
+      mode: "video",
+      mediaSource: "generated",
+      generationId: "gen-video-preview-loop",
+      previewStoragePath: "user-1/variants/videos/gen-video-preview-loop/preview_loop_360p.mp4",
+      previewPosterStoragePath: "user-1/variants/videos/gen-video-preview-loop/poster.webp",
+      fullStoragePath: "user-1/generations/videos/gen-video-preview-loop.mp4",
+      previewUrl: "https://signed.shortpulse.test/video-preview-loop.mp4",
+      previewPosterUrl: "https://signed.shortpulse.test/video-preview-poster.webp",
+      resultUrls: ["https://signed.shortpulse.test/video-full.mp4"],
+    } as unknown as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.cardPlayablePreviewUrl).toBe(
+      "https://signed.shortpulse.test/video-preview-loop.mp4"
+    );
+    expect(resolved.playableMediaUrl).toBe("https://signed.shortpulse.test/video-full.mp4");
+  });
+
   it("uses recovered signed media-id authority for saved-media-only image cards", () => {
     const output = {
       ...createImageOutput("out-saved-media-only"),

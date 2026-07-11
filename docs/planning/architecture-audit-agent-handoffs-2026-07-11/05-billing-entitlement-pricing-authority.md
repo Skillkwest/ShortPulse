@@ -86,4 +86,3 @@ Inspect first:
 - Do not change product economics to solve an implementation inconsistency.
 - Do not add a fallback price or silently permit missing price evidence.
 - Stop before hosted SQL, deploy, or provider spend without explicit authority.
-

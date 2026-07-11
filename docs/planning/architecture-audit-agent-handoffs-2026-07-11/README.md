@@ -29,23 +29,23 @@ Do not “work around” overlap by creating a parallel implementation, legacy p
 
 ## Dispatch Sequence
 
-| Rank | Lane | Packet | Dispatch state |
-|---:|---|---|---|
-| 00 | Hosted SQL delivery safety | [`00-hosted-sql-delivery-safety.md`](00-hosted-sql-delivery-safety.md) | First prerequisite; currently overlap-gated |
-| 01 | Stripe webhook inbox | [`01-stripe-webhook-inbox.md`](01-stripe-webhook-inbox.md) | After 00 for schema work |
-| 02 | Agent safety trust boundaries | [`02-agent-safety-trust-boundaries.md`](02-agent-safety-trust-boundaries.md) | High priority; can run after overlap clears |
-| 03 | Durable generation command | [`03-durable-generation-command.md`](03-durable-generation-command.md) | High priority; currently overlap-gated |
-| 04 | Project workspace revision authority | [`04-project-workspace-revision-authority.md`](04-project-workspace-revision-authority.md) | High priority after 00 |
-| 05 | Billing entitlement and pricing authority | [`05-billing-entitlement-pricing-authority.md`](05-billing-entitlement-pricing-authority.md) | After 01; currently overlap-gated |
-| 06 | Auth session and identity projection | [`06-auth-session-identity-projection.md`](06-auth-session-identity-projection.md) | After customer-access invariants are fresh |
-| 07 | Voice trust and deletion | [`07-voice-trust-and-deletion.md`](07-voice-trust-and-deletion.md) | Narrow high-ROI lane |
-| 08 | Privacy data lifecycle | [`08-privacy-data-lifecycle.md`](08-privacy-data-lifecycle.md) | Design-first; no destructive execution |
-| 09 | Worker leases and scheduler outcomes | [`09-worker-leases-and-scheduler-outcomes.md`](09-worker-leases-and-scheduler-outcomes.md) | After 03 identity decisions |
-| 10 | Generated-media convergence | [`10-generated-media-convergence.md`](10-generated-media-convergence.md) | After 04 response contract |
-| 11 | Model lifecycle governance | [`11-model-lifecycle-governance.md`](11-model-lifecycle-governance.md) | Runtime gate first; pricing excluded |
-| 12 | Platform perimeter and observability | [`12-platform-perimeter-observability.md`](12-platform-perimeter-observability.md) | Read-only production proof first |
-| 13 | CI, tests, and API boundaries | [`13-ci-test-api-boundaries.md`](13-ci-test-api-boundaries.md) | Phased foundation lane |
-| 14 | Accessibility and measured performance | [`14-accessibility-performance-debt.md`](14-accessibility-performance-debt.md) | Isolated fixes first; broad work measured |
+| Rank | Lane                                      | Packet                                                                                       | Dispatch state                              |
+| ---: | ----------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------- |
+|   00 | Hosted SQL delivery safety                | [`00-hosted-sql-delivery-safety.md`](00-hosted-sql-delivery-safety.md)                       | First prerequisite; currently overlap-gated |
+|   01 | Stripe webhook inbox                      | [`01-stripe-webhook-inbox.md`](01-stripe-webhook-inbox.md)                                   | After 00 for schema work                    |
+|   02 | Agent safety trust boundaries             | [`02-agent-safety-trust-boundaries.md`](02-agent-safety-trust-boundaries.md)                 | High priority; can run after overlap clears |
+|   03 | Durable generation command                | [`03-durable-generation-command.md`](03-durable-generation-command.md)                       | High priority; currently overlap-gated      |
+|   04 | Project workspace revision authority      | [`04-project-workspace-revision-authority.md`](04-project-workspace-revision-authority.md)   | High priority after 00                      |
+|   05 | Billing entitlement and pricing authority | [`05-billing-entitlement-pricing-authority.md`](05-billing-entitlement-pricing-authority.md) | After 01; currently overlap-gated           |
+|   06 | Auth session and identity projection      | [`06-auth-session-identity-projection.md`](06-auth-session-identity-projection.md)           | After customer-access invariants are fresh  |
+|   07 | Voice trust and deletion                  | [`07-voice-trust-and-deletion.md`](07-voice-trust-and-deletion.md)                           | Narrow high-ROI lane                        |
+|   08 | Privacy data lifecycle                    | [`08-privacy-data-lifecycle.md`](08-privacy-data-lifecycle.md)                               | Design-first; no destructive execution      |
+|   09 | Worker leases and scheduler outcomes      | [`09-worker-leases-and-scheduler-outcomes.md`](09-worker-leases-and-scheduler-outcomes.md)   | After 03 identity decisions                 |
+|   10 | Generated-media convergence               | [`10-generated-media-convergence.md`](10-generated-media-convergence.md)                     | After 04 response contract                  |
+|   11 | Model lifecycle governance                | [`11-model-lifecycle-governance.md`](11-model-lifecycle-governance.md)                       | Runtime gate first; pricing excluded        |
+|   12 | Platform perimeter and observability      | [`12-platform-perimeter-observability.md`](12-platform-perimeter-observability.md)           | Read-only production proof first            |
+|   13 | CI, tests, and API boundaries             | [`13-ci-test-api-boundaries.md`](13-ci-test-api-boundaries.md)                               | Phased foundation lane                      |
+|   14 | Accessibility and measured performance    | [`14-accessibility-performance-debt.md`](14-accessibility-performance-debt.md)               | Isolated fixes first; broad work measured   |
 
 ## Concurrency Policy
 
@@ -79,4 +79,3 @@ The closeout must include:
 - exact next action.
 
 Do not mark a lane complete merely because local tests passed when hosted apply, deploy, production readback, provider evidence, or destructive approval is still outstanding.
-

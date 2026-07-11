@@ -79,4 +79,3 @@ At minimum distinguish `requested`, `identity_pending`, `verified`, `export_buil
 - Stop after the design packet unless the user explicitly authorizes implementation.
 - Stop on any unknown data processor, retention duty, or irreversible step; record it as a named blocker.
 - Never use a temporary data dump as the source of truth.
-

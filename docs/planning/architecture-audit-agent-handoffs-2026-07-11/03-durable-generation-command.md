@@ -96,4 +96,3 @@ Inspect first:
 - Stop before provider-spend tests.
 - Stop rather than inventing provider idempotency support.
 - Do not absorb generic worker leases; Lane 09 consumes this lane's command identity.
-

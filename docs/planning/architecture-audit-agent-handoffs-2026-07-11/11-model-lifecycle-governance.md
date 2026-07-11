@@ -82,4 +82,3 @@ Inspect first:
 - Stop before retiring, disabling, migrating, or defaulting any production model.
 - Do not solve lifecycle defects through pricing edits or client hiding.
 - Stop if registry authority is duplicated or unclear; resolve the canonical source first.
-

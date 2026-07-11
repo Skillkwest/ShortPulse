@@ -98,4 +98,3 @@ Also cover out-of-order subscription/invoice events, duplicate deliveries, stale
 - Stop before replaying or mutating real Stripe events without explicit approval.
 - Stop rather than inventing refund policy.
 - Do not broaden into entitlement resolver or generation settlement.
-

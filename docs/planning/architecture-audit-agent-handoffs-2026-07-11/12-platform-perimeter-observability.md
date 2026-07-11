@@ -74,4 +74,3 @@ Proceed only when Phase 1 confirms the gap:
 - Stop before changing WAF, DNS, monitoring, backup, schedules, secrets, deploys, or provider configuration without authority.
 - Do not claim production coverage from local code/tests.
 - Do not introduce a second control when an existing platform control can be repaired or documented.
-

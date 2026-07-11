@@ -84,4 +84,3 @@ Inspect first:
 - Do not weaken a check to make CI green.
 - Do not create broad architecture churn to eliminate one concrete import violation.
 - Stop before enabling a production-mutating smoke test.
-

@@ -89,4 +89,3 @@ Inspect first:
 - Do not preserve access indefinitely when session authority is unavailable.
 - Do not make Stripe the source of truth for authentication.
 - Stop before deploy or customer-account mutation without authority.
-

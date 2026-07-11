@@ -104,4 +104,3 @@ Record these only as follow-ups after Phase 1 proof.
 - Stop if another agent owns project persistence files.
 - Do not hide conflict by last-writer-wins fallback.
 - Do not broaden into generated-media cleanup; Lane 10 follows the response contract.
-

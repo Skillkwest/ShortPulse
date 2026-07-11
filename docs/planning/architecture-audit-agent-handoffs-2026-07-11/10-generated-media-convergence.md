@@ -85,4 +85,3 @@ Inspect first:
 - Stop while Lane 04 response semantics or overlapping media changes are unresolved.
 - Stop before hosted mutation, deployment, or destructive production test without authority.
 - Do not add a second media authority or hide partial deletion with optimistic clearing.
-

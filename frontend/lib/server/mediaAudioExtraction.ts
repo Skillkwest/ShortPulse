@@ -537,11 +537,13 @@ export const remuxVideoWithAudioTrack = async ({
 export const readStoredMediaBuffer = async ({
   storagePath,
   maxBytes = null,
+  bucketId = MEDIA_BUCKET,
 }: {
   storagePath: string;
   maxBytes?: number | null;
+  bucketId?: string;
 }): Promise<{ buffer: Buffer; contentType: string | null; size: number }> => {
-  const { data, error } = await getSupabaseAdmin().storage.from(MEDIA_BUCKET).download(storagePath);
+  const { data, error } = await getSupabaseAdmin().storage.from(bucketId).download(storagePath);
   if (error || !data) {
     throw new Error(error?.message || "Unable to download stored media.");
   }

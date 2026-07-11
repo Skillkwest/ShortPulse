@@ -56,6 +56,7 @@ import {
   modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
 } from "../../../lib/model-runtime/pricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import {
   readAdminPricingWorkspaceDraft,
   writeAdminPricingWorkspaceDraft,
@@ -903,6 +904,7 @@ export function useAdminPricingPageState({
   const applyModelPolicy = React.useCallback(async () => {
     const policy = compactModelPricingPolicyDocument(effectiveModelPolicyDraft);
     const customRows = compactAdminPricingCustomRowsDocument(effectiveCustomRowsDraft);
+    const expectedPublishedPolicy = materializeImageBilledCreditPolicy(policy, customRows);
     setModelPolicySaving(true);
     setModelPolicyError(null);
     setModelPolicyMessage(null);
@@ -922,7 +924,7 @@ export function useAdminPricingPageState({
           payload.error || payload.message || "Failed to apply model pricing policy."
         );
       }
-      if (!modelPricingPolicyDocumentsEqual(policy, payload.activePolicy)) {
+      if (!modelPricingPolicyDocumentsEqual(expectedPublishedPolicy, payload.activePolicy)) {
         throw new Error(
           payload.message ||
             "The pricing policy was not confirmed as the active runtime policy. Refresh and retry."

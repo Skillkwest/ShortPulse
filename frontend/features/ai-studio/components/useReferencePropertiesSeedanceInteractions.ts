@@ -35,7 +35,12 @@ import {
   stageSeedanceVideoSelection,
 } from "./referencePropertiesMediaStaging";
 
-type SeedanceSlotValue = { kind: "image" | "video" | "audio"; url: string; name?: string | null };
+type SeedanceSlotValue = {
+  kind: "image" | "video" | "audio";
+  url: string;
+  name?: string | null;
+  durationMs?: number | null;
+};
 
 type AcceptImageDropSnapshot = (
   snapshot: ReferenceImageDropSnapshot,
@@ -186,12 +191,14 @@ export const useReferencePropertiesSeedanceInteractions = ({
             : await stageSeedanceVideoSelection({
                 videoUrl: resolvedSource.videoUrl,
                 storagePath: resolvedSource.storagePath,
+                durationMs: resolvedSource.durationMs,
               });
         if (!stagedVideo) return;
         onSeedanceElementMediaSlotChange(index, {
           kind: "video",
           url: stagedVideo.url,
           name: stagedVideo.name,
+          durationMs: stagedVideo.durationMs,
         });
       } catch (error) {
         console.error("AI Studio Seedance video reference staging failed:", error);
@@ -247,6 +254,7 @@ export const useReferencePropertiesSeedanceInteractions = ({
             kind: "video",
             url: stagedVideo.url,
             name: stagedVideo.name ?? fileName,
+            durationMs: stagedVideo.durationMs,
           });
         } catch (error) {
           console.error("AI Studio Seedance media reference staging failed:", error);
@@ -289,12 +297,14 @@ export const useReferencePropertiesSeedanceInteractions = ({
               : await stageSeedanceVideoSelection({
                   videoUrl: resolvedSource.videoUrl,
                   storagePath: resolvedSource.storagePath,
+                  durationMs: resolvedSource.durationMs,
                 });
           if (stagedVideo) {
             onSeedanceElementMediaSlotChange(index, {
               kind: "video",
               url: stagedVideo.url,
               name: stagedVideo.name,
+              durationMs: stagedVideo.durationMs,
             });
             return;
           }

@@ -3,14 +3,14 @@ import {
   resolvePricingGridCostBreakdown,
   type PricingGridCostBreakdown,
 } from "./pricingGridBilledCredits";
-import type { ModelPricingPolicyDocument, ModelPricingRuntimeAuthority } from "./pricingPolicy";
+import type { ModelPricingPolicyDocument } from "./pricingPolicy";
 import type { PricingParams } from "./pricingTypes";
 
 export type CreateImageBilledCreditLookup = {
   modelId: string;
   params: Omit<PricingParams, "modelId">;
   breakdown: PricingGridCostBreakdown | null;
-  authorityMode: "explicit_row" | "runtime_quantity_derived" | null;
+  authorityMode: "explicit_row" | null;
 };
 
 const hasEditLikeCreateInputs = (params: Omit<PricingParams, "modelId">): boolean =>
@@ -43,17 +43,6 @@ export const normalizeCreateImageBilledPricingParams = (
   return normalized;
 };
 
-function resolveCreateImageRuntimeAuthority(
-  modelId: string,
-  pricingPolicy: ModelPricingPolicyDocument | null | undefined
-): ModelPricingRuntimeAuthority | null {
-  const authority = pricingPolicy?.perModel?.[modelId]?.runtimeAuthorities?.create_image;
-  if (!authority || authority.mode !== "runtime_quantity_derived") {
-    return null;
-  }
-  return authority;
-}
-
 export const resolveCreateImageBilledCreditLookup = ({
   modelId,
   params = {},
@@ -68,28 +57,13 @@ export const resolveCreateImageBilledCreditLookup = ({
     modelId,
     params: normalizedParams,
     pricingPolicy,
-    requireExplicitBilledCreditsOverride: true,
+    requirePublishedBillingRule: true,
   });
-  const derivedAuthority = resolveCreateImageRuntimeAuthority(modelId, pricingPolicy);
-  const breakdown =
-    explicitBreakdown ??
-    (derivedAuthority
-      ? resolvePricingGridCostBreakdown({
-          modelId,
-          params: normalizedParams,
-          pricingPolicy,
-          requireExplicitBilledCreditsOverride: false,
-        })
-      : null);
   return {
     modelId,
     params: normalizedParams,
-    breakdown,
-    authorityMode: explicitBreakdown
-      ? "explicit_row"
-      : breakdown && derivedAuthority
-        ? "runtime_quantity_derived"
-        : null,
+    breakdown: explicitBreakdown,
+    authorityMode: explicitBreakdown ? "explicit_row" : null,
   };
 };
 

@@ -631,14 +631,6 @@ export function StandardCreatePanelView({
                 <span className="create-composer-chat-mode-drop-guidance-copy">
                   Turn on chat mode to upload references.
                 </span>
-                <button
-                  type="button"
-                  className="create-composer-chat-mode-drop-guidance-action"
-                  onClick={() => promptStepProps.onChatModeEnabledChange?.(true)}
-                  disabled={!promptStepProps.onChatModeEnabledChange}
-                >
-                  Turn on Chat Mode
-                </button>
               </div>
             ) : null}
             <div className="create-composer-right-panel-topbar">

@@ -3,13 +3,6 @@ name: Apply Conversation State Migration
 on:
   workflow_dispatch:
     inputs:
-      target_environment:
-        description: "GitHub Environment containing SUPABASE_DB_URL"
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
       operation:
         description: "apply (forward migration) or rollback"
         required: true
@@ -33,20 +26,43 @@ on:
         type: string
 
 concurrency:
-  group: apply-conversation-state-migration-${{ github.event.inputs.target_environment }}
+  group: apply-conversation-state-migration-production
   cancel-in-progress: false
 
 jobs:
   apply_conversation_state_migration:
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.event.inputs.target_environment }}
+    environment: Production
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Assert production dispatch ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/production" ]; then
+            echo "::error::Production SQL workflows may run only from refs/heads/production."
+            exit 1
+          fi
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: refs/heads/production
           fetch-depth: 1
+
+      - name: Verify production checkout SHA
+        id: checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECKOUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKOUT_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked out SHA $CHECKOUT_SHA does not match trigger SHA $GITHUB_SHA."
+            exit 1
+          fi
+          echo "sha=$CHECKOUT_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Install PostgreSQL client
         run: |
@@ -54,19 +70,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Apply selected migration SQL
+      - name: Resolve and hash selected migration SQL
+        id: sql
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           OPERATION: ${{ github.event.inputs.operation }}
           MIGRATION_ID: ${{ github.event.inputs.migration_id }}
           CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
         run: |
           set -euo pipefail
-
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "::error::Missing environment secret SUPABASE_DB_URL."
-            exit 1
-          fi
 
           if [ "$MIGRATION_ID" = "028" ]; then
             FORWARD_SQL="sql/migrations/028_harden_ai_agent_conversation_state_security.sql"
@@ -103,21 +114,55 @@ jobs:
             exit 1
           fi
 
+          SQL_SHA256="$(sha256sum "$SQL_FILE" | awk '{print $1}')"
+          echo "path=$SQL_FILE" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SQL_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Apply selected migration SQL
+        id: apply
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SQL_FILE: ${{ steps.sql.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
           echo "Applying $SQL_FILE"
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/conversation_state_migration_028_apply.log
 
+      - name: Write step summary
+        if: always()
+        env:
+          TRIGGER_REF: ${{ github.ref }}
+          TRIGGER_SHA: ${{ github.sha }}
+          CHECKOUT_SHA: ${{ steps.checkout.outputs.sha }}
+          MIGRATION_ID: ${{ github.event.inputs.migration_id }}
+          OPERATION: ${{ github.event.inputs.operation }}
+          SQL_FILE: ${{ steps.sql.outputs.path }}
+          SQL_SHA256: ${{ steps.sql.outputs.sha256 }}
+          ACTOR: ${{ github.actor }}
+          RESULT: ${{ job.status }}
+        run: |
           {
-            echo "### Conversation State Migration"
-            echo "- Environment: ${{ github.event.inputs.target_environment }}"
-            echo "- Migration ID: $MIGRATION_ID"
-            echo "- Operation: $OPERATION"
-            echo "- SQL file: \`$SQL_FILE\`"
-            echo "- Result: success"
+            printf '%s\n' "### Conversation State Migration"
+            printf '%s\n' "- Trigger ref: \`$TRIGGER_REF\`"
+            printf '%s\n' "- Trigger SHA: \`$TRIGGER_SHA\`"
+            printf '%s\n' "- Checkout SHA: \`$CHECKOUT_SHA\`"
+            printf '%s\n' "- Migration ID: \`$MIGRATION_ID\`"
+            printf '%s\n' "- Operation: \`$OPERATION\`"
+            printf '%s\n' "- SQL file: \`$SQL_FILE\`"
+            printf '%s\n' "- SQL SHA-256: \`$SQL_SHA256\`"
+            printf '%s\n' "- Actor: \`$ACTOR\`"
+            printf '%s\n' "- Environment: \`Production\`"
+            printf '%s\n' "- Result: $RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload apply log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conversation-state-migration-${{ github.event.inputs.migration_id }}-${{ github.run_id }}
           path: /tmp/conversation_state_migration_028_apply.log

@@ -49,7 +49,9 @@ describe("POST /api/media/prepare-upload", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     assertPaidMediaLibraryAccessMock.mockResolvedValue(undefined);
     prepareMediaUploadForUserMock.mockResolvedValue({
-      path: "user-1/upload-staging/uploaded_images/image.webp",
+      intentId: "intent-1",
+      bucketId: "media_upload_staging",
+      path: "user-1/media_library/intent-1/object",
       token: "token-1",
       mimeType: "image/webp",
       name: "image.webp",
@@ -59,6 +61,7 @@ describe("POST /api/media/prepare-upload", () => {
   it("returns a signed upload target for a media upload", async () => {
     const req = {
       method: "POST",
+      headers: { "x-shortpulse-request-id": "request-1" },
       body: {
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
@@ -71,6 +74,7 @@ describe("POST /api/media/prepare-upload", () => {
 
     expect(prepareMediaUploadForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
+      idempotencyKey: "request-1",
       destinationTab: "uploaded_images",
       filename: "image.webp",
       declaredMimeType: "image/webp",
@@ -78,7 +82,9 @@ describe("POST /api/media/prepare-upload", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       target: {
-        storagePath: "user-1/upload-staging/uploaded_images/image.webp",
+        intentId: "intent-1",
+        bucketId: "media_upload_staging",
+        storagePath: "user-1/media_library/intent-1/object",
         uploadToken: "token-1",
         mimeType: "image/webp",
         name: "image.webp",
@@ -157,12 +163,15 @@ describe("POST /api/media/prepare-upload", () => {
 
     await handler(req as never, res as never);
 
-    expect(prepareMediaUploadForUserMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      destinationTab: "uploaded_images",
-      filename: "image.webp",
-      declaredMimeType: "image/webp",
-    });
+    expect(prepareMediaUploadForUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        idempotencyKey: expect.any(String),
+        destinationTab: "uploaded_images",
+        filename: "image.webp",
+        declaredMimeType: "image/webp",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
       error: "Media agreement acceptance is required.",

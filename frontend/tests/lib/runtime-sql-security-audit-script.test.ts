@@ -17,7 +17,7 @@ const REQUIRED_SIGNATURES = [
   "public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)",
   "public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)",
   "public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)",
-  "public.create_admin_kanban_item(text,text,uuid,text)",
+  "public.create_admin_kanban_item(text,text,uuid,text,text,text,text,text,integer,text)",
   "public.update_admin_kanban_item(uuid,text,text,uuid,text)",
   "public.move_admin_kanban_item(uuid,text,uuid,text)",
   "public.archive_admin_kanban_item(uuid,uuid,text)",
@@ -81,6 +81,11 @@ const REQUIRED_SIGNATURES = [
   "public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)",
   "public.begin_openai_internal_capacity_attempt(uuid,uuid)",
   "public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)",
+  "public.reserve_media_upload_intent(uuid,text,text,text,text,bigint,text,text,text,text,integer)",
+  "public.claim_media_upload_intent(uuid,uuid,text,text)",
+  "public.finalize_media_upload_intent(uuid,uuid,text,text,text,bigint,text)",
+  "public.reject_media_upload_intent(uuid,uuid,text,text,text,text,bigint,text)",
+  "public.expire_media_upload_intent(uuid,uuid)",
 ] as const;
 
 const extractExpectedFunctionSignatureBlocks = (sql: string): string[][] =>
@@ -131,6 +136,38 @@ describe("check_runtime_sql_security_audit.sql", () => {
     );
     expect(sql).toContain("'browser_policies_none'::text");
     expect(sql).toContain("must not access OpenAI internal-capacity admissions");
+    expect(sql.match(/media_upload_intent_table_checks\(/g)).toHaveLength(2);
+    expect(sql.match(/must not access media upload intents/g)).toHaveLength(2);
+    expect((sql.match(/bucket media_upload_staging/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect(sql).toContain("'private_bounded_config'::text");
+    expect(sql).toContain("b.file_size_limit = 104857600");
+    expect(sql).toContain("Media upload staging bucket must have no anon/auth storage policies");
+    expect(sql.match(/expected_generation_relational_tables\(table_name/g)).toHaveLength(2);
+    expect(sql.match(/generation_relational_constraint_checks\(/g)).toHaveLength(2);
+    expect(sql).toContain("'table_mutation_none'::text");
+    expect(sql).toContain("'browser_modify_policies_none'::text");
+    expect(sql).toContain("'owner_immutable'::text");
+    expect(sql).toContain("'validated_foreign_key'::text");
+    for (const table of [
+      "ai_generation_submit_queue",
+      "generation_attempts",
+      "generation_publications",
+      "generation_projection",
+      "ai_generation_outputs",
+    ]) {
+      expect(sql).toContain(`${table}_generation_owner_fk`);
+      expect(sql).toContain(`trg_${table}_owner_immutable`);
+    }
+    for (const constraint of [
+      "ai_generation_outputs_attempt_owner_fk",
+      "ai_generation_outputs_media_owner_fk",
+      "generation_publications_attempt_owner_fk",
+      "generation_publications_output_owner_fk",
+      "generation_publications_media_owner_fk",
+      "generation_projection_attempt_owner_fk",
+    ]) {
+      expect(sql).toContain(constraint);
+    }
     expect(sql).toContain("sequence_checks(signature, check_name, check_pass, detail) as (");
     expect(sql).toContain("from all_checks\norder by signature, check_name;");
     expect(sql).toContain("count(*)::integer as total_checks");

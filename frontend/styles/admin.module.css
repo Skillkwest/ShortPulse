@@ -43,6 +43,12 @@
   padding-right: 16px;
 }
 
+.adminKanbanPageWide {
+  max-width: min(1800px, calc(100vw - 32px));
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .adminSupportPageWide {
   max-width: min(1800px, calc(100vw - 32px));
   padding-left: 16px;

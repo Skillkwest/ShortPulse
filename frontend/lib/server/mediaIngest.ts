@@ -197,11 +197,17 @@ export const createSignedMediaUrl = async (
   return data.signedUrl;
 };
 
-export const removeScopedMediaStorageObject = async (storagePath: string): Promise<void> => {
+export const removeScopedMediaStorageObject = async (
+  storagePath: string,
+  bucketId = MEDIA_BUCKET,
+  throwOnError = false
+): Promise<void> => {
   try {
-    await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
-  } catch {
+    const { error } = await getSupabaseAdmin().storage.from(bucketId).remove([storagePath]);
+    if (error && throwOnError) throw error;
+  } catch (error) {
     // best-effort orphan cleanup
+    if (throwOnError) throw error;
   }
 };
 

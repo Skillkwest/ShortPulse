@@ -8,6 +8,14 @@ import {
 import { resolvePricingGridCostBreakdown } from "../pricingGridBilledCredits";
 import { getDefaultModelPricingPolicyDocument } from "../pricingPolicy";
 import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
+import {
+  ELEVENLABS_MUSIC_MODEL_ID,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+} from "../elevenLabsModels";
+import { KIE_SEEDANCE_2_MODEL_ID } from "../providerModelIds";
 
 const pricingGridPolicy = {
   ...getDefaultModelPricingPolicyDocument(),
@@ -97,6 +105,21 @@ describe("pricingGridBilledCredits", () => {
   });
 
   it("fails closed for strict billed-credit requests until explicit runtime overrides exist", () => {
+    const calculatorInputsOnlyPolicy = {
+      ...pricingGridPolicy,
+      perModel: {
+        ...pricingGridPolicy.perModel,
+        "fal-ai/nano-banana-2": {
+          variants: {
+            "default|res:0.5K|aspect:auto": {
+              providerUsdOverride: 0.1,
+              markupBps: 6_000,
+            },
+          },
+        },
+      },
+    };
+
     expect(
       resolvePricingGridCostBreakdown({
         modelId: "fal-ai/nano-banana-2",
@@ -105,7 +128,15 @@ describe("pricingGridBilledCredits", () => {
           resolution: "0.5K",
         },
         pricingPolicy: pricingGridPolicy,
-        requireExplicitBilledCreditsOverride: true,
+        requirePublishedBillingRule: true,
+      })
+    ).toBeNull();
+    expect(
+      resolvePricingGridCostBreakdown({
+        modelId: "fal-ai/nano-banana-2",
+        params: { aspect: "16:9", resolution: "0.5K" },
+        pricingPolicy: calculatorInputsOnlyPolicy,
+        requirePublishedBillingRule: true,
       })
     ).toBeNull();
 
@@ -117,11 +148,75 @@ describe("pricingGridBilledCredits", () => {
           resolution: "0.5K",
         },
         pricingPolicy: materializedImagePolicy,
-        requireExplicitBilledCreditsOverride: true,
+        requirePublishedBillingRule: true,
       })
     ).toMatchObject({
       credits: 4,
       variantId: "default|res:0.5K|aspect:auto",
+    });
+  });
+
+  it("scales the published per-output Billed Credits row by requested output count", () => {
+    const single = resolvePricingGridCostBreakdown({
+      modelId: "fal-ai/nano-banana-2",
+      params: { aspect: "auto", resolution: "1K", generationCount: 1 },
+      pricingPolicy: materializedImagePolicy,
+      requirePublishedBillingRule: true,
+    });
+    const batch = resolvePricingGridCostBreakdown({
+      modelId: "fal-ai/nano-banana-2",
+      params: { aspect: "auto", resolution: "1K", generationCount: 3 },
+      pricingPolicy: materializedImagePolicy,
+      requirePublishedBillingRule: true,
+    });
+
+    expect(single?.credits).toBe(5);
+    expect(batch?.credits).toBe(15);
+    expect(batch?.variantId).toBe(single?.variantId);
+  });
+
+  it("preserves workbook billing across published duration and character quantity rules", () => {
+    const cases = [
+      ...[1, 5, 30, 60].map((durationSeconds) => ({
+        modelId: ELEVENLABS_MUSIC_MODEL_ID,
+        params: { durationSeconds },
+      })),
+      ...[1, 30, 60].map((sourceDurationSeconds) => ({
+        modelId: ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+        params: { sourceDurationSeconds },
+      })),
+      ...[1, 100, 1_000, 1_500].map((textCharacters) => ({
+        modelId: ELEVENLABS_VOICEOVER_MODEL_ID,
+        params: { textCharacters },
+      })),
+      {
+        modelId: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+        params: {
+          variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+          durationSeconds: 5,
+        },
+      },
+      ...[5, 12].map((durationSeconds) => ({
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        params: { durationSeconds, resolution: "720p", inputVideoCount: 0 },
+      })),
+    ];
+
+    cases.forEach(({ modelId, params }) => {
+      const workbook = resolvePricingGridCostBreakdown({
+        modelId,
+        params,
+        pricingPolicy: pricingGridPolicy,
+      });
+      const published = resolvePricingGridCostBreakdown({
+        modelId,
+        params,
+        pricingPolicy: materializedImagePolicy,
+        requirePublishedBillingRule: true,
+      });
+
+      expect(published?.variantId).toBe(workbook?.variantId);
+      expect(published?.credits).toBe(workbook?.credits);
     });
   });
 });

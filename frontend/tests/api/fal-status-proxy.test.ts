@@ -682,6 +682,74 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("keeps polling when successful direct settlement is not yet visible to canonical readback", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+    settleDirectGenerationSuccessMock.mockResolvedValueOnce({
+      ok: true,
+      generationId: "gen-kie-readback-pending",
+      requestId: "req-kie-readback-pending",
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-readback-pending",
+            successFlag: 1,
+            response: {
+              resultUrls: ["https://cdn.shortpulse.test/kie-readback-pending.mp4"],
+            },
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+    const res = createMockResponse();
+
+    await handler(
+      {
+        method: "POST",
+        body: { requestId: "req-kie-readback-pending" },
+        headers: {},
+      } as never,
+      res as never
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        state: "running",
+        generationId: "gen-kie-readback-pending",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+          completionState: "completed_awaiting_media",
+        }),
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_status.direct_settlement_readback_pending",
+        statusCode: 200,
+      })
+    );
+  });
+
   it("polls the provider when only legacy success metadata exists without canonical outputs", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
@@ -2897,6 +2965,75 @@ describe("createFalStatusHandler", () => {
     );
     expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
   });
+
+  it.each(["recovered", "already_persisted"] as const)(
+    "keeps polling when %s recovery is not yet visible to canonical readback",
+    async (recoveryState) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ status: "COMPLETED" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ status: "COMPLETED", data: {} }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      vi.stubGlobal("fetch", fetchMock);
+      executeGenerationRecoveryMock.mockResolvedValue({
+        ok: true,
+        state: recoveryState,
+        generationId: `gen-${recoveryState}-readback-pending`,
+        requestId: `req-${recoveryState}-readback-pending`,
+        mediaFileIds: [],
+        mediaUrls: [],
+        processed: true,
+      });
+
+      const handler = createFalStatusHandler({
+        queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+        routeLabel: "Fal Nano Banana Pro",
+        timeoutMs: 15000,
+      });
+      const res = createMockResponse();
+
+      await handler(
+        {
+          method: "POST",
+          body: { requestId: `req-${recoveryState}-readback-pending` },
+          headers: {},
+        } as never,
+        res as never
+      );
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "IN_PROGRESS",
+          state: "running",
+          generationId: `gen-${recoveryState}-readback-pending`,
+          shortpulseLifecycle: expect.objectContaining({
+            taskState: "running",
+            isTerminal: false,
+            recoveryPending: true,
+            completionState: "completed_awaiting_media",
+          }),
+        })
+      );
+      expect(logGenerationFailureMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.api.fal_status.recovery_readback_pending",
+          statusCode: 200,
+          metadata: expect.objectContaining({ recovery_state: recoveryState }),
+        })
+      );
+      expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
+    }
+  );
 
   it("treats missing-media as a terminal canonical failure when recovery exhausts", async () => {
     const fetchMock = vi

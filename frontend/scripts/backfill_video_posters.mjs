@@ -14,7 +14,7 @@ import { Buffer } from "node:buffer";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 
 const execFile = promisify(execFileCallback);
 const require = createRequire(import.meta.url);

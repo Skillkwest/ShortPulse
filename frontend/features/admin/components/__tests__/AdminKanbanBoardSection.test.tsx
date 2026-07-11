@@ -137,27 +137,17 @@ describe("AdminKanbanBoardSection", () => {
     );
   });
 
-  it("archives tasks from the board", async () => {
-    fetchWithAuthMock
-      .mockResolvedValueOnce(
-        jsonResponse({
-          items: [makeItem({ title: "Remove stale task", details: "", status: "complete" })],
-        })
-      )
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+  it("does not expose card archive controls", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [makeItem({ title: "Remove stale task", details: "", status: "complete" })],
+      })
+    );
 
     render(<AdminKanbanBoardSection />);
 
     await waitFor(() => expect(screen.getByText("Remove stale task")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Archive Remove stale task" }));
-
-    await waitFor(() => {
-      expect(screen.queryByText("Remove stale task")).not.toBeInTheDocument();
-    });
-    expect(fetchWithAuthMock).toHaveBeenLastCalledWith(
-      "/api/admin/kanban/items/task-1/archive",
-      expect.objectContaining({ method: "POST" })
-    );
+    expect(screen.queryByRole("button", { name: "Archive Remove stale task" })).toBeNull();
   });
 
   it("surfaces human-review tickets with a visible label", async () => {

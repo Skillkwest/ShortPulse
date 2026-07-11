@@ -11,6 +11,7 @@ import {
   resolveKlingAspectRatio,
   resolveTaskPollingModelId,
   resolveTaskPollingProvider,
+  resolveTaskPollingTarget,
 } from "../stateParsers";
 
 describe("extractResultUrls", () => {
@@ -112,6 +113,26 @@ describe("resolveTaskPollingProvider", () => {
         modelId: "kie-ai/seedance-2",
       })
     ).toBe("kie-seedance-2-fast");
+  });
+
+  it.each([
+    ["kie-ai/gpt-image-2-text-to-image", "kie-gpt-image-2"],
+    ["kie-ai/gpt-image-2-image-to-image", "kie-gpt-image-2-edit"],
+    ["kie-ai/seedance-2", "kie-seedance-2"],
+    ["kie-ai/seedance-2-fast", "kie-seedance-2-fast"],
+    ["kie-ai/kling-3.0", "kie-kling"],
+    ["kie-ai/veo-3.1-fast-i2v", "kie-veo"],
+  ])("resolves generic Kie through exact model %s", (modelId, expectedProvider) => {
+    expect(resolveTaskPollingProvider({ provider: "kie", modelId })).toBe(expectedProvider);
+    expect(resolveTaskPollingTarget({ provider: "kie", modelId })).toEqual({
+      provider: expectedProvider,
+      modelId,
+    });
+  });
+
+  it("fails closed for generic Kie with an unknown model", () => {
+    expect(resolveTaskPollingProvider({ provider: "kie", modelId: "unknown-model" })).toBeNull();
+    expect(resolveTaskPollingTarget({ provider: "kie", modelId: "unknown-model" })).toBeNull();
   });
 });
 

@@ -1,4 +1,4 @@
-import { computeCostForModel } from "./pricing";
+import { resolvePricingGridCostBreakdown } from "../../../lib/model-runtime/pricingGridBilledCredits";
 import type { PricingParams } from "./pricingTypes";
 
 type ClientPricingEstimateInput = {
@@ -16,7 +16,12 @@ export const resolveClientPricingBreakdown = ({
 }: ClientPricingEstimateInput) => {
   if (!pricingPolicyReady) return null;
   if (!modelId) return null;
-  return computeCostForModel(modelId, params, pricingPolicy);
+  return resolvePricingGridCostBreakdown({
+    modelId,
+    params,
+    pricingPolicy,
+    requirePublishedBillingRule: true,
+  });
 };
 
 export const resolveClientBilledCredits = (input: ClientPricingEstimateInput): number | null =>

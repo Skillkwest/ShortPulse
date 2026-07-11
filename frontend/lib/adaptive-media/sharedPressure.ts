@@ -7,6 +7,7 @@ import {
   evaluateAdaptivePressureCandidateLevel,
   type AdaptivePressurePhase,
   resolveAdaptivePressurePhase,
+  resolveAdaptiveHeapLimitUsageRatio,
   resolveAdaptiveHeapUsageRatio,
   resolveAdaptivePercentile,
   resolveAdaptivePressureTransition,
@@ -19,6 +20,7 @@ export type SharedAdaptivePressureState = {
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
   heapUsageRatio: number | null;
+  heapLimitUsageRatio: number | null;
   sampleCount: number;
 };
 
@@ -47,6 +49,7 @@ export const createInitialSharedAdaptivePressureState = (): SharedAdaptivePressu
   longTaskP95Ms: null,
   maxInputStallMs: 0,
   heapUsageRatio: null,
+  heapLimitUsageRatio: null,
   sampleCount: 0,
 });
 
@@ -191,10 +194,11 @@ const startSharedAdaptivePressureEvaluation = (config: SharedAdaptivePressureCon
       );
       const maxInputStallMs = Math.round(sharedAdaptivePressure.maxInputStallMs * 100) / 100;
       const heapUsageRatio = resolveAdaptiveHeapUsageRatio();
+      const heapLimitUsageRatio = resolveAdaptiveHeapLimitUsageRatio();
       const candidateLevel = evaluateAdaptivePressureCandidateLevel({
         longTaskP95Ms,
         maxInputStallMs,
-        heapUsageRatio,
+        heapLimitUsageRatio,
         memoryGuardEnabled: config.memoryGuardEnabled,
       });
 
@@ -214,6 +218,7 @@ const startSharedAdaptivePressureEvaluation = (config: SharedAdaptivePressureCon
         longTaskP95Ms,
         maxInputStallMs,
         heapUsageRatio,
+        heapLimitUsageRatio,
         sampleCount: sharedAdaptivePressure.state.sampleCount + 1,
       });
 

@@ -226,6 +226,7 @@ describe("createFalSubmitHandler", () => {
       method: "POST",
       body: {
         prompt: "portrait",
+        input_image_count: 1,
         shortpulse_context: {
           project_id: "project-1",
           project_id_present: true,
@@ -242,6 +243,11 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingWorkflow: "create_image",
+      })
+    );
     expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "fal",
@@ -465,6 +471,11 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
+    expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingWorkflow: "video",
+      })
+    );
     expect(createMotionReferenceVideoLeaseForGenerationMock).toHaveBeenCalledWith({
       generationId: expect.any(String),
       userId: "user-1",
@@ -538,6 +549,7 @@ describe("createFalSubmitHandler", () => {
 
     expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        billingWorkflow: "edit_image",
         payload: expect.objectContaining({
           input_image_count: 1,
         }),

@@ -186,11 +186,10 @@
   top: 50%;
   left: 50%;
   z-index: 8;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
-  width: min(410px, calc(100% - 48px));
+  justify-content: center;
+  width: min(320px, calc(100% - 48px));
   padding: 12px 14px;
   border: 1px solid rgba(82, 196, 226, 0.34);
   border-radius: 12px;
@@ -205,35 +204,6 @@
   font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
-}
-
-.create-composer-chat-mode-drop-guidance-action {
-  min-height: 34px;
-  padding: 0 13px;
-  border: 1px solid rgba(82, 196, 226, 0.42);
-  border-radius: 999px;
-  color: rgba(225, 248, 252, 0.94);
-  background: rgba(52, 200, 255, 0.12);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.create-composer-chat-mode-drop-guidance-action:hover:not(:disabled),
-.create-composer-chat-mode-drop-guidance-action:focus-visible {
-  border-color: rgba(82, 196, 226, 0.7);
-  background: rgba(52, 200, 255, 0.2);
-}
-
-.create-composer-chat-mode-drop-guidance-action:focus-visible {
-  outline: 2px solid rgba(82, 196, 226, 0.35);
-  outline-offset: 2px;
-}
-
-.create-composer-chat-mode-drop-guidance-action:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .create-composer-panel .create-composer-pulse-columns > .create-composer-left-panel,

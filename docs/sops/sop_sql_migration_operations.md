@@ -87,6 +87,9 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/migrations/221_add_voice_changer_remux_recovery_projection.sql`: add the projection-only Voice Changer remux retry contract used to reconstruct a failed video card after refresh while `ai_generations.metadata` remains recovery authority.
 - `sql/migrations/222_add_admin_kanban_backlog_source_sync.sql`: add admin Kanban source metadata and the service-role-only planning backlog sync RPC for mirroring `docs/planning/backlog.md` into `/admin/kanban`.
 - `sql/migrations/223_add_openai_internal_capacity_admissions.sql`: add service-role-only, non-billable admission records and atomic RPCs for bounded OpenAI-backed internal capacity without mutating customer credits.
+- `sql/migrations/224_harden_generation_relational_ownership.sql`: pair generation, attempt, output, and media references with `user_id`, make generation-child ownership immutable, and remove browser mutation authority while preserving authenticated reads.
+- `sql/migrations/225_add_media_upload_intents.sql`: add the private bounded media staging bucket and service-role-only upload-intent lifecycle used to authorize browser-to-storage transport before inspection and promotion.
+- `sql/migrations/226_reconcile_media_upload_staging_mime_allowlist.sql`: reconcile the private media upload staging bucket MIME allowlist with runtime audit expectations without changing upload-intent authority.
 - `sql/audit_billing_credit_rls.sql`: billing RLS audit checks.
 - `sql/check_database_io_hotspots.sql`: read-only `pg_stat_statements` shared-block I/O summary plus table size/read posture, planner-stat freshness, and hot diagnostic table age/retention posture without raw query text.
 - `sql/analyze_hot_database_tables_supabase.sql`: hosted apply-gated maintenance script that refreshes planner statistics on hot public tables without rewriting tables or deleting rows. Run through `.github/workflows/apply-control-plane-ops-sql.yml` with `operation=analyze_hot_database_tables`.
@@ -352,6 +355,9 @@ Migration number 134 is intentionally unused; the ordered sequence moves from `1
 - `221_add_voice_changer_remux_recovery_projection.sql`
 - `222_add_admin_kanban_backlog_source_sync.sql`
 - `223_add_openai_internal_capacity_admissions.sql`
+- `224_harden_generation_relational_ownership.sql`
+- `225_add_media_upload_intents.sql`
+- `226_reconcile_media_upload_staging_mime_allowlist.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

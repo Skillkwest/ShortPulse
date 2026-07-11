@@ -15,8 +15,11 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 import { resolveVideoBilledCreditLookup } from "../../../lib/model-runtime/videoBilledCredits";
-import type { AiStudioKlingElement } from "./klingElements";
-import { resolveSeedanceElementProviderEligibility } from "./klingElements";
+import {
+  collectSeedanceElementVideoReferenceDurations,
+  resolveSeedanceElementProviderEligibility,
+  type AiStudioKlingElement,
+} from "./klingElements";
 import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromInputs,
@@ -163,7 +166,12 @@ const buildVideoPricingEvidence = ({
     isSeedance2Model && seedanceVideoReferences.length > 0
       ? resolveSeedanceInputVideoDurationSeconds({
           referenceVideoUrls: seedanceVideoReferences,
-          persistedVideoReferences: payload.videoReferences?.seedance2ReferenceVideos,
+          persistedVideoReferences: [
+            ...collectSeedanceElementVideoReferenceDurations(
+              (payload.klingElements ?? []) as AiStudioKlingElement[]
+            ),
+            ...(payload.videoReferences?.seedance2ReferenceVideos ?? []),
+          ],
         })
       : null;
   const params: Omit<PricingParams, "modelId"> = buildDefaultPricingParams(modelId, {

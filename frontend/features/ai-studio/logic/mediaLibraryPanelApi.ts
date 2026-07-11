@@ -90,6 +90,8 @@ type MediaUploadResponse = {
 };
 
 type PreparedMediaUploadTarget = {
+  intentId: string;
+  bucketId: "media_upload_staging";
   storagePath: string;
   uploadToken: string;
   mimeType: string;
@@ -308,11 +310,24 @@ const toMediaUploadRow = (value: unknown): MediaUploadRow | null => {
 const toPreparedMediaUploadTarget = (value: unknown): PreparedMediaUploadTarget | null => {
   const target = asRecord(value);
   const storagePath = asString(target.storagePath);
+  const intentId = asString(target.intentId);
+  const bucketId = asString(target.bucketId);
   const uploadToken = asString(target.uploadToken);
   const mimeType = asString(target.mimeType);
   const name = asString(target.name);
-  if (!storagePath || !uploadToken || !mimeType || !name) return null;
+  if (
+    !intentId ||
+    bucketId !== "media_upload_staging" ||
+    !storagePath ||
+    !uploadToken ||
+    !mimeType ||
+    !name
+  ) {
+    return null;
+  }
   return {
+    intentId,
+    bucketId: "media_upload_staging",
     storagePath,
     uploadToken,
     mimeType,
@@ -681,7 +696,7 @@ export const uploadMediaFile = async ({
 
   const supabase = ensureSupabaseQueryClient();
   const uploadResult = await supabase.storage
-    .from("media_library")
+    .from(preparedTarget.bucketId)
     .uploadToSignedUrl(preparedTarget.storagePath, preparedTarget.uploadToken, normalizedFile, {
       contentType: preparedTarget.mimeType,
       cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
@@ -699,6 +714,7 @@ export const uploadMediaFile = async ({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      intentId: preparedTarget.intentId,
       destinationTab,
       sourceMimeType: preparedTarget.mimeType,
       sourceName: preparedTarget.name,

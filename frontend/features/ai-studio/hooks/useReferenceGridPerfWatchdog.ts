@@ -26,6 +26,7 @@ export type ReferenceGridPerfWatchdogState = {
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
   heapUsageRatio: number | null;
+  heapLimitUsageRatio: number | null;
   sampleCount: number;
 };
 
@@ -37,6 +38,7 @@ const initialState = (): ReferenceGridPerfWatchdogState => ({
   longTaskP95Ms: null,
   maxInputStallMs: 0,
   heapUsageRatio: null,
+  heapLimitUsageRatio: null,
   sampleCount: 0,
 });
 
@@ -96,6 +98,7 @@ export const useReferenceGridPerfWatchdog = ({
         longTaskP95Ms: sharedState.longTaskP95Ms,
         maxInputStallMs: sharedState.maxInputStallMs,
         heapUsageRatio: sharedState.heapUsageRatio,
+        heapLimitUsageRatio: sharedState.heapLimitUsageRatio,
         sampleCount: sharedState.sampleCount,
       });
     };

@@ -12,7 +12,7 @@ with expected_functions as (
             ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
             ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)', null),
             ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)', null),
-            ('public.create_admin_kanban_item(text,text,uuid,text)', null),
+            ('public.create_admin_kanban_item(text,text,uuid,text,text,text,text,text,integer,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),
             ('public.archive_admin_kanban_item(uuid,uuid,text)', null),
@@ -78,7 +78,12 @@ with expected_functions as (
             ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null),
             ('public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)', null),
             ('public.begin_openai_internal_capacity_attempt(uuid,uuid)', null),
-            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null)
+            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null),
+            ('public.reserve_media_upload_intent(uuid,text,text,text,text,bigint,text,text,text,text,integer)', null),
+            ('public.claim_media_upload_intent(uuid,uuid,text,text)', null),
+            ('public.finalize_media_upload_intent(uuid,uuid,text,text,text,bigint,text)', null),
+            ('public.reject_media_upload_intent(uuid,uuid,text,text,text,text,bigint,text)', null),
+            ('public.expire_media_upload_intent(uuid,uuid)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -299,7 +304,11 @@ expected_table_grants as (
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'UPDATE'::text),
-            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text)
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'DELETE'::text)
     ) as t(schema_name, table_name, grantee, privilege_type)
 ),
 table_checks(signature, check_name, check_pass, detail) as (
@@ -406,6 +415,181 @@ openai_capacity_table_checks(signature, check_name, check_pass, detail) as (
            format('%s must not access OpenAI internal-capacity admissions', role_name)
     from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
 ),
+media_upload_intent_table_checks(signature, check_name, check_pass, detail) as (
+    select 'table public.media_upload_intents'::text,
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass('public.media_upload_intents')), false),
+           'Media upload intents must have RLS enabled'::text
+    union all
+    select 'table public.media_upload_intents'::text,
+           'browser_policies_none'::text,
+           to_regclass('public.media_upload_intents') is not null
+           and not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public' and p.tablename = 'media_upload_intents'
+           ),
+           'Media upload intents must have no browser RLS policies'::text
+    union all
+    select format('table public.media_upload_intents -> %s', role_name),
+           'table_none'::text,
+           to_regclass('public.media_upload_intents') is not null
+           and not has_table_privilege(
+               role_name,
+               'public.media_upload_intents',
+               'SELECT,INSERT,UPDATE,DELETE'
+           ),
+           format('%s must not access media upload intents', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+    union all
+    select 'bucket media_upload_staging'::text,
+           'private_bounded_config'::text,
+           exists (
+               select 1 from storage.buckets b
+               where b.id = 'media_upload_staging'
+                 and b.name = 'media_upload_staging'
+                 and b.public is false
+                 and b.file_size_limit = 104857600
+                 and b.allowed_mime_types @> array[
+                     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+                     'image/heic', 'image/heif', 'image/avif',
+                     'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v',
+                     'audio/aac', 'audio/flac', 'audio/m4a', 'audio/mp4', 'audio/mpeg',
+                     'audio/ogg', 'audio/wav', 'audio/webm', 'audio/x-m4a', 'audio/x-wav'
+                 ]::text[]
+           ),
+           'Media upload staging bucket must be private, 100 MiB, and media allowlisted'::text
+    union all
+    select 'bucket media_upload_staging'::text,
+           'browser_policies_none'::text,
+           not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'storage' and p.tablename = 'objects'
+                 and (
+                     coalesce(p.qual, '') like '%media_upload_staging%'
+                     or coalesce(p.with_check, '') like '%media_upload_staging%'
+                 )
+           ),
+           'Media upload staging bucket must have no anon/auth storage policies'::text
+),
+expected_generation_relational_tables(table_name, owner_constraint_name, trigger_name) as (
+    values
+        ('ai_generation_submit_queue'::text, 'ai_generation_submit_queue_generation_owner_fk'::text, 'trg_ai_generation_submit_queue_owner_immutable'::text),
+        ('generation_attempts'::text, 'generation_attempts_generation_owner_fk'::text, 'trg_generation_attempts_owner_immutable'::text),
+        ('generation_publications'::text, 'generation_publications_generation_owner_fk'::text, 'trg_generation_publications_owner_immutable'::text),
+        ('generation_projection'::text, 'generation_projection_generation_owner_fk'::text, 'trg_generation_projection_owner_immutable'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_generation_owner_fk'::text, 'trg_ai_generation_outputs_owner_immutable'::text)
+),
+expected_generation_relational_constraints(table_name, constraint_name) as (
+    values
+        ('ai_generation_submit_queue'::text, 'ai_generation_submit_queue_generation_owner_fk'::text),
+        ('generation_attempts'::text, 'generation_attempts_generation_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_generation_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_attempt_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_media_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_generation_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_attempt_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_output_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_media_owner_fk'::text),
+        ('generation_projection'::text, 'generation_projection_generation_owner_fk'::text),
+        ('generation_projection'::text, 'generation_projection_attempt_owner_fk'::text)
+),
+generation_relational_table_checks(signature, check_name, check_pass, detail) as (
+    select format('table public.%s', e.table_name),
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass(format('public.%I', e.table_name))), false),
+           format('%s must have RLS enabled', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('table public.%s -> authenticated', e.table_name),
+           'table_select'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and has_table_privilege('authenticated', format('public.%I', e.table_name), 'SELECT'),
+           format('authenticated must retain SELECT on %s', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('table public.%s -> authenticated', e.table_name),
+           'table_mutation_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not has_table_privilege(
+               'authenticated', format('public.%I', e.table_name),
+               'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+           ),
+           format('authenticated must not mutate server-owned %s', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('table public.%s -> anon', e.table_name),
+           'table_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not has_table_privilege(
+               'anon', format('public.%I', e.table_name),
+               'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+           ),
+           format('anon must not access server-owned %s', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('table public.%s -> service_role', e.table_name),
+           'table_runtime_dml'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and has_table_privilege(
+               'service_role', format('public.%I', e.table_name),
+               'SELECT,INSERT,UPDATE,DELETE'
+           ),
+           format('service_role must retain runtime DML on %s', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('table public.%s', e.table_name),
+           'browser_modify_policies_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public'
+                 and p.tablename = e.table_name
+                 and p.cmd <> 'SELECT'
+           ),
+           format('%s must have no browser mutation policy', e.table_name)
+    from expected_generation_relational_tables e
+
+    union all
+
+    select format('trigger public.%s.%s', e.table_name, e.trigger_name),
+           'owner_immutable'::text,
+           exists (
+               select 1
+               from pg_trigger t
+               where t.tgrelid = to_regclass(format('public.%I', e.table_name))
+                 and t.tgname = e.trigger_name
+                 and not t.tgisinternal
+                 and t.tgenabled <> 'D'
+           ),
+           format('%s ownership columns must be immutable', e.table_name)
+    from expected_generation_relational_tables e
+),
+generation_relational_constraint_checks(signature, check_name, check_pass, detail) as (
+    select format('constraint public.%s.%s', e.table_name, e.constraint_name),
+           'validated_foreign_key'::text,
+           exists (
+               select 1
+               from pg_constraint c
+               where c.conrelid = to_regclass(format('public.%I', e.table_name))
+                 and c.conname = e.constraint_name
+                 and c.contype = 'f'
+                 and c.convalidated
+           ),
+           format('%s must exist as a validated ownership foreign key', e.constraint_name)
+    from expected_generation_relational_constraints e
+),
 expected_sequence_grants as (
     select *
     from (
@@ -484,6 +668,12 @@ all_checks as (
     select * from browser_crash_table_checks
     union all
     select * from openai_capacity_table_checks
+    union all
+    select * from media_upload_intent_table_checks
+    union all
+    select * from generation_relational_table_checks
+    union all
+    select * from generation_relational_constraint_checks
     union all
     select * from sequence_checks
     union all
@@ -506,7 +696,7 @@ with expected_functions as (
             ('public.admin_update_app_error_status(uuid,uuid,text,text,uuid,text,boolean)', null),
             ('public.list_browser_crash_sessions_v2(integer,integer,text,text,text,timestamptz)', null),
             ('public.record_browser_crash_session_event_v1(text,uuid,text,text,text,text,text,text,text,text,text,jsonb,timestamptz,boolean)', null),
-            ('public.create_admin_kanban_item(text,text,uuid,text)', null),
+            ('public.create_admin_kanban_item(text,text,uuid,text,text,text,text,text,integer,text)', null),
             ('public.update_admin_kanban_item(uuid,text,text,uuid,text)', null),
             ('public.move_admin_kanban_item(uuid,text,uuid,text)', null),
             ('public.archive_admin_kanban_item(uuid,uuid,text)', null),
@@ -572,7 +762,12 @@ with expected_functions as (
             ('public.release_generation_reservation_by_id(uuid,text,jsonb)', null),
             ('public.reserve_openai_internal_capacity_admission(uuid,text,text,text,bigint,integer,integer)', null),
             ('public.begin_openai_internal_capacity_attempt(uuid,uuid)', null),
-            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null)
+            ('public.settle_openai_internal_capacity_admission(uuid,uuid,text,jsonb)', null),
+            ('public.reserve_media_upload_intent(uuid,text,text,text,text,bigint,text,text,text,text,integer)', null),
+            ('public.claim_media_upload_intent(uuid,uuid,text,text)', null),
+            ('public.finalize_media_upload_intent(uuid,uuid,text,text,text,bigint,text)', null),
+            ('public.reject_media_upload_intent(uuid,uuid,text,text,text,text,bigint,text)', null),
+            ('public.expire_media_upload_intent(uuid,uuid)', null)
     ) as f(signature, alternate_signature)
 ),
 resolved as (
@@ -793,7 +988,11 @@ expected_table_grants as (
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'SELECT'::text),
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'INSERT'::text),
             ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'UPDATE'::text),
-            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text)
+            ('public'::text, 'openai_internal_capacity_admissions'::text, 'service_role'::text, 'DELETE'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'SELECT'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'INSERT'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'UPDATE'::text),
+            ('public'::text, 'media_upload_intents'::text, 'service_role'::text, 'DELETE'::text)
     ) as t(schema_name, table_name, grantee, privilege_type)
 ),
 table_checks(signature, check_name, check_pass, detail) as (
@@ -900,6 +1099,141 @@ openai_capacity_table_checks(signature, check_name, check_pass, detail) as (
            format('%s must not access OpenAI internal-capacity admissions', role_name)
     from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
 ),
+media_upload_intent_table_checks(signature, check_name, check_pass, detail) as (
+    select 'table public.media_upload_intents'::text,
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass('public.media_upload_intents')), false),
+           'Media upload intents must have RLS enabled'::text
+    union all
+    select 'table public.media_upload_intents'::text,
+           'browser_policies_none'::text,
+           to_regclass('public.media_upload_intents') is not null
+           and not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'public' and p.tablename = 'media_upload_intents'
+           ),
+           'Media upload intents must have no browser RLS policies'::text
+    union all
+    select format('table public.media_upload_intents -> %s', role_name),
+           'table_none'::text,
+           to_regclass('public.media_upload_intents') is not null
+           and not has_table_privilege(
+               role_name,
+               'public.media_upload_intents',
+               'SELECT,INSERT,UPDATE,DELETE'
+           ),
+           format('%s must not access media upload intents', role_name)
+    from (values ('anon'::text), ('authenticated'::text)) roles(role_name)
+    union all
+    select 'bucket media_upload_staging'::text,
+           'private_bounded_config'::text,
+           exists (
+               select 1 from storage.buckets b
+               where b.id = 'media_upload_staging'
+                 and b.name = 'media_upload_staging'
+                 and b.public is false
+                 and b.file_size_limit = 104857600
+                 and b.allowed_mime_types @> array[
+                     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+                     'image/heic', 'image/heif', 'image/avif',
+                     'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v',
+                     'audio/aac', 'audio/flac', 'audio/m4a', 'audio/mp4', 'audio/mpeg',
+                     'audio/ogg', 'audio/wav', 'audio/webm', 'audio/x-m4a', 'audio/x-wav'
+                 ]::text[]
+           ),
+           'Media upload staging bucket must be private, 100 MiB, and media allowlisted'::text
+    union all
+    select 'bucket media_upload_staging'::text,
+           'browser_policies_none'::text,
+           not exists (
+               select 1 from pg_policies p
+               where p.schemaname = 'storage' and p.tablename = 'objects'
+                 and (
+                     coalesce(p.qual, '') like '%media_upload_staging%'
+                     or coalesce(p.with_check, '') like '%media_upload_staging%'
+                 )
+           ),
+           'Media upload staging bucket must have no anon/auth storage policies'::text
+),
+expected_generation_relational_tables(table_name, owner_constraint_name, trigger_name) as (
+    values
+        ('ai_generation_submit_queue'::text, 'ai_generation_submit_queue_generation_owner_fk'::text, 'trg_ai_generation_submit_queue_owner_immutable'::text),
+        ('generation_attempts'::text, 'generation_attempts_generation_owner_fk'::text, 'trg_generation_attempts_owner_immutable'::text),
+        ('generation_publications'::text, 'generation_publications_generation_owner_fk'::text, 'trg_generation_publications_owner_immutable'::text),
+        ('generation_projection'::text, 'generation_projection_generation_owner_fk'::text, 'trg_generation_projection_owner_immutable'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_generation_owner_fk'::text, 'trg_ai_generation_outputs_owner_immutable'::text)
+),
+expected_generation_relational_constraints(table_name, constraint_name) as (
+    values
+        ('ai_generation_submit_queue'::text, 'ai_generation_submit_queue_generation_owner_fk'::text),
+        ('generation_attempts'::text, 'generation_attempts_generation_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_generation_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_attempt_owner_fk'::text),
+        ('ai_generation_outputs'::text, 'ai_generation_outputs_media_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_generation_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_attempt_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_output_owner_fk'::text),
+        ('generation_publications'::text, 'generation_publications_media_owner_fk'::text),
+        ('generation_projection'::text, 'generation_projection_generation_owner_fk'::text),
+        ('generation_projection'::text, 'generation_projection_attempt_owner_fk'::text)
+),
+generation_relational_table_checks(signature, check_name, check_pass, detail) as (
+    select format('table public.%s', e.table_name),
+           'rls_enabled'::text,
+           coalesce((select c.relrowsecurity from pg_class c
+                     where c.oid = to_regclass(format('public.%I', e.table_name))), false),
+           format('%s must have RLS enabled', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('table public.%s -> authenticated', e.table_name),
+           'table_select'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and has_table_privilege('authenticated', format('public.%I', e.table_name), 'SELECT'),
+           format('authenticated must retain SELECT on %s', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('table public.%s -> authenticated', e.table_name),
+           'table_mutation_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not has_table_privilege('authenticated', format('public.%I', e.table_name), 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),
+           format('authenticated must not mutate server-owned %s', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('table public.%s -> anon', e.table_name),
+           'table_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not has_table_privilege('anon', format('public.%I', e.table_name), 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'),
+           format('anon must not access server-owned %s', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('table public.%s -> service_role', e.table_name),
+           'table_runtime_dml'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and has_table_privilege('service_role', format('public.%I', e.table_name), 'SELECT,INSERT,UPDATE,DELETE'),
+           format('service_role must retain runtime DML on %s', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('table public.%s', e.table_name),
+           'browser_modify_policies_none'::text,
+           to_regclass(format('public.%I', e.table_name)) is not null
+           and not exists (select 1 from pg_policies p where p.schemaname='public' and p.tablename=e.table_name and p.cmd <> 'SELECT'),
+           format('%s must have no browser mutation policy', e.table_name)
+    from expected_generation_relational_tables e
+    union all
+    select format('trigger public.%s.%s', e.table_name, e.trigger_name),
+           'owner_immutable'::text,
+           exists (select 1 from pg_trigger t where t.tgrelid=to_regclass(format('public.%I', e.table_name)) and t.tgname=e.trigger_name and not t.tgisinternal and t.tgenabled <> 'D'),
+           format('%s ownership columns must be immutable', e.table_name)
+    from expected_generation_relational_tables e
+),
+generation_relational_constraint_checks(signature, check_name, check_pass, detail) as (
+    select format('constraint public.%s.%s', e.table_name, e.constraint_name),
+           'validated_foreign_key'::text,
+           exists (select 1 from pg_constraint c where c.conrelid=to_regclass(format('public.%I', e.table_name)) and c.conname=e.constraint_name and c.contype='f' and c.convalidated),
+           format('%s must exist as a validated ownership foreign key', e.constraint_name)
+    from expected_generation_relational_constraints e
+),
 expected_sequence_grants as (
     select *
     from (
@@ -978,6 +1312,12 @@ all_checks as (
     select * from browser_crash_table_checks
     union all
     select * from openai_capacity_table_checks
+    union all
+    select * from media_upload_intent_table_checks
+    union all
+    select * from generation_relational_table_checks
+    union all
+    select * from generation_relational_constraint_checks
     union all
     select * from sequence_checks
     union all

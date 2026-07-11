@@ -16,7 +16,7 @@ export type AdaptivePressureTransition = {
 export type AdaptivePressureSignals = {
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
-  heapUsageRatio: number | null;
+  heapLimitUsageRatio: number | null;
   memoryGuardEnabled: boolean;
 };
 
@@ -67,22 +67,41 @@ export const resolveAdaptiveHeapUsageRatio = (runtimePerformance?: Performance):
 };
 
 /**
+ * Reads JS heap usage against the browser heap limit for memory-pressure enforcement.
+ */
+export const resolveAdaptiveHeapLimitUsageRatio = (
+  runtimePerformance?: Performance
+): number | null => {
+  const performanceRef =
+    runtimePerformance ??
+    (typeof performance !== "undefined" ? (performance as Performance) : undefined);
+  if (!performanceRef) return null;
+  const runtimeWithMemory = performanceRef as Performance & {
+    memory?: { usedJSHeapSize?: number; jsHeapSizeLimit?: number };
+  };
+  const used = runtimeWithMemory.memory?.usedJSHeapSize;
+  const limit = runtimeWithMemory.memory?.jsHeapSizeLimit;
+  if (typeof used !== "number" || typeof limit !== "number" || limit <= 0) return null;
+  return Math.round((used / limit) * 1000) / 1000;
+};
+
+/**
  * Scores a pressure candidate level from long-task/input-stall/heap signals.
  */
 export const evaluateAdaptivePressureCandidateLevel = ({
   longTaskP95Ms,
   maxInputStallMs,
-  heapUsageRatio,
+  heapLimitUsageRatio,
   memoryGuardEnabled,
 }: AdaptivePressureSignals): AdaptivePressureLevel => {
   const heapLevel2 =
     memoryGuardEnabled &&
-    typeof heapUsageRatio === "number" &&
-    heapUsageRatio >= PRESSURE_HEAP_LEVEL_2_RATIO;
+    typeof heapLimitUsageRatio === "number" &&
+    heapLimitUsageRatio >= PRESSURE_HEAP_LEVEL_2_RATIO;
   const heapLevel1 =
     memoryGuardEnabled &&
-    typeof heapUsageRatio === "number" &&
-    heapUsageRatio >= PRESSURE_HEAP_LEVEL_1_RATIO;
+    typeof heapLimitUsageRatio === "number" &&
+    heapLimitUsageRatio >= PRESSURE_HEAP_LEVEL_1_RATIO;
   const longTaskLevel2 =
     typeof longTaskP95Ms === "number" && longTaskP95Ms >= PRESSURE_LONG_TASK_LEVEL_2_MS;
   const longTaskLevel1 =

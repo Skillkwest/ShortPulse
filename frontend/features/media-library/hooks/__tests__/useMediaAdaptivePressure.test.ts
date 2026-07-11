@@ -20,7 +20,7 @@ describe("useMediaAdaptivePressure helpers", () => {
       evaluateMediaAdaptiveCandidateLevel({
         longTaskP95Ms: 120,
         maxInputStallMs: 120,
-        heapUsageRatio: 0.4,
+        heapLimitUsageRatio: 0.4,
         memoryGuardEnabled: true,
       })
     ).toBe(2);
@@ -29,7 +29,7 @@ describe("useMediaAdaptivePressure helpers", () => {
       evaluateMediaAdaptiveCandidateLevel({
         longTaskP95Ms: 20,
         maxInputStallMs: 900,
-        heapUsageRatio: 0.4,
+        heapLimitUsageRatio: 0.4,
         memoryGuardEnabled: true,
       })
     ).toBe(2);
@@ -40,7 +40,7 @@ describe("useMediaAdaptivePressure helpers", () => {
       evaluateMediaAdaptiveCandidateLevel({
         longTaskP95Ms: 70,
         maxInputStallMs: 120,
-        heapUsageRatio: 0.4,
+        heapLimitUsageRatio: 0.4,
         memoryGuardEnabled: true,
       })
     ).toBe(1);
@@ -49,7 +49,7 @@ describe("useMediaAdaptivePressure helpers", () => {
       evaluateMediaAdaptiveCandidateLevel({
         longTaskP95Ms: 20,
         maxInputStallMs: 500,
-        heapUsageRatio: 0.4,
+        heapLimitUsageRatio: 0.4,
         memoryGuardEnabled: true,
       })
     ).toBe(1);

@@ -47,6 +47,7 @@ export const useReferenceGridStabilityTelemetryController = ({
       longTaskP95Ms: perfWatchdog.longTaskP95Ms,
       maxInputStallMs: perfWatchdog.maxInputStallMs,
       heapUsageRatio: perfWatchdog.heapUsageRatio,
+      heapLimitUsageRatio: perfWatchdog.heapLimitUsageRatio,
     });
 
     const previousPressureLevel = previousPressureLevelRef.current;
@@ -66,6 +67,7 @@ export const useReferenceGridStabilityTelemetryController = ({
         long_task_p95_ms: perfWatchdog.longTaskP95Ms,
         max_input_stall_ms: perfWatchdog.maxInputStallMs,
         heap_usage_ratio: perfWatchdog.heapUsageRatio,
+        heap_used_to_limit_ratio: perfWatchdog.heapLimitUsageRatio,
         total_item_count: outputsLength,
         archived_item_count: archivedOutputsLength,
       },
@@ -78,6 +80,7 @@ export const useReferenceGridStabilityTelemetryController = ({
     effectivePerfDegradeLevel,
     outputsLength,
     perfWatchdog.heapUsageRatio,
+    perfWatchdog.heapLimitUsageRatio,
     perfWatchdog.longTaskP95Ms,
     perfWatchdog.maxInputStallMs,
   ]);

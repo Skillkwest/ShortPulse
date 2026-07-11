@@ -4,7 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const repoRoot = process.cwd();
+const repoRoot = path.resolve(__dirname, "..");
 
 const read = (relativePath) =>
   fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
@@ -22,8 +22,10 @@ const fileChecks = [
       "resolveClientPricingBreakdown",
       "resolveClientBilledCredits",
       "if (!pricingPolicyReady) return null;",
-      "computeCostForModel(modelId, params, pricingPolicy)",
+      "resolvePricingGridCostBreakdown({",
+      "requirePublishedBillingRule: true",
     ],
+    forbidIncludes: ["computeCostForModel("],
   },
   {
     file: "frontend/features/ai-studio/hooks/useAiStudioViewModel.ts",
@@ -81,6 +83,7 @@ const fileChecks = [
     requireIncludes: [
       "resolvePricingGridBilledCredits({",
       "pricingPolicyReady",
+      "requirePublishedBillingRule: true",
     ],
     forbidIncludes: ["computeCostForModel("],
   },
@@ -90,6 +93,7 @@ const fileChecks = [
     requireIncludes: [
       "resolvePricingGridBilledCredits({",
       "pricingPolicyReady",
+      "requirePublishedBillingRule: true",
     ],
     forbidIncludes: ["computeCostForModel("],
   },
@@ -99,6 +103,7 @@ const fileChecks = [
     requireIncludes: [
       "resolvePricingGridBilledCredits({",
       "pricingPolicyReady",
+      "requirePublishedBillingRule: true",
     ],
     forbidIncludes: ["computeCostForModel("],
   },
@@ -126,6 +131,7 @@ const fileChecks = [
     forbidIncludes: [
       "shortpulseContext.selected_tool",
       "shortpulseContext.mode",
+      'workflow === "image"',
     ],
   },
   {

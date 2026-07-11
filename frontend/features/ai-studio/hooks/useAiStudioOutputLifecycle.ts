@@ -30,6 +30,13 @@ const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
 const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
+const hasProviderHandoffIdentity = (
+  output: Pick<StudioOutput, "generationId" | "taskId">
+): boolean =>
+  [output.generationId, output.taskId].some(
+    (value) => typeof value === "string" && value.trim().length > 0
+  );
+
 const currentRoute = (): string | null => {
   if (typeof window === "undefined") return null;
   return `${window.location.pathname}${window.location.search}`.slice(0, 300);
@@ -186,6 +193,7 @@ export const useAiStudioOutputLifecycle = ({
       const isDirectRequestTimeout = directRequestTimeoutSet.has(staleOutput.id);
       const isTaskBackedTimeout = taskBackedTimeoutSet.has(staleOutput.id);
       const isUploadPersistenceTimeout = uploadPersistenceTimeoutSet.has(staleOutput.id);
+      const hasProviderHandoff = hasProviderHandoffIdentity(staleOutput);
       void reportAppError({
         source: isSubmitStartTimeout
           ? "fal_submit_not_started"
@@ -193,9 +201,11 @@ export const useAiStudioOutputLifecycle = ({
             ? "media.upload_persistence_timeout"
             : isDirectRequestTimeout
               ? "generation.direct_request_timeout"
-              : isTaskBackedTimeout
+              : isTaskBackedTimeout && hasProviderHandoff
                 ? "generation.task_backed_stale_timeout"
-                : "generation.queue_wait_timeout",
+                : isTaskBackedTimeout
+                  ? "generation.server_recovery_stale_timeout"
+                  : "generation.queue_wait_timeout",
         scope: isUploadPersistenceTimeout ? "app" : "generation",
         severity: "high",
         message: isSubmitStartTimeout
@@ -204,9 +214,11 @@ export const useAiStudioOutputLifecycle = ({
             ? "Media upload did not finish before the persistence timeout."
             : isDirectRequestTimeout
               ? "Generation timed out before a direct result was returned."
-              : isTaskBackedTimeout
+              : isTaskBackedTimeout && hasProviderHandoff
                 ? "Generation stopped making progress after provider handoff."
-                : "Generation timed out while waiting in queue.",
+                : isTaskBackedTimeout
+                  ? "Generation stopped making progress during server recovery."
+                  : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -214,6 +226,8 @@ export const useAiStudioOutputLifecycle = ({
           model_id: staleOutput.modelId ?? null,
           provider: staleOutput.provider ?? null,
           task_id: staleOutput.taskId ?? null,
+          generation_id: staleOutput.generationId ?? null,
+          source_ref: staleOutput.sourceRef ?? null,
           queue_state: staleOutput.queueState ?? null,
           failure_reason_code: isSubmitStartTimeout
             ? "SUBMIT_START_TIMEOUT"
@@ -221,9 +235,11 @@ export const useAiStudioOutputLifecycle = ({
               ? "UPLOAD_PERSISTENCE_TIMEOUT"
               : isDirectRequestTimeout
                 ? "DIRECT_REQUEST_TIMEOUT"
-                : isTaskBackedTimeout
+                : isTaskBackedTimeout && hasProviderHandoff
                   ? "TASK_BACKED_TIMEOUT"
-                  : "QUEUE_WAIT_TIMEOUT",
+                  : isTaskBackedTimeout
+                    ? "SERVER_RECOVERY_TIMEOUT"
+                    : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }
@@ -285,7 +301,9 @@ export const useAiStudioOutputLifecycle = ({
           errorDetail: isUploadPersistenceTimeout
             ? "The media upload did not finish. Please remove it and add the file again."
             : taskBackedTimeoutSet.has(item.id)
-              ? "The generation stopped making progress after provider handoff. Please retry."
+              ? hasProviderHandoffIdentity(item)
+                ? "The generation stopped making progress after provider handoff. Please retry."
+                : "The generation stopped making progress during server recovery. Please retry."
               : "The generation did not receive a provider task id. Please retry.",
         });
       });

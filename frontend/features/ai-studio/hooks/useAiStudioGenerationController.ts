@@ -111,6 +111,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     prompt: string;
     modeOverride?: StudioMode;
     selectedToolOverride?: ToolId | null;
+    modelIdOverride?: string | null;
     submissionModeOverride?: StudioOutputSubmissionMode;
   }) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
@@ -520,17 +521,33 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         });
       }
 
-      enqueueOptimisticDebit(requiredCredits, activeOutputId ?? null);
       const resolvedDisplayPromptOverride =
         typeof options?.displayPromptOverride === "string"
           ? options.displayPromptOverride
           : characterModeOverrides?.displayPromptOverride;
       const resolvedSubmissionPromptOverride =
         characterModeOverrides?.submissionPromptOverride ?? options?.submissionPromptOverride;
+      const optimisticOutputId =
+        options?.outputIdOverride ??
+        insertOptimisticGenerationPlaceholder?.({
+          prompt: resolvedDisplayPromptOverride ?? promptToUse,
+          modeOverride: mode,
+          selectedToolOverride: tool,
+          modelIdOverride: effectiveModelId,
+          submissionModeOverride: resolveSubmissionModeForModelId(effectiveModelId),
+        });
+      if (
+        !options?.outputIdOverride &&
+        insertOptimisticGenerationPlaceholder &&
+        !optimisticOutputId
+      ) {
+        return;
+      }
+      enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
       regenerateOutput({
         selectedToolOverride: tool,
         modelIdOverride: effectiveModelId,
-        outputIdOverride: options?.outputIdOverride,
+        outputIdOverride: optimisticOutputId ?? undefined,
         displayedBilledCredits: requiredCredits,
         displayedPricingPolicyVersion: activePricingPolicyVersion,
         displayedPricingVariantId:
@@ -577,6 +594,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       handleInsufficientCredits,
       isCreditGuardrail,
       isGenerateDisabled,
+      insertOptimisticGenerationPlaceholder,
       mode,
       model,
       isCharacterModeEnabled,

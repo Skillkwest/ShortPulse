@@ -120,4 +120,31 @@ describe("useVideoElementSlotsController", () => {
     );
     expect(onKlingElementsChange).not.toHaveBeenCalled();
   });
+
+  it("retains known video duration with a Seedance video asset slot", () => {
+    const onKlingElementsChange = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoElementSlotsController({
+        isSeedance2FamilyModelSelected: true,
+        klingElements: [],
+        onKlingElementsChange,
+      })
+    );
+
+    act(() => {
+      result.current.handleSeedanceElementMediaSlotChange(0, {
+        kind: "video",
+        url: "https://example.com/reference.mp4",
+        durationMs: 10_000,
+      });
+    });
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        sourceKind: "reference-video",
+        videoUrl: "https://example.com/reference.mp4",
+        videoDurationMs: 10_000,
+      }),
+    ]);
+  });
 });

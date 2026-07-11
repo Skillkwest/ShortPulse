@@ -6,6 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const uploadToSignedUrlMock = vi.hoisted(() => vi.fn());
+const storageFromMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    uploadToSignedUrl: (...args: unknown[]) => uploadToSignedUrlMock(...args),
+  }))
+);
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
@@ -14,9 +19,7 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: () => ({
     storage: {
-      from: () => ({
-        uploadToSignedUrl: (...args: unknown[]) => uploadToSignedUrlMock(...args),
-      }),
+      from: storageFromMock,
     },
   }),
 }));
@@ -33,6 +36,7 @@ describe("audioUpload", () => {
   beforeEach(() => {
     fetchWithAuthMock.mockReset();
     uploadToSignedUrlMock.mockReset();
+    storageFromMock.mockClear();
     uploadToSignedUrlMock.mockResolvedValue({ error: null });
   });
 
@@ -46,6 +50,8 @@ describe("audioUpload", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         target: {
+          intentId: "intent-1",
+          bucketId: "media_upload_staging",
           storagePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
           uploadToken: "upload-token",
           mimeType: "audio/mpeg",
@@ -101,6 +107,7 @@ describe("audioUpload", () => {
         upsert: false,
       }
     );
+    expect(storageFromMock).toHaveBeenCalledWith("media_upload_staging");
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/media/finalize-upload",
       expect.objectContaining({
@@ -109,6 +116,7 @@ describe("audioUpload", () => {
           "Content-Type": "application/json",
         }),
         body: JSON.stringify({
+          intentId: "intent-1",
           destinationTab: "uploaded_videos",
           sourceMimeType: "audio/mpeg",
           sourceName: "reference.mp3",
@@ -127,6 +135,8 @@ describe("audioUpload", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         target: {
+          intentId: "intent-1",
+          bucketId: "media_upload_staging",
           storagePath: "user-1/upload-staging/uploaded_videos/reference.mp3",
           uploadToken: "upload-token",
           mimeType: "audio/mpeg",

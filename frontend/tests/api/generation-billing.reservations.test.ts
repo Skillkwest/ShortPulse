@@ -7,8 +7,12 @@ import {
 import { resolveCreateImageBilledCreditLookup } from "../../lib/model-runtime/createImageBilledCredits";
 import { resolveEditImageBilledCreditLookup } from "../../lib/model-runtime/editImageBilledCredits";
 import { resolvePricingGridCostBreakdown } from "../../lib/model-runtime/pricingGridBilledCredits";
-import { resolveVideoBilledCreditLookup } from "../../lib/model-runtime/videoBilledCredits";
+import {
+  normalizeVideoBilledPricingParams,
+  resolveVideoBilledCreditLookup,
+} from "../../lib/model-runtime/videoBilledCredits";
 import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
+import { getModelConfig } from "../../lib/model-runtime/modelRegistry";
 import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "../../lib/model-runtime/klingMotionControlPricing";
 import {
   KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
@@ -62,10 +66,17 @@ const resolveTestBillingWorkflow = (
 ): GenerationBillingWorkflow => {
   if (VIDEO_MODEL_IDS.has(modelId)) return "video";
   if (AUDIO_MODEL_IDS.has(modelId)) return "audio";
-  if (Array.isArray(payload.image_urls) || typeof payload.image_url === "string") {
-    return "image";
+  const modelConfig = getModelConfig(modelId);
+  if (modelConfig?.supportsTextToImage && !modelConfig.supportsImageToImage) {
+    return "create_image";
   }
-  return "image";
+  if (modelConfig?.supportsImageToImage && !modelConfig.supportsTextToImage) {
+    return "edit_image";
+  }
+  if (Array.isArray(payload.image_urls) || typeof payload.image_url === "string") {
+    return "edit_image";
+  }
+  return "create_image";
 };
 
 const chargeTestGenerationRequest = (
@@ -127,9 +138,10 @@ const withVideoBilledCreditsOverride = ({
   credits: number;
   policy?: ModelPricingPolicyDocument;
 }): ModelPricingPolicyDocument => {
+  const normalizedParams = normalizeVideoBilledPricingParams(modelId, params);
   const variantId = resolvePricingGridCostBreakdown({
     modelId,
-    params,
+    params: normalizedParams,
     pricingPolicy: policy,
   })?.variantId;
   if (!variantId) return policy;
@@ -170,7 +182,7 @@ describe("generationBilling reservation RPC handling", () => {
       source: "contract",
     });
     resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
-      policy: getDefaultModelPricingPolicyDocument(),
+      policy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
       activePolicyVersion: null,
       activePolicyVersionId: null,
       source: "control_plane",
@@ -219,7 +231,7 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("rejects a stale displayed pricing policy before creating a reservation", async () => {
-    const policy = getDefaultModelPricingPolicyDocument();
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
       policy,
       activePolicyVersion: 12,
@@ -272,7 +284,7 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("normalizes prompt-only Seedance pricing evidence onto the no-video-input row", async () => {
-    const policy = getDefaultModelPricingPolicyDocument();
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
       policy,
       activePolicyVersion: 9,
@@ -340,7 +352,7 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("requires displayed pricing evidence from trusted image workflows even when client context omits the billing lane", async () => {
-    const policy = getDefaultModelPricingPolicyDocument();
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
       policy,
       activePolicyVersion: 12,
@@ -369,7 +381,7 @@ describe("generationBilling reservation RPC handling", () => {
       modelId: KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID,
       payload: { prompt: "portrait", aspect_ratio: "16:9", resolution: "1K" },
       reason: "Kie GPT Image 2 generation",
-      billingWorkflow: "image",
+      billingWorkflow: "create_image",
     });
 
     expect(charge).toBeNull();
@@ -384,7 +396,7 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("accepts matching displayed policy, variant, and billed credits", async () => {
-    const policy = getDefaultModelPricingPolicyDocument();
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
       policy,
       activePolicyVersion: 12,
@@ -433,7 +445,7 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("does not require displayed-price evidence for style-preview helper billing under an active policy", async () => {
-    const policy = getDefaultModelPricingPolicyDocument();
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
       policy,
       activePolicyVersion: 12,
@@ -788,7 +800,7 @@ describe("generationBilling reservation RPC handling", () => {
 
   it("fails closed when Create image canonical billed-credit rows are missing", async () => {
     resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
-      policy: getDefaultModelPricingPolicyDocument(),
+      policy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
       activePolicyVersion: 12,
       activePolicyVersionId: "policy-version-12",
       source: "control_plane",
@@ -854,6 +866,15 @@ describe("generationBilling reservation RPC handling", () => {
   });
 
   it("reserves Kie GPT Image 2 edit requests with edit pricing params", async () => {
+    const policy = materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument());
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy,
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [{ status: "reserved", source_ref: "req-kie-image-edit", message: null }],
       error: null,
@@ -878,19 +899,6 @@ describe("generationBilling reservation RPC handling", () => {
         mode: "image",
       },
     };
-
-    const charge = await chargeTestGenerationRequest({
-      req: req as never,
-      res: res as never,
-      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
-      payload,
-      reason: "Kie GPT Image 2 edit",
-      shortpulseContext: {
-        selected_tool: "edit",
-        mode: "image",
-      },
-    });
-
     const expectedPricingParams = buildPricingParams(
       KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       payload
@@ -898,9 +906,26 @@ describe("generationBilling reservation RPC handling", () => {
     const expectedLookup = resolveEditImageBilledCreditLookup({
       modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
       params: expectedPricingParams,
-      pricingPolicy: materializeImageBilledCreditPolicy(getDefaultModelPricingPolicyDocument()),
+      pricingPolicy: materializeImageBilledCreditPolicy(policy),
     });
     const expectedCredits = expectedLookup.breakdown?.credits ?? null;
+    const displayedPricingEvidence = {
+      selected_tool: "edit",
+      mode: "image",
+      displayed_pricing_policy_version: 12,
+      displayed_pricing_variant_id: expectedLookup.breakdown?.variantId,
+      displayed_billed_credits: expectedCredits,
+    };
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: KIE_GPT_IMAGE_2_IMAGE_TO_IMAGE_MODEL_ID,
+      payload,
+      reason: "Kie GPT Image 2 edit",
+      billingWorkflow: "edit_image",
+      shortpulseContext: displayedPricingEvidence,
+    });
 
     expect(charge).not.toBeNull();
     expect(expectedLookup.authorityMode).toBe("explicit_row");
@@ -1419,6 +1444,51 @@ describe("generationBilling reservation RPC handling", () => {
       })
     );
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before reservation when audio has calculator inputs but no published billing rule", async () => {
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValueOnce({
+      policy: getDefaultModelPricingPolicyDocument(),
+      activePolicyVersion: 12,
+      activePolicyVersionId: "policy-version-12",
+      source: "control_plane",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-audio-missing-published-price" },
+      url: "/api/elevenlabs/music",
+    };
+    const res = createMockResponse();
+    const payload = {
+      text: "Night-drive synth anthem",
+      duration_seconds: 30,
+    };
+
+    const charge = await chargeTestGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: ELEVENLABS_MUSIC_MODEL_ID,
+      payload,
+      reason: "ElevenLabs music missing published price",
+      billingWorkflow: "audio",
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Pricing is unavailable for this configuration.",
+    });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_missing_canonical_audio_price",
+        statusCode: 500,
+      })
+    );
   });
 
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {

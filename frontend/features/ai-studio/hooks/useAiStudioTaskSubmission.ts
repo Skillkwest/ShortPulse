@@ -85,7 +85,10 @@ import {
   getDurableLipSyncAudioUrl,
   getLipSyncAudioStoragePath,
 } from "../logic/lipSyncAudioState";
-import { resolveSeedanceElementProviderEligibility } from "../logic/klingElements";
+import {
+  collectSeedanceElementVideoReferenceDurations,
+  resolveSeedanceElementProviderEligibility,
+} from "../logic/klingElements";
 import {
   resolveSeedanceInputVideoDurationSeconds,
   resolveSeedanceVideoReferenceDurationLimitError,
@@ -169,6 +172,7 @@ export const useAiStudioTaskSubmission = ({
       setUiError(null);
       setUiNotice(null);
       const optimisticOutputId = options?.outputIdOverride;
+      let submissionOutputId = optimisticOutputId;
       const applySubmissionFailure = (
         outputId: string,
         patch: Parameters<typeof applySubmissionFailureToOutputs>[2]
@@ -179,8 +183,8 @@ export const useAiStudioTaskSubmission = ({
         });
       };
       const removeOptimisticPlaceholder = () => {
-        if (!optimisticOutputId) return;
-        setOutputs((prev) => prev.filter((item) => item.id !== optimisticOutputId));
+        if (!submissionOutputId) return;
+        setOutputs((prev) => prev.filter((item) => item.id !== submissionOutputId));
       };
       const effectiveMode = options?.modeOverride ?? mode;
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
@@ -250,11 +254,6 @@ export const useAiStudioTaskSubmission = ({
               ])
             )
           : [];
-      const seedance2InputVideoDurationSeconds = resolveSeedanceInputVideoDurationSeconds({
-        referenceVideoUrls: seedance2SubmitReferenceVideoUrls,
-        outputs,
-        persistedVideoReferences: effectiveSeedance2ReferenceVideoDurations,
-      });
       const seedance2ReferenceVideoDurations =
         effectiveSeedance2ReferenceVideoDurations.length > 0
           ? effectiveSeedance2ReferenceVideoDurations
@@ -262,6 +261,14 @@ export const useAiStudioTaskSubmission = ({
               referenceVideoUrls: effectiveSeedance2ReferenceVideoUrls,
               outputs,
             });
+      const seedance2InputVideoDurationSeconds = resolveSeedanceInputVideoDurationSeconds({
+        referenceVideoUrls: seedance2SubmitReferenceVideoUrls,
+        outputs,
+        persistedVideoReferences: [
+          ...collectSeedanceElementVideoReferenceDurations(effectiveKlingElements),
+          ...seedance2ReferenceVideoDurations,
+        ],
+      });
       const seedance2ReferenceVideoDurationLimitError = isSeedance2Submission
         ? resolveSeedanceVideoReferenceDurationLimitError(seedance2InputVideoDurationSeconds)
         : null;
@@ -337,6 +344,7 @@ export const useAiStudioTaskSubmission = ({
       beginPanelGeneration(submissionOwner);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
+        submissionOutputId = id;
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const sourceRef = submissionTraceId;
         markOutputSubmissionActive?.(id);
@@ -821,7 +829,7 @@ export const useAiStudioTaskSubmission = ({
               window.dispatchEvent(new Event(PRICING_POLICY_REFRESH_REQUESTED_EVENT));
               window.dispatchEvent(
                 new CustomEvent(PRICING_POLICY_CONFLICT_EVENT, {
-                  detail: { outputId: optimisticOutputId ?? null },
+                  detail: { outputId: submissionOutputId ?? null },
                 })
               );
             }

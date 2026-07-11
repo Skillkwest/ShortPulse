@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { randomUUID } from "node:crypto";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
@@ -20,6 +21,8 @@ type PrepareMediaUploadRequestBody = {
 
 type PrepareMediaUploadSuccessResponse = {
   target: {
+    intentId: string;
+    bucketId: "media_upload_staging";
     storagePath: string;
     uploadToken: string;
     mimeType: string;
@@ -50,6 +53,12 @@ const PREPARE_MEDIA_UPLOAD_RATE_LIMIT = {
   maxRequests: 20,
   windowMs: 10 * 60 * 1000,
 } as const;
+
+const resolveUploadIdempotencyKey = (req: NextApiRequest): string => {
+  const header = req.headers?.["x-shortpulse-request-id"];
+  const value = Array.isArray(header) ? header[0] : header;
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : randomUUID();
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -111,6 +120,7 @@ export default async function handler(
 
     const prepared = await prepareMediaUploadForUser({
       userId: user.id,
+      idempotencyKey: resolveUploadIdempotencyKey(req),
       destinationTab,
       filename: sourceName,
       declaredMimeType: sourceMimeType,
@@ -118,6 +128,8 @@ export default async function handler(
 
     return res.status(200).json({
       target: {
+        intentId: prepared.intentId,
+        bucketId: prepared.bucketId,
         storagePath: prepared.path,
         uploadToken: prepared.token,
         mimeType: prepared.mimeType,

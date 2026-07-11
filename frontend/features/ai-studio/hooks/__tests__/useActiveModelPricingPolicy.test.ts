@@ -2,7 +2,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import { PRICING_POLICY_REFRESH_REQUESTED_EVENT } from "../../../../lib/model-runtime/pricingPolicyFreshness";
 import { useActiveModelPricingPolicy } from "../useActiveModelPricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -10,10 +12,10 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
-const createPolicyPayload = () => ({
+const createPolicyPayload = (activePolicyVersion = 12) => ({
   modelPolicy: {
     version: "runtime-default-v1",
-    activePolicyVersion: 12,
+    activePolicyVersion,
     policySource: "control_plane" as const,
     updatedAt: "2026-04-27T17:00:00.000Z",
     updatedByEmail: "ops@example.com",
@@ -22,7 +24,7 @@ const createPolicyPayload = () => ({
     defaultRoundingMode: "ceil" as const,
     defaultRoundingIncrement: 1,
     overrideCount: 1,
-    document: {
+    document: materializeImageBilledCreditPolicy({
       schemaVersion: 1 as const,
       global: {
         creditUsdScale: 100,
@@ -34,7 +36,7 @@ const createPolicyPayload = () => ({
           roundingIncrement: 1,
         },
       },
-    },
+    }),
   },
 });
 
@@ -74,14 +76,11 @@ describe("useActiveModelPricingPolicy", () => {
         ?.roundingIncrement
     ).toBe(1);
     expect(
-      result.current.modelPricingPolicy?.perModel[KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]
-        ?.runtimeAuthorities?.create_image
-    ).toEqual({
-      mode: "runtime_quantity_derived",
-      workflow: "create_image",
-      unitBasis: "per_image",
-      quantityDrivers: ["generation_count"],
-    });
+      Object.values(
+        result.current.modelPricingPolicy?.perModel[KIE_GPT_IMAGE_2_TEXT_TO_IMAGE_MODEL_ID]
+          ?.variants ?? {}
+      ).some((variant) => variant.billedCreditsOverride != null)
+    ).toBe(true);
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/pricing/model-policy", {
       cache: "no-store",
       method: "GET",
@@ -147,5 +146,59 @@ describe("useActiveModelPricingPolicy", () => {
 
     expect(first.result.current.modelPricingPolicyReady).toBe(true);
     expect(second.result.current.modelPricingPolicyReady).toBe(true);
+  });
+
+  it("invalidates readiness and waits for a genuinely fresh request after a pricing conflict", async () => {
+    const responseResolvers: Array<(response: Response) => void> = [];
+    fetchWithAuthMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          responseResolvers.push(resolve);
+        })
+    );
+
+    const { result } = renderHook(() => useActiveModelPricingPolicy({ enabled: true }));
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new Event(PRICING_POLICY_REFRESH_REQUESTED_EVENT));
+      window.dispatchEvent(new Event(PRICING_POLICY_REFRESH_REQUESTED_EVENT));
+    });
+
+    expect(result.current.modelPricingPolicyReady).toBe(false);
+    expect(result.current.modelPricingPolicyLoading).toBe(true);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      responseResolvers[0]?.(
+        new Response(JSON.stringify(createPolicyPayload(12)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    });
+    expect(result.current.modelPricingPolicyReady).toBe(false);
+
+    act(() => {
+      responseResolvers[1]?.(
+        new Response(JSON.stringify(createPolicyPayload(13)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.modelPricingPolicyLoading).toBe(false);
+    });
+
+    expect(result.current.modelPricingPolicyReady).toBe(true);
+    expect(result.current.modelPricingPolicySnapshot?.activePolicyVersion).toBe(13);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
   });
 });

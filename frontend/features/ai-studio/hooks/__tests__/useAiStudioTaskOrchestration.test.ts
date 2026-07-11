@@ -587,8 +587,8 @@ describe("useAiStudioTaskOrchestration", () => {
       createOutput({
         id: "out-task-resume",
         taskId: "req-task-resume",
-        provider: "fal",
-        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        provider: "kie",
+        modelId: "kie-ai/seedance-2",
         taskState: "running",
         timestamp: "Waiting for server recovery...",
         mediaSource: "generated",
@@ -644,7 +644,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-task-resume",
       "out-task-resume",
       0,
-      expect.anything()
+      "kie-seedance-2"
     );
   });
 

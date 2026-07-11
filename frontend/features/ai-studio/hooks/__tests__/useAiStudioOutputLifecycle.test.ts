@@ -473,6 +473,51 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
+  it("classifies sourceRef-only expiry as server recovery rather than provider handoff", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("out-source-ref-timeout", {
+              taskState: "running",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              sourceRef: "src-recovery-timeout",
+              timestamp: "Waiting for server recovery...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.errorMessage).toBe("Generation timed out. Please retry.");
+      expect(result.current.outputs[0]?.errorDetail).toBe(
+        "The generation stopped making progress during server recovery. Please retry."
+      );
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "generation.server_recovery_stale_timeout",
+          message: "Generation stopped making progress during server recovery.",
+          metadata: expect.objectContaining({
+            output_id: "out-source-ref-timeout",
+            task_id: null,
+            source_ref: "src-recovery-timeout",
+            failure_reason_code: "SERVER_RECOVERY_TIMEOUT",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not submit-start timeout direct-request placeholders before the direct-request budget", async () => {
     vi.useFakeTimers();
     try {

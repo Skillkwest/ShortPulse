@@ -266,6 +266,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
             generationCount: 1,
           },
           pricingPolicy,
+          requirePublishedBillingRule: true,
         })
       : null) ?? null;
   const hasKnownGenerateCost = generateCost != null;

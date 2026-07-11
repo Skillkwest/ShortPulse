@@ -70,6 +70,7 @@ type PressureQuarantineInput = {
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
   heapUsageRatio: number | null;
+  heapLimitUsageRatio: number | null;
 };
 
 type StabilityEventOptions = {
@@ -304,13 +305,15 @@ export const maybeMarkAiStudioPressureQuarantine = ({
   longTaskP95Ms,
   maxInputStallMs,
   heapUsageRatio,
+  heapLimitUsageRatio,
 }: PressureQuarantineInput): boolean => {
   if (level < 2) return false;
   if (readStoredPressureQuarantine()) return false;
 
   const severeLongTask = typeof longTaskP95Ms === "number" && longTaskP95Ms >= SEVERE_LONG_TASK_MS;
   const severeInputStall = maxInputStallMs >= SEVERE_INPUT_STALL_MS;
-  const severeHeap = typeof heapUsageRatio === "number" && heapUsageRatio >= SEVERE_HEAP_RATIO;
+  const severeHeap =
+    typeof heapLimitUsageRatio === "number" && heapLimitUsageRatio >= SEVERE_HEAP_RATIO;
   if (!severeLongTask && !severeInputStall && !severeHeap) return false;
 
   const updatedAt = nowMs();
@@ -327,6 +330,7 @@ export const maybeMarkAiStudioPressureQuarantine = ({
     long_task_p95_ms: longTaskP95Ms,
     max_input_stall_ms: maxInputStallMs,
     heap_usage_ratio: heapUsageRatio,
+    heap_used_to_limit_ratio: heapLimitUsageRatio,
   });
   return true;
 };

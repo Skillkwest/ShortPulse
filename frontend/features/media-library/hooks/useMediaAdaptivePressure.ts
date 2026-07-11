@@ -51,18 +51,18 @@ type UseMediaAdaptivePressureArgs = {
 export const evaluateMediaAdaptiveCandidateLevel = ({
   longTaskP95Ms,
   maxInputStallMs,
-  heapUsageRatio,
+  heapLimitUsageRatio,
   memoryGuardEnabled,
 }: {
   longTaskP95Ms: number | null;
   maxInputStallMs: number;
-  heapUsageRatio: number | null;
+  heapLimitUsageRatio: number | null;
   memoryGuardEnabled: boolean;
 }): AdaptivePressureLevel =>
   evaluateAdaptivePressureCandidateLevel({
     longTaskP95Ms,
     maxInputStallMs,
-    heapUsageRatio,
+    heapLimitUsageRatio,
     memoryGuardEnabled,
   });
 

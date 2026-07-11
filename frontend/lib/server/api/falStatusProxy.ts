@@ -537,17 +537,27 @@ export const createFalStatusHandler = ({
         providerState,
       });
       if (canonicalPayload) return canonicalPayload;
-      return respondError({
-        res,
-        requestId,
-        error: "Generation completed but canonical media was unavailable.",
-        detail: {
-          provider_state: providerState,
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.api.fal_status.direct_settlement_readback_pending",
+        message: "Canonical media readback was still pending after successful settlement.",
+        statusCode: 200,
+        userId: user.id,
+        userEmail: user.email ?? null,
+        metadata: {
           provider_request_id: requestId,
+          provider_state: providerState,
+          generation_id: settlement.generationId,
         },
-        alwaysHttp200,
-        statusCode: 500,
+      });
+      return respondRecoveryPendingPayload({
+        providerState,
         generationId: settlement.generationId,
+        detail: {
+          stage: "canonical_readback",
+          settlement_state: "settled",
+        },
       });
     };
     const settleCanonicalFailedPayload = async ({
@@ -667,9 +677,11 @@ export const createFalStatusHandler = ({
     };
     const respondRecoveryPendingPayload = ({
       providerState,
+      generationId: pendingGenerationId = generationId,
       detail,
     }: {
       providerState: string | null;
+      generationId?: string | null;
       detail?: unknown;
     }) =>
       sendJsonResponse({
@@ -678,7 +690,7 @@ export const createFalStatusHandler = ({
         payload: buildFalStatusTransientPayload({
           requestId,
           detail,
-          generationId,
+          generationId: pendingGenerationId,
           lifecycle: buildShortPulseLifecycleHint({
             taskState: "running",
             isTerminal: false,
@@ -1319,17 +1331,28 @@ export const createFalStatusHandler = ({
               providerState: resultStatus ?? normalizedStatus ?? "completed",
             });
             if (canonicalPayload) return canonicalPayload;
-            return respondError({
-              res,
-              requestId,
-              error: "Generation completed but canonical media was unavailable.",
-              detail: {
-                provider_state: resultStatus ?? normalizedStatus ?? "completed",
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "telemetry.api.fal_status.recovery_readback_pending",
+              message: "Canonical media readback was still pending after successful recovery.",
+              statusCode: 200,
+              userId: user.id,
+              userEmail: user.email ?? null,
+              metadata: {
                 provider_request_id: requestId,
+                provider_state: resultStatus ?? normalizedStatus ?? "completed",
+                generation_id: recoveryResult.generationId ?? generationId,
+                recovery_state: recoveryResult.state,
               },
-              alwaysHttp200,
-              statusCode: 500,
+            });
+            return respondRecoveryPendingPayload({
+              providerState: resultStatus ?? normalizedStatus ?? "completed",
               generationId: recoveryResult.generationId ?? generationId,
+              detail: {
+                stage: "canonical_readback",
+                recovery_state: recoveryResult.state,
+              },
             });
           }
           if (recoveryResult.state === "provider_failed" || recoveryResult.state === "exhausted") {

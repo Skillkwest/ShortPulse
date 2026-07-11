@@ -234,6 +234,8 @@ describe("taskSubmission outputBootstrap", () => {
         {
           id: "element-1",
           profileImageUrl: "https://example.com/element-profile.png",
+          videoUrl: "https://example.com/element-video.mp4",
+          videoDurationMs: 10_000,
           audioUrl: "https://example.com/element-audio.mp3",
         },
       ],
@@ -285,6 +287,8 @@ describe("taskSubmission outputBootstrap", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: "https://example.com/element-profile.png",
+                videoUrl: "https://example.com/element-video.mp4",
+                videoDurationMs: 10_000,
                 audioUrl: "https://example.com/element-audio.mp3",
                 slotIndex: 0,
               },

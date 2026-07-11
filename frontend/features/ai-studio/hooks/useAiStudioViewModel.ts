@@ -37,6 +37,7 @@ import { FAL_OMNIHUMAN_V15_MODEL_ID } from "../../../lib/model-runtime/falModelI
 import { normalizeDurationForModel } from "../../../lib/model-runtime/modelDurationConstraints";
 import { needsVideoUpload } from "../utils/videoUpload";
 import {
+  collectSeedanceElementVideoReferenceDurations,
   resolveKieKlingElementsValidationMessage,
   resolveSeedanceElementProviderEligibility,
   resolveSeedanceReferenceRequirementError,
@@ -281,13 +282,18 @@ export const useAiStudioViewModel = ({
       seedanceLinkedElementEligibilities,
     ]
   );
+  const seedance2ElementVideoDurations = useMemo(
+    () => collectSeedanceElementVideoReferenceDurations(klingElements),
+    [klingElements]
+  );
   const seedance2InputVideoDurationSeconds = useMemo(
     () =>
       resolveSeedanceInputVideoDurationSeconds({
         referenceVideoUrls: seedance2PricingReferenceVideoUrls,
         outputs,
+        persistedVideoReferences: seedance2ElementVideoDurations,
       }),
-    [outputs, seedance2PricingReferenceVideoUrls]
+    [outputs, seedance2ElementVideoDurations, seedance2PricingReferenceVideoUrls]
   );
   const seedance2ReferenceVideoDurationGuardrail = useMemo(
     () =>

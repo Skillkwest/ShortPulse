@@ -3,10 +3,12 @@
  * Verifies the standalone Sound Effects workflow now uses the simplified single-surface composer.
  */
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS } from "../../../../lib/model-runtime/elevenLabsModels";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
+import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import { preparePromptReferenceDrag } from "../../utils/dragDrop";
@@ -14,6 +16,17 @@ import {
   hardcodedSoundEffectsModelId,
   SoundEffectsPropertiesPanel,
 } from "../SoundEffectsPropertiesPanel";
+
+const publishedPricingPolicy = materializeImageBilledCreditPolicy(
+  getDefaultModelPricingPolicyDocument()
+);
+const render = (ui: React.ReactElement, options?: Parameters<typeof rtlRender>[1]) =>
+  rtlRender(
+    ui.type === SoundEffectsPropertiesPanel
+      ? React.cloneElement(ui, { pricingPolicy: publishedPricingPolicy })
+      : ui,
+    options
+  );
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 

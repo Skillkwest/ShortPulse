@@ -641,6 +641,7 @@ describe("useAiStudioGenerationController", () => {
   it("regenerates with optimistic debit and submission overrides", async () => {
     const setOptimisticDebitEntries = vi.fn();
     const regenerateOutput = vi.fn();
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-regenerate");
     const setUiNotice = vi.fn();
     const resolveDefaultPromptForTool = vi.fn(() => "default prompt");
     const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => ({ bundle: true }));
@@ -661,9 +662,11 @@ describe("useAiStudioGenerationController", () => {
     }));
     const params = createParams({
       currentCostCredits: 7,
+      activeOutputId: "out-previous-selection",
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
       regenerateOutput,
+      insertOptimisticGenerationPlaceholder,
       setUiNotice: asDispatch<string | null>(setUiNotice),
       resolveDefaultPromptForTool,
       refreshCharacterModeInjectionBundleForSubmission,
@@ -677,6 +680,13 @@ describe("useAiStudioGenerationController", () => {
 
     expect(resolveDefaultPromptForTool).toHaveBeenCalledWith("video");
     expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("video");
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith({
+      prompt: "display",
+      modeOverride: "image",
+      selectedToolOverride: "video",
+      modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      submissionModeOverride: "provider-task",
+    });
     expect(regenerateOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         selectedToolOverride: "video",
@@ -685,6 +695,7 @@ describe("useAiStudioGenerationController", () => {
         displayPromptOverride: "display",
         referenceInputsOverride: ["https://example.com/ref.png"],
         displayedBilledCredits: 7,
+        outputIdOverride: "out-regenerate",
         characterContextOverride: {
           applied: true,
           characterId: "char-1",
@@ -703,8 +714,49 @@ describe("useAiStudioGenerationController", () => {
       | undefined;
     expect(typeof updater).toBe("function");
     expect(updater?.([])).toEqual([
-      expect.objectContaining({ credits: 7, outputId: null, createdAtMs: expect.any(Number) }),
+      expect.objectContaining({
+        credits: 7,
+        outputId: "out-regenerate",
+        createdAtMs: expect.any(Number),
+      }),
     ]);
+  });
+
+  it("keys regenerate optimistic debit to an explicit new output placeholder", async () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const regenerateOutput = vi.fn();
+    const params = createParams({
+      currentCostCredits: 7,
+      activeOutputId: "out-previous-selection",
+      setOptimisticDebitEntries:
+        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        outputIdOverride: "out-new-generation",
+      });
+    });
+
+    const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
+      | ((prev: { credits: number; outputId: string | null }[]) => {
+          credits: number;
+          outputId: string | null;
+          createdAtMs?: number;
+        }[])
+      | undefined;
+    expect(updater?.([])).toEqual([
+      expect.objectContaining({
+        credits: 7,
+        outputId: "out-new-generation",
+        createdAtMs: expect.any(Number),
+      }),
+    ]);
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ outputIdOverride: "out-new-generation" })
+    );
   });
 
   it("forwards explicit image regenerate reference overrides", async () => {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateAdaptivePressureCandidateLevel,
+  resolveAdaptiveHeapLimitUsageRatio,
+  resolveAdaptiveHeapUsageRatio,
   resolveAdaptivePressurePhase,
   resolveAdaptivePressureDelayedRecoveryTransition,
   resolveAdaptivePressureTransition,
@@ -59,7 +61,7 @@ describe("adaptive-media pressure transitions", () => {
       evaluateAdaptivePressureCandidateLevel({
         longTaskP95Ms: 110,
         maxInputStallMs: 120,
-        heapUsageRatio: 0.5,
+        heapLimitUsageRatio: 0.5,
         memoryGuardEnabled: true,
       })
     ).toBe(2);
@@ -67,10 +69,42 @@ describe("adaptive-media pressure transitions", () => {
       evaluateAdaptivePressureCandidateLevel({
         longTaskP95Ms: 72,
         maxInputStallMs: 120,
-        heapUsageRatio: 0.5,
+        heapLimitUsageRatio: 0.5,
         memoryGuardEnabled: true,
       })
     ).toBe(1);
+  });
+
+  it("keeps used-to-allocated telemetry separate from browser-limit enforcement", () => {
+    const runtimePerformance = {
+      memory: {
+        usedJSHeapSize: 16 * 1024 * 1024,
+        totalJSHeapSize: 17 * 1024 * 1024,
+        jsHeapSizeLimit: 4 * 1024 * 1024 * 1024,
+      },
+    } as unknown as Performance;
+
+    expect(resolveAdaptiveHeapUsageRatio(runtimePerformance)).toBe(0.941);
+    expect(resolveAdaptiveHeapLimitUsageRatio(runtimePerformance)).toBe(0.004);
+    expect(
+      evaluateAdaptivePressureCandidateLevel({
+        longTaskP95Ms: null,
+        maxInputStallMs: 0,
+        heapLimitUsageRatio: resolveAdaptiveHeapLimitUsageRatio(runtimePerformance),
+        memoryGuardEnabled: true,
+      })
+    ).toBe(0);
+  });
+
+  it("retains critical memory protection near the browser heap limit", () => {
+    expect(
+      evaluateAdaptivePressureCandidateLevel({
+        longTaskP95Ms: null,
+        maxInputStallMs: 0,
+        heapLimitUsageRatio: 0.9,
+        memoryGuardEnabled: true,
+      })
+    ).toBe(2);
   });
 
   it("maps numeric pressure levels to stable named phases", () => {

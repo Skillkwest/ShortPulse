@@ -384,6 +384,8 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           target: {
+            intentId: "intent-1",
+            bucketId: "media_upload_staging",
             storagePath: "user-1/upload-staging/uploaded_images/large-reference.webp",
             uploadToken: "token-1",
             mimeType: "image/webp",
@@ -413,6 +415,7 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
     });
 
     expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledWith(sourceFile);
+    expect(storageFromMock).toHaveBeenCalledWith("media_upload_staging");
     expect(fetchWithAuthMock).toHaveBeenNthCalledWith(
       1,
       "/api/media/prepare-upload",
@@ -440,7 +443,7 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
       expect.objectContaining({
         method: "POST",
         body: expect.stringContaining(
-          '"sourceStoragePath":"user-1/upload-staging/uploaded_images/large-reference.webp"'
+          '"intentId":"intent-1","destinationTab":"uploaded_images","sourceMimeType":"image/webp","sourceName":"large-reference.png","sourceStoragePath":"user-1/upload-staging/uploaded_images/large-reference.webp"'
         ),
       })
     );
@@ -472,6 +475,8 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       jsonResponse({
         target: {
+          intentId: "intent-1",
+          bucketId: "media_upload_staging",
           storagePath: "user-1/upload-staging/uploaded_videos/oversized-reference.mp4",
           uploadToken: "token-1",
           mimeType: "video/mp4",
@@ -500,6 +505,8 @@ describe("mediaLibraryPanelApi.uploadMediaFile", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           target: {
+            intentId: "intent-1",
+            bucketId: "media_upload_staging",
             storagePath: "user-1/upload-staging/uploaded_images/oversized-reference.gif",
             uploadToken: "token-1",
             mimeType: "image/gif",

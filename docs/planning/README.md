@@ -22,6 +22,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
+- `docs/planning/architecture-audit-agent-handoffs-2026-07-11/README.md`
 - `docs/documentation_overview.md`
 - `docs/planning/validation-matrix-by-program-2026-05-11.md`
 

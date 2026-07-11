@@ -4,7 +4,6 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
-import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
 
 export type AudioUploadResult = {
   url: string;
@@ -20,6 +19,8 @@ type AudioBlobUploadOptions = {
 
 type PrepareMediaUploadPayload = {
   target?: {
+    intentId?: unknown;
+    bucketId?: unknown;
     storagePath?: unknown;
     uploadToken?: unknown;
     mimeType?: unknown;
@@ -247,6 +248,14 @@ export const uploadAudioBlobToStorage = async (
     typeof preparePayload?.target?.storagePath === "string"
       ? preparePayload.target.storagePath.trim()
       : "";
+  const intentId =
+    typeof preparePayload?.target?.intentId === "string"
+      ? preparePayload.target.intentId.trim()
+      : "";
+  const bucketId =
+    typeof preparePayload?.target?.bucketId === "string"
+      ? preparePayload.target.bucketId.trim()
+      : "";
   const uploadToken =
     typeof preparePayload?.target?.uploadToken === "string"
       ? preparePayload.target.uploadToken.trim()
@@ -258,7 +267,13 @@ export const uploadAudioBlobToStorage = async (
   const preparedName =
     typeof preparePayload?.target?.name === "string" ? preparePayload.target.name.trim() : filename;
 
-  if (!prepareResponse.ok || !storagePath || !uploadToken) {
+  if (
+    !prepareResponse.ok ||
+    !intentId ||
+    bucketId !== "media_upload_staging" ||
+    !storagePath ||
+    !uploadToken
+  ) {
     const errorMessage =
       typeof preparePayload?.details === "string" && preparePayload.details.trim().length
         ? preparePayload.details.trim()
@@ -273,7 +288,7 @@ export const uploadAudioBlobToStorage = async (
     stage: "upload_audio_storage",
     timeoutMs: UPLOAD_AUDIO_STORAGE_TIMEOUT_MS,
     run: async () =>
-      await supabase.storage.from(BUCKET).uploadToSignedUrl(storagePath, uploadToken, blob, {
+      await supabase.storage.from(bucketId).uploadToSignedUrl(storagePath, uploadToken, blob, {
         contentType: preparedMimeType,
         upsert: false,
       }),
@@ -292,6 +307,7 @@ export const uploadAudioBlobToStorage = async (
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          intentId,
           destinationTab: "uploaded_videos",
           sourceMimeType: preparedMimeType,
           sourceName: preparedName,

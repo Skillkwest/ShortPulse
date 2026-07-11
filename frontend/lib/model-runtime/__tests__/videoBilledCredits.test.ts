@@ -14,14 +14,15 @@ import {
   type ModelPricingPolicyDocument,
 } from "../pricingPolicy";
 import { resolveVideoBilledCreditLookup, resolveVideoBilledCredits } from "../videoBilledCredits";
+import { materializeImageBilledCreditPolicy } from "../materializeImageBilledCreditPolicy";
 
-const pricingPolicy = {
+const pricingPolicy = materializeImageBilledCreditPolicy({
   ...getDefaultModelPricingPolicyDocument(),
   global: {
     ...getDefaultModelPricingPolicyDocument().global,
     creditUsdScale: 30,
   },
-};
+});
 
 const withVideoBilledCreditsOverride = ({
   modelId,

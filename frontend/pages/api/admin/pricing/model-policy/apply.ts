@@ -9,6 +9,7 @@ import {
   modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
 } from "../../../../../lib/model-runtime/pricingPolicy";
+import { materializeImageBilledCreditPolicy } from "../../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import { applyModelPricingPolicy } from "../../../../../lib/server/api/modelPricingControlPlane";
@@ -57,12 +58,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!adminUser) return;
 
   const body = (req.body ?? {}) as ApplyModelPricingPolicyRequest;
-  const policy = compactModelPricingPolicyDocument(body.policy);
   const customRows = compactAdminPricingCustomRowsDocument(body.customRows);
   const note = normalizeText(body.note, 400);
   const reason = normalizeText(body.reason, 400);
 
   try {
+    const policy = materializeImageBilledCreditPolicy(
+      compactModelPricingPolicyDocument(body.policy),
+      customRows,
+      { requireComplete: true }
+    );
     const result = await applyModelPricingPolicy({
       policy,
       customRows,

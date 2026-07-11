@@ -74,5 +74,6 @@ describe("Admin Ophestivus page", () => {
       "page"
     );
     expect(screen.getByLabelText("Admin task status columns")).toBeInTheDocument();
+    expect(document.querySelector("main")?.className).toContain("adminKanbanPageWide");
   });
 });

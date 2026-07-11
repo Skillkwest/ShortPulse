@@ -31,6 +31,7 @@ import {
   createUploadedAudioInternalMediaRef,
   createUploadedVideoInternalMediaRef,
 } from "./referencePropertiesTypes";
+import { loadVideoPreviewMetadata } from "../logic/videoPreviewMetadata";
 
 type ServerCopiedMediaResponse = {
   storagePath?: unknown;
@@ -162,15 +163,44 @@ export const stageSeedanceVideoSelection = async ({
   videoFile,
   videoUrl,
   storagePath,
+  durationMs,
 }: {
   videoFile?: File | null;
   videoUrl?: string | null;
   storagePath?: string | null;
-}): Promise<{ url: string; name?: string | null } | null> => {
+  durationMs?: number | null;
+}): Promise<{ url: string; name?: string | null; durationMs?: number } | null> => {
+  const knownDurationMs =
+    typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+      ? Math.round(durationMs)
+      : null;
+  const resolveDurationMs = async (): Promise<number | null> => {
+    if (knownDurationMs != null) return knownDurationMs;
+    if (videoFile && typeof URL.createObjectURL !== "function") return null;
+    const sourceUrl = videoFile ? URL.createObjectURL(videoFile) : (videoUrl?.trim() ?? "");
+    if (!sourceUrl) return null;
+    try {
+      const preview = await loadVideoPreviewMetadata(sourceUrl, { loadTimeoutMs: 2_000 });
+      return typeof preview.durationMs === "number" && preview.durationMs > 0
+        ? Math.round(preview.durationMs)
+        : null;
+    } catch {
+      return null;
+    } finally {
+      if (videoFile && typeof URL.revokeObjectURL === "function") URL.revokeObjectURL(sourceUrl);
+    }
+  };
+  const durationPromise = resolveDurationMs();
+  const withDuration = async <T extends { url: string; name?: string | null }>(
+    staged: T
+  ): Promise<T & { durationMs?: number }> => {
+    const resolvedDurationMs = await durationPromise;
+    return resolvedDurationMs != null ? { ...staged, durationMs: resolvedDurationMs } : staged;
+  };
   if (videoFile) {
     const uploaded = await uploadReferenceVideoFileToStorage(videoFile);
     registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-    return { url: uploaded.url, name: uploaded.name ?? videoFile.name };
+    return await withDuration({ url: uploaded.url, name: uploaded.name ?? videoFile.name });
   }
   const normalizedUrl = videoUrl?.trim() ?? "";
   if (!normalizedUrl) return null;
@@ -184,22 +214,25 @@ export const stageSeedanceVideoSelection = async ({
         storagePath: normalizedStoragePath,
       })
     );
-    return { url: normalizedUrl };
+    return await withDuration({ url: normalizedUrl });
   }
   if (existingInternalRef?.storagePath) {
-    return { url: normalizedUrl };
+    return await withDuration({ url: normalizedUrl });
   }
   if (normalizedUrl.startsWith("blob:") || /^data:video\//i.test(normalizedUrl)) {
     const uploaded = await uploadReferenceVideoAssetToStorage(normalizedUrl);
     registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-    return { url: uploaded.url, name: uploaded.name ?? null };
+    return await withDuration({ url: uploaded.url, name: uploaded.name ?? null });
   }
   if (isHttpMediaSourceUrl(normalizedUrl)) {
     const uploaded = await copyRemoteSeedanceMediaToStorage(normalizedUrl, "video");
     registerInternalMediaRefForUrl(uploaded.url, createUploadedVideoInternalMediaRef(uploaded));
-    return { url: uploaded.url, name: "name" in uploaded ? (uploaded.name ?? null) : null };
+    return await withDuration({
+      url: uploaded.url,
+      name: "name" in uploaded ? (uploaded.name ?? null) : null,
+    });
   }
-  return { url: normalizedUrl };
+  return await withDuration({ url: normalizedUrl });
 };
 
 /**

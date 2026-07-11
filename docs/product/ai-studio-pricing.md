@@ -22,10 +22,10 @@ Short version: the admin pricing grid now owns final AI usage billed credits. Mo
 
 - Model config includes lifecycle/surface metadata, `pricingStrategy`, and optional `sizeMap` for dimension-aware strategies.
 - AI Studio picker options are derived from active catalog models with the `picker` surface; `/admin/pricing` model rows are derived from active, billable catalog models with the `pricing` surface.
-- The canonical AI usage billed-credit value is the operator-authored `Billed credits` variant row from `/admin/pricing`.
+- The canonical AI usage billed-credit value is the published `Billed credits` result calculated by `/admin/pricing` from admin-controlled inputs.
 - Billable UI surfaces must resolve and display that exact canonical billed-credit row for the user's real billed configuration.
 - Server-side debit must resolve and charge that same canonical billed-credit row for the same configuration.
-- If the canonical billed-credit variant row is unavailable, billable UI and debit must fail closed instead of inventing fallback credits.
+- If the canonical published fixed row or self-contained quantity rule is unavailable, billable UI and debit must fail closed instead of inventing fallback credits. Quantity rules preserve the admin workbook's cost-credit rounding followed by its snapshotted markup and final rounding increment; runtime does not consult provider-rate inputs.
 - Defaults for duration/resolution/audio come from catalog/registry and drive both UI estimate chips and server charge inputs.
 - Shared-policy/runtime pricing math is deprecated as final billed-credit authority. It may remain temporarily as migration plumbing only until billed display and debit paths are fully moved onto canonical variant-row lookup.
 - Active model-pricing policy document fields:

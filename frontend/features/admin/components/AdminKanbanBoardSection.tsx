@@ -10,7 +10,6 @@ import {
   ClockCounterClockwise,
   DotsSixVertical,
   Plus,
-  Trash,
   X,
 } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -105,7 +104,7 @@ const readItemPayload = async (response: Response): Promise<AdminKanbanItem | nu
 };
 
 /**
- * Renders the shared Ophestivus board with add, move, drag/drop, and archive controls.
+ * Renders the shared Ophestivus board with add, move, and drag/drop controls.
  * Inputs: none.
  * Outputs: the Ophestivus board UI.
  * Side effects: reads and writes the admin kanban API through the active Supabase session.
@@ -228,25 +227,6 @@ export function AdminKanbanBoardSection() {
       refreshActionLogIfOpen();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to move kanban item.");
-    } finally {
-      setActionItemId(null);
-    }
-  };
-
-  const archiveItem = async (itemId: string) => {
-    setActionItemId(itemId);
-    setErrorMessage(null);
-    try {
-      const response = await fetchWithAuth(`/api/admin/kanban/items/${itemId}/archive`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error(await readErrorMessage(response, "Unable to archive kanban item."));
-      }
-      setItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
-      refreshActionLogIfOpen();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to archive kanban item.");
     } finally {
       setActionItemId(null);
     }
@@ -409,16 +389,6 @@ export function AdminKanbanBoardSection() {
                               <p className={styles.itemDetails}>{getVisibleItemDetails(item)}</p>
                             ) : null}
                           </div>
-                          <button
-                            type="button"
-                            className={`${styles.iconButton} ${styles.deleteButton}`}
-                            onClick={() => void archiveItem(item.id)}
-                            disabled={actionItemId === item.id}
-                            aria-label={`Archive ${item.title}`}
-                            title={`Archive ${item.title}`}
-                          >
-                            <Trash size={16} weight="bold" />
-                          </button>
                         </div>
 
                         <div className={styles.itemActions}>

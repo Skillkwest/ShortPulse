@@ -2,8 +2,9 @@
  * Agent-output bubble linking hook.
  * Maps assistant message ids to optimistic output ids and derives thumbnail/link state.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentOutputBubbleMediaState } from "../../../../prefabs/agent";
+import { PRICING_POLICY_CONFLICT_EVENT } from "../../../../lib/model-runtime/pricingPolicyFreshness";
 import type { StudioOutput } from "../../types";
 
 const STALE_LINK_PRUNE_AGE_MS = 5 * 60 * 1000;
@@ -28,12 +29,14 @@ export const useAgentOutputBubbleLinking = ({
   const [outputLinksByMessageId, setOutputLinksByMessageId] = useState<Record<string, LinkEntry>>(
     {}
   );
+  const rejectedOutputIdsRef = useRef<Set<string>>(new Set());
 
   const registerOutputLink = useCallback(
     ({ messageId, optimisticOutputId }: { messageId: string; optimisticOutputId: string }) => {
       const normalizedMessageId = messageId.trim();
       const normalizedOutputId = optimisticOutputId.trim();
       if (!normalizedMessageId || !normalizedOutputId) return;
+      if (rejectedOutputIdsRef.current.delete(normalizedOutputId)) return;
       setOutputLinksByMessageId((prev) => ({
         ...prev,
         [normalizedMessageId]: {
@@ -44,6 +47,25 @@ export const useAgentOutputBubbleLinking = ({
     },
     []
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const unlinkRejectedOutput = (event: Event) => {
+      const outputId = (
+        event as CustomEvent<{ outputId?: string | null }>
+      ).detail?.outputId?.trim();
+      if (!outputId) return;
+      rejectedOutputIdsRef.current.add(outputId);
+      setOutputLinksByMessageId((prev) => {
+        const nextEntries = Object.entries(prev).filter(([, entry]) => entry.outputId !== outputId);
+        return nextEntries.length === Object.keys(prev).length
+          ? prev
+          : Object.fromEntries(nextEntries);
+      });
+    };
+    window.addEventListener(PRICING_POLICY_CONFLICT_EVENT, unlinkRejectedOutput);
+    return () => window.removeEventListener(PRICING_POLICY_CONFLICT_EVENT, unlinkRejectedOutput);
+  }, []);
 
   useEffect(() => {
     if (Object.keys(outputLinksByMessageId).length === 0) return;

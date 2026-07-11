@@ -5,6 +5,8 @@ import { randomUUID } from "crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
+import { buildPricingParams } from "./generationBilling/pricingParams";
+import { getModelConfig } from "../../model-runtime/modelRegistry";
 import {
   filterExternalUrlsFromInternalRefs,
   readInternalEditMediaRefsFromPayload,
@@ -94,6 +96,29 @@ type FalSubmitConfig = {
 
 type JsonValue = Record<string, unknown>;
 type HeaderValue = string | string[] | undefined;
+
+const resolveServerBillingWorkflow = ({
+  generationMode,
+  modelId,
+  payload,
+}: {
+  generationMode: string;
+  modelId: string;
+  payload: JsonValue;
+}): "create_image" | "edit_image" | "video" => {
+  if (generationMode === "video") return "video";
+  const modelConfig = getModelConfig(modelId);
+  if (modelConfig?.supportsTextToImage && !modelConfig.supportsImageToImage) {
+    return "create_image";
+  }
+  if (modelConfig?.supportsImageToImage && !modelConfig.supportsTextToImage) {
+    return "edit_image";
+  }
+  const pricingParams = buildPricingParams(modelId, payload);
+  const hasEditInputs =
+    (pricingParams.inputImageCount ?? 0) > 0 || pricingParams.maskPresent === true;
+  return hasEditInputs ? "edit_image" : "create_image";
+};
 
 const selectEffectiveAdmissionDecision = ({
   providerDecision,
@@ -1001,7 +1026,11 @@ export const createFalSubmitHandler = ({
       modelId,
       payload: billingPayload,
       reason: `${routeLabel} generation`,
-      billingWorkflow: generationMode === "video" ? "video" : "image",
+      billingWorkflow: resolveServerBillingWorkflow({
+        generationMode,
+        modelId,
+        payload: billingPayload,
+      }),
       skipBilling,
     });
     if (!charge) return;

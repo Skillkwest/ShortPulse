@@ -176,6 +176,10 @@ export function VideoAssetSlotsCard({
       ),
     [modelVisibleKlingElements]
   );
+  const areAllVisibleAssetSlotsEmpty = Array.from(
+    { length: klingElementSlotCount },
+    (_, index) => !modelVisibleKlingElements[index]
+  ).every(Boolean);
 
   React.useEffect(() => {
     if (!seedanceSlotPreviewSigningRequests.length) return;
@@ -445,6 +449,11 @@ export function VideoAssetSlotsCard({
             <div className="video-elements-card-title video-elements-card-title--sub">
               Add Assets
             </div>
+            {areAllVisibleAssetSlotsEmpty ? (
+              <div className="video-elements-card-helper">
+                Click an empty slot to add an element or drag a reference from the Reference Grid.
+              </div>
+            ) : null}
             {seedanceSlotLimitWarning ? (
               <AppMessage
                 tone="warning"

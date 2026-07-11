@@ -1,9 +1,8 @@
 /**
  * Loads the active runtime model-pricing policy for authenticated AI Studio surfaces.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import { materializeImageBilledCreditPolicy } from "../../../lib/model-runtime/materializeImageBilledCreditPolicy";
 import type {
   ModelPricingPolicyDocument,
   ModelPricingPolicySnapshot,
@@ -28,6 +27,7 @@ type UseActiveModelPricingPolicyResult = {
 };
 
 let modelPricingPolicyInFlightPromise: Promise<ModelPricingPolicySnapshot> | null = null;
+let modelPricingPolicyConflictRefreshPromise: Promise<ModelPricingPolicySnapshot> | null = null;
 
 const loadSharedModelPricingPolicySnapshot = async (): Promise<ModelPricingPolicySnapshot> => {
   if (modelPricingPolicyInFlightPromise) {
@@ -65,6 +65,34 @@ const loadSharedModelPricingPolicySnapshot = async (): Promise<ModelPricingPolic
   }
 };
 
+const loadFreshModelPricingPolicySnapshotAfterConflict =
+  async (): Promise<ModelPricingPolicySnapshot> => {
+    if (modelPricingPolicyConflictRefreshPromise) {
+      return await modelPricingPolicyConflictRefreshPromise;
+    }
+
+    const request = (async () => {
+      const requestActiveBeforeConflict = modelPricingPolicyInFlightPromise;
+      if (requestActiveBeforeConflict) {
+        try {
+          await requestActiveBeforeConflict;
+        } catch {
+          // A failed stale request must not prevent the post-conflict refresh.
+        }
+      }
+      return await loadSharedModelPricingPolicySnapshot();
+    })();
+
+    modelPricingPolicyConflictRefreshPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (modelPricingPolicyConflictRefreshPromise === request) {
+        modelPricingPolicyConflictRefreshPromise = null;
+      }
+    }
+  };
+
 export const useActiveModelPricingPolicy = ({
   enabled,
 }: UseActiveModelPricingPolicyParams): UseActiveModelPricingPolicyResult => {
@@ -72,35 +100,65 @@ export const useActiveModelPricingPolicy = ({
     useState<ModelPricingPolicySnapshot | null>(null);
   const [modelPricingPolicyLoading, setModelPricingPolicyLoading] = useState(enabled);
   const [modelPricingPolicyError, setModelPricingPolicyError] = useState<string | null>(null);
-  const materializedModelPricingPolicy = useMemo(
-    () =>
-      modelPricingPolicySnapshot?.document
-        ? materializeImageBilledCreditPolicy(modelPricingPolicySnapshot.document)
-        : null,
-    [modelPricingPolicySnapshot]
-  );
+  const pricingPolicyLoadSequenceRef = useRef(0);
+  const materializedModelPricingPolicy = modelPricingPolicySnapshot?.document ?? null;
 
   const fetchModelPricingPolicy =
     useCallback(async (): Promise<ModelPricingPolicySnapshot | null> => {
       if (!enabled) return null;
 
+      const loadSequence = ++pricingPolicyLoadSequenceRef.current;
       setModelPricingPolicyLoading(true);
       setModelPricingPolicyError(null);
 
       try {
         const snapshot = await loadSharedModelPricingPolicySnapshot();
-        setModelPricingPolicySnapshot(snapshot);
+        if (pricingPolicyLoadSequenceRef.current === loadSequence) {
+          setModelPricingPolicySnapshot(snapshot);
+        }
         return snapshot;
       } catch (error) {
-        setModelPricingPolicySnapshot(null);
+        if (pricingPolicyLoadSequenceRef.current === loadSequence) {
+          setModelPricingPolicySnapshot(null);
+          setModelPricingPolicyError(
+            error instanceof Error ? error.message : "Failed to load model pricing policy."
+          );
+        }
+        return null;
+      } finally {
+        if (pricingPolicyLoadSequenceRef.current === loadSequence) {
+          setModelPricingPolicyLoading(false);
+        }
+      }
+    }, [enabled]);
+
+  const refreshModelPricingPolicyAfterConflict = useCallback(async () => {
+    if (!enabled) return null;
+
+    const loadSequence = ++pricingPolicyLoadSequenceRef.current;
+    setModelPricingPolicySnapshot(null);
+    setModelPricingPolicyLoading(true);
+    setModelPricingPolicyError(null);
+
+    try {
+      const snapshot = await loadFreshModelPricingPolicySnapshotAfterConflict();
+      if (pricingPolicyLoadSequenceRef.current === loadSequence) {
+        setModelPricingPolicySnapshot(snapshot);
+      }
+      return snapshot;
+    } catch (error) {
+      if (pricingPolicyLoadSequenceRef.current === loadSequence) {
         setModelPricingPolicyError(
           error instanceof Error ? error.message : "Failed to load model pricing policy."
         );
-        return null;
-      } finally {
+      }
+      return null;
+    } finally {
+      if (pricingPolicyLoadSequenceRef.current === loadSequence) {
         setModelPricingPolicyLoading(false);
       }
-    }, [enabled]);
+    }
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -109,10 +167,10 @@ export const useActiveModelPricingPolicy = ({
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
-    const refresh = () => void fetchModelPricingPolicy();
+    const refresh = () => void refreshModelPricingPolicyAfterConflict();
     window.addEventListener(PRICING_POLICY_REFRESH_REQUESTED_EVENT, refresh);
     return () => window.removeEventListener(PRICING_POLICY_REFRESH_REQUESTED_EVENT, refresh);
-  }, [enabled, fetchModelPricingPolicy]);
+  }, [enabled, refreshModelPricingPolicyAfterConflict]);
 
   return {
     modelPricingPolicy: materializedModelPricingPolicy,
@@ -120,6 +178,6 @@ export const useActiveModelPricingPolicy = ({
     modelPricingPolicyLoading,
     modelPricingPolicyError,
     modelPricingPolicyReady: modelPricingPolicySnapshot !== null,
-    refreshModelPricingPolicy: fetchModelPricingPolicy,
+    refreshModelPricingPolicy: refreshModelPricingPolicyAfterConflict,
   };
 };

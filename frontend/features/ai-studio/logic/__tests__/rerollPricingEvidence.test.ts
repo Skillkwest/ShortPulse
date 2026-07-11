@@ -191,6 +191,68 @@ describe("resolveRerollPricingEvidence", () => {
     });
   });
 
+  it("reconstructs Seedance asset-video pricing from the persisted element duration", () => {
+    const config: WorkflowReloadConfigV1 = {
+      ...baseConfig,
+      originTool: "video",
+      panelKind: "video",
+      outputMode: "video",
+      model: { id: KIE_SEEDANCE_2_MODEL_ID },
+      payload: {
+        kind: "video",
+        aspect: "16:9",
+        videoReferenceMode: "standard",
+        durationSeconds: 5,
+        resolution: "720p",
+        generateAudio: true,
+        cameraFixed: false,
+        autoFix: false,
+        referenceInputs: [],
+        internalMediaRefs: [],
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceImageUrls: [],
+        seedance2ReferenceVideoUrls: [],
+        seedance2ReferenceAudioUrls: [],
+        seedance2ReturnLastFrame: false,
+        seedance2WebSearch: false,
+        klingElements: [
+          {
+            id: "asset-video",
+            sourceKind: "reference-video",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "https://cdn.shortpulse.test/asset-video.mp4",
+            videoDurationMs: 10_000,
+          },
+        ],
+      },
+    };
+    const expectedBreakdown = resolveVideoBilledCreditLookup({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: buildDefaultPricingParams(KIE_SEEDANCE_2_MODEL_ID, {
+        aspect: "16:9",
+        durationSeconds: 5,
+        resolution: "720p",
+        audio: true,
+        inputVideoCount: 1,
+        inputVideoDurationSeconds: 10,
+      }),
+      pricingPolicy,
+    }).breakdown;
+
+    expect(
+      resolveRerollPricingEvidence({
+        config,
+        pricingPolicy,
+        activePricingPolicyVersion: 23,
+      })
+    ).toEqual({
+      displayedBilledCredits: expectedBreakdown?.credits,
+      displayedPricingPolicyVersion: 23,
+      displayedPricingVariantId: expectedBreakdown?.variantId,
+    });
+  });
+
   it("fails closed when legacy Seedance reroll data lacks a video duration", () => {
     const config: WorkflowReloadConfigV1 = {
       ...baseConfig,

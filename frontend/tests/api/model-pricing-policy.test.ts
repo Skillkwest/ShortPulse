@@ -3,6 +3,7 @@ import userPolicyHandler from "../../pages/api/pricing/model-policy";
 import applyPolicyHandler from "../../pages/api/admin/pricing/model-policy/apply";
 import rollbackPolicyHandler from "../../pages/api/admin/pricing/model-policy/rollback";
 import { getDefaultAdminPricingCustomRowsDocument } from "../../lib/model-runtime/adminPricingCustomRows";
+import { materializeImageBilledCreditPolicy } from "../../lib/model-runtime/materializeImageBilledCreditPolicy";
 
 const requireApiUserMock = vi.fn();
 const requireAdminUserMock = vi.fn();
@@ -41,16 +42,17 @@ describe("model pricing policy routes", () => {
   });
 
   it("returns the active policy snapshot for authenticated users", async () => {
-    resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
-      policy: {
-        schemaVersion: 1,
-        global: {
-          creditUsdScale: 100,
-          defaultRoundingMode: "ceil",
-          defaultRoundingIncrement: 1,
-        },
-        perModel: {},
+    const publishedPolicy = materializeImageBilledCreditPolicy({
+      schemaVersion: 1,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil",
+        defaultRoundingIncrement: 1,
       },
+      perModel: {},
+    });
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
+      policy: publishedPolicy,
       activePolicyVersion: 4,
       activePolicyVersionId: 44,
       source: "control_plane",
@@ -74,13 +76,7 @@ describe("model pricing policy routes", () => {
         document: expect.objectContaining({
           perModel: expect.objectContaining({
             "kie-ai/gpt-image-2-text-to-image": expect.objectContaining({
-              runtimeAuthorities: expect.objectContaining({
-                create_image: expect.objectContaining({
-                  mode: "runtime_quantity_derived",
-                  workflow: "create_image",
-                  unitBasis: "per_image",
-                }),
-              }),
+              variants: expect.any(Object),
             }),
           }),
         }),
@@ -118,11 +114,15 @@ describe("model pricing policy routes", () => {
       },
       perModel: {},
     };
+    const publishedPolicy = materializeImageBilledCreditPolicy(
+      submittedPolicy,
+      getDefaultAdminPricingCustomRowsDocument()
+    );
     applyModelPricingPolicyMock.mockResolvedValue({
       status: "activated",
       activePolicyVersion: 5,
       activePolicyVersionId: 55,
-      activePolicy: submittedPolicy,
+      activePolicy: publishedPolicy,
       activeCustomRows: getDefaultAdminPricingCustomRowsDocument(),
       activePolicyUpdatedAt: "2026-04-24T13:00:00.000Z",
       activePolicyUpdatedByEmail: "admin@example.com",
@@ -232,6 +232,56 @@ describe("model pricing policy routes", () => {
         status: "not_initialized",
       })
     );
+  });
+
+  it("returns a controlled failure when the submitted pricing artifact is incomplete", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        policy: {
+          schemaVersion: 1,
+          global: {
+            creditUsdScale: 100,
+            defaultRoundingMode: "ceil",
+            defaultRoundingIncrement: 1,
+          },
+          perModel: {},
+        },
+        customRows: {
+          schemaVersion: 1,
+          rowsByModel: {
+            "unknown-model": [
+              {
+                displayRowId: "custom:unknown",
+                label: "Unknown",
+                variantId: "default",
+                spec: {},
+                overrides: {
+                  markupBps: null,
+                  providerUsdOverride: null,
+                  providerUsdPerSecondOverride: null,
+                },
+              },
+            ],
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await applyPolicyHandler(req as never, res as never);
+
+    expect(applyModelPricingPolicyMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req,
+        routeLabel: "admin/pricing/model-policy/apply",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Missing published custom pricing rows for: unknown-model:custom:unknown.",
+    });
   });
 
   it("rejects apply responses that do not verify the submitted active policy", async () => {

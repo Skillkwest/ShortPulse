@@ -365,6 +365,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             durationSeconds: selectedDurationSeconds,
           },
           pricingPolicy,
+          requirePublishedBillingRule: true,
         })
       : null) ?? null;
   const estimatedCredits =

@@ -38,6 +38,8 @@ export type AiStudioKlingElement = {
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
+  // Billing evidence for Seedance reference-video slots. Persisted with the selected element.
+  videoDurationMs?: number | null;
   audioUrl?: string;
 };
 
@@ -100,16 +102,21 @@ export const createSeedanceVideoReferenceSlot = ({
   slotIndex,
   videoUrl,
   name,
+  durationMs,
 }: {
   slotIndex: number;
   videoUrl: string;
   name?: string | null;
+  durationMs?: number | null;
 }): AiStudioKlingElement => ({
   ...createEmptyAiStudioKlingElement(),
   slotIndex,
   sourceKind: "reference-video",
   name: name?.trim() || "Video reference",
   videoUrl,
+  ...(typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+    ? { videoDurationMs: Math.round(durationMs) }
+    : {}),
 });
 
 export const createSeedanceAudioReferenceSlot = ({
@@ -341,6 +348,24 @@ export const collectSeedanceElementProviderReferences = (elements: AiStudioKling
     },
     { imageUrls: [], videoUrls: [], audioUrls: [] }
   );
+
+/**
+ * Extracts persisted billing evidence for Seedance element video references.
+ * Missing duration is deliberately omitted so callers can fail closed instead of estimating it.
+ */
+export const collectSeedanceElementVideoReferenceDurations = (
+  elements: readonly AiStudioKlingElement[]
+): Array<{ sourceUrl: string; durationMs: number }> =>
+  elements.flatMap((element) => {
+    const durationMs = element.videoDurationMs;
+    if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs <= 0) {
+      return [];
+    }
+    return resolveSeedanceElementProviderEligibility(element).videoUrls.map((sourceUrl) => ({
+      sourceUrl,
+      durationMs: Math.round(durationMs),
+    }));
+  });
 
 export const resolveSeedanceReferenceLimitError = ({
   imageUrls,

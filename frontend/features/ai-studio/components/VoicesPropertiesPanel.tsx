@@ -371,6 +371,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 textCharacters: voiceScript.trim().length,
               },
               pricingPolicy,
+              requirePublishedBillingRule: true,
             })
           : null) ?? null)
       : ((pricingPolicyReady
@@ -383,6 +384,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                     : undefined,
               },
               pricingPolicy,
+              requirePublishedBillingRule: true,
             })
           : null) ?? null);
   const generateCreditConfidence = resolveGenerateCreditConfidence({

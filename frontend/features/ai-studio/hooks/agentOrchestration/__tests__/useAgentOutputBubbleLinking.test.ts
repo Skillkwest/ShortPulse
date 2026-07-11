@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PRICING_POLICY_CONFLICT_EVENT } from "../../../../../lib/model-runtime/pricingPolicyFreshness";
 import type { StudioOutput } from "../../../types";
 import { useAgentOutputBubbleLinking } from "../useAgentOutputBubbleLinking";
 
@@ -107,6 +108,46 @@ describe("useAgentOutputBubbleLinking", () => {
       thumbnailUrl: null,
       state: "failed",
     });
+  });
+
+  it("unlinks an existing output when pricing rejects that output", () => {
+    const { result } = renderHook(() => useAgentOutputBubbleLinking({ outputs: [] }));
+
+    act(() => {
+      result.current.registerOutputLink({
+        messageId: "msg-conflict-after-link",
+        optimisticOutputId: "out-conflict-after-link",
+      });
+    });
+    expect(result.current.assistantBubbleMedia["msg-conflict-after-link"]?.state).toBe("pending");
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(PRICING_POLICY_CONFLICT_EVENT, {
+          detail: { outputId: "out-conflict-after-link" },
+        })
+      );
+    });
+
+    expect(result.current.assistantBubbleMedia["msg-conflict-after-link"]).toBeUndefined();
+  });
+
+  it("refuses a late link registration for an already rejected output", () => {
+    const { result } = renderHook(() => useAgentOutputBubbleLinking({ outputs: [] }));
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(PRICING_POLICY_CONFLICT_EVENT, {
+          detail: { outputId: "out-conflict-before-link" },
+        })
+      );
+      result.current.registerOutputLink({
+        messageId: "msg-conflict-before-link",
+        optimisticOutputId: "out-conflict-before-link",
+      });
+    });
+
+    expect(result.current.assistantBubbleMedia["msg-conflict-before-link"]).toBeUndefined();
   });
 
   it("keeps the empty bubble media map stable across unrelated output updates", () => {

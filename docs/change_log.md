@@ -18,6 +18,7 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Added
 
+- Added media-upload intent hardening, generation ownership SQL migrations, GitHub hosted-SQL workflow contract tests, and an architecture-audit handoff packet for follow-up production hardening work.
 - Added launch-week production-operations guidance so ShortPulse work now centers on protecting live customer use, investigating production reports, and shipping small evidence-backed fixes on `production`.
 - Added OpenAI internal capacity-admission tracking and related SQL checks so agent/runtime capacity pressure can be audited instead of treated as opaque provider noise.
 - Added a generation output media-link API path and tests so persisted generation outputs can expose their media linkage more reliably.
@@ -26,6 +27,10 @@ ShortPulse launched on July 7, 2026. This changelog starts fresh from the post-l
 
 ### Changed
 
+- Updated model-pricing policy handling so pricing-grid rows, custom row materialization, admin pricing controls, billing reservations, and AI Studio pricing displays share a stricter billed-credit authority path.
+- Updated hosted SQL apply workflows, runtime SQL security checks, database docs, and schema snapshots for the latest production migration and control-plane delivery posture.
+- Updated AI Studio media/reference handling, audio uploads, adaptive pressure tracking, and provider proxy tests to better preserve safe media authority across upload, staging, reload, and provider-submit paths.
+- Updated admin Kanban backlog mirroring and planning docs so backlog-source metadata, board activity, and security-remediation follow-ups stay easier to audit.
 - Updated launch-week branch, runtime, database, and agent-governance wording across the repo from pre-launch readiness language to live production-operations language.
 - Refreshed agent contracts, memories, SOPs, and indexes so named agents use the current launch-week trust and production-branch posture.
 - Updated Maya tester training, scoring, admin-publish checklists, and report templates to better separate browser evidence, ingest proof, and operator-admin verification.

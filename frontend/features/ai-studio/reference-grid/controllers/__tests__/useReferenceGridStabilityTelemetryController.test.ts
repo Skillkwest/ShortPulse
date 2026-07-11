@@ -27,6 +27,7 @@ const perfWatchdog = (
   longTaskP95Ms: null,
   maxInputStallMs: 0,
   heapUsageRatio: null,
+  heapLimitUsageRatio: null,
   sampleCount: 0,
   ...overrides,
 });

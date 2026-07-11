@@ -27,9 +27,18 @@ import {
   MEDIA_BUCKET,
   type MediaLibraryFileType,
   MAX_IMAGE_MEDIA_BYTES,
+  maxBytesForMediaFileType,
   removeScopedMediaStorageObject,
+  resolveMediaFileTypeFromMimeType,
   uploadMediaBufferToStoragePath,
 } from "./mediaIngest";
+import {
+  claimMediaUploadIntent,
+  finalizeMediaUploadIntent,
+  MediaUploadIntentError,
+  rejectMediaUploadIntent,
+  reserveMediaUploadIntent,
+} from "./api/mediaUploadIntents";
 import {
   MAX_VOICE_CHANGER_SOURCE_BYTES,
   MediaAudioExtractionInputError,
@@ -71,7 +80,6 @@ import {
   resolveDetectedMimeType,
   resolveDestinationTab,
   resolveFinalizedVoiceChangerSourceMimeType,
-  resolveMediaDirectUploadStagingFolder,
   resolvePreparedMediaUploadMimeType,
   resolvePreparedMediaUploadStoredFileName,
   resolvePreparedVoiceChangerSourceMimeType,
@@ -278,11 +286,13 @@ const parseUpload = async (
 
 const createSignedUploadTarget = async ({
   storagePath,
+  bucketId = MEDIA_BUCKET,
 }: {
   storagePath: string;
+  bucketId?: string;
 }): Promise<{ path: string; token: string }> => {
   const { data, error } = await getSupabaseAdmin()
-    .storage.from(MEDIA_BUCKET)
+    .storage.from(bucketId)
     .createSignedUploadUrl(storagePath);
   if (error || !data?.path || !data.token) {
     throw new Error(error?.message || "Unable to create signed upload target.");
@@ -412,80 +422,6 @@ const uploadScopedStorageBuffer = async ({
     storagePath,
     signedUrl,
     size: buffer.length,
-  };
-};
-
-const movePreparedUploadToDurableStorage = async ({
-  userId,
-  sourceStoragePath,
-  parsedUpload,
-  mimeType,
-  fileType,
-}: {
-  userId: string;
-  sourceStoragePath: string;
-  parsedUpload: ParsedUpload;
-  mimeType: string;
-  fileType: Exclude<MediaLibraryFileType, "image">;
-}): Promise<UploadedStorageAsset> => {
-  const extension = resolveUploadedStorageExtension(mimeType);
-  const fileBaseName = resolveBaseFileName(parsedUpload.filename);
-  const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-  const storagePath = buildScopedMediaStoragePath({
-    userId,
-    storageFolder: resolveUploadFolder(parsedUpload.destinationTab, fileType),
-    storedFileName,
-    label: "Durable prepared media upload storage path",
-  });
-
-  const { error: moveError } = await getSupabaseAdmin()
-    .storage.from(MEDIA_BUCKET)
-    .move(sourceStoragePath, storagePath);
-  if (moveError) {
-    throw new MediaUploadServiceError(
-      500,
-      "Upload failed",
-      moveError.message || "Unable to move prepared upload into durable storage.",
-      {
-        media_upload_stage: "prepared_upload_move",
-        media_upload_operation: "storage_move",
-        media_upload_destination_tab: parsedUpload.destinationTab,
-        media_upload_file_type: fileType,
-        media_upload_mime_type: mimeType,
-      }
-    );
-  }
-
-  let signedUrl: string;
-  try {
-    signedUrl = await createSignedMediaUrl(storagePath);
-  } catch (error) {
-    await removeScopedMediaStorageObject(storagePath);
-    throw new MediaUploadServiceError(
-      500,
-      "Failed to generate signed preview URL",
-      error instanceof Error ? error.message : "Missing signed preview URL",
-      {
-        media_upload_stage: "preview_url_sign",
-        media_upload_operation: "create_signed_url",
-        media_upload_destination_tab: parsedUpload.destinationTab,
-        media_upload_file_type: fileType,
-        media_upload_mime_type: mimeType,
-      }
-    );
-  }
-
-  return {
-    storagePath,
-    signedUrl,
-    size: parsedUpload.size,
-    parsedUpload: {
-      ...parsedUpload,
-      declaredMimeType: mimeType,
-    },
-    fileType,
-    imageDimensions: null,
-    admissionMetadata: null,
   };
 };
 
@@ -689,15 +625,19 @@ export const prepareVoiceChangerSourceUploadForUser = async ({
 
 export const prepareMediaUploadForUser = async ({
   userId,
+  idempotencyKey,
   destinationTab,
   filename,
   declaredMimeType,
 }: {
   userId: string;
+  idempotencyKey: string;
   destinationTab: MediaUploadDestinationTab;
   filename: string;
   declaredMimeType: string;
 }): Promise<{
+  intentId: string;
+  bucketId: "media_upload_staging";
   path: string;
   token: string;
   mimeType: string;
@@ -709,25 +649,53 @@ export const prepareMediaUploadForUser = async ({
     destinationTab,
     declaredMimeType,
   });
-  const storagePath = buildScopedMediaStoragePath({
-    userId,
-    storageFolder: resolveMediaDirectUploadStagingFolder(destinationTab),
-    storedFileName: resolvePreparedMediaUploadStoredFileName({
-      filename: normalizedFilename,
-      mimeType: normalizedMimeType,
-    }),
-    label: "Prepared media upload storage path",
-  });
+  const mediaKind = resolveMediaFileTypeFromMimeType(normalizedMimeType);
+  if (!mediaKind) {
+    throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported media type.");
+  }
+  let intent;
+  try {
+    intent = await reserveMediaUploadIntent({
+      userId,
+      purpose: "media_library",
+      mediaKind,
+      sourceName: normalizedFilename,
+      declaredMimeType: normalizedMimeType,
+      maxBytes: maxBytesForMediaFileType(mediaKind),
+      destinationKind: destinationTab,
+      idempotencyKey: idempotencyKey.trim().slice(0, 160),
+    });
+  } catch (error) {
+    if (error instanceof MediaUploadIntentError) {
+      throw new MediaUploadServiceError(error.status, error.message);
+    }
+    throw error;
+  }
 
   try {
-    const target = await createSignedUploadTarget({ storagePath });
+    const target = await createSignedUploadTarget({
+      storagePath: intent.stagingPath,
+      bucketId: intent.bucketId,
+    });
     return {
+      intentId: intent.id,
+      bucketId: intent.bucketId,
       path: target.path,
       token: target.token,
       mimeType: normalizedMimeType,
       name: normalizedFilename,
     };
   } catch (error) {
+    await rejectMediaUploadIntent({
+      intentId: intent.id,
+      userId,
+      purpose: "media_library",
+      stagingPath: intent.stagingPath,
+      reasonCode: "signed_target_failed",
+    }).catch(() => undefined);
+    if (error instanceof MediaUploadIntentError) {
+      throw new MediaUploadServiceError(error.status, error.message);
+    }
     throw new MediaUploadServiceError(
       500,
       "Unable to prepare media upload",
@@ -1204,39 +1172,76 @@ const persistUploadedMediaAsset = async ({
 
 export const finalizePreparedMediaUploadForUser = async ({
   userId,
+  intentId,
   destinationTab,
   storagePath,
   filename,
   declaredMimeType,
 }: {
   userId: string;
+  intentId: string;
   destinationTab: MediaUploadDestinationTab;
   storagePath: string;
   filename: string;
   declaredMimeType: string;
 }): Promise<MediaUploadResponseFile> => {
   await assertMediaComplianceAcceptedForUpload(userId);
-  const safeStoragePath = assertUserScopedMediaStoragePath({
-    path: storagePath,
-    userId,
-    label: "Prepared media upload storage path",
+  const normalizedFilename = filename.trim();
+  const normalizedMimeType = resolvePreparedMediaUploadMimeType({
+    destinationTab,
+    declaredMimeType,
   });
-  const expectedFolderPrefix = `${userId}/${resolveMediaDirectUploadStagingFolder(destinationTab)}/`;
-  if (!safeStoragePath.startsWith(expectedFolderPrefix)) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid request",
-      "Prepared media upload storage path is outside the expected namespace."
-    );
+  const expectedMediaKind = resolveMediaFileTypeFromMimeType(normalizedMimeType);
+  if (!expectedMediaKind) {
+    throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported media type.");
+  }
+
+  let intent;
+  try {
+    intent = await claimMediaUploadIntent({
+      intentId,
+      userId,
+      purpose: "media_library",
+      stagingPath: storagePath,
+    });
+  } catch (error) {
+    if (error instanceof MediaUploadIntentError) {
+      throw new MediaUploadServiceError(error.status, error.message);
+    }
+    throw error;
+  }
+  const safeStoragePath = intent.stagingPath;
+  if (
+    intent.bucketId !== "media_upload_staging" ||
+    intent.destinationKind !== destinationTab ||
+    intent.sourceName !== normalizedFilename ||
+    intent.declaredMimeType !== normalizedMimeType ||
+    intent.mediaKind !== expectedMediaKind ||
+    intent.maxBytes !== maxBytesForMediaFileType(expectedMediaKind)
+  ) {
+    await rejectMediaUploadIntent({
+      intentId: intent.id,
+      userId,
+      purpose: "media_library",
+      stagingPath: safeStoragePath,
+      reasonCode: "request_mismatch",
+    }).catch(() => undefined);
+    throw new MediaUploadServiceError(409, "The upload intent no longer matches this operation.");
   }
 
   let uploaded: UploadedStorageAsset | null = null;
+  let detectedMimeType: string | null = null;
+  let actualBytes: number | null = null;
+  let persisted = false;
+  let completedFile: MediaUploadResponseFile | null = null;
+  let operationError: unknown = null;
   try {
     let stored;
     try {
       stored = await readStoredMediaBuffer({
         storagePath: safeStoragePath,
-        maxBytes: MAX_UPLOAD_BYTES,
+        maxBytes: intent.maxBytes,
+        bucketId: intent.bucketId,
       });
     } catch (error) {
       if (error instanceof MediaAudioExtractionInputError && error.statusCode === 413) {
@@ -1262,41 +1267,95 @@ export const finalizePreparedMediaUploadForUser = async ({
           declaredMimeType: declaredMimeType || stored.contentType || "",
         }) || normalizeContentType(stored.contentType ?? undefined),
       size: stored.size,
-      filename: filename.trim() || safeStoragePath.split("/").filter(Boolean).pop() || "upload",
+      filename: normalizedFilename,
       destinationTab,
     };
-    const detectedMimeType = resolveDetectedMimeType(destinationTab, parsedUpload.buffer);
+    actualBytes = stored.size;
+    detectedMimeType = resolveDetectedMimeType(destinationTab, parsedUpload.buffer);
     const validatedUpload = validateUpload({
       destinationTab,
       declaredMimeType: parsedUpload.declaredMimeType,
       detectedMimeType,
     });
-    if (validatedUpload.fileType === "image") {
-      uploaded = await uploadStorageAssetFromParsedUpload({
-        parsedUpload,
-        userId,
-        cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
-      });
-    } else {
-      enforceUploadSizeLimit({
-        fileType: validatedUpload.fileType,
-        fileSize: parsedUpload.size,
-      });
-      uploaded = await movePreparedUploadToDurableStorage({
-        userId,
-        sourceStoragePath: safeStoragePath,
-        parsedUpload,
-        mimeType: validatedUpload.mimeType,
-        fileType: validatedUpload.fileType,
-      });
-    }
-    return await persistUploadedMediaAsset({
+    uploaded = await uploadStorageAssetFromParsedUpload({
+      parsedUpload,
       userId,
-      uploaded,
+      cacheControl: DURABLE_MEDIA_CACHE_CONTROL_SECONDS,
     });
-  } finally {
-    await removeScopedMediaStorageObject(safeStoragePath);
+    const file = await persistUploadedMediaAsset({ userId, uploaded });
+    persisted = true;
+    try {
+      await finalizeMediaUploadIntent({
+        intentId: intent.id,
+        userId,
+        purpose: "media_library",
+        stagingPath: safeStoragePath,
+        detectedMimeType: detectedMimeType ?? validatedUpload.mimeType,
+        actualBytes,
+        inspectionVersion: "media-upload-v1",
+      });
+    } catch {
+      throw new MediaUploadServiceError(
+        503,
+        "Upload saved but final admission settlement is unavailable.",
+        "The durable media row was preserved for recovery.",
+        {
+          media_upload_stage: "intent_finalize",
+          media_upload_operation: "intent_settlement",
+          media_upload_intent_id: intent.id,
+          media_upload_file_id: file.id,
+        }
+      );
+    }
+    completedFile = file;
+  } catch (error) {
+    if (!persisted) {
+      await rejectMediaUploadIntent({
+        intentId: intent.id,
+        userId,
+        purpose: "media_library",
+        stagingPath: safeStoragePath,
+        reasonCode:
+          error instanceof MediaUploadServiceError && error.status === 413
+            ? "size_limit"
+            : error instanceof MediaUploadServiceError && error.status < 500
+              ? "inspection_rejected"
+              : "processing_failed",
+        detectedMimeType,
+        actualBytes,
+        inspectionVersion: detectedMimeType ? "media-upload-v1" : null,
+      }).catch(() => undefined);
+    }
+    operationError =
+      error instanceof MediaUploadIntentError
+        ? new MediaUploadServiceError(error.status, error.message)
+        : error;
   }
+
+  try {
+    await removeScopedMediaStorageObject(safeStoragePath, intent.bucketId, true);
+  } catch {
+    throw new MediaUploadServiceError(
+      500,
+      persisted ? "Upload saved but staging cleanup failed." : "Upload staging cleanup failed.",
+      persisted
+        ? "The durable media row was preserved and staging cleanup requires recovery."
+        : "The rejected staging object requires cleanup recovery.",
+      {
+        media_upload_stage: "staging_cleanup",
+        media_upload_operation: "storage_remove",
+        media_upload_intent_id: intent.id,
+        media_upload_staging_bucket: intent.bucketId,
+        media_upload_durable_row_preserved: persisted,
+      }
+    );
+  }
+
+  if (operationError) throw operationError;
+  if (!completedFile) {
+    throw new MediaUploadServiceError(500, "Upload failed", "Missing finalized media row.");
+  }
+  return completedFile;
 };
 
 export const finalizeReferenceImageUploadForUser = async ({

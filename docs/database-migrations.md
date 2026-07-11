@@ -354,6 +354,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
 220.  `sql/migrations/221_add_voice_changer_remux_recovery_projection.sql`
 221.  `sql/migrations/222_add_admin_kanban_backlog_source_sync.sql`
 222.  `sql/migrations/223_add_openai_internal_capacity_admissions.sql`
+223.  `sql/migrations/224_harden_generation_relational_ownership.sql`
+224.  `sql/migrations/225_add_media_upload_intents.sql`
+225.  `sql/migrations/226_reconcile_media_upload_staging_mime_allowlist.sql`
       Rollback files:
 
 
@@ -477,6 +480,9 @@ Billing grant-lot update: apply `sql/migrations/200_add_credit_grant_lot_expirat
     - `sql/migrations/rollback/221_add_voice_changer_remux_recovery_projection_rollback.sql`
     - `sql/migrations/rollback/222_add_admin_kanban_backlog_source_sync_rollback.sql`
     - `sql/migrations/rollback/223_add_openai_internal_capacity_admissions_rollback.sql`
+    - `sql/migrations/rollback/224_harden_generation_relational_ownership_rollback.sql`
+    - `sql/migrations/rollback/225_add_media_upload_intents_rollback.sql`
+    - `sql/migrations/rollback/226_reconcile_media_upload_staging_mime_allowlist_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -613,6 +619,9 @@ Billing safety note:
 - Migration `221_add_voice_changer_remux_recovery_projection.sql` adds nullable, object-checked `generation_projection.remux_recovery` as a read projection of canonical Voice Changer retry metadata. Its rollback removes only that constraint and column. Hosted apply remains a separate approved Supabase operation.
 - Migration `222_add_admin_kanban_backlog_source_sync.sql` adds admin Kanban source metadata plus the service-role-only planning backlog sync RPC so `docs/planning/backlog.md` can mirror into `/admin/kanban` without becoming a duplicate backlog authority. Its rollback removes the sync RPC/source columns and normalizes `synced` activity rows back to `updated` before restoring the prior action constraint. Hosted apply and backlog sync remain separate approved operations.
 - Migration `223_add_openai_internal_capacity_admissions.sql` adds the service-role-only durable admission authority for non-priced OpenAI conveniences. Its reservation RPC derives paid/internal-comp eligibility from the current billing contract, serializes global/per-user active and hourly budget admission, and bounds physical provider attempts without reading or mutating customer credits. Apply the migration before deploying any route/runtime wiring; hosted apply remains a separate approved Supabase operation.
+- Migration `224_harden_generation_relational_ownership.sql` adds validated composite ownership foreign keys across the server-owned generation queue, attempt, output, publication, and projection tables after a zero-mismatch hosted readback. It preserves legacy cascade/set-null delete behavior, makes `generation_id` and `user_id` immutable, removes browser mutation grants/policies, and retains authenticated owner-scoped reads. The rollback restores only narrowly scoped authenticated row DML and intentionally leaves validated ownership constraints and immutability intact. Refresh mismatch counts immediately before hosted apply; hosted apply remains a separate approved Supabase operation.
+- Migration `225_add_media_upload_intents.sql` adds the private 100 MiB `media_upload_staging` bucket plus the service-role-only `media_upload_intents` transport authority. Five atomic RPCs reserve, claim, finalize, reject, or expire one user/purpose/path-bound intent without storing signed URLs/tokens or granting provider, billing, credit, or durable Media Library authority. The rollback removes the RPCs/table and removes the bucket only when it is empty. Route wiring, storage-policy revocation, hosted apply, and staged-object cleanup remain separate approved operations.
+- Migration `226_reconcile_media_upload_staging_mime_allowlist.sql` reconciles the `media_upload_staging` bucket with the runtime audit's canonical upload MIME allowlist by adding the common `audio/m4a` variant while preserving the private 100 MiB bucket guardrail. The rollback restores the exact migration `225` allowlist. Hosted apply remains a separate approved Supabase operation.
 - Migration `198_allow_equal_timestamp_project_workspace_updates.sql` changes the project workspace freshness trigger to reject only strictly older `snapshot_updated_at` writes, so same-timestamp structural checkpoint updates can persist while out-of-order older autosaves still no-op. Hosted apply remains a separate approved Supabase operation.
 - Migration `199_repair_create_pulse_builtin_catalog.sql` repairs legacy seeded Create Pulse built-in labels while preserving operator-authored admin catalog entries and hidden system instructions. Hosted apply remains a separate approved Supabase operation.
 - Migration `200_add_credit_grant_lot_expiration.sql` adds grant-lot credit accounting, expiration-aware reservation/debit allocation, 60-day subscription credit expiration, non-expiring paid top-up lots, and the service-role expiration RPC. It also retires the pre-grant-lot aggregate `reserve_generation_credits(...)` RPC so runtime reservations must use `admit_and_reserve_generation_credits(...)` with grant allocations. Hosted apply and scheduler enablement remain separate approved Supabase operations.

@@ -14,6 +14,7 @@ import {
 } from "../../../lib/server/mediaUploadService";
 
 type FinalizeMediaUploadRequestBody = {
+  intentId?: unknown;
   destinationTab?: unknown;
   sourceMimeType?: unknown;
   sourceName?: unknown;
@@ -93,10 +94,17 @@ export default async function handler(
     await assertPaidMediaLibraryAccess(user.id);
     const body = (req.body ?? {}) as FinalizeMediaUploadRequestBody;
     const destinationTab = resolveDestinationTab(body.destinationTab);
+    const intentId = normalizeOptionalString(body.intentId);
     const sourceName = normalizeOptionalString(body.sourceName);
     const sourceMimeType = normalizeOptionalString(body.sourceMimeType).toLowerCase();
     const sourceStoragePath = normalizeOptionalString(body.sourceStoragePath);
 
+    if (!intentId) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: "Upload intent is required.",
+      });
+    }
     if (!destinationTab) {
       return res.status(400).json({
         error: "Invalid request",
@@ -124,6 +132,7 @@ export default async function handler(
 
     const file = await finalizePreparedMediaUploadForUser({
       userId: user.id,
+      intentId,
       destinationTab,
       storagePath: sourceStoragePath,
       filename: sourceName,

@@ -67,7 +67,12 @@ export type UseReferencePropertiesInteractionsParams = {
   seedanceElementSlotCount?: number;
   onSeedanceElementMediaSlotChange?: (
     slotIndex: number,
-    value: { kind: "image" | "video" | "audio"; url: string; name?: string | null } | null
+    value: {
+      kind: "image" | "video" | "audio";
+      url: string;
+      name?: string | null;
+      durationMs?: number | null;
+    } | null
   ) => void;
 };
 

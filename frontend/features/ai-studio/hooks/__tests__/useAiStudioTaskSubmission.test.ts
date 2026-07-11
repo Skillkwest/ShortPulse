@@ -1541,6 +1541,7 @@ describe("useAiStudioTaskSubmission", () => {
             frontalImageUrl: "",
             referenceImageUrls: "",
             videoUrl: "https://example.com/element-motion.mp4",
+            videoDurationMs: 10_000,
           },
         ],
         beginPanelGeneration: vi.fn(),
@@ -1606,6 +1607,7 @@ describe("useAiStudioTaskSubmission", () => {
                 id: "direct-video-slot",
                 sourceKind: "reference-video",
                 videoUrl: "https://example.com/element-motion.mp4",
+                videoDurationMs: 10_000,
               }),
             }),
           ],
@@ -1615,6 +1617,10 @@ describe("useAiStudioTaskSubmission", () => {
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
         workflowReload,
+        shortpulseContext: expect.objectContaining({
+          input_video_duration_seconds: 10,
+          seedance_input_video_duration_seconds: 10,
+        }),
       })
     );
     expect(vi.mocked(handleVideoModelSubmission).mock.calls[0]?.[0]?.klingElements).toEqual(
@@ -1623,6 +1629,7 @@ describe("useAiStudioTaskSubmission", () => {
           id: "direct-video-slot",
           sourceKind: "reference-video",
           videoUrl: "https://example.com/element-motion.mp4",
+          videoDurationMs: 10_000,
         }),
       ])
     );
@@ -4120,6 +4127,80 @@ describe("useAiStudioTaskSubmission", () => {
     expect(dispatchEvent.mock.calls[1]?.[0]).toMatchObject({
       type: PRICING_POLICY_CONFLICT_EVENT,
     });
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("removes an internally-created video output on a stale-policy conflict", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiNotice = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const dispatchEvent = vi.spyOn(window, "dispatchEvent");
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("video");
+    vi.mocked(handleVideoModelSubmission).mockRejectedValueOnce(
+      Object.assign(new Error("Pricing changed before generation started."), {
+        code: "PRICING_POLICY_STALE",
+        pricingConflict: {
+          displayedBilledCredits: 60,
+          activeBilledCredits: 65,
+          activePricingPolicyVersion: 13,
+        },
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        prompt: "",
+        currentCostCredits: 60,
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        beginPanelGeneration: vi.fn(),
+        endPanelGeneration: vi.fn(),
+        setUiError: asDispatch(vi.fn()),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(vi.fn()),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById: vi.fn(),
+        startPollingTask: vi.fn(),
+        ensureGenerationRecord: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      await result.current("Generate a calm ocean scene", []);
+    });
+
+    expect(outputs).toEqual([]);
+    const conflictEvent = dispatchEvent.mock.calls
+      .map(([event]) => event)
+      .find((event) => event.type === PRICING_POLICY_CONFLICT_EVENT) as CustomEvent<{
+      outputId: string | null;
+    }>;
+    expect(conflictEvent.detail.outputId).toMatch(/^out-/);
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "Pricing updated from 60 to 65 credits (policy 13). Review the new price, then click Generate again."
+    );
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 

@@ -6,6 +6,7 @@ import {
   prepareMediaUploadForUser,
 } from "../mediaUploadService";
 import { MAX_UPLOAD_BYTES } from "../mediaUploadPolicy";
+import { MediaUploadIntentError } from "../api/mediaUploadIntents";
 
 vi.mock("../api/supabaseAdmin", () => ({
   getSupabaseAdmin: vi.fn(),
@@ -19,6 +20,12 @@ const mediaComplianceAcceptanceMocks = vi.hoisted(() => ({
   getMediaComplianceAcceptanceStatusForUser: vi.fn(),
   isMediaComplianceUnavailableError: vi.fn(),
 }));
+const mediaUploadIntentMocks = vi.hoisted(() => ({
+  reserve: vi.fn(),
+  claim: vi.fn(),
+  finalize: vi.fn(),
+  reject: vi.fn(),
+}));
 
 vi.mock("../videoPosterVariant", () => ({
   upsertVideoPosterVariantFromBuffer: videoVariantMocks.upsertVideoPosterVariantFromBuffer,
@@ -31,6 +38,19 @@ vi.mock("../api/mediaComplianceAcceptance", () => ({
   isMediaComplianceUnavailableError:
     mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError,
 }));
+
+vi.mock("../api/mediaUploadIntents", async () => {
+  const actual = await vi.importActual<typeof import("../api/mediaUploadIntents")>(
+    "../api/mediaUploadIntents"
+  );
+  return {
+    ...actual,
+    reserveMediaUploadIntent: mediaUploadIntentMocks.reserve,
+    claimMediaUploadIntent: mediaUploadIntentMocks.claim,
+    finalizeMediaUploadIntent: mediaUploadIntentMocks.finalize,
+    rejectMediaUploadIntent: mediaUploadIntentMocks.reject,
+  };
+});
 
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
 const ONE_BY_ONE_PNG = Buffer.from(
@@ -51,6 +71,14 @@ describe("prepareMediaUploadForUser", () => {
   const moveMock = vi.fn();
   const removeMock = vi.fn();
   const insertMock = vi.fn();
+  const storageFromMock = vi.fn(() => ({
+    createSignedUploadUrl: createSignedUploadUrlMock,
+    createSignedUrl: createSignedUrlMock,
+    download: downloadMock,
+    upload: uploadMock,
+    move: moveMock,
+    remove: removeMock,
+  }));
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,6 +89,42 @@ describe("prepareMediaUploadForUser", () => {
       acceptedAt: "2026-06-29T00:00:00.000Z",
     });
     mediaComplianceAcceptanceMocks.isMediaComplianceUnavailableError.mockReturnValue(false);
+    mediaUploadIntentMocks.reserve.mockResolvedValue({
+      id: "intent-1",
+      userId: "user-1",
+      purpose: "media_library",
+      mediaKind: "image",
+      bucketId: "media_upload_staging",
+      stagingPath: "user-1/media_library/intent-1/object",
+      sourceName: "reference.webp",
+      declaredMimeType: "image/webp",
+      maxBytes: 25 * 1024 * 1024,
+      destinationKind: "uploaded_images",
+    });
+    mediaUploadIntentMocks.claim.mockImplementation(
+      async ({ stagingPath }: { stagingPath: string }) => {
+        const sourceName = stagingPath.split("/").pop() ?? "upload";
+        const isVideo = sourceName.endsWith(".mp4");
+        const isAudio = sourceName.endsWith(".mp3");
+        const mediaKind = isVideo ? "video" : isAudio ? "audio" : "image";
+        return {
+          id: "intent-1",
+          userId: "user-1",
+          purpose: "media_library",
+          mediaKind,
+          bucketId: "media_upload_staging",
+          stagingPath,
+          sourceName,
+          declaredMimeType: isVideo ? "video/mp4" : isAudio ? "audio/mpeg" : "image/png",
+          maxBytes: mediaKind === "image" ? 25 * 1024 * 1024 : 100 * 1024 * 1024,
+          destinationKind: stagingPath.includes("uploaded_videos")
+            ? "uploaded_videos"
+            : "uploaded_images",
+        };
+      }
+    );
+    mediaUploadIntentMocks.finalize.mockResolvedValue({ status: "finalized" });
+    mediaUploadIntentMocks.reject.mockResolvedValue({ status: "rejected" });
     let insertedMediaPayload: {
       filename: string;
       storage_path: string;
@@ -98,14 +162,7 @@ describe("prepareMediaUploadForUser", () => {
     });
     getSupabaseAdminMock.mockReturnValue({
       storage: {
-        from: vi.fn(() => ({
-          createSignedUploadUrl: createSignedUploadUrlMock,
-          createSignedUrl: createSignedUrlMock,
-          download: downloadMock,
-          upload: uploadMock,
-          move: moveMock,
-          remove: removeMock,
-        })),
+        from: storageFromMock,
       },
       from: vi.fn(() => ({
         insert: insertMock,
@@ -144,16 +201,26 @@ describe("prepareMediaUploadForUser", () => {
 
     const target = await prepareMediaUploadForUser({
       userId: "user-1",
+      idempotencyKey: "request-1",
       destinationTab: "uploaded_images",
       filename: "reference.webp",
       declaredMimeType: "image/webp",
     });
 
-    expect(createSignedUploadUrlMock).toHaveBeenCalledWith(
-      expect.stringMatching(/^user-1\/upload-staging\/uploaded_images\/.*reference\.webp$/)
+    expect(createSignedUploadUrlMock).toHaveBeenCalledWith("user-1/media_library/intent-1/object");
+    expect(storageFromMock).toHaveBeenCalledWith("media_upload_staging");
+    expect(mediaUploadIntentMocks.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        purpose: "media_library",
+        idempotencyKey: "request-1",
+        destinationKind: "uploaded_images",
+      })
     );
     expect(target).toEqual({
-      path: expect.stringMatching(/^user-1\/upload-staging\/uploaded_images\/.*reference\.webp$/),
+      intentId: "intent-1",
+      bucketId: "media_upload_staging",
+      path: "user-1/media_library/intent-1/object",
       token: "upload-token",
       mimeType: "image/webp",
       name: "reference.webp",
@@ -169,6 +236,7 @@ describe("prepareMediaUploadForUser", () => {
     await expect(
       prepareMediaUploadForUser({
         userId: "user-1",
+        idempotencyKey: "request-1",
         destinationTab: "uploaded_images",
         filename: "reference.webp",
         declaredMimeType: "image/webp",
@@ -193,6 +261,7 @@ describe("prepareMediaUploadForUser", () => {
     await expect(
       prepareMediaUploadForUser({
         userId: "user-1",
+        idempotencyKey: "request-1",
         destinationTab: "uploaded_images",
         filename: "reference.webp",
         declaredMimeType: "image/webp",
@@ -205,17 +274,26 @@ describe("prepareMediaUploadForUser", () => {
   });
 
   it("finalizes a staged browser upload into a durable media row and removes staging", async () => {
+    mediaUploadIntentMocks.claim.mockResolvedValueOnce({
+      id: "intent-1",
+      mediaKind: "image",
+      bucketId: "media_upload_staging",
+      stagingPath: "user-1/media_library/intent-1/object",
+      sourceName: "reference.png",
+      declaredMimeType: "image/png",
+      maxBytes: 25 * 1024 * 1024,
+      destinationKind: "uploaded_images",
+    });
     const file = await finalizePreparedMediaUploadForUser({
       userId: "user-1",
+      intentId: "intent-1",
       destinationTab: "uploaded_images",
-      storagePath: "user-1/upload-staging/uploaded_images/reference.png",
+      storagePath: "user-1/media_library/intent-1/object",
       filename: "reference.png",
       declaredMimeType: "image/png",
     });
 
-    expect(downloadMock).toHaveBeenCalledWith(
-      "user-1/upload-staging/uploaded_images/reference.png"
-    );
+    expect(downloadMock).toHaveBeenCalledWith("user-1/media_library/intent-1/object");
     expect(uploadMock).toHaveBeenCalledWith(
       expect.stringMatching(/^user-1\/images\/.*reference\.png$/),
       ONE_BY_ONE_PNG,
@@ -246,9 +324,7 @@ describe("prepareMediaUploadForUser", () => {
       expect.stringMatching(/^user-1\/images\/.*reference\.png$/),
       3600
     );
-    expect(removeMock).toHaveBeenCalledWith([
-      "user-1/upload-staging/uploaded_images/reference.png",
-    ]);
+    expect(removeMock).toHaveBeenCalledWith(["user-1/media_library/intent-1/object"]);
     expect(file).toEqual({
       id: "media-1",
       filename: "reference.png",
@@ -262,7 +338,7 @@ describe("prepareMediaUploadForUser", () => {
     });
   });
 
-  it("finalizes a staged video upload by moving it into durable storage and preserving variant authority", async () => {
+  it("finalizes a staged video upload by promoting verified bytes into durable storage", async () => {
     videoVariantMocks.upsertVideoPreviewVariantFromBuffer.mockResolvedValueOnce(
       "user-1/variants/videos/media-1/preview_loop_360p.mp4"
     );
@@ -288,17 +364,19 @@ describe("prepareMediaUploadForUser", () => {
 
     const file = await finalizePreparedMediaUploadForUser({
       userId: "user-1",
+      intentId: "intent-1",
       destinationTab: "uploaded_videos",
       storagePath: "user-1/upload-staging/uploaded_videos/clip.mp4",
       filename: "clip.mp4",
       declaredMimeType: "video/mp4",
     });
 
-    expect(uploadMock).not.toHaveBeenCalled();
-    expect(moveMock).toHaveBeenCalledWith(
-      "user-1/upload-staging/uploaded_videos/clip.mp4",
-      expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/)
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/.*clip\.mp4$/),
+      MINIMAL_MP4_BYTES,
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
     );
+    expect(moveMock).not.toHaveBeenCalled();
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "user-1",
@@ -367,6 +445,7 @@ describe("prepareMediaUploadForUser", () => {
     await expect(
       finalizePreparedMediaUploadForUser({
         userId: "user-1",
+        intentId: "intent-1",
         destinationTab: "uploaded_videos",
         storagePath: "user-1/upload-staging/uploaded_videos/too-large.mp4",
         filename: "too-large.mp4",
@@ -387,7 +466,55 @@ describe("prepareMediaUploadForUser", () => {
     ]);
   });
 
-  it("finalizes a staged audio upload by moving it into durable storage", async () => {
+  it("rejects a forged intent/path pair before reading staging bytes", async () => {
+    mediaUploadIntentMocks.claim.mockRejectedValueOnce(
+      new MediaUploadIntentError(
+        409,
+        "MEDIA_UPLOAD_INTENT_CONFLICT",
+        "The upload intent no longer matches this operation."
+      )
+    );
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        intentId: "intent-foreign",
+        destinationTab: "uploaded_images",
+        storagePath: "user-1/media_library/intent-foreign/object",
+        filename: "forged.png",
+        declaredMimeType: "image/png",
+      })
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a replayed finalized intent before reading staging bytes", async () => {
+    mediaUploadIntentMocks.claim.mockRejectedValueOnce(
+      new MediaUploadIntentError(
+        409,
+        "MEDIA_UPLOAD_INTENT_CONFLICT",
+        "The upload intent no longer matches this operation."
+      )
+    );
+
+    await expect(
+      finalizePreparedMediaUploadForUser({
+        userId: "user-1",
+        intentId: "intent-1",
+        destinationTab: "uploaded_images",
+        storagePath: "user-1/media_library/intent-1/object",
+        filename: "reference.png",
+        declaredMimeType: "image/png",
+      })
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(downloadMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("finalizes a staged audio upload by promoting verified bytes into durable storage", async () => {
     downloadMock.mockResolvedValueOnce({
       data: {
         size: MINIMAL_MP3_BYTES.length,
@@ -407,17 +534,19 @@ describe("prepareMediaUploadForUser", () => {
 
     const file = await finalizePreparedMediaUploadForUser({
       userId: "user-1",
+      intentId: "intent-1",
       destinationTab: "uploaded_images",
       storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
       filename: "track.mp3",
       declaredMimeType: "audio/mpeg",
     });
 
-    expect(uploadMock).not.toHaveBeenCalled();
-    expect(moveMock).toHaveBeenCalledWith(
-      "user-1/upload-staging/uploaded_images/track.mp3",
-      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/)
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/audio\/.*track\.mp3$/),
+      MINIMAL_MP3_BYTES,
+      expect.objectContaining({ contentType: "audio/mpeg", upsert: false })
     );
+    expect(moveMock).not.toHaveBeenCalled();
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "user-1",
@@ -470,6 +599,7 @@ describe("prepareMediaUploadForUser", () => {
     await expect(
       finalizePreparedMediaUploadForUser({
         userId: "user-1",
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
         filename: "track.mp3",
@@ -488,7 +618,7 @@ describe("prepareMediaUploadForUser", () => {
     expect(removeMock).toHaveBeenCalledWith(["user-1/upload-staging/uploaded_images/track.mp3"]);
   });
 
-  it("labels prepared upload move failures with finalize diagnostics", async () => {
+  it("labels durable promotion failures with finalize diagnostics", async () => {
     downloadMock.mockResolvedValueOnce({
       data: {
         size: MINIMAL_MP3_BYTES.length,
@@ -501,14 +631,12 @@ describe("prepareMediaUploadForUser", () => {
       },
       error: null,
     });
-    moveMock.mockResolvedValueOnce({
-      data: null,
-      error: { message: "storage move unavailable" },
-    });
+    uploadMock.mockResolvedValueOnce({ error: { message: "storage upload unavailable" } });
 
     await expect(
       finalizePreparedMediaUploadForUser({
         userId: "user-1",
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
         filename: "track.mp3",
@@ -517,12 +645,11 @@ describe("prepareMediaUploadForUser", () => {
     ).rejects.toMatchObject({
       status: 500,
       message: "Upload failed",
-      details: "storage move unavailable",
+      details: "Unknown upload error",
       diagnostics: {
-        media_upload_stage: "prepared_upload_move",
-        media_upload_operation: "storage_move",
-        media_upload_destination_tab: "uploaded_images",
-        media_upload_file_type: "audio",
+        media_upload_stage: "storage_upload",
+        media_upload_operation: "upload",
+        media_upload_storage_folder: "audio",
         media_upload_mime_type: "audio/mpeg",
       },
     });
@@ -560,6 +687,7 @@ describe("prepareMediaUploadForUser", () => {
     await expect(
       finalizePreparedMediaUploadForUser({
         userId: "user-1",
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         storagePath: "user-1/upload-staging/uploaded_images/track.mp3",
         filename: "track.mp3",

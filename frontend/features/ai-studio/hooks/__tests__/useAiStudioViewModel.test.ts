@@ -1558,6 +1558,51 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
+  it("resolves Seedance pricing from a selected video asset's persisted duration", () => {
+    const pricingParams = makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID)({
+      durationSeconds: 6,
+      resolution: "1080p",
+      audio: false,
+      inputVideoCount: 1,
+      inputVideoDurationSeconds: 10,
+    });
+    const videoPricingPolicy = withVideoBilledCreditsOverride({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      params: pricingParams,
+      credits: 50,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        klingElements: [
+          {
+            id: "asset-video",
+            slotIndex: 0,
+            sourceKind: "reference-video",
+            name: "Asset video",
+            profileImageUrl: null,
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "https://example.com/asset-video.mp4",
+            videoDurationMs: 10_000,
+          },
+        ],
+        outputs: [],
+        costParamsForModel: makeCostParamsForModel(KIE_SEEDANCE_2_MODEL_ID),
+        pricingPolicy: videoPricingPolicy,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.currentCostCredits).toBe(50);
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
   it("requires both first and last frame images for explicit Seedance 2 first-last mode", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

@@ -14,7 +14,6 @@ import {
 } from "../../model-runtime/editImageBilledCredits";
 import { resolvePricingGridCostBreakdown } from "../../model-runtime/pricingGridBilledCredits";
 import { resolveVideoBilledCreditLookup } from "../../model-runtime/videoBilledCredits";
-import { materializeImageBilledCreditPolicy } from "../../model-runtime/materializeImageBilledCreditPolicy";
 import { requireApiUser } from "./auth";
 import { requireMediaComplianceAccepted } from "./mediaComplianceGuard";
 import { resolveBillingConcurrencyEntitlement } from "./billingConcurrencyEntitlements";
@@ -181,10 +180,10 @@ const isLaunchDeferredEditPricingPath = ({
 }): boolean => pricingParams.maskPresent === true;
 
 const isImageBillingWorkflow = (workflow: GenerationBillingWorkflow): boolean =>
-  workflow === "image" || workflow === "create_image" || workflow === "edit_image";
+  workflow === "create_image" || workflow === "edit_image";
 
 const shouldResolveCreateImagePricing = (workflow: GenerationBillingWorkflow): boolean =>
-  workflow === "image" || workflow === "create_image";
+  workflow === "create_image";
 
 const shouldResolveEditImagePricing = ({
   workflow,
@@ -195,7 +194,7 @@ const shouldResolveEditImagePricing = ({
   pricingParams: Omit<PricingParams, "modelId">;
   modelId: string;
 }): boolean =>
-  (workflow === "image" || workflow === "edit_image") &&
+  workflow === "edit_image" &&
   !isLaunchDeferredEditPricingPath({ pricingParams }) &&
   supportsCanonicalEditImageBilledPricing(modelId);
 
@@ -315,7 +314,7 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Model pricing policy is unavailable." });
     return null;
   }
-  const effectivePricingPolicy = materializeImageBilledCreditPolicy(runtimePricingPolicy.policy);
+  const effectivePricingPolicy = runtimePricingPolicy.policy;
   const displayedPricingPolicyVersion = readFiniteNumber(
     shortpulseContext?.displayed_pricing_policy_version
   );
@@ -358,6 +357,7 @@ export const chargeGenerationRequest = async ({
           modelId,
           params: pricingParams,
           pricingPolicy: effectivePricingPolicy,
+          requirePublishedBillingRule: true,
         })
       : null;
   const canonicalPricingCandidates: CanonicalPricingCandidate[] = [];
@@ -408,11 +408,7 @@ export const chargeGenerationRequest = async ({
   const requiresCanonicalImagePricing = isImageBillingWorkflow(billingWorkflow);
   const requiresCanonicalVideoPricing = billingWorkflow === "video";
   const requiresCanonicalAudioPricing = billingWorkflow === "audio";
-  if (
-    activePricingPolicyVersion != null &&
-    requiresCanonicalCreateImagePricing &&
-    !createImagePricingLookup?.breakdown
-  ) {
+  if (requiresCanonicalCreateImagePricing && !createImagePricingLookup?.breakdown) {
     await logGenerationFailure({
       req,
       routeLabel,
@@ -432,11 +428,7 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Pricing is unavailable for this configuration." });
     return null;
   }
-  if (
-    activePricingPolicyVersion != null &&
-    requiresCanonicalImagePricing &&
-    canonicalPricingCandidates.length === 0
-  ) {
+  if (requiresCanonicalImagePricing && canonicalPricingCandidates.length === 0) {
     await logGenerationFailure({
       req,
       routeLabel,
@@ -456,11 +448,7 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Pricing is unavailable for this configuration." });
     return null;
   }
-  if (
-    activePricingPolicyVersion != null &&
-    requiresCanonicalEditImagePricing &&
-    !editImagePricingLookup?.breakdown
-  ) {
+  if (requiresCanonicalEditImagePricing && !editImagePricingLookup?.breakdown) {
     await logGenerationFailure({
       req,
       routeLabel,
@@ -480,11 +468,7 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Pricing is unavailable for this configuration." });
     return null;
   }
-  if (
-    activePricingPolicyVersion != null &&
-    requiresCanonicalVideoPricing &&
-    !videoPricingBreakdown
-  ) {
+  if (requiresCanonicalVideoPricing && !videoPricingBreakdown) {
     await logGenerationFailure({
       req,
       routeLabel,
@@ -504,11 +488,7 @@ export const chargeGenerationRequest = async ({
     res.status(500).json({ error: "Pricing is unavailable for this configuration." });
     return null;
   }
-  if (
-    activePricingPolicyVersion != null &&
-    requiresCanonicalAudioPricing &&
-    !audioPricingBreakdown
-  ) {
+  if (requiresCanonicalAudioPricing && !audioPricingBreakdown) {
     await logGenerationFailure({
       req,
       routeLabel,

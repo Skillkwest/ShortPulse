@@ -42,6 +42,7 @@ type SeedanceElementMediaSlotValue = {
   kind: "image" | "video" | "audio";
   url: string;
   name?: string | null;
+  durationMs?: number | null;
 } | null;
 
 export type VideoElementSlotReorderPlacement = "before" | "after" | "replace";
@@ -165,6 +166,7 @@ export function useVideoElementSlotsController({
           slotIndex,
           videoUrl: value.url,
           name: value.name,
+          durationMs: value.durationMs,
         });
       } else if (value.kind === "audio") {
         next[slotIndex] = createSeedanceAudioReferenceSlot({

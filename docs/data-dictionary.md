@@ -396,9 +396,11 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `failure_reason_code` / `error_message` (text, nullable): Attempt failure detail.
 - `metadata` (jsonb, default `{}`): Compact attempt context such as `source_ref`, queue attempts, and submit target details.
 - `created_at` / `updated_at` (timestamptz)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- RLS/grants: authenticated clients may select rows where `user_id = auth.uid()`; all mutations are server-owned.
 - Constraints and indexes:
   - Unique `(generation_id, attempt_number)` preserves ordered attempt lineage.
+  - Composite `(generation_id, user_id) -> ai_generations(id, user_id)` enforces same-owner lineage.
+  - `generation_id` and `user_id` are immutable after insert.
   - Partial unique `(user_id, provider_request_id)` where provider handle is present.
   - `generation_attempts_attempt_number_positive_check` enforces positive attempt numbers.
   - `generation_attempts_status_check` enforces bounded attempt states.
@@ -415,10 +417,21 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `media_file_id` (uuid, nullable): Linked durable `media_files` row when autosave or later persistence exists.
 - `metadata` (jsonb, default `{}`): Compact output-level recovery metadata such as autosave decision and actor.
 - `created_at` / `updated_at` (timestamptz)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- RLS/grants: authenticated clients may select rows where `user_id = auth.uid()`; all mutations, including media attachment through `POST /api/generation/output-media-link`, are server-owned.
 - Constraints and indexes:
   - Unique `(generation_id, output_index)` prevents duplicate canonical output rows for the same generation slot.
   - `(user_id, provider_request_id)` index supports request-level output lookups when needed.
+  - Composite ownership FKs pair the generation, optional attempt, and optional media row with `user_id`; legacy cascade/set-null behavior is preserved.
+  - `generation_id` and `user_id` are immutable after insert, while `media_file_id` remains mutable through the ownership-verifying server route.
+
+### generation_publications
+
+- `generation_id` / `user_id`: Immutable owner-paired generation lineage.
+- `generation_attempt_id` (nullable): Owner- and generation-paired attempt lineage; set null when the attempt is deleted.
+- `generation_output_id`: Owner- and generation-paired canonical output; publication deletion cascades with the output.
+- `owned_media_file_id` (nullable): Owner-paired durable media row; set null when the media row is deleted.
+- RLS/grants: authenticated clients may select owner-scoped rows; mutations are service-role-only.
+- Integrity: validated composite ownership FKs prevent cross-user or cross-generation publication links.
 
 ### generation_projection
 
@@ -436,7 +449,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `remux_recovery` (jsonb, nullable): Projection-only Voice Changer pending/failed video-assembly state used to reconstruct the deterministic retry card after refresh. Canonical storage paths and recovery authority remain in the caller-owned `ai_generations.metadata`; this projection contains only non-secret ids, status, stage, code, and retryability.
 - `publication_status` / `publication_id` / `published_at` (nullable): Publication tracking fields.
 - `created_at` / `updated_at` (timestamptz)
-- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- RLS/grants: authenticated clients may select rows where `user_id = auth.uid()`; all mutations are server-owned.
+- Integrity: validated composite FKs pair the projection with its generation and optional latest attempt; `generation_id` and `user_id` are immutable, and attempt deletion retains legacy set-null behavior.
 - Notes:
   - Admin stats v1 treats this as the primary workflow-context authority for style-applied, character-mode, and reference-assisted generation analytics.
   - Accepted submit paths pass additive `generation_replay`, `workflow_reload`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics and reload context.
@@ -1235,6 +1249,23 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Admission policy: the reservation RPC derives eligibility from the current non-free `billing_subscription_contracts` row and serializes per-user/global active and hourly provider budgets.
 - Provisioned by: `sql/migrations/223_add_openai_internal_capacity_admissions.sql`.
 
+### media_upload_intents
+
+- `id` (uuid, pk): Opaque upload-intent identity; also participates in the server-derived staging namespace.
+- `user_id` (uuid, fk -> `auth.users.id`): Owner bound by the server-only reservation RPC.
+- `purpose` (text): `media_library` | `reference_image` | `reference_video` | `motion_reference_video` | `voice_changer_source` | `product_image_asset`.
+- `media_kind` (text): `image` | `video` | `audio`, cross-checked against purpose and declared MIME family.
+- `bucket_id` / `staging_path` (text): Fixed private `media_upload_staging` bucket and unique server-derived `<user>/<intent>/object` path.
+- `source_name` / `declared_mime_type` / `max_bytes` (text/text/bigint): Bounded transport declaration; `max_bytes` cannot exceed 100 MiB.
+- `owner_kind` / `owner_ref` / `destination_kind` (text, nullable): Immutable purpose-specific domain binding. These fields do not grant ownership or provider/billing access by themselves.
+- `idempotency_key` (text): Unique with `(user_id, purpose)`; concurrent reservations serialize on that key and exact-match existing intent facts.
+- `status` (text): `prepared` | `claimed` | `finalized` | `rejected` | `expired`.
+- `detected_mime_type` / `actual_bytes` / `inspection_version` / `inspection_result`: Sanitized bounded inspection facts only; no signed URL, upload token, raw provider URL, prompt, or payload is stored.
+- `expires_at`, `claimed_at`, `finalized_at`, `rejected_at`, `expired_at`, `created_at`, `updated_at` (timestamptz): Bounded transport and lifecycle timestamps. Reservation TTL is 5 minutes to 2 hours, defaulting to 2 hours for supported uploads up to 100 MiB.
+- RLS/grants: RLS enabled with no browser policies; table DML and all five lifecycle RPCs are service-role-only.
+- Domain boundary: authorizes browser-to-private-staging transport only. It does not authorize durable Media Library admission, provider staging, billing, credit mutation, signing, or reads.
+- Provisioned by: `sql/migrations/225_add_media_upload_intents.sql`.
+
 ### ai_credit_reservations
 
 - `id` (uuid, pk): Reservation row.
@@ -1292,8 +1323,9 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Per-user status index on `(user_id, status, created_at)`.
   - Unique partial index on `(user_id) where status='dispatching'` to keep one active leased dispatch per user.
 - RLS:
-  - Select and write policies scoped to `user_id = auth.uid()`.
+  - Authenticated select remains scoped to `user_id = auth.uid()`; browser mutation grants and policies are removed.
   - Service-role RPCs (`enqueue_generation_submit`, `claim_generation_submit_queue_batch`) are authoritative write paths.
+  - Composite `(generation_id, user_id) -> ai_generations(id, user_id)` enforces same-owner lineage, and both ownership columns are immutable.
 
 ### stripe_event_log
 

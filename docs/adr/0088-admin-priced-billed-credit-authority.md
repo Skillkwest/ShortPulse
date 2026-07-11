@@ -21,7 +21,7 @@ That split has already produced drift between:
 - AI Studio `Generate` button costs
 - and live billed debits
 
-ShortPulse now needs one operator-authored authority for AI usage pricing. Scott is the primary author of the admin pricing page and will set final billed-credit amounts manually per model variant.
+ShortPulse now needs one operator-controlled authority for AI usage pricing. Scott is the primary author of the admin pricing page. Admin-controlled provider cost/rate, conversion, markup, and rounding inputs calculate each row's `Billed credits`; that published calculator result is the customer-price authority.
 
 ## Decision
 
@@ -29,11 +29,13 @@ For AI usage pricing, the canonical authority is now the admin-priced `Billed cr
 
 This means:
 
-1. The final billed-credit amount is operator-authored, not computed from shared-policy runtime math.
+1. The final billed-credit amount is published by the admin pricing-grid calculator from operator-controlled inputs. Product runtime must not independently reconstruct it from provider cost, conversion, markup, or compiled fallback constants.
 2. Billable product UI must read the canonical billed-credit variant row for the user’s exact configuration and display that value directly.
 3. Server-side debit must read that same canonical billed-credit variant row and charge that same amount.
 4. Missing variant rows must fail closed. The product must not silently fall back to shared-policy math, provider-derived estimates, or local pricing formulas for a billed action.
-5. Shared-policy/runtime pricing math is deprecated as authority for AI usage billed credits. It may remain temporarily as migration-era implementation detail only until all billed surfaces and debit paths are moved onto canonical variant-row lookup.
+5. Shared-policy/runtime provider pricing math is deprecated as product-runtime authority for AI usage billed credits. Calculator math remains valid inside the admin authoring/publishing path; product runtime consumes either a published fixed result or one self-contained published quantity rule.
+6. A published quantity rule snapshots the calculator's derived cost credits per unit, applied markup, final rounding increment, and approved quantity basis. Runtime executes that stored credit rule against server-validated quantity; it does not read provider USD, conversion scale, authoring markup fields, or compiled provider-rate constants.
+7. The two-stage credit rounding shown by the admin workbook is preserved: round total cost credits first, then apply the rule's snapshotted markup and final rounding increment. Current approved examples include Seedance output duration and, for video-input rows, input-video duration plus output duration.
 
 ## Consequences
 

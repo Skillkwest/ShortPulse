@@ -3,13 +3,6 @@ name: Apply Control-Plane Ops SQL
 on:
   workflow_dispatch:
     inputs:
-      target_environment:
-        description: "GitHub Environment containing SUPABASE_DB_URL"
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
       operation:
         description: "Control-plane SQL operation to apply"
         required: true
@@ -29,20 +22,43 @@ on:
         type: string
 
 concurrency:
-  group: apply-control-plane-ops-sql-${{ github.event.inputs.target_environment }}
+  group: apply-control-plane-ops-sql-production
   cancel-in-progress: false
 
 jobs:
   apply_control_plane_ops_sql:
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.event.inputs.target_environment }}
+    environment: Production
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Assert production dispatch ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/production" ]; then
+            echo "::error::Production SQL workflows may run only from refs/heads/production."
+            exit 1
+          fi
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: refs/heads/production
           fetch-depth: 1
+
+      - name: Verify production checkout SHA
+        id: checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECKOUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKOUT_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked out SHA $CHECKOUT_SHA does not match trigger SHA $GITHUB_SHA."
+            exit 1
+          fi
+          echo "sha=$CHECKOUT_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Install PostgreSQL client
         run: |
@@ -50,20 +66,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Apply selected control-plane SQL
+      - name: Resolve and hash selected control-plane SQL
+        id: sql
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          BYPASS_TOKEN: ${{ secrets.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN }}
-          RECONCILER_CRON_SECRET: ${{ secrets.SHORTPULSE_FAL_RECONCILER_CRON_SECRET }}
           OPERATION: ${{ github.event.inputs.operation }}
           CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
         run: |
           set -euo pipefail
-
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "::error::Missing environment secret SUPABASE_DB_URL."
-            exit 1
-          fi
 
           if [ "$CONFIRM_TOKEN" != "apply-control-plane-ops" ]; then
             echo "::error::Confirmation token mismatch."
@@ -73,51 +82,27 @@ jobs:
           case "$OPERATION" in
             configure_bypass_secret)
               SQL_FILE="sql/configure_control_plane_scheduler_bypass_secret_supabase.sql"
-              if [ -z "${BYPASS_TOKEN:-}" ]; then
-                echo "::error::Missing environment secret SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN."
-                exit 1
-              fi
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v bypass_token="$BYPASS_TOKEN" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_generation_recovery_cron_secret)
               SQL_FILE="sql/configure_generation_recovery_cron_secret_supabase.sql"
-              if [ -z "${RECONCILER_CRON_SECRET:-}" ]; then
-                echo "::error::Missing environment secret SHORTPULSE_FAL_RECONCILER_CRON_SECRET."
-                exit 1
-              fi
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v reconciler_cron_secret="$RECONCILER_CRON_SECRET" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_generation_recovery_scheduler)
               SQL_FILE="sql/configure_generation_recovery_scheduler_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_media_derivative_scheduler)
               SQL_FILE="sql/configure_media_derivative_scheduler_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_admin_user_health_fleet_scheduler)
               SQL_FILE="sql/configure_admin_user_health_fleet_scheduler_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_internal_billing_renewal_scheduler)
               SQL_FILE="sql/configure_internal_billing_renewal_scheduler_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             configure_cron_job_run_details_retention)
               SQL_FILE="sql/configure_cron_job_run_details_retention_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             analyze_hot_database_tables)
               SQL_FILE="sql/analyze_hot_database_tables_supabase.sql"
-              echo "Applying $SQL_FILE"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
               ;;
             *)
               echo "::error::Unsupported operation: $OPERATION"
@@ -125,17 +110,79 @@ jobs:
               ;;
           esac
 
+          if [ ! -f "$SQL_FILE" ]; then
+            echo "::error::Missing SQL file: $SQL_FILE"
+            exit 1
+          fi
+          SQL_SHA256="$(sha256sum "$SQL_FILE" | awk '{print $1}')"
+          echo "path=$SQL_FILE" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SQL_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Apply selected control-plane SQL
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BYPASS_TOKEN: ${{ secrets.SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN }}
+          RECONCILER_CRON_SECRET: ${{ secrets.SHORTPULSE_FAL_RECONCILER_CRON_SECRET }}
+          OPERATION: ${{ github.event.inputs.operation }}
+          SQL_FILE: ${{ steps.sql.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
+
+          case "$OPERATION" in
+            configure_bypass_secret)
+              if [ -z "${BYPASS_TOKEN:-}" ]; then
+                echo "::error::Missing environment secret SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN."
+                exit 1
+              fi
+              PSQL_ARGS=(-v "bypass_token=$BYPASS_TOKEN")
+              ;;
+            configure_generation_recovery_cron_secret)
+              if [ -z "${RECONCILER_CRON_SECRET:-}" ]; then
+                echo "::error::Missing environment secret SHORTPULSE_FAL_RECONCILER_CRON_SECRET."
+                exit 1
+              fi
+              PSQL_ARGS=(-v "reconciler_cron_secret=$RECONCILER_CRON_SECRET")
+              ;;
+            *)
+              PSQL_ARGS=()
+              ;;
+          esac
+
+          echo "Applying $SQL_FILE"
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 "${PSQL_ARGS[@]}" -f "$SQL_FILE" | tee /tmp/control_plane_ops_sql.log
+
+      - name: Write step summary
+        if: always()
+        env:
+          TRIGGER_REF: ${{ github.ref }}
+          TRIGGER_SHA: ${{ github.sha }}
+          CHECKOUT_SHA: ${{ steps.checkout.outputs.sha }}
+          OPERATION: ${{ github.event.inputs.operation }}
+          SQL_FILE: ${{ steps.sql.outputs.path }}
+          SQL_SHA256: ${{ steps.sql.outputs.sha256 }}
+          ACTOR: ${{ github.actor }}
+          RESULT: ${{ job.status }}
+        run: |
           {
-            echo "### Control-Plane Ops SQL"
-            echo "- Environment: ${{ github.event.inputs.target_environment }}"
-            echo "- Operation: $OPERATION"
-            echo "- SQL file: \`$SQL_FILE\`"
-            echo "- Result: success"
+            printf '%s\n' "### Control-Plane Ops SQL"
+            printf '%s\n' "- Trigger ref: \`$TRIGGER_REF\`"
+            printf '%s\n' "- Trigger SHA: \`$TRIGGER_SHA\`"
+            printf '%s\n' "- Checkout SHA: \`$CHECKOUT_SHA\`"
+            printf '%s\n' "- Operation: \`$OPERATION\`"
+            printf '%s\n' "- SQL file: \`$SQL_FILE\`"
+            printf '%s\n' "- SQL SHA-256: \`$SQL_SHA256\`"
+            printf '%s\n' "- Actor: \`$ACTOR\`"
+            printf '%s\n' "- Environment: \`Production\`"
+            printf '%s\n' "- Result: $RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload apply log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: control-plane-ops-sql-${{ github.run_id }}
           path: /tmp/control_plane_ops_sql.log

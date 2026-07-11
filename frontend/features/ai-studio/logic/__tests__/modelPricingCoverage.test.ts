@@ -174,7 +174,7 @@ describe("model pricing coverage", () => {
         aspect: "1:1",
         resolution: "4K",
       })?.usdRaw
-    ).toBeCloseTo(0.05);
+    ).toBeCloseTo(0.08);
     expect(
       computeCostForModel("kie-ai/gpt-image-2-image-to-image", {
         aspect: "16:9",
@@ -193,6 +193,6 @@ describe("model pricing coverage", () => {
         aspect: "1:1",
         resolution: "4K",
       })?.usdRaw
-    ).toBeCloseTo(0.05);
+    ).toBeCloseTo(0.08);
   });
 });

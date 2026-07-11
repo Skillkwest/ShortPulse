@@ -182,6 +182,9 @@ export const resolveTaskPollingProvider = ({
   provider?: string | null;
   modelId?: string | null;
 }): Provider | null => {
+  if (provider?.trim().toLowerCase() === "kie") {
+    return resolveActivePollingProvider(modelId);
+  }
   return resolveActivePollingProvider(provider) ?? resolveActivePollingProvider(modelId);
 };
 

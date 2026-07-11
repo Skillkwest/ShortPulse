@@ -66,6 +66,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",
@@ -78,6 +79,7 @@ describe("POST /api/media/finalize-upload", () => {
 
     expect(finalizePreparedMediaUploadForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
+      intentId: "intent-1",
       destinationTab: "uploaded_images",
       storagePath: "user-1/upload-staging/uploaded_images/image.webp",
       filename: "image.webp",
@@ -96,6 +98,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "",
         sourceName: "image.webp",
@@ -114,11 +117,34 @@ describe("POST /api/media/finalize-upload", () => {
     });
   });
 
+  it("rejects finalization when the upload intent is missing", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        destinationTab: "uploaded_images",
+        sourceMimeType: "image/webp",
+        sourceName: "image.webp",
+        sourceStoragePath: "user-1/media_library/intent-1/object",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(finalizePreparedMediaUploadForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "Upload intent is required.",
+    });
+  });
+
   it("logs auth verifier failures before rate limiting or upload finalization", async () => {
     requireApiUserMock.mockRejectedValueOnce(new Error("auth verifier exploded"));
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",
@@ -156,6 +182,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",
@@ -168,6 +195,7 @@ describe("POST /api/media/finalize-upload", () => {
 
     expect(finalizePreparedMediaUploadForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
+      intentId: "intent-1",
       destinationTab: "uploaded_images",
       storagePath: "user-1/upload-staging/uploaded_images/image.webp",
       filename: "image.webp",
@@ -187,6 +215,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",
@@ -212,6 +241,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",
@@ -245,6 +275,7 @@ describe("POST /api/media/finalize-upload", () => {
     const req = {
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_videos",
         sourceMimeType: "video/mp4",
         sourceName: "clip.mp4",
@@ -281,6 +312,7 @@ describe("POST /api/media/finalize-upload", () => {
     const buildReq = () => ({
       method: "POST",
       body: {
+        intentId: "intent-1",
         destinationTab: "uploaded_images",
         sourceMimeType: "image/webp",
         sourceName: "image.webp",

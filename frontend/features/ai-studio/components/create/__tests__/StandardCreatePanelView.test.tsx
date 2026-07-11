@@ -129,7 +129,7 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
-  it("explains blocked wider-panel media drops and can turn Chat Mode on", () => {
+  it("explains blocked wider-panel media drops without offering an inline Chat Mode action", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onChatModeEnabledChange = vi.fn();
     const { container } = render(
@@ -173,9 +173,8 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(mediaTransfer.dropEffect).toBe("none");
     expect(screen.getByRole("status")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Turn on Chat Mode" }));
-    expect(onChatModeEnabledChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole("button", { name: "Turn on Chat Mode" })).not.toBeInTheDocument();
+    expect(onChatModeEnabledChange).not.toHaveBeenCalled();
   });
 
   it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {

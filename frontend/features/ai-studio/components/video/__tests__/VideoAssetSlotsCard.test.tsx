@@ -50,6 +50,36 @@ describe("VideoAssetSlotsCard", () => {
     vi.unstubAllGlobals();
   });
 
+  it("shows the asset helper only while every visible asset slot is empty", () => {
+    const helperCopy =
+      "Click an empty slot to add an element or drag a reference from the Reference Grid.";
+    const filledElement = {
+      id: "slot-1",
+      slotIndex: 0,
+      sourceKind: "element" as const,
+      name: "Lantern",
+      profileImageUrl: "https://example.com/lantern.png",
+      profileImageTransform: null,
+      frontalImageUrl: "https://example.com/lantern.png",
+      referenceImageUrls: "",
+      videoUrl: "",
+    };
+
+    const { rerender } = render(<VideoAssetSlotsCard {...baseProps} />);
+
+    expect(screen.getByText(helperCopy)).toBeInTheDocument();
+
+    rerender(
+      <VideoAssetSlotsCard {...baseProps} modelVisibleKlingElements={[filledElement, null, null]} />
+    );
+
+    expect(screen.queryByText(helperCopy)).not.toBeInTheDocument();
+
+    rerender(<VideoAssetSlotsCard {...baseProps} modelVisibleKlingElements={[null, null, null]} />);
+
+    expect(screen.getByText(helperCopy)).toBeInTheDocument();
+  });
+
   it("refreshes restored Seedance image slot previews from durable storage refs", async () => {
     const staleSignedUrl = "https://storage.example.com/stale-seedance-slot.png";
     const freshSignedUrl = "https://storage.example.com/fresh-seedance-slot.png";

@@ -4,10 +4,19 @@
  */
 import { readFileSync } from "node:fs";
 import React from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CUSTOM_VOICE_NAME_CHARACTERS } from "../../../../lib/customVoiceName";
 import { resolvePricingGridBilledCredits } from "../../../../lib/model-runtime/pricingGridBilledCredits";
+import { materializeImageBilledCreditPolicy } from "../../../../lib/model-runtime/materializeImageBilledCreditPolicy";
+import { getDefaultModelPricingPolicyDocument } from "../../../../lib/model-runtime/pricingPolicy";
 import { createCanvasTearOutComposerTargetRegistry } from "../../hooks/useAiStudioCanvasTearOutTargets";
 import { AI_STUDIO_PLAN_CTA } from "../../logic/generationAccessCta";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
@@ -26,6 +35,17 @@ import {
   type VoiceChangerSource,
 } from "../VoiceChangerSourceDropzone";
 import { preparePromptReferenceDrag, prepareReferenceDrag } from "../../utils/dragDrop";
+
+const publishedPricingPolicy = materializeImageBilledCreditPolicy(
+  getDefaultModelPricingPolicyDocument()
+);
+const render = (ui: React.ReactElement, options?: Parameters<typeof rtlRender>[1]) =>
+  rtlRender(
+    ui.type === VoicesPropertiesPanel
+      ? React.cloneElement(ui, { pricingPolicy: publishedPricingPolicy })
+      : ui,
+    options
+  );
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
@@ -1581,6 +1601,7 @@ describe("VoicesPropertiesPanel", () => {
               selectedTool="voice-changer"
               voiceChangerSource={voiceChangerSource}
               onVoiceChangerSourceChange={handleVoiceChangerSourceChange}
+              pricingPolicy={publishedPricingPolicy}
             />
           ) : (
             <div>Create panel</div>

@@ -386,6 +386,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 ## Planning And History
 
 - `docs/planning/README.md`
+- `docs/planning/architecture-audit-agent-handoffs-2026-07-11/README.md`
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
 - `docs/planning/ai-studio-create-agent-ten-image-attachments-buildout-plan-2026-07-10.md`

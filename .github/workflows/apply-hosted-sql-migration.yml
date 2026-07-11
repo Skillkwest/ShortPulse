@@ -3,13 +3,6 @@ name: Apply Hosted SQL Migration
 on:
   workflow_dispatch:
     inputs:
-      target_environment:
-        description: "GitHub Environment containing SUPABASE_DB_URL"
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
       sql_file:
         description: "Repo-relative SQL file path under sql/migrations/"
         required: true
@@ -20,22 +13,45 @@ on:
         type: string
 
 concurrency:
-  group: apply-hosted-sql-migration-${{ github.event.inputs.target_environment }}
+  group: apply-hosted-sql-migration-production
   cancel-in-progress: false
 
 jobs:
   apply_hosted_sql_migration:
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    environment: ${{ github.event.inputs.target_environment }}
+    environment: Production
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Assert production dispatch ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/production" ]; then
+            echo "::error::Production SQL workflows may run only from refs/heads/production."
+            exit 1
+          fi
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
+          ref: refs/heads/production
           fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - name: Verify production checkout SHA
+        id: checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECKOUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKOUT_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked out SHA $CHECKOUT_SHA does not match trigger SHA $GITHUB_SHA."
+            exit 1
+          fi
+          echo "sha=$CHECKOUT_SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: npm
@@ -51,18 +67,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Apply selected hosted SQL migration
+      - name: Resolve and hash selected hosted SQL migration
+        id: sql
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SQL_FILE: ${{ github.event.inputs.sql_file }}
           CONFIRM_TOKEN: ${{ github.event.inputs.confirm_token }}
         run: |
           set -euo pipefail
-
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "::error::Missing environment secret SUPABASE_DB_URL."
-            exit 1
-          fi
 
           if [ "$CONFIRM_TOKEN" != "apply-hosted-sql" ]; then
             echo "::error::Confirmation token mismatch."
@@ -98,8 +109,22 @@ jobs:
           esac
 
           SQL_RELATIVE="$(realpath --relative-to="$REPO_ROOT" "$SQL_REALPATH")"
-          SQL_FILE="$SQL_REALPATH"
+          SQL_SHA256="$(sha256sum "$SQL_REALPATH" | awk '{print $1}')"
+          echo "path=$SQL_RELATIVE" >> "$GITHUB_OUTPUT"
+          echo "realpath=$SQL_REALPATH" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SQL_SHA256" >> "$GITHUB_OUTPUT"
 
+      - name: Apply selected hosted SQL migration
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SQL_FILE: ${{ steps.sql.outputs.realpath }}
+          SQL_RELATIVE: ${{ steps.sql.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Missing environment secret SUPABASE_DB_URL."
+            exit 1
+          fi
           echo "Applying $SQL_RELATIVE"
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$SQL_FILE" | tee /tmp/hosted_sql_apply.log
 
@@ -120,17 +145,30 @@ jobs:
 
       - name: Write step summary
         if: always()
+        env:
+          TRIGGER_REF: ${{ github.ref }}
+          TRIGGER_SHA: ${{ github.sha }}
+          CHECKOUT_SHA: ${{ steps.checkout.outputs.sha }}
+          SQL_FILE: ${{ steps.sql.outputs.path }}
+          SQL_SHA256: ${{ steps.sql.outputs.sha256 }}
+          ACTOR: ${{ github.actor }}
+          RESULT: ${{ job.status }}
         run: |
           {
-            echo "### Hosted SQL Migration"
-            echo "- Environment: ${{ github.event.inputs.target_environment }}"
-            echo "- SQL file: \`${{ github.event.inputs.sql_file }}\`"
-            echo "- Result: ${{ job.status }}"
+            printf '%s\n' "### Hosted SQL Migration"
+            printf '%s\n' "- Trigger ref: \`$TRIGGER_REF\`"
+            printf '%s\n' "- Trigger SHA: \`$TRIGGER_SHA\`"
+            printf '%s\n' "- Checkout SHA: \`$CHECKOUT_SHA\`"
+            printf '%s\n' "- SQL file: \`$SQL_FILE\`"
+            printf '%s\n' "- SQL SHA-256: \`$SQL_SHA256\`"
+            printf '%s\n' "- Actor: \`$ACTOR\`"
+            printf '%s\n' "- Environment: \`Production\`"
+            printf '%s\n' "- Result: $RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload apply log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: hosted-sql-apply-${{ github.run_id }}
           path: |

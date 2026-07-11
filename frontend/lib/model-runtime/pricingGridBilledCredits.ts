@@ -30,11 +30,46 @@ const toAdminCreditPricingBreakdown = (breakdown: CostBreakdown): AdminCreditPri
   billedUsd: breakdown.usd ?? null,
 });
 
-const resolveUsageRateMultiplier = (params: Omit<PricingParams, "modelId">): number | null => {
+const resolveUsageRateMultiplier = (
+  modelId: string,
+  params: Omit<PricingParams, "modelId">
+): number | null => {
+  const strategy = getModelConfig(modelId)?.pricingStrategy ?? null;
+  if (
+    strategy === "elevenlabs-text-to-speech-per-kchar" &&
+    typeof params.textCharacters === "number" &&
+    Number.isFinite(params.textCharacters)
+  ) {
+    return Math.max(0, params.textCharacters) / 1_000;
+  }
   if (typeof params.generationCount === "number" && Number.isFinite(params.generationCount)) {
     return Math.max(1, Math.round(params.generationCount));
   }
   return null;
+};
+
+const roundPublishedCredits = (credits: number, increment: number): number =>
+  Math.ceil(Number(credits.toFixed(12)) / Math.max(1, increment)) * Math.max(1, increment);
+
+const resolvePublishedQuantity = (
+  basis: "per_second" | "per_1k_chars",
+  params: Omit<PricingParams, "modelId">
+): number | null => {
+  if (basis === "per_1k_chars") {
+    return typeof params.textCharacters === "number" && Number.isFinite(params.textCharacters)
+      ? Math.max(0, params.textCharacters) / 1_000
+      : null;
+  }
+  if (typeof params.sourceDurationSeconds === "number") {
+    return Math.max(0, params.sourceDurationSeconds);
+  }
+  if (typeof params.durationSeconds !== "number") return null;
+  return (
+    Math.max(0, params.durationSeconds) +
+    (typeof params.inputVideoDurationSeconds === "number"
+      ? Math.max(0, params.inputVideoDurationSeconds)
+      : 0)
+  );
 };
 
 const shouldKeepAudioInPricingGridParams = (config: ReturnType<typeof getModelConfig>): boolean => {
@@ -92,6 +127,14 @@ const normalizePricingGridParams = (
     delete normalizedParams.inputVideoCount;
   }
 
+  if (
+    config.pricingStrategy === "elevenlabs-music-per-minute" &&
+    normalizedParams.durationSeconds == null &&
+    config.defaultDurationSeconds != null
+  ) {
+    normalizedParams.durationSeconds = config.defaultDurationSeconds;
+  }
+
   return normalizedParams;
 };
 
@@ -99,12 +142,12 @@ export const resolvePricingGridCostBreakdown = ({
   modelId,
   params = {},
   pricingPolicy = null,
-  requireExplicitBilledCreditsOverride = false,
+  requirePublishedBillingRule = false,
 }: {
   modelId: string;
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
-  requireExplicitBilledCreditsOverride?: boolean;
+  requirePublishedBillingRule?: boolean;
 }): PricingGridCostBreakdown | null => {
   const normalizedParams = normalizePricingGridParams(modelId, params);
   const breakdown = computeCostForModel(modelId, normalizedParams, pricingPolicy);
@@ -119,16 +162,49 @@ export const resolvePricingGridCostBreakdown = ({
   const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, modelId, variantId);
   const pricingAuthority = config?.pricingAuthority ?? SHARED_POLICY_PRICING_AUTHORITY;
 
+  if (
+    requirePublishedBillingRule &&
+    resolvedPolicy.billedCreditsOverride == null &&
+    resolvedPolicy.billedCreditsQuantityRule == null
+  ) {
+    return null;
+  }
+
   if (resolvedPolicy.billedCreditsOverride != null) {
+    const outputCount =
+      typeof normalizedParams.generationCount === "number" &&
+      Number.isFinite(normalizedParams.generationCount)
+        ? Math.max(1, Math.round(normalizedParams.generationCount))
+        : 1;
+    const billedCredits = resolvedPolicy.billedCreditsOverride * outputCount;
     return {
       ...breakdown,
-      credits: resolvedPolicy.billedCreditsOverride,
-      usd: resolvedPolicy.billedCreditsOverride / resolvedPolicy.creditUsdScale,
+      credits: billedCredits,
+      usd: billedCredits / resolvedPolicy.creditUsdScale,
       variantId,
     };
   }
 
-  if (requireExplicitBilledCreditsOverride) {
+  if (resolvedPolicy.billedCreditsQuantityRule != null) {
+    const quantityRule = resolvedPolicy.billedCreditsQuantityRule;
+    const quantity = resolvePublishedQuantity(quantityRule.quantityBasis, normalizedParams);
+    if (quantity == null || quantity <= 0) return null;
+    const creditsAtCost = Math.ceil(
+      Number((quantityRule.costCreditsPerUnit * quantity).toFixed(12))
+    );
+    const billedCredits = roundPublishedCredits(
+      creditsAtCost * (1 + quantityRule.markupBps / 10_000),
+      quantityRule.roundingIncrement
+    );
+    return {
+      ...breakdown,
+      credits: billedCredits,
+      usd: billedCredits / resolvedPolicy.creditUsdScale,
+      variantId,
+    };
+  }
+
+  if (requirePublishedBillingRule) {
     return null;
   }
 
@@ -145,7 +221,7 @@ export const resolvePricingGridCostBreakdown = ({
     providerUsdOverride: resolvedPolicy.providerUsdOverride,
     providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
     durationSeconds: normalizedParams.durationSeconds ?? null,
-    usageRateMultiplier: resolveUsageRateMultiplier(normalizedParams),
+    usageRateMultiplier: resolveUsageRateMultiplier(modelId, normalizedParams),
   });
   const creditsAtCost = getCreditsAtProviderCost(workbookBreakdown, resolvedPolicy.creditUsdScale, {
     preferRuntimeCredits: false,
@@ -180,5 +256,5 @@ export const resolvePricingGridBilledCredits = (input: {
   modelId: string;
   params?: Omit<PricingParams, "modelId">;
   pricingPolicy?: ModelPricingPolicyDocument | null;
-  requireExplicitBilledCreditsOverride?: boolean;
+  requirePublishedBillingRule?: boolean;
 }): number | null => resolvePricingGridCostBreakdown(input)?.credits ?? null;

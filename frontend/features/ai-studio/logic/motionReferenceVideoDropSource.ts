@@ -24,8 +24,8 @@ import {
 } from "../utils/dragDrop";
 
 export type MotionReferenceVideoDropSource =
-  | { kind: "file"; videoFile: File }
-  | { kind: "url"; videoUrl: string; storagePath?: string | null }
+  | { kind: "file"; videoFile: File; durationMs?: number | null }
+  | { kind: "url"; videoUrl: string; storagePath?: string | null; durationMs?: number | null }
   | null;
 
 type ResolveVideoUrlById = (id: string | null) => string | null;
@@ -142,13 +142,26 @@ const resolveFromMediaLibraryPayload = async (
     previewStoragePath: mediaLibraryPayload.payload.previewStoragePath,
   });
   const signedStorageUrl = await signVideoStoragePath(storagePath);
-  if (signedStorageUrl) return { kind: "url", videoUrl: signedStorageUrl, storagePath };
+  if (signedStorageUrl) {
+    return {
+      kind: "url",
+      videoUrl: signedStorageUrl,
+      storagePath,
+      durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+    };
+  }
 
   const directUrl =
     resolveTypedVideoUrlCandidate(mediaLibraryPayload.payload.fullUrl) ??
     resolveTypedVideoUrlCandidate(mediaLibraryPayload.payload.url) ??
     resolveTypedVideoUrlCandidate(mediaLibraryPayload.payload.previewUrl);
-  if (directUrl && looksLikeVideoUrl(directUrl)) return { kind: "url", videoUrl: directUrl };
+  if (directUrl && looksLikeVideoUrl(directUrl)) {
+    return {
+      kind: "url",
+      videoUrl: directUrl,
+      durationMs: mediaLibraryPayload.payload.durationMs ?? null,
+    };
+  }
 
   return null;
 };
@@ -185,18 +198,21 @@ export const resolveMotionReferenceVideoDropSourceFromPayload = async ({
     fallbackVideoUrl: payload.videoUrl,
     resolveInternalReferenceVideoDropSource,
   });
-  if (internalSource) return internalSource;
+  if (internalSource) return { ...internalSource, durationMs: payload.durationMs ?? null };
 
   const directVideoUrl = resolveTypedVideoUrlCandidate(payload.videoUrl);
   if (directVideoUrl && looksLikeVideoUrl(directVideoUrl)) {
-    return { kind: "url", videoUrl: directVideoUrl };
+    return { kind: "url", videoUrl: directVideoUrl, durationMs: payload.durationMs ?? null };
   }
 
-  return resolveByReferenceId({
+  const resolvedByReferenceId = resolveByReferenceId({
     referenceId: payload.outputId ?? payload.mediaId ?? null,
     resolveMotionVideoUrlById,
     resolvePreviewUrlById,
   });
+  return resolvedByReferenceId
+    ? { ...resolvedByReferenceId, durationMs: payload.durationMs ?? null }
+    : null;
 };
 
 export const resolveMotionReferenceVideoDropSource = async ({

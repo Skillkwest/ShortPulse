@@ -17,6 +17,7 @@ const uploadImageBlobAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadReferenceVideoAssetToStorageMock = vi.hoisted(() => vi.fn());
 const uploadReferenceVideoFileToStorageMock = vi.hoisted(() => vi.fn());
 const uploadAudioBlobToStorageMock = vi.hoisted(() => vi.fn());
+const loadVideoPreviewMetadataMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: getSignedMediaUrlMock,
@@ -36,6 +37,9 @@ vi.mock("../../utils/videoUpload", () => ({
 }));
 vi.mock("../../utils/audioUpload", () => ({
   uploadAudioBlobToStorage: (...args: unknown[]) => uploadAudioBlobToStorageMock(...args),
+}));
+vi.mock("../../logic/videoPreviewMetadata", () => ({
+  loadVideoPreviewMetadata: (...args: unknown[]) => loadVideoPreviewMetadataMock(...args),
 }));
 
 const makeInternalReferenceDragEvent = (overrides?: {
@@ -264,6 +268,8 @@ describe("useReferencePropertiesInteractions", () => {
     uploadReferenceVideoAssetToStorageMock.mockReset();
     uploadReferenceVideoFileToStorageMock.mockReset();
     uploadAudioBlobToStorageMock.mockReset();
+    loadVideoPreviewMetadataMock.mockReset();
+    loadVideoPreviewMetadataMock.mockResolvedValue({ durationMs: null, posterUrl: null });
   });
 
   afterEach(() => {
@@ -2113,6 +2119,7 @@ describe("useReferencePropertiesInteractions", () => {
       kind: "video",
       url: "https://signed.shortpulse.test/storage/v1/object/sign/media_library/user/videos/canvas-motion.mp4?token=fresh",
       name: undefined,
+      durationMs: 5400,
     });
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(uploadReferenceVideoAssetToStorageMock).not.toHaveBeenCalled();

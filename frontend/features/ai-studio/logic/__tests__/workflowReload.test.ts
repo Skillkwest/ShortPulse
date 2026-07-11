@@ -415,6 +415,8 @@ describe("workflowReload", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: "data:image/png;base64,missing-profile",
+                videoUrl: "https://example.com/element-video.mp4",
+                videoDurationMs: 10_000,
                 audioUrl: "blob:http://localhost/element-audio",
                 referenceImageUrls:
                   "https://example.com/reference.png, blob:http://localhost/missing-reference",
@@ -471,6 +473,8 @@ describe("workflowReload", () => {
               element: {
                 id: "element-1",
                 profileImageUrl: null,
+                videoUrl: "https://example.com/element-video.mp4",
+                videoDurationMs: 10_000,
                 audioUrl: "blob:http://localhost/element-audio",
                 referenceImageUrls: "https://example.com/reference.png",
                 slotIndex: 0,

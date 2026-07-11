@@ -1,13 +1,17 @@
 import { buildDefaultPricingParams, listPricingModelConfigs } from "./pricing";
 import { resolveModelPricingVariantId } from "./modelPricingVariants";
 import type { ModelConfig } from "./modelRegistry";
-import { getDefaultAdminPricingCustomRowsDocument } from "./adminPricingCustomRows";
+import {
+  getDefaultAdminPricingCustomRowsDocument,
+  type AdminPricingCustomRowsDocument,
+} from "./adminPricingCustomRows";
 import { normalizeCreateImageBilledPricingParams } from "./createImageBilledCredits";
 import {
   compactModelPricingPolicyDocument,
+  resolveModelPricingForModel,
+  type ModelPricingBilledCreditsQuantityRule,
   type ModelPricingPerModelOverride,
   type ModelPricingPolicyDocument,
-  type ModelPricingRuntimeAuthorities,
   type ModelPricingVariantOverride,
 } from "./pricingPolicy";
 import { resolvePricingGridCostBreakdown } from "./pricingGridBilledCredits";
@@ -15,51 +19,21 @@ import {
   resolvePricingGridAspectOptions,
   shouldExpandAspectPricingVariants,
   shouldExpandResolutionPricingVariants,
+  shouldExpandVideoInputPricingVariants,
 } from "./pricingGridVariantRules";
+import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
+import { KIE_KLING_30_MOTION_CONTROL_VARIANT_ID } from "./klingMotionControlPricing";
+import {
+  ELEVENLABS_MUSIC_MODEL_ID,
+  ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+  ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+} from "./elevenLabsModels";
 
 type ImageVariantBase = { editLike: boolean };
-
-const CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
-  Record<
-    NonNullable<ModelConfig["pricingStrategy"]>,
-    ModelPricingRuntimeAuthorities["create_image"]
-  >
-> = {
-  "kie-gpt-image-2-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count"],
-  },
-  "nano-banana-2-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count"],
-  },
-  "nano-banana-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count"],
-  },
-  "seedream-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count"],
-  },
-  "seedream-5-lite-per-image": {
-    mode: "runtime_quantity_derived",
-    workflow: "create_image",
-    unitBasis: "per_image",
-    quantityDrivers: ["generation_count"],
-  },
-};
-
-const EDIT_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY: Partial<
-  Record<NonNullable<ModelConfig["pricingStrategy"]>, ModelPricingRuntimeAuthorities["edit_image"]>
-> = {};
 
 const orderWithDefaultFirst = <T extends string | null>(values: T[], defaultValue: T): T[] => {
   const ordered: T[] = [];
@@ -130,15 +104,99 @@ const mergeVariantOverride = (
   };
 };
 
-const mergeRuntimeAuthorities = (
+const mergeCustomRowOverrides = (
   override: ModelPricingPerModelOverride | undefined,
-  runtimeAuthorities: ModelPricingRuntimeAuthorities
-): ModelPricingPerModelOverride => ({
-  ...(override ?? {}),
-  runtimeAuthorities: {
-    ...(override?.runtimeAuthorities ?? {}),
-    ...runtimeAuthorities,
-  },
+  variantId: string,
+  customOverrides: AdminPricingCustomRowsDocument["rowsByModel"][string][number]["overrides"]
+): ModelPricingPerModelOverride => {
+  const existingVariants = override?.variants ?? {};
+  const existingVariant = { ...(existingVariants[variantId] ?? {}) };
+  delete existingVariant.billedCreditsOverride;
+  delete existingVariant.billedCreditsQuantityRule;
+  delete existingVariant.markupBps;
+  delete existingVariant.providerUsdOverride;
+  delete existingVariant.providerUsdPerSecondOverride;
+  const nextVariant: ModelPricingVariantOverride = {
+    ...existingVariant,
+    ...(customOverrides.markupBps != null ? { markupBps: customOverrides.markupBps } : {}),
+    ...(customOverrides.providerUsdOverride != null
+      ? { providerUsdOverride: customOverrides.providerUsdOverride }
+      : {}),
+    ...(customOverrides.providerUsdPerSecondOverride != null
+      ? { providerUsdPerSecondOverride: customOverrides.providerUsdPerSecondOverride }
+      : {}),
+  };
+  return {
+    ...(override ?? {}),
+    variants: {
+      ...existingVariants,
+      [variantId]: nextVariant,
+    },
+  };
+};
+
+const mergePublishedQuantityPricing = (
+  override: ModelPricingPerModelOverride | undefined,
+  variantId: string,
+  input:
+    | { billedCreditsOverride: number }
+    | { billedCreditsQuantityRule: ModelPricingBilledCreditsQuantityRule }
+): ModelPricingPerModelOverride => {
+  const existingVariants = override?.variants ?? {};
+  const existingVariant = { ...(existingVariants[variantId] ?? {}) };
+  delete existingVariant.billedCreditsOverride;
+  delete existingVariant.billedCreditsQuantityRule;
+  return {
+    ...(override ?? {}),
+    variants: {
+      ...existingVariants,
+      [variantId]: {
+        ...existingVariant,
+        ...input,
+      },
+    },
+  };
+};
+
+const resolvePublishedQuantityRule = ({
+  breakdown,
+  quantity,
+  resolved,
+  quantityBasis,
+}: {
+  breakdown: { usdRaw: number };
+  quantity: number;
+  resolved: ReturnType<typeof resolveModelPricingForModel>;
+  quantityBasis: "per_second" | "per_1k_chars";
+}): ModelPricingBilledCreditsQuantityRule => ({
+  costCreditsPerUnit: Number(((breakdown.usdRaw / quantity) * resolved.creditUsdScale).toFixed(12)),
+  markupBps: resolved.markupBps,
+  roundingIncrement: resolved.roundingIncrement,
+  quantityBasis,
+});
+
+const stripPublishedBilledCreditOverrides = (
+  policy: ModelPricingPolicyDocument
+): ModelPricingPolicyDocument => ({
+  ...policy,
+  perModel: Object.fromEntries(
+    Object.entries(policy.perModel).map(([modelId, override]) => {
+      const authoringOverride: ModelPricingPerModelOverride = { ...override };
+      delete authoringOverride.billedCreditsOverride;
+      delete authoringOverride.billedCreditsQuantityRule;
+      if (override.variants) {
+        authoringOverride.variants = Object.fromEntries(
+          Object.entries(override.variants).map(([variantId, variantOverride]) => {
+            const authoringVariant: ModelPricingVariantOverride = { ...variantOverride };
+            delete authoringVariant.billedCreditsOverride;
+            delete authoringVariant.billedCreditsQuantityRule;
+            return [variantId, authoringVariant];
+          })
+        );
+      }
+      return [modelId, authoringOverride];
+    })
+  ),
 });
 
 /**
@@ -149,33 +207,25 @@ const mergeRuntimeAuthorities = (
  * shared-policy math.
  */
 export const materializeImageBilledCreditPolicy = (
-  policy: ModelPricingPolicyDocument | null | undefined
+  policy: ModelPricingPolicyDocument | null | undefined,
+  customRowsDocument: AdminPricingCustomRowsDocument = getDefaultAdminPricingCustomRowsDocument(),
+  options: { requireComplete?: boolean } = {}
 ): ModelPricingPolicyDocument => {
-  const normalized = compactModelPricingPolicyDocument(policy);
+  const normalized = stripPublishedBilledCreditOverrides(compactModelPricingPolicyDocument(policy));
   const nextPolicy: ModelPricingPolicyDocument = {
     ...normalized,
     perModel: { ...normalized.perModel },
   };
 
   const pricingModels = listPricingModelConfigs();
+  const requiredPublishedRows = new Map<string, { modelId: string; variantId: string }>();
+  const recordRequiredPublishedRow = (modelId: string, variantId: string) => {
+    requiredPublishedRows.set(`${modelId}:${variantId}`, { modelId, variantId });
+  };
   pricingModels.forEach((model) => {
     if (model.mediaType !== "image") return;
     const variantBases = buildImageVariantBases(model);
     if (!variantBases.length) return;
-    const createImageRuntimeAuthority =
-      model.supportsTextToImage && model.pricingStrategy
-        ? CREATE_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY[model.pricingStrategy]
-        : null;
-    const editImageRuntimeAuthority =
-      model.supportsImageToImage && model.pricingStrategy
-        ? EDIT_IMAGE_RUNTIME_AUTHORITY_BY_STRATEGY[model.pricingStrategy]
-        : null;
-    if (createImageRuntimeAuthority || editImageRuntimeAuthority) {
-      nextPolicy.perModel[model.id] = mergeRuntimeAuthorities(nextPolicy.perModel[model.id], {
-        ...(createImageRuntimeAuthority ? { create_image: createImageRuntimeAuthority } : {}),
-        ...(editImageRuntimeAuthority ? { edit_image: editImageRuntimeAuthority } : {}),
-      });
-    }
     const aspects = buildAspectOptions(model);
     const resolutions = buildResolutionOptions(model);
 
@@ -195,6 +245,11 @@ export const materializeImageBilledCreditPolicy = (
                 : {}),
             })
           );
+          const variantId = resolveModelPricingVariantId({
+            modelId: model.id,
+            ...params,
+          });
+          recordRequiredPublishedRow(model.id, variantId);
 
           const breakdown = resolvePricingGridCostBreakdown({
             modelId: model.id,
@@ -202,11 +257,6 @@ export const materializeImageBilledCreditPolicy = (
             pricingPolicy: normalized,
           });
           if (!breakdown?.credits || breakdown.credits <= 0) return;
-
-          const variantId = resolveModelPricingVariantId({
-            modelId: model.id,
-            ...params,
-          });
 
           nextPolicy.perModel[model.id] = mergeVariantOverride(
             nextPolicy.perModel[model.id],
@@ -217,9 +267,20 @@ export const materializeImageBilledCreditPolicy = (
       });
     });
 
-    const builtInCustomRows =
-      getDefaultAdminPricingCustomRowsDocument().rowsByModel[model.id] ?? [];
-    builtInCustomRows.forEach((row) => {
+    const activeCustomRows = customRowsDocument.rowsByModel[model.id] ?? [];
+    activeCustomRows.forEach((row) => {
+      const rowModelOverride = mergeCustomRowOverrides(
+        nextPolicy.perModel[model.id],
+        row.variantId,
+        row.overrides
+      );
+      const rowPolicy: ModelPricingPolicyDocument = {
+        ...nextPolicy,
+        perModel: {
+          ...nextPolicy.perModel,
+          [model.id]: rowModelOverride,
+        },
+      };
       const params = normalizeCreateImageBilledPricingParams(
         model.id,
         buildDefaultPricingParams(model.id, {
@@ -238,17 +299,265 @@ export const materializeImageBilledCreditPolicy = (
       const breakdown = resolvePricingGridCostBreakdown({
         modelId: model.id,
         params,
-        pricingPolicy: normalized,
+        pricingPolicy: rowPolicy,
       });
       if (!breakdown?.credits || breakdown.credits <= 0) return;
 
       nextPolicy.perModel[model.id] = mergeVariantOverride(
-        nextPolicy.perModel[model.id],
+        rowModelOverride,
         row.variantId,
         breakdown.credits
       );
     });
   });
 
-  return compactModelPricingPolicyDocument(nextPolicy);
+  pricingModels.forEach((model) => {
+    if (!model.mediaType.toLowerCase().includes("video")) return;
+    const resolutions = buildResolutionOptions(model);
+    const audioOptions =
+      model.defaultAudio == null ||
+      ["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy ?? "")
+        ? [null]
+        : [true, false];
+    const videoInputOptions = shouldExpandVideoInputPricingVariants(model.pricingStrategy)
+      ? [false, true]
+      : [null];
+    const variantBaseIds =
+      model.id === KIE_KLING_30_MODEL_ID
+        ? ["default", KIE_KLING_30_MOTION_CONTROL_VARIANT_ID]
+        : ["default"];
+
+    variantBaseIds.forEach((variantBaseId) => {
+      resolutions.forEach((resolution) => {
+        audioOptions.forEach((audio) => {
+          videoInputOptions.forEach((videoInput) => {
+            const durationSeconds = model.defaultDurationSeconds ?? 1;
+            const inputVideoDurationSeconds = videoInput === true ? durationSeconds : null;
+            const params = buildDefaultPricingParams(model.id, {
+              variantBaseId,
+              ...(resolution ? { resolution } : {}),
+              ...(audio != null ? { audio } : {}),
+              ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+              ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
+              durationSeconds,
+            });
+            const expectedVariantId = resolveModelPricingVariantId({
+              modelId: model.id,
+              ...params,
+              pricingPolicy: normalized,
+            });
+            recordRequiredPublishedRow(model.id, expectedVariantId);
+            const breakdown = resolvePricingGridCostBreakdown({
+              modelId: model.id,
+              params,
+              pricingPolicy: normalized,
+            });
+            if (!breakdown || breakdown.usdRaw <= 0) return;
+            const variantId = breakdown.variantId;
+            const resolved = resolveModelPricingForModel(nextPolicy, model.id, variantId);
+            if (
+              resolved.billedCreditsOverride != null ||
+              resolved.billedCreditsQuantityRule != null
+            ) {
+              return;
+            }
+
+            const isFlatPerGeneration = model.id === KIE_VEO_31_FAST_I2V_MODEL_ID;
+            const billableSeconds = durationSeconds + (inputVideoDurationSeconds ?? 0);
+            nextPolicy.perModel[model.id] = mergePublishedQuantityPricing(
+              nextPolicy.perModel[model.id],
+              variantId,
+              isFlatPerGeneration
+                ? { billedCreditsOverride: breakdown.credits }
+                : {
+                    billedCreditsQuantityRule: resolvePublishedQuantityRule({
+                      breakdown,
+                      quantity: billableSeconds,
+                      resolved,
+                      quantityBasis: "per_second",
+                    }),
+                  }
+            );
+          });
+        });
+      });
+    });
+
+    const activeCustomRows = customRowsDocument.rowsByModel[model.id] ?? [];
+    activeCustomRows.forEach((row) => {
+      const rowModelOverride = mergeCustomRowOverrides(
+        nextPolicy.perModel[model.id],
+        row.variantId,
+        row.overrides
+      );
+      const rowPolicy: ModelPricingPolicyDocument = {
+        ...nextPolicy,
+        perModel: {
+          ...nextPolicy.perModel,
+          [model.id]: rowModelOverride,
+        },
+      };
+      const durationSeconds = model.defaultDurationSeconds ?? 1;
+      const hasVideoInput = row.spec.videoInput === true;
+      const inputVideoDurationSeconds = hasVideoInput ? durationSeconds : null;
+      const params = buildDefaultPricingParams(model.id, {
+        variantBaseId: row.spec.baseVariantId ?? undefined,
+        aspect: row.spec.aspect ?? undefined,
+        resolution: row.spec.resolution ?? undefined,
+        audio: row.spec.audio ?? undefined,
+        inputVideoCount:
+          row.spec.videoInput == null ? undefined : row.spec.videoInput === true ? 1 : 0,
+        ...(inputVideoDurationSeconds != null ? { inputVideoDurationSeconds } : {}),
+        durationSeconds,
+      });
+      const breakdown = resolvePricingGridCostBreakdown({
+        modelId: model.id,
+        params,
+        pricingPolicy: rowPolicy,
+      });
+      if (!breakdown || breakdown.usdRaw <= 0) return;
+      const resolved = resolveModelPricingForModel(rowPolicy, model.id, row.variantId);
+      if (resolved.billedCreditsOverride != null || resolved.billedCreditsQuantityRule != null) {
+        return;
+      }
+      const isFlatPerGeneration = model.id === KIE_VEO_31_FAST_I2V_MODEL_ID;
+      const billableSeconds = durationSeconds + (inputVideoDurationSeconds ?? 0);
+      nextPolicy.perModel[model.id] = mergePublishedQuantityPricing(
+        rowModelOverride,
+        row.variantId,
+        isFlatPerGeneration
+          ? { billedCreditsOverride: breakdown.credits }
+          : {
+              billedCreditsQuantityRule: resolvePublishedQuantityRule({
+                breakdown,
+                quantity: billableSeconds,
+                resolved,
+                quantityBasis: "per_second",
+              }),
+            }
+      );
+    });
+  });
+
+  pricingModels.forEach((model) => {
+    if (model.mediaType !== "audio") return;
+    const candidates: Array<{
+      params: ReturnType<typeof buildDefaultPricingParams>;
+      rateBasis: "flat" | "per_second" | "per_1k_chars";
+      quantity: number;
+    }> = [];
+    if (model.id === ELEVENLABS_MUSIC_MODEL_ID) {
+      const durationSeconds = model.defaultDurationSeconds ?? 60;
+      candidates.push({
+        params: buildDefaultPricingParams(model.id, { durationSeconds }),
+        rateBasis: "per_second",
+        quantity: durationSeconds,
+      });
+    } else if (model.id === ELEVENLABS_VOICE_CHANGER_MODEL_ID) {
+      const sourceDurationSeconds = model.defaultSourceDurationSeconds ?? 60;
+      candidates.push({
+        params: buildDefaultPricingParams(model.id, { sourceDurationSeconds }),
+        rateBasis: "per_second",
+        quantity: sourceDurationSeconds,
+      });
+    } else if (model.id === ELEVENLABS_VOICEOVER_MODEL_ID) {
+      candidates.push({
+        params: buildDefaultPricingParams(model.id, { textCharacters: 1_000 }),
+        rateBasis: "per_1k_chars",
+        quantity: 1,
+      });
+    } else if (model.id === ELEVENLABS_SOUND_EFFECTS_MODEL_ID) {
+      candidates.push(
+        {
+          params: buildDefaultPricingParams(model.id, {
+            variantBaseId: ELEVENLABS_SOUND_EFFECTS_AUTO_DURATION_VARIANT_ID,
+            generationCount: 1,
+          }),
+          rateBasis: "flat",
+          quantity: 1,
+        },
+        {
+          params: buildDefaultPricingParams(model.id, {
+            variantBaseId: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_VARIANT_ID,
+            durationSeconds: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+          }),
+          rateBasis: "per_second",
+          quantity: ELEVENLABS_SOUND_EFFECTS_EXPLICIT_DURATION_DEFAULT_SECONDS,
+        }
+      );
+    }
+
+    candidates.forEach(({ params, rateBasis, quantity }) => {
+      const expectedVariantId = resolveModelPricingVariantId({
+        modelId: model.id,
+        ...params,
+        pricingPolicy: normalized,
+      });
+      recordRequiredPublishedRow(model.id, expectedVariantId);
+      const breakdown = resolvePricingGridCostBreakdown({
+        modelId: model.id,
+        params,
+        pricingPolicy: normalized,
+      });
+      if (!breakdown || breakdown.usdRaw <= 0) return;
+      const variantId = breakdown.variantId;
+      const resolved = resolveModelPricingForModel(nextPolicy, model.id, variantId);
+      if (resolved.billedCreditsOverride != null || resolved.billedCreditsQuantityRule != null) {
+        return;
+      }
+      nextPolicy.perModel[model.id] = mergePublishedQuantityPricing(
+        nextPolicy.perModel[model.id],
+        variantId,
+        rateBasis === "flat"
+          ? { billedCreditsOverride: breakdown.credits }
+          : {
+              billedCreditsQuantityRule: resolvePublishedQuantityRule({
+                breakdown,
+                quantity,
+                resolved,
+                quantityBasis: rateBasis,
+              }),
+            }
+      );
+    });
+  });
+
+  const publishedPolicy = compactModelPricingPolicyDocument(nextPolicy);
+  if (options.requireComplete) {
+    const missingPublishedRows = [...requiredPublishedRows.values()]
+      .filter(({ modelId, variantId }) => {
+        const published = publishedPolicy.perModel[modelId]?.variants?.[variantId];
+        return !(
+          published?.billedCreditsOverride != null || published?.billedCreditsQuantityRule != null
+        );
+      })
+      .map(({ modelId, variantId }) => `${modelId}:${variantId}`);
+    const missingCustomRows = Object.entries(customRowsDocument.rowsByModel).flatMap(
+      ([modelId, rows]) =>
+        rows
+          .filter((row) => {
+            const published = publishedPolicy.perModel[modelId]?.variants?.[row.variantId];
+            return !(
+              published?.billedCreditsOverride != null ||
+              published?.billedCreditsQuantityRule != null
+            );
+          })
+          .map((row) => `${modelId}:${row.displayRowId}`)
+    );
+    if (missingPublishedRows.length || missingCustomRows.length) {
+      throw new Error(
+        [
+          missingPublishedRows.length
+            ? `Missing published pricing rows for: ${missingPublishedRows.join(", ")}.`
+            : null,
+          missingCustomRows.length
+            ? `Missing published custom pricing rows for: ${missingCustomRows.join(", ")}.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
+    }
+  }
+  return publishedPolicy;
 };

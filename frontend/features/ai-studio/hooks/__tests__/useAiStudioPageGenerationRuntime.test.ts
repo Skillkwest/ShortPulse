@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInternalMediaRef } from "../../../../lib/media/internalMediaRefs";
+import { PRICING_POLICY_CONFLICT_EVENT } from "../../../../lib/model-runtime/pricingPolicyFreshness";
 import type { StudioOutput } from "../../types";
 import { useAiStudioPageGenerationRuntime } from "../useAiStudioPageGenerationRuntime";
 
@@ -149,6 +150,41 @@ describe("useAiStudioPageGenerationRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAiStudioViewModelMock.mockImplementation(() => createViewModelMockResult());
+  });
+
+  it("removes only the optimistic debit keyed to a pricing-rejected output", () => {
+    const setOptimisticDebitEntries = vi.fn();
+    const { unmount } = renderHook(() =>
+      useAiStudioPageGenerationRuntime(
+        createParams({
+          setOptimisticDebitEntries:
+            asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
+        })
+      )
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(PRICING_POLICY_CONFLICT_EVENT, {
+          detail: { outputId: "out-rejected" },
+        })
+      );
+    });
+
+    const updater = setOptimisticDebitEntries.mock.calls.at(-1)?.[0] as
+      | ((
+          entries: Array<{ credits: number; outputId: string | null }>
+        ) => Array<{ credits: number; outputId: string | null }>)
+      | undefined;
+    expect(updater).toBeTypeOf("function");
+    expect(
+      updater?.([
+        { credits: 5, outputId: "out-rejected" },
+        { credits: 8, outputId: "out-running" },
+      ])
+    ).toEqual([{ credits: 8, outputId: "out-running" }]);
+
+    unmount();
   });
 
   it("passes Video reference slots to the view model when the active tool is video", () => {

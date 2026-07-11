@@ -60,6 +60,20 @@ describe("aiStudioStabilityTelemetry", () => {
       longTaskP95Ms: 140,
       maxInputStallMs: 900,
       heapUsageRatio: 0.9,
+      heapLimitUsageRatio: 0.9,
+    });
+
+    expect(marked).toBe(false);
+    expect(resolveAiStudioPressureQuarantineLevel()).toBe(0);
+  });
+
+  it("does not quarantine a small heap solely because its allocated segment is full", () => {
+    const marked = maybeMarkAiStudioPressureQuarantine({
+      level: 2,
+      longTaskP95Ms: 40,
+      maxInputStallMs: 100,
+      heapUsageRatio: 0.94,
+      heapLimitUsageRatio: 0.004,
     });
 
     expect(marked).toBe(false);
@@ -90,6 +104,7 @@ describe("aiStudioStabilityTelemetry", () => {
       longTaskP95Ms: 60,
       maxInputStallMs: 900,
       heapUsageRatio: 0.4,
+      heapLimitUsageRatio: 0.4,
     });
 
     expect(marked).toBe(true);
@@ -110,6 +125,7 @@ describe("aiStudioStabilityTelemetry", () => {
       longTaskP95Ms: 120,
       maxInputStallMs: 100,
       heapUsageRatio: 0.4,
+      heapLimitUsageRatio: 0.4,
     });
     reportAppErrorMock.mockClear();
 

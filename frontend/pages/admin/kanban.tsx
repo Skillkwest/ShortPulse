@@ -6,6 +6,7 @@ import { AdminKanbanBoardSection } from "../../features/admin/components/AdminKa
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
+import styles from "../../styles/admin.module.css";
 
 /**
  * Renders the standalone admin task board route.
@@ -37,6 +38,7 @@ export default function AdminKanbanPage() {
       pageDescription="Track shared operator tasks from backlog through published without mixing task planning into support account workflows."
       userEmail={user?.email}
       currentPath="/admin/kanban"
+      mainClassName={styles.adminKanbanPageWide}
     >
       <AdminKanbanBoardSection />
     </AdminRouteShell>

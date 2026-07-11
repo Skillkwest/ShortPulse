@@ -461,8 +461,8 @@ The user asked Maya to ensure every future report is added correctly to the Admi
 
 ### Remaining friction
 
-- `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` is still unavailable in the canonical local environment, so the 2026-07-10 report remains queued for idempotent backfill.
+- The ingest credential is configured and the 2026-07-10 row was accepted by production, but the available Chrome session is Maya's non-admin account, so both Admin report cards still need operator-session verification.
 
 ### Next training focus
 
-- On the next `run test`, prove the preflight stops before Chrome when publishing is unavailable, or backfill the pending run and verify both Admin report cards before starting the new scenario.
+- On the next `run test`, preflight both ingest access and operator-authenticated Admin verification access. Verify the pending run's two report cards before starting a new scenario.

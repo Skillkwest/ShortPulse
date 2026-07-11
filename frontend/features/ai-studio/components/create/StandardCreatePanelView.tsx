@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { Trash } from "phosphor-react";
+import { ChatCircleDots, Trash } from "phosphor-react";
 import { AppMessage } from "../../../../components/AppMessage";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
@@ -93,6 +93,9 @@ export function StandardCreatePanelView({
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [canvasTearOutActive, setCanvasTearOutActive] = React.useState(false);
+  const [blockedMediaDropGuidanceVisible, setBlockedMediaDropGuidanceVisible] =
+    React.useState(false);
+  const blockedMediaDropGuidanceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelRootRef = React.useRef<HTMLDivElement>(null);
   const panelBodyRef = React.useRef<HTMLDivElement>(null);
   const [restoreAgentInputAfterShellSwap, setRestoreAgentInputAfterShellSwap] =
@@ -117,6 +120,35 @@ export function StandardCreatePanelView({
     if (!restoreAgentInputAfterShellSwap) return;
     setRestoreAgentInputAfterShellSwap(false);
   }, [restoreAgentInputAfterShellSwap, shouldShowPersistentEmptyShell]);
+
+  React.useEffect(
+    () => () => {
+      if (blockedMediaDropGuidanceTimerRef.current) {
+        clearTimeout(blockedMediaDropGuidanceTimerRef.current);
+      }
+    },
+    []
+  );
+
+  React.useEffect(() => {
+    if (promptStepProps.chatModeEnabled !== false) {
+      setBlockedMediaDropGuidanceVisible(false);
+    }
+  }, [promptStepProps.chatModeEnabled]);
+
+  const showBlockedMediaDropGuidance = React.useCallback((lingerAfterDrop = false) => {
+    if (blockedMediaDropGuidanceTimerRef.current) {
+      clearTimeout(blockedMediaDropGuidanceTimerRef.current);
+      blockedMediaDropGuidanceTimerRef.current = null;
+    }
+    setBlockedMediaDropGuidanceVisible(true);
+    if (lingerAfterDrop) {
+      blockedMediaDropGuidanceTimerRef.current = setTimeout(() => {
+        setBlockedMediaDropGuidanceVisible(false);
+        blockedMediaDropGuidanceTimerRef.current = null;
+      }, 5000);
+    }
+  }, []);
 
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
@@ -221,11 +253,13 @@ export function StandardCreatePanelView({
       if (panelDropKind === "media" && promptStepProps.chatModeEnabled === false) {
         event.preventDefault();
         event.stopPropagation();
+        event.dataTransfer.dropEffect = "none";
+        showBlockedMediaDropGuidance();
         return;
       }
       promptStepProps.onAgentAttachmentDragEnter?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [isTargetInsideComposerInputShell, promptStepProps, showBlockedMediaDropGuidance]
   );
   const handlePanelMediaDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -235,19 +269,27 @@ export function StandardCreatePanelView({
       if (panelDropKind === "media" && promptStepProps.chatModeEnabled === false) {
         event.preventDefault();
         event.stopPropagation();
+        event.dataTransfer.dropEffect = "none";
+        showBlockedMediaDropGuidance();
         return;
       }
       promptStepProps.onAgentAttachmentDragOver?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [isTargetInsideComposerInputShell, promptStepProps, showBlockedMediaDropGuidance]
   );
   const handlePanelMediaDragLeave = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       if (isTargetInsideComposerInputShell(event)) return;
+      if (blockedMediaDropGuidanceVisible) {
+        const nextTarget = event.relatedTarget;
+        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+          setBlockedMediaDropGuidanceVisible(false);
+        }
+      }
       if (!promptStepProps.agentDropActive) return;
       promptStepProps.onAgentAttachmentDragLeave?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [blockedMediaDropGuidanceVisible, isTargetInsideComposerInputShell, promptStepProps]
   );
   const handlePanelMediaDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -291,12 +333,14 @@ export function StandardCreatePanelView({
       if (promptStepProps.chatModeEnabled === false) {
         event.preventDefault();
         event.stopPropagation();
+        event.dataTransfer.dropEffect = "none";
         promptStepProps.onAgentAttachmentDragLeave?.(event);
+        showBlockedMediaDropGuidance(true);
         return;
       }
       promptStepProps.onAgentAttachmentDrop?.(event);
     },
-    [isTargetInsideComposerInputShell, promptStepProps]
+    [isTargetInsideComposerInputShell, promptStepProps, showBlockedMediaDropGuidance]
   );
 
   const promptAndControls = (
@@ -578,6 +622,29 @@ export function StandardCreatePanelView({
             onDragLeave={handlePanelMediaDragLeave}
             onDrop={handlePanelMediaDrop}
           >
+            {blockedMediaDropGuidanceVisible ? (
+              <div
+                className="create-composer-chat-mode-drop-guidance"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="create-composer-chat-mode-drop-guidance-icon" aria-hidden="true">
+                  <ChatCircleDots size={20} weight="duotone" />
+                </span>
+                <span className="create-composer-chat-mode-drop-guidance-copy">
+                  <strong>References are shared through Chat Mode</strong>
+                  <span>Turn it on to add this reference to the Pulse agent.</span>
+                </span>
+                <button
+                  type="button"
+                  className="create-composer-chat-mode-drop-guidance-action"
+                  onClick={() => promptStepProps.onChatModeEnabledChange?.(true)}
+                  disabled={!promptStepProps.onChatModeEnabledChange}
+                >
+                  Turn on Chat Mode
+                </button>
+              </div>
+            ) : null}
             <div className="create-composer-right-panel-topbar">
               <div className="create-composer-right-panel-topbar-center">{createModeToggle}</div>
               {handleClearAgentChat ? (

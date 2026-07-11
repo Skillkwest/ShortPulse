@@ -129,8 +129,9 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks wider-panel media drops while Chat Mode is off", () => {
+  it("explains blocked wider-panel media drops and can turn Chat Mode on", () => {
     const onAgentAttachmentDrop = vi.fn();
+    const onChatModeEnabledChange = vi.fn();
     const { container } = render(
       <StandardCreatePanelView
         {...baseProps}
@@ -138,25 +139,43 @@ describe("StandardCreatePanelView", () => {
           ...basePromptStepProps,
           chatModeEnabled: false,
           onAgentAttachmentDrop,
+          onChatModeEnabledChange,
         }}
       />
     );
 
     const panelBody = container.querySelector(".create-composer-right-panel-inner");
-    const dropResult = fireEvent.drop(panelBody as Element, {
-      dataTransfer: {
-        types: ["text/reference-url", "text/plain"],
-        getData: (key: string) =>
-          key === "text/reference-url"
-            ? "https://example.com/reference.png"
-            : key === "text/plain"
-              ? "Image note"
-              : "",
-      },
+    const mediaTransfer = {
+      types: ["text/reference-url", "text/plain"],
+      dropEffect: "copy",
+      getData: (key: string) =>
+        key === "text/reference-url"
+          ? "https://example.com/reference.png"
+          : key === "text/plain"
+            ? "Image note"
+            : "",
+    };
+
+    fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
+    expect(screen.getByRole("status")).toHaveTextContent("References are shared through Chat Mode");
+
+    fireEvent.dragLeave(panelBody as Element, {
+      dataTransfer: mediaTransfer,
+      relatedTarget: null,
     });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    fireEvent.dragEnter(panelBody as Element, { dataTransfer: mediaTransfer });
+
+    const dropResult = fireEvent.drop(panelBody as Element, { dataTransfer: mediaTransfer });
 
     expect(dropResult).toBe(false);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(mediaTransfer.dropEffect).toBe("none");
+    expect(screen.getByRole("status")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn on Chat Mode" }));
+    expect(onChatModeEnabledChange).toHaveBeenCalledWith(true);
   });
 
   it("replaces composer text when plain prompt text is dropped on the wider create panel body without Shift", () => {
@@ -206,6 +225,7 @@ describe("StandardCreatePanelView", () => {
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
     expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("replaces composer text with full session-backed prompt text when browser fields are shortened", () => {

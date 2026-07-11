@@ -7,7 +7,7 @@ UGC goal: Tiny Apartment Reset Kit, understand whether a saved image can stay re
 Production surface: `https://www.shortpulse.ai/ai-studio`
 Session duration: about 25 minutes including setup, sign-in, project restore, persistence check, and notes.
 Credits spent: 0
-Run status: partial - browser scenario and local reports completed; Admin publishing blocked by missing ingest credential
+Run status: partial - browser scenario, local reports, and Admin ingest completed; Admin-page verification remains blocked by missing operator session
 
 ## Summary
 
@@ -24,7 +24,7 @@ Decision impact: Quick Slot behaves like a persistent curated tray, but the cust
 - No destructive, billing, subscription, generation, upload, download, or account-setting action was performed.
 - No hidden state, database read, API inspection, or code inspection decided the customer-visible finding.
 - Media plan with Starter scheduled for August 8 was observed but not treated as a bug because this run did not establish prior-state proof.
-- Admin publish status: not published - ingest secret unavailable.
+- Admin publish status: ingest succeeded; Admin tab verification unproven.
 
 ## Reproduction Steps
 
@@ -123,8 +123,9 @@ Stop/escalation condition:
 
 ## Admin Publish Status
 
-Not published - ingest secret unavailable.
+Ingest succeeded; Admin tab verification unproven.
 
-- External run id reserved: `2026-07-10-quick-slot-inventory`
-- Blocker: `SHORTPULSE_TESTER_REPORT_INGEST_SECRET` was not present in the canonical workspace environment.
-- No ingest request was attempted and no Admin row is claimed.
+- External run id: `2026-07-10-quick-slot-inventory`
+- Ingest proof: production returned HTTP `200`, `ok: true`, and the expected external run id.
+- Admin verification blocker: the available Chrome session was authenticated as Maya's non-admin account and the Admin page showed `Access restricted`.
+- Required next proof: open `/admin/tester-reports` in an operator-authenticated Chrome session, locate the exact run id, and expand both report cards.

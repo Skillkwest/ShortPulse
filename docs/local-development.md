@@ -12,13 +12,10 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
 ## Environment variables
 
 1. Create `frontend/.env.local`.
-   - Preferred when the repo is linked to Vercel: from the repo root run
-     `vercel env pull frontend/.env.local --environment development`
-   - In the current 3-project posture, Vercel `development` is the dedicated
-     `working-development` Supabase project, Vercel `preview` stays on the
-     staging Supabase project, and Vercel `production` stays on the production
-     Supabase project.
-   - Fallback/manual path: copy `frontend/.env.example` to `frontend/.env.local`.
+   - `working-development` is local-only. Do not pull or depend on Vercel
+     Development variables.
+   - Copy `frontend/.env.example` to `frontend/.env.local`, then supply the
+     dedicated development Supabase values and local provider credentials.
 2. Set required values:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -63,7 +60,7 @@ Do not add auth SMTP credentials to `frontend/.env.local`. ShortPulse expects SM
 
 Never commit `.env.local`.
 
-`frontend/.env.local` is local app runtime only. Do not treat it as the deployed source of truth once the repo is linked to Vercel.
+`frontend/.env.local` is the canonical local app runtime for `working-development`. It is never a deployed source of truth.
 
 For local script automation, you can optionally create a root-level `.env.agent.local` (gitignored) using `.env.agent.local.example`. Probe helpers auto-load this file.
 

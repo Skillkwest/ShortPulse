@@ -2,12 +2,15 @@
 set -eu
 
 mode="${1:-pre-commit}"
-allowed_branch="$(git config --local --get shortpulse.allowedBranch || true)"
+allowed_branch="$(git config --worktree --get shortpulse.allowedBranch 2>/dev/null || true)"
+if [ -z "$allowed_branch" ]; then
+  allowed_branch="$(git config --local --get shortpulse.allowedBranch || true)"
+fi
 current_branch="$(git branch --show-current)"
 
 if [ -z "$allowed_branch" ]; then
-  echo "Blocked: git config shortpulse.allowedBranch is not set for this repo." >&2
-  echo "Set it explicitly for the current user-approved branch before committing or pushing." >&2
+  echo "Blocked: shortpulse.allowedBranch is not set for this worktree or repo." >&2
+  echo "Set it explicitly for the current user-approved worktree before committing or pushing." >&2
   exit 1
 fi
 

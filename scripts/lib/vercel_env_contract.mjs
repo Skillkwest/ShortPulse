@@ -15,7 +15,6 @@ const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
 
 export const VERCEL_ENVIRONMENTS = ["development", "preview", "production"];
 export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = [
-  "development",
   "preview",
   "production",
 ];
@@ -30,12 +29,7 @@ const LOOPBACK_HOSTNAMES = new Set([
 ]);
 
 export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
-  development: [
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "FAL_KEY",
-  ],
+  development: [],
   preview: [
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",

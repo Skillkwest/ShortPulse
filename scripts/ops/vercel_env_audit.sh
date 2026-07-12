@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Purpose: provide a convenient Nuclo entrypoint for the shared Vercel env contract audit.
 # Responsibilities: run the existing node-based contract check with sane ShortPulse defaults
-# for development, staging preview, and production, while still allowing explicit environment overrides.
+# for staging Preview and Production, while still allowing explicit environment overrides.
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ Env fallbacks:
   SHORTPULSE_VERCEL_PREVIEW_BRANCH (default staging-preview)
 
 Default environments:
-  development + preview + production
+  preview + production
 EOF
 }
 
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "${#ENVIRONMENTS[@]}" -eq 0 ]]; then
-  ENVIRONMENTS=("development" "preview" "production")
+  ENVIRONMENTS=("preview" "production")
 fi
 
 ARGS=()

@@ -82,15 +82,14 @@ Vercel project settings are the canonical source of truth for deployed environme
 
 Rules:
 
-- Use Vercel envs for deployed `development`, `preview`, and `production` behavior.
-- Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
+- Use Vercel envs only for deployed `preview` and `production` behavior.
+- Keep `working-development` local-only with `frontend/.env.local`; do not deploy it or source it from Vercel Development.
 - Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
 - Current active posture is the lean Fal direct-submit path. Do not add deprecated pre-provider queue env overrides such as `SHORTPULSE_FAL_QUEUE_ENABLED` back into active Vercel environments. Reconciler and admission settings should only govern accepted-job recovery and overload control.
 - Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers, Vercel operator tokens, and Supabase Management API tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, `VERCEL_AUTOMATION_BYPASS_TOKEN`, `SUPABASE_ACCESS_TOKEN`, and `SUPABASE_MANAGEMENT_API_TOKEN`.
 - Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 
-Set these in Vercel project settings (`Development`, `Preview`, and `Production`
-as applicable):
+Set these in Vercel project settings (`Preview` and `Production` as applicable):
 
 - Core:
   - `NEXT_PUBLIC_SUPABASE_URL`
@@ -170,8 +169,7 @@ Set the following values in Vercel `Production` (only):
 - `SUPABASE_SERVICE_ROLE_KEY=<production-server-key>`
 
 Keep Vercel `Preview` mapped to staging Supabase values.
-Keep Vercel `Development` mapped to the dedicated `working-development`
-Supabase project values.
+Keep development values only in local `frontend/.env.local`.
 
 GitHub Environment naming rule:
 
@@ -221,7 +219,7 @@ node scripts/check_vercel_env_contract.mjs
 
 Current default behavior:
 
-- audits `development`, `preview`, and `production` by default so branch-to-environment drift is caught across the full 3-project ladder.
+- audits `preview` and `production` by default; local development is validated from `frontend/.env.local`, not Vercel.
 - still allows narrower targeted audits when a task only needs one environment.
 - hard-fails when `APP_BASE_URL` or `SHORTPULSE_PUBLIC_API_BASE_URL` is loopback, non-HTTPS, or not `https://www.shortpulse.ai` in `production`.
 - hard-fails when `APP_BASE_URL` and `SHORTPULSE_PUBLIC_API_BASE_URL` differ in deployed envs.
@@ -369,7 +367,8 @@ To reduce preview deployment churn and avoid quota/rate pressure during document
 2. Keep `frontend/scripts/vercel-ignore-build.sh` executable.
 3. Behavior:
    - `production` deployments always build (never skipped).
-   - `preview` deployments are skipped when no files changed under `frontend/`.
+   - `working-development` deployments are always skipped because that branch is local-only.
+   - other `preview` deployments are skipped when no files changed under `frontend/`.
 4. Verification (from repo root):
    - `cd frontend && bash ./scripts/vercel-ignore-build.sh`
 

@@ -6,10 +6,10 @@ ShortPulse officially launched on July 7, 2026. The repo is now in launch-week p
 
 ## Operating posture
 
-- Work on local `production` only. GitHub work also targets `production`; do not use feature, staging, preview, or `main` branches unless the user explicitly changes this policy.
-- Keep `git config --local shortpulse.allowedBranch` set to `production`.
+- Keep live-customer incident work isolated on `production`. New implementation originates on local-only `working-development`, moves to `staging-preview` for hosted testing, and reaches `production` only after staging proof. Never push directly to `main`.
+- Keep `shortpulse.allowedBranch` worktree-scoped: `production` for the production worktree and `working-development` for the development worktree.
 - Treat `https://www.shortpulse.ai` as the browser/manual validation surface for customer-facing behavior. Local checks are implementation evidence, not production proof.
-- Use the production Supabase project/database for operational investigation and approved production work. Do not use local Docker Supabase workflows or substitute local database state for production truth.
+- Use the Supabase project for the active lane. Development and staging evidence prove only those lanes; production claims still require production evidence. Do not use local Docker Supabase workflows.
 - Prioritize customer-reported bugs, crashes, error events, broken core workflows, data/credit/account trust issues, and evidence gaps that prevent correct triage.
 - Make the smallest canonical source fix. Do not add fallbacks, duplicate paths, legacy behavior, or workaround layers merely to hide a production problem.
 - Preserve current UI, UX, and intended behavior. Stop for user direction before a fix would materially change product semantics, visible workflow, pricing/credits, security/privacy posture, deployment/release state, or another agent's lane.

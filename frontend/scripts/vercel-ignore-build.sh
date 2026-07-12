@@ -9,6 +9,14 @@ if [[ "${VERCEL_ENV:-}" == "production" ]]; then
   exit 1
 fi
 
+# working-development is an intentionally local-only lane. Its Git branch is
+# retained for source control and promotion, but it must never create a Vercel
+# Preview deployment or consume Vercel environment variables.
+if [[ "${VERCEL_GIT_COMMIT_REF:-}" == "working-development" ]]; then
+  echo "[vercel-ignore] local-only working-development branch; skip deployment."
+  exit 0
+fi
+
 # Build when git metadata is unavailable (fail-open to avoid false skips).
 if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
   echo "[vercel-ignore] missing git HEAD; continue build."

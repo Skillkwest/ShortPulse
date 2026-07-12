@@ -19,6 +19,26 @@ For operator run order, diagnostics loops, and common SQL error playbooks, use:
 - Keep legacy bootstrap scripts in `sql/` unchanged for historical reference.
 - Canonical truth policy: migration files are source-of-truth for current runtime contracts; `docs/supabase_full_schema.sql` is a bootstrap snapshot and may lag between refreshes.
 
+## Three-environment forward-only boundary
+
+Development and staging were structurally re-baselined from the live production
+schema on 2026-07-11. Production did not have a migration ledger, so the rebuild
+does not fabricate one and does not replay historical migrations.
+
+- Migrations `001` through `228` are historical inputs to the production-derived
+  baseline. Do not reapply them to the rebuilt development or staging projects.
+- The first new migration after this baseline must be numbered `229`.
+- Promote every new migration in order: local `working-development` and its
+  development Supabase project, then `staging-preview` and staging Supabase,
+  then production after staging proof passes.
+- Record target-pinned apply and validation evidence for each environment. Git
+  history and the numbered canonical SQL file remain the authority until a
+  dedicated migration ledger is introduced through an explicitly approved
+  future migration.
+- A rollback file is a targeted reversal tool for its matching forward
+  migration. It is not permission to reset an environment or replay the legacy
+  migration set.
+
 ## Create a migration
 
 1. Pick the next migration number.
